@@ -39,9 +39,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
  *
  * - **Výška titulku jde do UI jako horní inset** (`statusBars`, `captionBar`, `systemBars`),
  *   stejně jako stavová lišta na telefonu, a strana a šířka tlačítek jako [LocalWindowControls].
- *   Panely vedle sebe inset zkonzumují (`PaneCard`) a hlavičky vyjedou nahoru; panel pod
- *   tlačítky (seznam na Macu) nechá v hlavičce místo vedle nich. Pilulka hledání i hlavička
- *   konverzace tak leží v jednom řádku se semafory, jako ve Zprávách.
+ *   Panely inset zkonzumují (`PaneCard`) a hlavičky vyjedou nahoru; panel pod tlačítky (seznam
+ *   na Macu, nejpravější panel na Windows, i jediný panel úzkého okna) nechá v hlavičce místo
+ *   vedle nich. Pilulka hledání i hlavička konverzace tak leží v jednom řádku se semafory, jako
+ *   ve Zprávách; sbalený seznam jen s avatary je na to úzký a jde pod ně.
  * - **Tah oknem a klik** se rozlišují v každé události myši v pruhu titulku ([hitTest]): co si
  *   prvek Compose vzal (tlačítko, pole, avatar), je obsah, zbytek titulek — tah posune oknem,
  *   dvojklik ho maximalizuje, jak to má systém nastavené.
@@ -122,9 +123,9 @@ object DesktopTitleBar {
             LocalWindowControls provides when {
                 // Na celé obrazovce tlačítka přes obsah nejsou.
                 fullscreen -> WindowControls(if (mac) WindowControlsSide.Left else WindowControlsSide.Right)
-                windowsPreview -> WindowControls(WindowControlsSide.Right, WINDOWS_PREVIEW_WIDTH)
-                mac -> WindowControls(WindowControlsSide.Left, controlsWidth)
-                else -> WindowControls(WindowControlsSide.Right, controlsWidth)
+                windowsPreview -> WindowControls(WindowControlsSide.Right, WINDOWS_PREVIEW_WIDTH, height)
+                mac -> WindowControls(WindowControlsSide.Left, controlsWidth, height)
+                else -> WindowControls(WindowControlsSide.Right, controlsWidth, height)
             },
         ) {
             Box(Modifier.fillMaxSize().hitTest(titleBar, heightPx)) { content() }

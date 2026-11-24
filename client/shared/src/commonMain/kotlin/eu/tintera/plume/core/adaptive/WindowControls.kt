@@ -3,6 +3,7 @@ package eu.tintera.plume.core.adaptive
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -24,18 +25,22 @@ import androidx.compose.ui.unit.dp
  * titulku hlásí jako horní inset (`WindowInsets.statusBars`), stejně jako stavová lišta na
  * telefonu. Na rozdíl od ní ale titulek nepotřebuje celou šířku okna: [PaneCard] podle téhle
  * strany pozná, jestli tlačítka leží nad jeho panelem. Panel, nad kterým nejsou, inset
- * zkonzumuje a jeho hlavička vyjede až k hornímu kraji okna. Panel seznamu vedle dalších panelů
- * ho zkonzumuje i pod semafory a hlavička jim nechá místo ([LocalWindowControlsClearance]) —
- * pilulka hledání i hlavička konverzace tak leží v jednom řádku se semafory. Úzké okno s jedním
- * panelem má pruh titulku přes celou šířku.
+ * zkonzumuje a jeho hlavička vyjede až k hornímu kraji okna. Panel pod tlačítky ho zkonzumuje
+ * taky a hlavička jim nechá místo ([LocalWindowControlsClearance]) — pilulka hledání i hlavička
+ * konverzace tak leží v jednom řádku se semafory, i v úzkém okně s jedním panelem. Pruh titulku
+ * zůstává jen obrazovkám přes celé okno mimo panely (prohlížeč, editory) a dialogům.
  *
  * [None] = tlačítka přes obsah nejsou (telefon, systémový titulek); horní inset pak patří všem.
  */
 enum class WindowControlsSide { None, Left, Right }
 
-/** Tlačítka okna přes obsah: strana a šířka od kraje okna, kterou zabírají. */
+/** Tlačítka okna přes obsah: strana, šířka od kraje okna a výška pruhu titulku. */
 @Immutable
-data class WindowControls(val side: WindowControlsSide = WindowControlsSide.None, val width: Dp = 0.dp)
+data class WindowControls(
+    val side: WindowControlsSide = WindowControlsSide.None,
+    val width: Dp = 0.dp,
+    val height: Dp = 0.dp,
+)
 
 val LocalWindowControls = staticCompositionLocalOf { WindowControls() }
 
@@ -47,7 +52,7 @@ val LocalWindowControls = staticCompositionLocalOf { WindowControls() }
  * Všude jinde nula a [WindowControlsSpace] / [WindowControlsEndSpace] nedělají nic.
  */
 @Immutable
-data class WindowControlsClearance(val start: Dp = 0.dp, val end: Dp = 0.dp)
+data class WindowControlsClearance(val start: Dp = 0.dp, val end: Dp = 0.dp, val height: Dp = 0.dp)
 
 val LocalWindowControlsClearance = compositionLocalOf { WindowControlsClearance() }
 
@@ -83,6 +88,13 @@ fun RowScope.WindowControlsEndSpace() {
     val clearance = LocalWindowControlsClearance.current.end
     if (clearance > 0.dp) Spacer(Modifier.width(clearance))
 }
+
+/**
+ * Obsah příliš úzký na to, aby stál VEDLE tlačítek okna (sbalený seznam chatů jen s avatary):
+ * odsadí se POD ně, o výšku titulku. Mimo panel pod tlačítky nedělá nic.
+ */
+@Composable
+fun Modifier.belowWindowControls(): Modifier = padding(top = LocalWindowControlsClearance.current.height)
 
 /**
  * Leží tlačítka okna nad panelem, jehož okraje jsou [atStart] (začátek řádku) a [atEnd] (konec)?

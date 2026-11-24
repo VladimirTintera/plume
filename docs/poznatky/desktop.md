@@ -346,8 +346,12 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   hledání, šipka zpět v Archivu i v Nastavení leží v jednom řádku se semafory a hlavičkou
   konverzace a karta vpravo začíná ve výšce prvního chatu. Na Windows je to konec nejpravějšího
   panelu: akce konverzace, profilu nebo podstránky Nastavení uhnou před minimalizací a zavřením.
-  Úzké okno s jedním panelem má pruh přes celou šířku (místo by musela dávat každá obrazovka
-  i přes celé okno, dialogy a prohlížeč).
+  Úzké okno s jedním panelem taky: jediný panel je pod tlačítky a jeho hlavička jim dá místo
+  (aplikace pro Mac mají semafory v řádku nástrojů i v úzkém okně). Pruh titulku zůstává jen
+  obrazovkám přes celé okno mimo panely (prohlížeč, editory) a dialogům.
+- **Sbalený seznam chatů (jen avatary) je užší než semafory**, vedle nich se nic nevejde:
+  `Modifier.belowWindowControls()` ho odsadí pod ně o výšku titulku
+  (`WindowControlsClearance.height`). Bez toho ležely semafory přes avatar účtu.
 - **Místo dávají sloty lišty, ne `windowInsets`**: `WindowControlsSpace` v `navigationIcon`
   a `WindowControlsEndSpace()` na konci `actions`. Inset by u `LargeFlexibleTopAppBar` odsunul
   i velký nadpis pod řádkem s tlačítky a vodorovný inset okna by dostal i obsah Scaffoldu

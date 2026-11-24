@@ -119,17 +119,18 @@ fun PaneCard(
         atStart = !sideBySide || role == PaneRole.List || detail && !neighbours.listBeside,
         atEnd = !sideBySide || extra || detail && !neighbours.extraBeside || role == PaneRole.List && !neighbours.listBeside,
     )
-    // Panely vedle sebe si titulek berou celý: hlavičky jdou do řádku s tlačítky okna a panel
-    // pod nimi jim nechá místo ([WindowControlsSpace], [WindowControlsEndSpace]) — na Macu
-    // začátek seznamu, na Windows konec nejpravějšího panelu. Úzké okno s jedním panelem má pruh.
+    // S tlačítky okna přes obsah si panely titulek berou celý: hlavičky jdou do řádku s tlačítky
+    // a panel pod nimi jim nechá místo ([WindowControlsSpace], [WindowControlsEndSpace]) — na Macu
+    // začátek seznamu (i jediného panelu úzkého okna), na Windows konec nejpravějšího panelu.
     val controls = LocalWindowControls.current
-    val titleInRow = sideBySide && controls.side != WindowControlsSide.None
+    val titleInRow = controls.side != WindowControlsSide.None
     // Tlačítka na fyzické levé straně jsou v LTR na začátku řádku, v RTL na konci.
     val controlsAtStart = (controls.side == WindowControlsSide.Left) != (LocalLayoutDirection.current == LayoutDirection.Rtl)
     val under = titleInRow && controlsAbove
     val clearance = WindowControlsClearance(
         start = if (under && controlsAtStart) controls.width else 0.dp,
         end = if (under && !controlsAtStart) controls.width else 0.dp,
+        height = if (under) controls.height else 0.dp,
     )
     val top = when {
         !controlsAbove || titleInRow -> PaneEdgeInsets.Consume
