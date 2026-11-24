@@ -47,6 +47,7 @@ import eu.tintera.plume.resources.tune_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Archivované chaty.
@@ -206,6 +207,7 @@ fun ArchiveScreen(
                             )
                         }
                     }
+                    WindowControlsEndSpace()
                 },
             )
         },

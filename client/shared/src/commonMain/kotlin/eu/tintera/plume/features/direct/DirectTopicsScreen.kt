@@ -92,6 +92,8 @@ import eu.tintera.plume.resources.mark_chat_unread_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Přímé zprávy kanálu, jak je vidí správce: vlákno na každého, kdo kanálu napsal
@@ -160,11 +162,14 @@ fun DirectTopicsScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
+                actions = { WindowControlsEndSpace() },
             )
         },
         // Spodek si bere seznam (`contentPadding`): vlákna jedou pod navigační lištu.

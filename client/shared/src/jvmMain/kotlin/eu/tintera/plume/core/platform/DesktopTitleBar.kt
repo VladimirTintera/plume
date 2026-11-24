@@ -65,6 +65,16 @@ object DesktopTitleBar {
             .also { Logger.withTag(TAG).i { "Vlastní titulek okna: $it (JBR ${runCatching { JBR.getImplVersion() }.getOrNull()})" } }
     }
 
+    /**
+     * Náhled rozvržení pro Windows na Macu (`-Dplume.windowControlsPreview=windows`): aplikace
+     * počítá s tlačítky okna vpravo jako na Windows 11, i když systém kreslí semafory vlevo.
+     * Jen pro kontrolu hlaviček v pravém panelu, když Windows po ruce není.
+     */
+    private val windowsPreview = System.getProperty("plume.windowControlsPreview") == "windows"
+
+    /** Tři tlačítka okna Windows 11 po 46 dp. */
+    private val WINDOWS_PREVIEW_WIDTH = 138.dp
+
     /** Motiv aplikace: na Windows podle něj systém kreslí tlačítka okna světlá, nebo tmavá. */
     internal val dark = MutableStateFlow(false)
 
@@ -109,11 +119,13 @@ object DesktopTitleBar {
         val insets = remember(base, heightPx) { TitleBarWindowInsets(base, heightPx) }
         CompositionLocalProvider(
             LocalPlatformWindowInsets provides insets,
-            LocalWindowControls provides WindowControls(
-                side = if (mac) WindowControlsSide.Left else WindowControlsSide.Right,
+            LocalWindowControls provides when {
                 // Na celé obrazovce tlačítka přes obsah nejsou.
-                width = if (fullscreen) 0.dp else controlsWidth,
-            ),
+                fullscreen -> WindowControls(if (mac) WindowControlsSide.Left else WindowControlsSide.Right)
+                windowsPreview -> WindowControls(WindowControlsSide.Right, WINDOWS_PREVIEW_WIDTH)
+                mac -> WindowControls(WindowControlsSide.Left, controlsWidth)
+                else -> WindowControls(WindowControlsSide.Right, controlsWidth)
+            },
         ) {
             Box(Modifier.fillMaxSize().hitTest(titleBar, heightPx)) { content() }
         }

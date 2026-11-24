@@ -80,6 +80,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Skupina řádků výběru: [chats] jako jeden blok zaoblených řádků, nad ním volitelný nadpis.
@@ -239,6 +240,7 @@ fun ChatPicker(
                     scrolledContainerColor = MaterialTheme.colorScheme.surface,
                 ),
                 scrollBehavior = scrollBehavior,
+                actions = { WindowControlsEndSpace() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

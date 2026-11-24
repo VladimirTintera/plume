@@ -175,6 +175,7 @@ import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
 import eu.tintera.plume.core.adaptive.LocalWindowControlsClearance
 import eu.tintera.plume.core.ui.overTitleBar
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Hlavička seznamu chatů: vyhledávací pilulka, na jejím konci [trailing] (hromádka příběhů)
@@ -422,7 +423,7 @@ internal fun ChatSearchBar(
             .then(scrollBehavior.searchBarScrollBehaviorModifier),
     ) {
         // Desktop: v řádku se semafory jim pilulka nechá místo (`LocalWindowControlsClearance`).
-        val windowControls = LocalWindowControlsClearance.current > 0.dp
+        val windowControls = LocalWindowControlsClearance.current.start > 0.dp
         AppBarWithSearch(
             state = searchBarState,
             inputField = inputField,
@@ -431,7 +432,10 @@ internal fun ChatSearchBar(
             } else {
                 null
             },
-            actions = actions,
+            actions = {
+                actions()
+                WindowControlsEndSpace()
+            },
             colors = colors,
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         )

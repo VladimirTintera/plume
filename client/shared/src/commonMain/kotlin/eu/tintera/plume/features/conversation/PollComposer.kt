@@ -212,6 +212,8 @@ import eu.tintera.plume.core.ui.GroupTitle
 import eu.tintera.plume.core.ui.SwitchListItem
 import eu.tintera.plume.core.ui.TitledGroup
 import eu.tintera.plume.core.ui.groupRowBackground
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /*
  * Pravidla formuláře jsou čisté funkce (testy `PollComposerTest`): co se pošle, kdy je formulář
@@ -798,8 +800,10 @@ fun PollComposerScreen(
                     Text(stringResource(if (viewModel.quiz) Res.string.poll_compose_title_quiz else Res.string.poll_compose_title))
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                    WindowControlsSpace {
+                        IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                        }
                     }
                 },
                 actions = {
@@ -839,6 +843,7 @@ fun PollComposerScreen(
                             )
                         }
                     }
+                    WindowControlsEndSpace()
                 },
                 colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
             )

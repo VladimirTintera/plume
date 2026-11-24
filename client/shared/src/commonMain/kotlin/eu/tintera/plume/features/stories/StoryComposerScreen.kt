@@ -109,6 +109,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Nový vlastní příběh: náhled na plátně 9 : 16 (vyplnit, nebo celá fotka), popisek, kdo ho
@@ -189,8 +191,10 @@ fun StoryComposerScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !state.posting, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, enabled = !state.posting, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {
@@ -201,6 +205,7 @@ fun StoryComposerScreen(
                             Text(stringResource(if (viewModel.edit != null) Res.string.story_edit_save else Res.string.story_post))
                         }
                     }
+                    WindowControlsEndSpace()
                 },
             )
         },

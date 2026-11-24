@@ -50,6 +50,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyMotionSpecs", VerifyMotionSpecs::class.java)
         register("verifyCoreLayering", VerifyCoreLayering::class.java, withTests = true)
         register("verifyParameterCount", VerifyParameterCount::class.java)
+        register("verifyWindowControls", VerifyWindowControls::class.java)
     }
 }
 
@@ -547,5 +548,49 @@ abstract class VerifyParameterCount : SourceCheckTask() {
 
     private companion object {
         const val MAX_PARAMETERS = 20
+    }
+}
+
+/**
+ * Každá horní lišta z material3 nechává místo pro tlačítka okna na desktopu: `WindowControlsSpace`
+ * v `navigationIcon` a `WindowControlsEndSpace()` na konci `actions` (core/adaptive/WindowControls.kt).
+ *
+ * S vlastním titulkem (JetBrains Runtime) leží semafory na Macu přes začátek panelu seznamu
+ * a tlačítka okna na Windows přes konec nejpravějšího panelu; hlavičky panelů jsou v řádku
+ * s nimi. Lišta bez místa by na Windows schovala akce pod zavírací tlačítko, kde nejdou kliknout
+ * — a na Macu ani na telefonu by to nikdo nepoznal. Proto kontrola u KAŽDÉ lišty, i u obrazovek
+ * přes celé okno (místo tam nezabere nic): do panelu se obrazovka přestěhuje snadno.
+ * Vlastní hlavičky bez `TopAppBar` (hledání v konverzaci, kalendář) si místo dávají ručně.
+ */
+abstract class VerifyWindowControls : SourceCheckTask() {
+    init {
+        description = "Ověří, že horní lišty nechávají místo pro tlačítka okna na desktopu."
+    }
+
+    override fun failureMessage() =
+        "Horní lišta nechává místo pro tlačítka okna: navigationIcon = { WindowControlsSpace { … } } a WindowControlsEndSpace() na konci actions (core/adaptive/WindowControls.kt)."
+
+    private val names = listOf(
+        "TopAppBar", "LargeFlexibleTopAppBar", "MediumFlexibleTopAppBar", "CenterAlignedTopAppBar",
+        "LargeTopAppBar", "MediumTopAppBar", "AppBarWithSearch",
+    )
+    private val call = Regex("""(?<![\w.])(${names.joinToString("|")})\(""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        val text = file.readText()
+        val offenders = mutableListOf<String>()
+        call.findAll(text).forEach { match ->
+            val name = match.groupValues[1]
+            if ("import androidx.compose.material3.$name\n" !in text) return@forEach
+            val lineStart = text.lastIndexOf('\n', match.range.first) + 1
+            val before = text.substring(lineStart, match.range.first).trimStart()
+            if (before.startsWith("*") || before.startsWith("//") || before.startsWith("fun ") || "import " in before) return@forEach
+            val arguments = text.substring(match.range.last + 1, argumentsEnd(text, match.range.last))
+            val missing = listOf("WindowControlsSpace", "WindowControlsEndSpace").filter { Regex("""\b$it\b""") !in arguments }
+            if (missing.isNotEmpty()) {
+                offenders += "$path:${lineOf(text, match.range.first)}: $name bez ${missing.joinToString(" a ")}"
+            }
+        }
+        return offenders
     }
 }

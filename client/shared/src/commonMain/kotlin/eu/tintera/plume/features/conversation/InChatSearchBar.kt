@@ -73,6 +73,8 @@ import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.person_search_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Hlavička konverzace při hledání: **vyhledávací pilulka** místo názvu chatu, uvnitř ní šipka
@@ -125,6 +127,8 @@ internal fun InChatSearchTopBar(
                 .height(SEARCH_BAR_HEIGHT)
                 .padding(start = 8.dp, end = 4.dp),
         ) {
+            // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi.
+            WindowControlsSpace()
             SearchPill(
                 initialQuery = initialQuery,
                 onQueryChange = onQueryChange,
@@ -192,6 +196,7 @@ internal fun InChatSearchTopBar(
                     )
                 }
             }
+            WindowControlsEndSpace()
         }
     }
 }

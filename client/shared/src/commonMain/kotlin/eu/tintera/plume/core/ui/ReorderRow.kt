@@ -35,6 +35,7 @@ import eu.tintera.plume.resources.reorder_move_up
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Hlavička režimu uspořádání (připnutá témata, připnuté chaty): ✕ zahodí změny, „Hotovo" je
@@ -54,6 +55,7 @@ fun ReorderTopBar(title: String, busy: Boolean, onCancel: () -> Unit, onDone: ()
         },
         actions = {
             SaveActionButton(onClick = onDone, enabled = !busy) { Text(stringResource(Res.string.reorder_done)) }
+            WindowControlsEndSpace()
         },
         colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
     )

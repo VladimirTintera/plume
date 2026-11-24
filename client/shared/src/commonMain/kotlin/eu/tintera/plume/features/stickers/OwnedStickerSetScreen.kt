@@ -116,6 +116,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Úprava vlastní sady samolepek: název, obálka, samolepky v pořadí (tažením za úchyt), u každé emoji
@@ -167,10 +169,13 @@ fun OwnedStickerSetScreen(
             TopAppBar(
                 title = { Text(stringResource(Res.string.sticker_set_edit_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
+                actions = { WindowControlsEndSpace() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

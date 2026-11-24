@@ -97,6 +97,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Druhý krok založení skupiny (první je výběr členů) a jediný krok založení kanálu: fotka,
@@ -171,12 +173,14 @@ fun CreateChatScreen(
                 TopAppBar(
                     title = { Text(stringResource(if (channel) Res.string.new_chat_new_channel else Res.string.new_chat_new_group)) },
                     navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            enabled = !viewModel.creating,
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        WindowControlsSpace {
+                            IconButton(
+                                onClick = onBack,
+                                enabled = !viewModel.creating,
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                            }
                         }
                     },
                     actions = {
@@ -187,6 +191,7 @@ fun CreateChatScreen(
                                 Text(stringResource(Res.string.create_chat_create))
                             }
                         }
+                        WindowControlsEndSpace()
                     },
                 )
             },

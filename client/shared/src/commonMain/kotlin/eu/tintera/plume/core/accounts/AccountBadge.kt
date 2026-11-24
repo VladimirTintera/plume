@@ -20,6 +20,7 @@ import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.ui.Avatar
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Účet téhle části obrazovky ([LocalAccount]), když je v aplikaci víc účtů; s jedním `null`.
@@ -73,9 +74,15 @@ fun AccountTopAppBar(
 ) {
     val account = rememberShownAccount()?.takeIf { showAccount }
     if (account == null) {
-        TopAppBar(title = title, navigationIcon = { WindowControlsSpace(navigationIcon) }, actions = actions)
+        TopAppBar(title = title, navigationIcon = { WindowControlsSpace(navigationIcon) }, actions = {
+                actions()
+                WindowControlsEndSpace()
+            })
     } else {
-        TopAppBar(title = title, subtitle = { Text(account.displayName) }, navigationIcon = { WindowControlsSpace(navigationIcon) }, actions = actions)
+        TopAppBar(title = title, subtitle = { Text(account.displayName) }, navigationIcon = { WindowControlsSpace(navigationIcon) }, actions = {
+                actions()
+                WindowControlsEndSpace()
+            })
     }
 }
 

@@ -194,6 +194,8 @@ afterEvaluate {
         javaLauncher.set(runtimeLauncher)
         systemProperty("plume.debug", "true")
         systemProperty("plume.dataDir", rootProject.layout.projectDirectory.dir(".desktop-data").asFile.path)
+        // `-PwindowControlsPreview=windows`: rozvržení hlaviček jako na Windows i na Macu (DesktopTitleBar).
+        providers.gradleProperty("windowControlsPreview").orNull?.let { systemProperty("plume.windowControlsPreview", it) }
         systemProperty("apple.awt.application.name", "Plume")
         systemProperty("apple.awt.application.appearance", "system")
     }

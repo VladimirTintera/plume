@@ -70,6 +70,8 @@ import eu.tintera.plume.resources.presence_online
 import eu.tintera.plume.resources.profile_open
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Hlavička konverzace: výběr zpráv, hledání, nebo název chatu s avatarem, podtitulem a akcemi.
@@ -323,8 +325,10 @@ internal fun ConversationTopBar(
             }
         },
         navigationIcon = {
-            // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
-            ChatSwitcherBackButton(state = switcher, onBack = navigation.onBack)
+            WindowControlsSpace {
+                // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
+                ChatSwitcherBackButton(state = switcher, onBack = navigation.onBack)
+            }
         },
         actions = {
             // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
@@ -343,6 +347,7 @@ internal fun ConversationTopBar(
                 onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
                 onOpenCalendar = navigation.onOpenCalendar?.let { open -> { open(viewModel.calendarAnchor()) } },
             )
+            WindowControlsEndSpace()
         },
     )
 }

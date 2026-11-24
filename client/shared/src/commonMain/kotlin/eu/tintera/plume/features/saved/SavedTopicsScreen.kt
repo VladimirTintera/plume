@@ -110,6 +110,8 @@ import eu.tintera.plume.resources.saved_view_as_messages
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Uložené zprávy rozdělené podle chatu, ze kterého se zpráva uložila (`SavedMessagesTopic`).
@@ -193,8 +195,10 @@ fun SavedTopicsScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {
@@ -221,6 +225,7 @@ fun SavedTopicsScreen(
                             ),
                         )
                     }
+                    WindowControlsEndSpace()
                 },
                 colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
             )

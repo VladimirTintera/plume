@@ -29,6 +29,7 @@ import eu.tintera.plume.resources.common_back
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Jak se hlavička Nastavení chová při scrollu: na jednom panelu se velký nadpis sbalí do 64dp
@@ -92,7 +93,10 @@ internal fun SettingsTopBar(
         TopAppBar(
             title = { Text(title) },
             navigationIcon = { WindowControlsSpace(navigationIcon) },
-            actions = actions,
+            actions = {
+                actions()
+                WindowControlsEndSpace()
+            },
             colors = colors,
             scrollBehavior = scrollBehavior,
         )
@@ -100,7 +104,10 @@ internal fun SettingsTopBar(
         LargeFlexibleTopAppBar(
             title = { Text(title) },
             navigationIcon = { WindowControlsSpace(navigationIcon) },
-            actions = actions,
+            actions = {
+                actions()
+                WindowControlsEndSpace()
+            },
             colors = colors,
             scrollBehavior = scrollBehavior,
         )

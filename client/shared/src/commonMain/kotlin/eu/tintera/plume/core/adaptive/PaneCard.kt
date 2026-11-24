@@ -34,6 +34,8 @@ import eu.tintera.plume.core.ui.LocalListPage
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.asListPage
 import eu.tintera.plume.core.ui.groupRow
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 
 /**
  * Co stojí vedle karty (konverzace, placeholder): seznam vlevo, profil vpravo. Poskytuje shell
@@ -117,12 +119,20 @@ fun PaneCard(
         atStart = !sideBySide || role == PaneRole.List || detail && !neighbours.listBeside,
         atEnd = !sideBySide || extra || detail && !neighbours.extraBeside || role == PaneRole.List && !neighbours.listBeside,
     )
-    // Panel seznamu vedle dalších panelů si titulek bere celý: hlavička jde do řádku se semafory
-    // a nechá jim místo na začátku ([WindowControlsSpace]). Úzké okno s jedním panelem má pruh.
+    // Panely vedle sebe si titulek berou celý: hlavičky jdou do řádku s tlačítky okna a panel
+    // pod nimi jim nechá místo ([WindowControlsSpace], [WindowControlsEndSpace]) — na Macu
+    // začátek seznamu, na Windows konec nejpravějšího panelu. Úzké okno s jedním panelem má pruh.
     val controls = LocalWindowControls.current
-    val clearance = if (controlsAbove && sideBySide && role == PaneRole.List) controls.width else 0.dp
+    val titleInRow = sideBySide && controls.side != WindowControlsSide.None
+    // Tlačítka na fyzické levé straně jsou v LTR na začátku řádku, v RTL na konci.
+    val controlsAtStart = (controls.side == WindowControlsSide.Left) != (LocalLayoutDirection.current == LayoutDirection.Rtl)
+    val under = titleInRow && controlsAbove
+    val clearance = WindowControlsClearance(
+        start = if (under && controlsAtStart) controls.width else 0.dp,
+        end = if (under && !controlsAtStart) controls.width else 0.dp,
+    )
     val top = when {
-        !controlsAbove || clearance > 0.dp -> PaneEdgeInsets.Consume
+        !controlsAbove || titleInRow -> PaneEdgeInsets.Consume
         card -> PaneEdgeInsets.Pad
         else -> PaneEdgeInsets.None
     }

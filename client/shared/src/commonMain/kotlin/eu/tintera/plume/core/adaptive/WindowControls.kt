@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.adaptive
 
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -39,22 +40,29 @@ data class WindowControls(val side: WindowControlsSide = WindowControlsSide.None
 val LocalWindowControls = staticCompositionLocalOf { WindowControls() }
 
 /**
- * Kolik místa má hlavička obrazovky nechat na začátku řádku pro tlačítka okna. Nenulové jen
- * v panelu seznamu, který vedle dalších panelů inset titulku zkonzumoval a hlavičku vytáhl do
- * řádku se semafory ([PaneCard]); všude jinde nula a [WindowControlsSpace] nedělá nic.
+ * Kolik místa má hlavička obrazovky nechat pro tlačítka okna na začátku a na konci řádku.
+ * Nenulové jen v panelu pod tlačítky, když panely stojí vedle sebe: všechny pak inset titulku
+ * zkonzumují a hlavičky vyjedou do řádku s tlačítky ([PaneCard]). Na Macu je to začátek
+ * panelu seznamu (semafory), na Windows konec nejpravějšího panelu (minimalizace / zavření).
+ * Všude jinde nula a [WindowControlsSpace] / [WindowControlsEndSpace] nedělají nic.
  */
-val LocalWindowControlsClearance = compositionLocalOf { 0.dp }
+@Immutable
+data class WindowControlsClearance(val start: Dp = 0.dp, val end: Dp = 0.dp)
+
+val LocalWindowControlsClearance = compositionLocalOf { WindowControlsClearance() }
 
 /**
- * Navigační ikona horní lišty s místem pro tlačítka okna před sebou: patří do slotu
- * `navigationIcon` lišt, které mohou stát v levém panelu (seznam chatů, archiv, Nastavení…).
+ * Navigační ikona horní lišty s místem pro tlačítka okna před sebou (semafory na Macu nad
+ * panelem seznamu): patří do slotu `navigationIcon` každé horní lišty, u vlastní hlavičky na
+ * začátek jejího řádku.
  * Ve slotu, ne v `windowInsets` lišty: u `LargeFlexibleTopAppBar` by inset odsunul i velký
  * nadpis pod řádkem se semafory. Prázdná ikona (`{}`) dostane místo taky — nadpis malé lišty by
- * jinak začínal pod semafory.
+ * jinak začínal pod semafory. Každá horní lišta ho má, i když dnes v levém panelu nestojí
+ * (`verifyWindowControls`): obrazovka se do jiného panelu přestěhuje snadno, kontrola ne.
  */
 @Composable
 fun WindowControlsSpace(navigationIcon: @Composable () -> Unit = {}) {
-    val clearance = LocalWindowControlsClearance.current
+    val clearance = LocalWindowControlsClearance.current.start
     if (clearance == 0.dp) {
         navigationIcon()
     } else {
@@ -63,6 +71,17 @@ fun WindowControlsSpace(navigationIcon: @Composable () -> Unit = {}) {
             navigationIcon()
         }
     }
+}
+
+/**
+ * Místo pro tlačítka okna na konci řádku akcí horní lišty (Windows: minimalizace, maximalizace,
+ * zavření nad nejpravějším panelem). Patří na KONEC slotu `actions` každé horní lišty
+ * (`verifyWindowControls`); mimo panel pod tlačítky nezabere nic.
+ */
+@Composable
+fun RowScope.WindowControlsEndSpace() {
+    val clearance = LocalWindowControlsClearance.current.end
+    if (clearance > 0.dp) Spacer(Modifier.width(clearance))
 }
 
 /**

@@ -27,6 +27,8 @@ import eu.tintera.plume.resources.common_back
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * **Hlavička podstránky profilu** (pozvánky, žádosti, poslední akce, omezení, práva člena, úprava):
@@ -53,11 +55,16 @@ internal fun ProfileSubpageTopBar(
             title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             subtitle = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
             navigationIcon = {
-                IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                WindowControlsSpace {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    }
                 }
             },
-            actions = actions,
+            actions = {
+                actions()
+                WindowControlsEndSpace()
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = paneHeaderContainerColor(),
                 scrolledContainerColor = paneHeaderContainerColor(),

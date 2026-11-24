@@ -636,6 +636,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   přežije (`configChanges`). Viz „Otevřený sheet je stav obrazovky" v `docs/poznatky/seznam-chatu.md`.
   Sheet, který je místem sám o sobě (víc vstupů, obsah popíše klíč, nevrací výsledek), je
   navigační destinace `SheetRoute` — viz „Sheety jako navigační destinace" v `docs/poznatky/navigace.md`.
+- **Horní lišta nechává místo pro tlačítka okna desktopu**: `navigationIcon = { WindowControlsSpace { … } }`
+  a `WindowControlsEndSpace()` na konci `actions` (`core/adaptive/WindowControls.kt`), u vlastní
+  hlavičky totéž ručně. Hlavičky panelů leží na desktopu v řádku se semafory / tlačítky Windows;
+  lišta bez místa by na Windows schovala akce pod zavírací tlačítko. Hlídá to `verifyWindowControls`,
+  viz „Vlastní titulek okna (JBR)" v `docs/poznatky/desktop.md`.
 - **Nadpis modálního sheetu je `SheetTitle`** (`core/ui`, `titleLargeEmphasized`), ne `Text`
   s vlastní rolí: dřív měla polovina sheetů `titleLarge` a polovina `titleMedium`. Odsazení
   si dává sheet. Výjimka jsou sheety, kde velký text JE obsah (náhled pozvánky, Můj QR kód).

@@ -72,6 +72,8 @@ import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Čtečka Instant View přes celou obrazovku. Stránka je tentýž strom bloků jako článek ve zprávě,
@@ -106,14 +108,17 @@ fun InstantViewScreen(viewModel: InstantViewViewModel, onBack: () -> Unit, modif
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {
                     IconButton(onClick = viewModel::openInBrowser, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = stringResource(Res.string.instant_view_open_browser))
                     }
+                    WindowControlsEndSpace()
                 },
                 scrollBehavior = scrollBehavior,
             )

@@ -105,6 +105,8 @@ import eu.tintera.plume.resources.webapp_popup_ok
 import eu.tintera.plume.resources.webapp_title
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Mini aplikace přes celou obrazovku: hlavička s botem, WebView a hlavní tlačítko.
@@ -196,13 +198,15 @@ fun WebAppScreen(
                         )
                     },
                     navigationIcon = {
-                        if (state.backVisible) {
-                            IconButton(onClick = viewModel::back, shapes = IconButtonDefaults.shapes()) {
-                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                            }
-                        } else {
-                            IconButton(onClick = viewModel::requestClose, shapes = IconButtonDefaults.shapes()) {
-                                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                        WindowControlsSpace {
+                            if (state.backVisible) {
+                                IconButton(onClick = viewModel::back, shapes = IconButtonDefaults.shapes()) {
+                                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                                }
+                            } else {
+                                IconButton(onClick = viewModel::requestClose, shapes = IconButtonDefaults.shapes()) {
+                                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                                }
                             }
                         }
                     },
@@ -212,6 +216,7 @@ fun WebAppScreen(
                         titleContentColor = headerContent,
                         navigationIconContentColor = headerContent,
                     ),
+                    actions = { WindowControlsEndSpace() },
                 )
             },
             bottomBar = {
