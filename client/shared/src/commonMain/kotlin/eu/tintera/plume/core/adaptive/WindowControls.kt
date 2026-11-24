@@ -66,17 +66,31 @@ val LocalWindowControlsClearance = compositionLocalOf { WindowControlsClearance(
  * (`verifyWindowControls`): obrazovka se do jiného panelu přestěhuje snadno, kontrola ne.
  */
 @Composable
-fun WindowControlsSpace(navigationIcon: @Composable () -> Unit = {}) {
+fun WindowControlsSpace(
+    /**
+     * Místo navíc za tlačítky okna, jen když tam jsou. Šířka je laděná na holou ikonu, jejíž
+     * glyf má v tlačítku vzduch; plocha, která začíná hned na kraji (pilulka hledání), by
+     * k semaforům přilehla — ta si přidá [FilledShapeGap].
+     */
+    extra: Dp = 0.dp,
+    navigationIcon: @Composable () -> Unit = {},
+) {
     val clearance = LocalWindowControlsClearance.current.start
     if (clearance == 0.dp) {
         navigationIcon()
     } else {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.width(clearance))
+            Spacer(Modifier.width(clearance + extra))
             navigationIcon()
         }
     }
 }
+
+/**
+ * O kolik dál od tlačítek okna stojí plocha (pilulka) než holá ikona: glyf 24 dp má ve 40dp
+ * tlačítku 8 dp vzduchu, pilulka žádný. Bez toho by pilulka za semafory stála blíž než ikona.
+ */
+val FilledShapeGap = 8.dp
 
 /**
  * Místo pro tlačítka okna na konci řádku akcí horní lišty (Windows: minimalizace, maximalizace,

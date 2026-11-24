@@ -227,14 +227,15 @@ internal fun ChatSearchScreen(
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         /*
          * Pole na místě pilulky ze seznamu chatů: stejný tvar, barva i výška, 4 dp od horního
-         * kraje lišty. Na desktopu leží v řádku s tlačítky okna a nechává jim místo.
+         * kraje lišty a 16 dp od boků, na hraně bloků s výsledky. Na desktopu leží v řádku
+         * s tlačítky okna a nechává jim místo.
          */
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         ) {
             WindowControlsSpace()
             Box(

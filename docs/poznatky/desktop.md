@@ -364,9 +364,15 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   -PwindowControlsPreview=windows` počítá s tlačítky vpravo (3 × 46 dp jako Windows 11), i když
   systém kreslí semafory vlevo přes pilulku. Ověřeno tak, že ⋮ v hlavičce konverzace končí
   ~159 b od pravého kraje (138 tlačítka + okraj lišty).
-- **Šířka na Macu je `leftInset` − 16 dp.** JBR v něm má i okraj ZA semafory (při výšce 64 vrací
-  104) a lišty mají vlastní odsazení začátku; mezera za zeleným semaforem vycházela 36 b. Teď 20,
-  jako ve Zprávách (změřeno ze snímku okna).
+- **Šířka na Macu je `leftInset` − 24 dp.** JBR v něm má i okraj ZA semafory (při výšce 64 vrací
+  104) a lišty mají vlastní odsazení začátku. Cíl je ~20 b od zeleného semaforu k VIDITELNÉMU
+  tvaru, jako ve Zprávách. Napřed se ubíralo 16 a měřilo se k pilulce hledání (plocha začíná na
+  kraji, 22 b); holá ikona má ale v tlačítku 8 dp vzduchu, takže přepínač seznamu a šipky zpět
+  stály 29 b od semaforu a uživateli to připadalo daleko. Teď ikona 21 b (glyf na 99 b, semafor
+  končí na 78 b) a plocha si přidá `FilledShapeGap` (8 dp): `WindowControlsSpace(extra = …)`
+  v hledání v konverzaci, okraj pilulky `HEADER_EDGE` v seznamu chatů. Pole rozbaleného hledání
+  stojí 18 b za semaforem. Změřeno ze snímků okna (`app_screenshot`, body = dp). Pilulka v úzkém
+  okně bez přepínače a hledání v konverzaci jen přeložené.
 - **Popup přes pilulku potřebuje `overTitleBar()`** (`core/ui/MenuPopup.kt`): popup na desktopu
   respektuje insety okna (`usePlatformInsets`) a nesmí nad titulek, takže rozbalené hledání sjelo
   o 64 dp níž a pod pilulkou zůstalo druhé pole. Totéž `FullScreenDialog` (obsah si insety bere
