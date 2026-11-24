@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.border
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -22,7 +23,7 @@ import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
 /**
  * Mléčné sklo nad seznamem zpráv. JEDEN materiál ve dvou podobách:
  *
- * - **pilulka** ([pillGlass], [pillGlassStyle]): plovoucí plochy s textem — pruhy nad konverzací
+ * - **pilulka** ([pillGlass], [pillGlassStyle]; bílá ve světlém motivu): plovoucí plochy s textem — pruhy nad konverzací
  *   (připnuté, spam, videochat…), plovoucí datum, docky polohy a přehrávače, napovídání nad polem;
  * - **pás** ([bandGlassStyle]): pod vstupním polem a lištami místo něj; vlastní text nenese.
  *
@@ -75,10 +76,25 @@ private fun glassStyle(color: Color, leak: Float, fallbackAlpha: Float): HazeBlu
     }
 }
 
-/** Styl skla pilulky s textem (viz [glassStyle]); plochu kreslí `surfaceContainerHigh`. */
+/**
+ * Styl skla pilulky s textem (viz [glassStyle]).
+ *
+ * **Plocha NENÍ v roli příchozí bubliny.** Ta je `surfaceContainerHigh`, a pilulka v téže roli
+ * se přes ni slévala — ve světlém motivu to bylo vidět nejvíc (oddělil ji jen stín a hrana).
+ * Ve světlém motivu je proto bílá (`surfaceContainerLowest`): matné bílé sklo vystoupí z šedých
+ * bublin i ze stránky a tmavému textu přidá kontrast. V tmavém zůstává `surfaceContainerHigh`;
+ * světlejší role by ubrala kontrast světlému textu, který v nejhorším případě drží těsně.
+ */
 @Composable
-internal fun pillGlassStyle(): HazeBlurStyle =
-    glassStyle(MaterialTheme.colorScheme.surfaceContainerHigh, PILL_GLASS_LEAK, fallbackAlpha = 1f)
+internal fun pillGlassStyle(): HazeBlurStyle {
+    val scheme = MaterialTheme.colorScheme
+    val dark = scheme.isDarkSurface()
+    val color = if (dark) scheme.surfaceContainerHigh else scheme.surfaceContainerLowest
+    return glassStyle(color, if (dark) PILL_GLASS_LEAK else PILL_GLASS_LEAK_LIGHT, fallbackAlpha = 1f)
+}
+
+/** Tmavý motiv podle plochy — `ColorScheme` sám příznak nenese. */
+private fun ColorScheme.isDarkSurface(): Boolean = surface.luminance() < 0.5f
 
 /** Sklo pilulky nad seznamem [source] — modifikátor pro `glass` plovoucích ploch. */
 @Composable
@@ -124,7 +140,7 @@ internal fun backdropMatrix(toward: Color, contrast: Float, saturation: Float): 
 @Composable
 internal fun Modifier.glassRim(shape: Shape): Modifier {
     val scheme = MaterialTheme.colorScheme
-    val dark = scheme.surface.luminance() < 0.5f
+    val dark = scheme.isDarkSurface()
     // V tmavém motivu světlá barva popředí, ve světlém nejsvětlejší plocha — obojí „odlesk“.
     val light = if (dark) scheme.onSurface else scheme.surfaceContainerLowest
     val brush = remember(light, dark) {
@@ -150,12 +166,22 @@ private val GLASS_BLUR_RADIUS = 20.dp
 internal const val GLASS_TINT_ALPHA = 0.6f
 
 /**
- * Kolik jasu z pozadí propustí pilulka s textem. Tolik propouštělo dřívější krytí 0,88, při
- * kterém se měřil kontrast: „Včera“ nad černým náhledem videa (při 0,72 jen 2,85) a v tmavém
- * režimu nad světlou fotkou 5,89. Dvojnásobek (0,24) byl vidět líp, ale v nejhorším případě
- * srazil primární popisek pod AA (3,3–3,5). Kdo číslo mění, musí kontrast změřit znovu.
+ * Kolik jasu z pozadí propustí pilulka s textem v TMAVÉM motivu ([PILL_GLASS_LEAK_LIGHT] ve
+ * světlém). Dřív 0,12 (jako krytí 0,88) a obsah pod sklem prosvítal jen velmi decentně.
+ *
+ * **Kontrast hlídá `GlassTest` nad všemi osmi paletami** v nejhorším případě — pod
+ * celým textem úplně bílá plocha (tmavý motiv), úplně černá (světlý). S 0,18 v tmavém a 0,25
+ * ve světlém drží `onSurface` i `onSurfaceVariant` AA (≥ 4,5); primární popisek („Připnutá
+ * zpráva“) v tom nejhorším případě klesne na 3,7 / 3,5 — vědomě, nad skutečným obsahem
+ * (rozostřená bublina, fotka) drží kolem 4,8. Pro přísné AA i u popisku by stačilo 0,18 / 0,15.
  */
-internal const val PILL_GLASS_LEAK = 0.12f
+internal const val PILL_GLASS_LEAK = 0.18f
+
+/**
+ * Únik jasu bílé pilulky ve světlém motivu — víc než v tmavém: bílá plocha s tmavým textem má
+ * rezervu a kontrast jí ubírá jen TMAVÉ pozadí. Viz [PILL_GLASS_LEAK].
+ */
+internal const val PILL_GLASS_LEAK_LIGHT = 0.25f
 
 /**
  * Kolik jasu propustí pás pod polem — víc než pilulka, protože vlastní text nenese (karta pole

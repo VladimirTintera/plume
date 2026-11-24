@@ -1122,14 +1122,14 @@ nezabírají.
   Ověřeno na emulátoru na výšku i naležato (vedle seznamu).
 - **Vyrůstá zvětšením od pole, ne rozbalením do výšky** — to by u plovoucího prvku vypadalo,
   jako by se pod ním něco odsouvalo.
-- **Sklo je tatáž pilulka jako pruhy nad konverzací** (`pillGlass`: `surfaceContainerHigh`,
-  hrana, stín 3 dp; popředí `onSurface` / `onSurfaceVariant`, akcent `primary` ve
+- **Sklo je tatáž pilulka jako pruhy nad konverzací** (`pillGlass`: v tmavém motivu
+  `surfaceContainerHigh`, ve světlém bílá, hrana, stín 3 dp; popředí `onSurface` / `onSurfaceVariant`, akcent `primary` ve
   `FloatingSuggestionColors`). Dřív bylo v inverzní roli jako snackbar (ve světlém motivu tmavé,
   v tmavém světlé, krytí 0,8) a nad polem tak visela jiná plocha než nahoře u připnutých —
   sjednoceno na přání (11/2026). Inverzní sklo vzniklo, když se světlé sklo v barvě plochy
   (`surface`, slabé krytí, bez hrany a krycího podkladu) ve světlém motivu slévalo s bublinami;
-  pilulku od nich teď odliší tónovaná plocha, hrana a stín. **Ve světlém motivu to ověřené
-  není** — kdyby se znovu slévala, je to místo, kam sáhnout. Natvrdo tmavé (`scrim` s bílým
+  pilulku od nich teď odliší bílá plocha, hrana a stín (ve světlém motivu ověřeno na desktopu:
+  samolepky k emoji nad tmavě modrou odeslanou bublinou). Natvrdo tmavé (`scrim` s bílým
   textem) by se slilo s tmavou konverzací. `ListItem` popředí nedědí, barvy se mu předávají
   (`FloatingSuggestionColors.listItem()`).
 - **Tlačítko dolů a zmínky (FAB slot) na tu chvíli ustoupí** (`suggestionsFloating`): Scaffold
@@ -1143,7 +1143,7 @@ nezabírají.
 - **Ověřeno na emulátoru** (Fold složený, chat s botem): příkazy z tlačítka i po „/s" (seznam se
   zúžil, konverzace se nepohnula), ťuknutí poslalo `/stav`, `@gif cat` a „heart" s dosazením
   emoji; tehdejší inverzní sklo ve světlém i tmavém motivu (`cmd uimode night yes`). Sklo pilulky
-  ověřené na desktopu v tmavém motivu (samolepky k emoji). Zmínky ověřené nejsou
+  ověřené na desktopu ve světlém i tmavém motivu (samolepky k emoji). Zmínky ověřené nejsou
   (jen ve skupině), iOS jen přeložené.
 
 ## Napovídání zmínek

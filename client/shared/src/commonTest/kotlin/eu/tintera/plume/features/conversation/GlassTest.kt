@@ -1,51 +1,81 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import com.materialkolor.dynamicColorScheme
+import eu.tintera.plume.app.root.presentation.theme.BrandPaletteStyle
+import eu.tintera.plume.app.root.presentation.theme.seed
+import eu.tintera.plume.core.settings.ThemeColor
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class GlassTest {
-    private val tint = Color(0xFF2B2930)
 
-    /** Barva ve složkách 0–1 po matici [backdropMatrix] a tintu s krytím [GLASS_TINT_ALPHA]. */
-    private fun throughGlass(r: Float, g: Float, b: Float): FloatArray {
-        val m = backdropMatrix(tint, glassContrast(PILL_GLASS_LEAK), GLASS_SATURATION).values
-        val input = floatArrayOf(r, g, b)
+    /** Barva po matici [backdropMatrix] a tintu [tint] s krytím [GLASS_TINT_ALPHA] — totéž, co kreslí sklo. */
+    private fun throughGlass(tint: Color, leak: Float, under: Color): Color {
+        val m = backdropMatrix(tint, glassContrast(leak), GLASS_SATURATION).values
+        val input = floatArrayOf(under.red, under.green, under.blue)
         val t = floatArrayOf(tint.red, tint.green, tint.blue)
-        return FloatArray(3) { i ->
+        val out = FloatArray(3) { i ->
             val row = i * 5
             val filtered = (m[row] * input[0] + m[row + 1] * input[1] + m[row + 2] * input[2] + m[row + 4] / 255f)
                 .coerceIn(0f, 1f)
             GLASS_TINT_ALPHA * t[i] + (1 - GLASS_TINT_ALPHA) * filtered
         }
+        return Color(out[0], out[1], out[2])
+    }
+
+    private val dark = Color(0xFF2B2930)
+
+    @Test
+    fun luminanceLeaksExactlyTheConfiguredShare() {
+        val white = throughGlass(dark, PILL_GLASS_LEAK, Color.White)
+        val expected = dark.red + PILL_GLASS_LEAK * (1 - dark.red)
+        assertTrue(abs(white.red - expected) < 0.005f, "bílá: ${white.red} vs. $expected")
+        val black = throughGlass(dark, PILL_GLASS_LEAK, Color.Black)
+        assertTrue(abs(black.red - dark.red * (1 - PILL_GLASS_LEAK)) < 0.005f, "černá: ${black.red}")
     }
 
     @Test
-    fun luminanceLeaksAsMuchAsTheOldOpaqueTint() {
-        // Dřív krytí 0,88: bílá pod sklem posunula plochu o 12 % cesty k bílé. Kontrasty se měřily na tom.
-        val white = throughGlass(1f, 1f, 1f)
-        val old = tint.red + 0.12f * (1 - tint.red)
-        assertTrue(abs(white[0] - old) < 0.005f, "bílá: ${white[0]} vs. dřív $old")
-        val black = throughGlass(0f, 0f, 0f)
-        val oldBlack = tint.red * 0.88f
-        assertTrue(abs(black[0] - oldBlack) < 0.005f, "černá: ${black[0]} vs. dřív $oldBlack")
+    fun grayLooksLikePlainTintWithTheSameLeak() {
+        val gray = throughGlass(dark, PILL_GLASS_LEAK, Color(0.5f, 0.5f, 0.5f))
+        val t = floatArrayOf(dark.red, dark.green, dark.blue)
+        val g = floatArrayOf(gray.red, gray.green, gray.blue)
+        for (i in 0..2) assertTrue(abs(g[i] - (t[i] + PILL_GLASS_LEAK * (0.5f - t[i]))) < 0.002f, "složka $i: ${g[i]}")
     }
 
     @Test
-    fun grayLooksExactlyAsBefore() {
-        // Bez barvy (šedé bubliny, text) dává sklo přesně totéž co dřívější tint s krytím 0,88.
-        val gray = throughGlass(0.5f, 0.5f, 0.5f)
-        val t = floatArrayOf(tint.red, tint.green, tint.blue)
-        for (i in 0..2) assertTrue(abs(gray[i] - (t[i] + 0.12f * (0.5f - t[i]))) < 0.002f, "složka $i: ${gray[i]}")
+    fun colorShowsMoreThanPlainTint() {
+        // Sytá modrá pod sklem: rozdíl modré a červené složky musí být větší než u holého tintu.
+        val blue = throughGlass(dark, PILL_GLASS_LEAK, Color(0.1f, 0.4f, 0.9f))
+        val now = (blue.blue - dark.blue) - (blue.red - dark.red)
+        val plain = PILL_GLASS_LEAK * ((0.9f - dark.blue) - (0.1f - dark.red))
+        assertTrue(now > 2 * plain, "barva teď $now, holý tint $plain")
     }
 
+    /**
+     * Nejhorší případ pro text na pilulce, ve všech osmi paletách: pod celým textem úplně bílá
+     * plocha v tmavém motivu, úplně černá ve světlém. `onSurface` a `onSurfaceVariant` musí držet
+     * AA; primární popisek („Připnutá zpráva“) vědomě níž (viz [PILL_GLASS_LEAK]), ale ne pod 3.
+     */
     @Test
-    fun colorShowsMoreThanBefore() {
-        // Sytá modrá pod sklem: rozdíl červené a modré složky proti tintu musí být větší než dřív.
-        val blue = throughGlass(0.1f, 0.4f, 0.9f)
-        val now = (blue[2] - tint.blue) - (blue[0] - tint.red)
-        val before = 0.12f * ((0.9f - tint.blue) - (0.1f - tint.red))
-        assertTrue(now > 2 * before, "barva teď $now, dřív $before")
+    fun pillTextContrastInWorstCase() {
+        for (theme in ThemeColor.entries) for (isDark in listOf(false, true)) {
+            val s = dynamicColorScheme(seedColor = theme.seed, isDark = isDark, isAmoled = false, style = BrandPaletteStyle)
+            val tint = if (isDark) s.surfaceContainerHigh else s.surfaceContainerLowest
+            val leak = if (isDark) PILL_GLASS_LEAK else PILL_GLASS_LEAK_LIGHT
+            val pill = throughGlass(tint, leak, if (isDark) Color.White else Color.Black)
+            val where = "$theme ${if (isDark) "tmavý" else "světlý"}"
+            assertTrue(contrast(s.onSurface, pill) >= 4.5f, "$where onSurface ${contrast(s.onSurface, pill)}")
+            assertTrue(contrast(s.onSurfaceVariant, pill) >= 4.5f, "$where onSurfaceVariant ${contrast(s.onSurfaceVariant, pill)}")
+            assertTrue(contrast(s.primary, pill) >= 3f, "$where primary ${contrast(s.primary, pill)}")
+        }
+    }
+
+    private fun contrast(a: Color, b: Color): Float {
+        val x = a.luminance() + 0.05f
+        val y = b.luminance() + 0.05f
+        return maxOf(x, y) / minOf(x, y)
     }
 }

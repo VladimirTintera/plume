@@ -29,11 +29,11 @@ import androidx.compose.ui.unit.dp
  * výšky (další písmeno zúží seznam příkazů) zvedly a spustily celou konverzaci a oči při psaní
  * skákaly za ní. Teď leží přes konec seznamu jako nabídka.
  *
- * **Sklo je tatáž pilulka jako pruhy nad konverzací** ([pillGlass]: `surfaceContainerHigh`,
- * světlá hrana, stín 3 dp; popředí [FloatingSuggestionColors]). Dřív byla v inverzní roli jako
+ * **Sklo je tatáž pilulka jako pruhy nad konverzací** ([pillGlass]: v tmavém motivu
+ * `surfaceContainerHigh`, ve světlém bílá, světlá hrana, stín 3 dp; popředí [FloatingSuggestionColors]). Dřív byla v inverzní roli jako
  * snackbar, takže nad polem visela jiná plocha než nahoře u připnutých. Inverzní sklo vzniklo,
  * když se světlé sklo v barvě plochy (`surface`) ve světlém motivu slévalo s bublinami; pilulku
- * od nich teď odliší tónovaná plocha, hrana a stín, jako u pruhů nahoře.
+ * od nich teď odliší bílá plocha, hrana a stín, jako u pruhů nahoře.
  *
  * Vyrůstá od pole ([origin]) zvětšením, ne rozbalením do výšky — rozbalení by u plovoucího
  * prvku vypadalo, jako by se pod ním něco odsouvalo.

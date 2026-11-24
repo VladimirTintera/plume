@@ -766,8 +766,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   MLÉČNÉ SKLO** (`Glass.kt`, tentýž Haze jako závoj nabídky nad zprávou). Plochy leží nad
   projíždějícím obsahem a dřív ho jen zakrývaly barvou; rozostření dělá totéž čitelněji — je
   vidět, že pod nimi obsah pokračuje.
-  - **Je to JEDEN materiál ve dvou podobách**: pilulka s textem (`pillGlass`, `surfaceContainerHigh`,
-    hrana `glassRim`, stín 3 dp) a pás pod polem (`bandGlassStyle`, `surface`). Rozostření, matici,
+  - **Je to JEDEN materiál ve dvou podobách**: pilulka s textem (`pillGlass`; v tmavém motivu
+    `surfaceContainerHigh`, ve světlém bílá `surfaceContainerLowest`; hrana `glassRim`, stín 3 dp) a pás pod polem (`bandGlassStyle`, `surface`). Rozostření, matici,
     zesílení barev, zrnitost a krycí podklad mají společné, liší se barvou a únikem jasu. Dřív si
     každá plocha skládala styl sama (deset kopií v `ConversationBars`, dvě u pole) a napovídání
     mělo vlastní inverzní sklo — nad polem visela jiná plocha než nahoře. Nová plovoucí plocha nad
@@ -790,7 +790,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     obraz pod sebou; průhledná plocha s tintem dělá sklo. Tvar se proto ořezává zvlášť
     (`clip(shape)` uvnitř `Surface`), jinak by sklo přeteklo přes zaoblení.
   - **Únik jasu je dvojí.** Pás pod polem vlastní text nenese (karta pole má svoji plochu), takže
-    propouští 0,28 (dřív krytí 0,72) a sklo je na něm znát. **Pilulky text nesou** (0,12) a pod nimi projede
+    propouští 0,28 (dřív krytí 0,72) a sklo je na něm znát. **Pilulky text nesou** (0,18 v tmavém,
+    0,25 ve světlém motivu) a pod nimi projede
     i tmavá fotka, ve které by se písmo ztratilo — změřeno, při krytí 0,72 mělo „Včera" nad černým
     náhledem videa kontrast 2,85, tedy hluboko pod AA. Při krytí 0,88 vyšel v tmavém režimu nad
     světlou fotkou 5,89.
@@ -803,12 +804,22 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     sám efekt.
   - **Kontrast hlídá matice, ne krytí** (`glassStyle`, `backdropMatrix`). Rozostřený obraz se
     napřed stáhne k barvě plochy na 0,3 a zesytí 2,4×, teprve pak přijde tint s krytím 0,6. Jas
-    pozadí u pilulky propouští `(1 − 0,6) × 0,3 = 0,12`, tedy totéž co krytí 0,88, při kterém se kontrast
-    měřil (hlídá `GlassTest`); barva pod sklem je vidět víc než dvakrát. Šedý obsah vypadá přesně
-    jako dřív.
-  - **Rozpočet jasu 0,24 byl vidět líp, ale pod AA.** Bílá pod celým popiskem v tmavém motivu
-    nebo černá ve světlém srazí primární „Připnutá zpráva" na 3,3–3,5; při 0,12 drží 4,4–5,3.
-    Kdo rozpočet zvedá, musí kontrast znovu změřit.
+    pozadí propouští únik `(1 − 0,6) × stažení`; šedý obsah tak vypadá přesně jako pod holým
+    tintem se stejným únikem, barva pod sklem je vidět víc než dvakrát (hlídá `GlassTest`).
+  - **Pilulka nesmí mít roli příchozí bubliny** (`surfaceContainerHigh`). V téže roli se přes ni
+    slévala — ve světlém motivu ji oddělil jen stín a hrana (ověřeno na desktopu). Ve světlém
+    motivu je proto bílá, matné bílé sklo vystoupí z šedých bublin i z namodralé stránky a tmavému
+    textu přidá kontrast. V tmavém zůstává
+    `surfaceContainerHigh`: světlejší `surfaceContainerHighest` by ubrala kontrast světlému textu,
+    který tam v nejhorším případě drží těsně; od tmavé bubliny ji tam odliší hrana.
+  - **Únik pilulky je 0,18 v tmavém a 0,25 ve světlém motivu — kontrast se POČÍTÁ, ne odhaduje.**
+    `GlassTest` bere skutečné palety (`dynamicColorScheme`, všech osm `ThemeColor`) a nejhorší
+    případ: pod celým textem úplně bílá plocha (tmavý motiv), úplně černá (světlý). `onSurface`
+    i `onSurfaceVariant` drží AA, primární popisek („Připnutá zpráva") vědomě klesne na 3,7 / 3,5
+    (test hlídá ≥ 3). Nad skutečným obsahem (rozostřená bublina, fotka) drží kolem 4,8. Přísné AA
+    i u popisku by dovolilo jen 0,18 / 0,15 — a při dřívějších 0,12 prosvítal obsah, zvlášť pod
+    bílou pilulkou, jen velmi decentně (srovnáno na desktopu, 11/2026). Ruční odhad z typických
+    tónů M3 se od palety lišil až o 1,4 (tmavý motiv 4,4 odhad, 5,7 skutečnost), proto test.
   - **Sklo poznat dávají i zrnitost (0,08) a světlá hrana** (`glassRim`, 1 dp, dolů mizí, za
     `clip(tvar).then(glass)` uvnitř plochy). V tmavém motivu projíždí pod tmavou pilulkou tmavý
     obsah a rozostření samo nemá co ukázat; hrana řekne „sklo" i tehdy.
