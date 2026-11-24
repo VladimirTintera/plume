@@ -414,7 +414,6 @@ fun appAccountModule() = module {
             session = get(),
             triage = get(),
             bookmarks = get(),
-            photoDescriptions = get(),
             stories = get(),
             pendingDeletes = get(),
             history = get(),
@@ -422,7 +421,7 @@ fun appAccountModule() = module {
         )
     }
     // Hledání v seznamu chatů (docs/navrh-hledani.md); dřív součást ChatsViewModel.
-    viewModel { ChatSearchViewModel(repository = get(), naturalSearch = get()) }
+    viewModel { ChatSearchViewModel(repository = get(), naturalSearch = get(), bookmarks = get(), photoDescriptions = get()) }
     // Sheety jako destinace (`SheetSceneStrategy`) mají vlastní úložiště ViewModelů, ten seznamu nevidí.
     viewModel { DraftsViewModel(repository = get(), topicDrafts = get(), commentDrafts = get(), workScope = get(named(APP_SCOPE))) }
     // Bez parametru záložky všech chatů (menu účtu), s id chatu jen toho (profil).

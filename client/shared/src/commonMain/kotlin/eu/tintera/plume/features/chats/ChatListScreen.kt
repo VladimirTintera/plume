@@ -186,17 +186,17 @@ fun ChatListScreen(
     navigation: ChatListNavigation,
     /** Účet chatu otevřeného vedle seznamu; totéž id může mít chat v jiném účtu. */
     selectedChatSlot: AccountSlot? = null,
-    /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
-    searchRequest: String?,
-    onSearchRequestHandled: () -> Unit,
+    /**
+     * Chat, na který má seznam dojet (vybraný v hledání, `AppNavigation.chatListScroll`); po
+     * dojetí [onScrolledToChat].
+     */
+    scrollToChat: Long? = null,
+    onScrolledToChat: () -> Unit = {},
     /** Vedle seznamu je otevřená konverzace (dvoupanel) — hudbu pak ukazuje její dock. */
     conversationOpen: Boolean = false,
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
-    /** Hledání v hlavičce (`ChatSearchViewModel`, docs/navrh-hledani.md). */
-    searchViewModel: ChatSearchViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
 ) {
-    val screenSearch by searchViewModel.search.state.collectAsStateWithLifecycle()
 
     /*
      * Víc účtů: společný seznam (režim Vše, `docs/navrh-vice-uctu.md`, „Společný seznam
@@ -210,17 +210,6 @@ fun ChatListScreen(
     val sources = mergedChats.sources
     val busySource = mergedChats.busy
     val merged = mergedChats.merged
-    // Hledání v režimu Všechny účty hledá ve všech účtech (`mergedSearchState`), i když zrovna
-    // běží výběr v jednom z nich; návrhy pod prázdným dotazem jsou z účtu obrazovky. Výchozí
-    // účet jde první: veřejný chat nalezený víc účty se otevře v něm.
-    val searchSources = sources.map { source ->
-        key(source.account.slot) { source.account.slot to (source.search ?: searchViewModel).search.state.collectAsStateWithLifecycle().value }
-    }.sortedByDescending { it.first == screenAccount.slot }
-    val savedMessagesBySlot = sources.mapNotNull { source ->
-        key(source.account.slot) { source.viewModel.savedMessagesChatId.collectAsStateWithLifecycle().value }
-            ?.let { source.account.slot to it }
-    }.toMap()
-    val search = if (sources.isEmpty()) screenSearch else mergedSearchState(screenSearch, searchSources, savedMessagesBySlot)
     // Čí řádky ukazuje seznam jednoho účtu: obrazovky, nebo účtu, ve kterém běží výběr.
     val listViewModel = busySource?.viewModel ?: viewModel
     val listAccount = busySource?.account ?: screenAccount
@@ -247,7 +236,6 @@ fun ChatListScreen(
     val onNewStory: (() -> Unit)? = navigation.onComposeStory
         ?.takeIf { viewModel.canComposeStory }
         ?.let { { viewModel.startStory(storyPicker::pickMedia) } }
-    val naturalSearchAvailable by searchViewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val shownConnection = rememberShownConnection(connection)
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
@@ -281,8 +269,6 @@ fun ChatListScreen(
      * Koncepty, záložky a Můj QR kód jsou navigační destinace (`SheetRoute`), otevírá je shell.
      */
     val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
-    val bookmarkTitles by viewModel.foundChatTitles.collectAsStateWithLifecycle()
-    val describedPhotos by viewModel.describedPhotos.collectAsStateWithLifecycle()
     var showFolderSuggestions by remember { mutableStateOf(false) }
     var showNewFolderChats by remember { mutableStateOf(false) }
     // Složky jsou po účtech na serveru; společný seznam je jen hlavní seznam, pilulky nemá.
@@ -306,7 +292,6 @@ fun ChatListScreen(
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
-    val searchSnackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(storyNotice) {
         val message = storyNotice ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message.resolveNow())
@@ -366,8 +351,6 @@ fun ChatListScreen(
         onBackCompleted = { fabMenuExpanded = false },
     )
 
-    // Reklama se hlásí z rozbaleného hledání, takže i hláška patří do něj.
-    ReportHost(searchViewModel.sponsoredChatReportFlow, searchSnackbarHostState)
     ChatActionsHost(
         viewModel,
         sheets,
@@ -409,10 +392,10 @@ fun ChatListScreen(
     }
 
     /*
-     * Chat vybraný v hledání, na který má seznam dojet. Ukládá se (`rememberSaveable`): na
-     * telefonu konverzace seznam překryje a ten se posune, až se na něj uživatel vrátí.
+     * Chat, na který má plný seznam dojet po rozbalení ze sbaleného sloupce (kotva přechodu).
+     * Chat vybraný v hledání přichází zvenku ([scrollToChat], drží ho navigace).
      */
-    var scrollToChat by rememberSaveable { mutableStateOf<Long?>(null) }
+    var anchorScroll by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // Obchod se ptá při otevření seznamu i při návratu do popředí — tak se po restartu připomene
     // i stažená, ale nenainstalovaná aktualizace.
@@ -473,7 +456,7 @@ fun ChatListScreen(
         LaunchedEffect(collapsedNow) {
             // Plný seznam po rozbalení dojede na chat ze sloupce (existující dojetí z hledání; jen
             // jeden účet, společný seznam víc účtů si pozici nechá).
-            if (!collapsedNow && !merged) (collapseAnchor as? Long)?.let { scrollToChat = it }
+            if (!collapsedNow && !merged) (collapseAnchor as? Long)?.let { anchorScroll = it }
         }
         AnimatedContent(
             targetState = collapsedNow,
@@ -568,65 +551,9 @@ fun ChatListScreen(
                         Box {
                             ChatSearchBar(
                                 connection = shownConnection,
-                                search = search,
-                                savedMessagesChatId = savedMessagesChatId,
                                 scrollBehavior = scrollBehavior,
-                                controls = remember(searchViewModel, sources) {
-                                    // Přes víc účtů hledají hledání všech účtů; návrhy jsou z účtu obrazovky.
-                                    val searches = sources.map { (it.search ?: searchViewModel).search }.ifEmpty { listOf(searchViewModel.search) }
-                                    ChatSearchControls(
-                                        onQueryChange = { text -> searches.forEach { it.setQuery(text) } },
-                                        onExpandedChange = searchViewModel.search::setSuggestionsWanted,
-                                        onFilterChange = { filter -> searches.forEach { it.setFilter(filter) } },
-                                        onLoadMoreMessages = { searches.forEach { it.loadMoreMessages() } },
-                                    )
-                                },
-                                onChatClick = { chatId, slot ->
-                                    // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
-                                    val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
-                                        .any { it.id == chatId && it.slot == slot && it.opensAsTopics }
-                                    if (slot == null || slot == screenAccount.slot && sources.isEmpty()) {
-                                        searchViewModel.search.recordFound(chatId)
-                                        scrollToChat = chatId
-                                        if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
-                                    } else {
-                                        sources.firstOrNull { it.account.slot == slot }?.search?.search?.recordFound(chatId)
-                                        if (forum) navigation.onAccountForumClick(slot, chatId) else navigation.onAccountChatClick(slot, chatId)
-                                    }
-                                },
-                                onMessageClick = { chatId, messageId, topicId, slot ->
-                                    if (slot == null) {
-                                        scrollToChat = chatId
-                                        navigation.onMessageClick(chatId, messageId, topicId)
-                                    } else {
-                                        navigation.onAccountMessageClick(slot, chatId, messageId, topicId)
-                                    }
-                                },
-                                suggestionActions = remember(searchViewModel) {
-                                    SuggestionActions(
-                                        onClear = searchViewModel.search::clearRecent,
-                                        onRemoveRecent = searchViewModel.search::removeRecent,
-                                        onRemoveTop = searchViewModel.search::removeTop,
-                                        onRemoveTag = searchViewModel.search::removeTag,
-                                        onClearTags = searchViewModel.search::clearTags,
-                                    )
-                                },
-                                snackbarHostState = searchSnackbarHostState,
-                                sponsoredActions = remember(searchViewModel) {
-                                    SponsoredActions(
-                                        onSeen = searchViewModel::sponsoredChatSeen,
-                                        onOpen = searchViewModel::sponsoredChatOpened,
-                                        onReport = searchViewModel::reportSponsoredChat,
-                                    )
-                                },
-                                aiSearch = searchViewModel::parseSearch.takeIf { naturalSearchAvailable },
-                                request = searchRequest,
-                                onRequestHandled = onSearchRequestHandled,
-                                localSources = LocalSearchSources(
-                                    bookmarks = bookmarks,
-                                    chatTitles = bookmarkTitles,
-                                    describedPhotos = describedPhotos,
-                                ),
+                                // Hledání je vlastní obrazovka v panelu seznamu (`ChatSearchScreen`).
+                                onOpenSearch = navigation.onOpenSearch,
                                 trailing = {
                                     StoryStack(
                                         posters = storyStack,
@@ -715,8 +642,8 @@ fun ChatListScreen(
                                     onForumClick = if (otherAccount) { id -> navigation.onAccountForumClick(listAccount.slot, id) } else navigation.onForumClick,
                                     onOpenStories = navigation.onOpenStories.takeUnless { otherAccount },
                                     padding = padding,
-                                    scrollToChat = scrollToChat,
-                                    onScrolledToChat = { scrollToChat = null },
+                                    scrollToChat = anchorScroll ?: scrollToChat,
+                                    onScrolledToChat = { if (anchorScroll != null) anchorScroll = null else onScrolledToChat() },
                                     listState = listState,
                                     // Položky hlavičky: nové přihlášení a karta s aktualizací.
                                     headerItemCount = cards.count,

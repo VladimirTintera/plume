@@ -12,6 +12,7 @@ import eu.tintera.plume.core.ui.KeyboardShortcut
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import org.koin.compose.koinInject
+import eu.tintera.plume.core.accounts.LocalAccount
 
 /**
  * Zkratky hledání z klávesnice ([KeyboardShortcuts]). Shell, protože zná zásobník Chatů:
@@ -25,6 +26,8 @@ import org.koin.compose.koinInject
 @Composable
 internal fun ShellShortcuts(navigation: AppNavigation, chatsStack: List<NavKey>, twoPane: Boolean) {
     val shortcuts = koinInject<KeyboardShortcuts>()
+    // Hledání v účtu shellu (seznam chatů je jeho).
+    val slot = LocalAccount.current.slot
     val searchRequests = koinInject<ConversationSearchRequests>()
     val currentStack by rememberUpdatedState(chatsStack)
     val currentTwoPane by rememberUpdatedState(twoPane)
@@ -32,7 +35,7 @@ internal fun ShellShortcuts(navigation: AppNavigation, chatsStack: List<NavKey>,
     LaunchedEffect(shortcuts) {
         shortcuts.shortcuts.collect { shortcut ->
             when (shortcut) {
-                KeyboardShortcut.SearchChats -> navigation.openSearch(query = "", keepConversation = currentTwoPane)
+                KeyboardShortcut.SearchChats -> navigation.openSearch(slot, query = "", keepConversation = currentTwoPane)
                 KeyboardShortcut.SearchInChat -> {
                     if (navigation.section != ChatsRoute) return@collect
                     currentStack.topConversation()?.let(searchRequests::request)

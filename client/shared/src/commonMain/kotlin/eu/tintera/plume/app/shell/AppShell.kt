@@ -183,6 +183,10 @@ import eu.tintera.plume.features.stories.MyStoriesScreen
 import eu.tintera.plume.features.downloads.DownloadsScreen
 import eu.tintera.plume.features.downloads.rememberDownloadSources
 import eu.tintera.plume.core.navigation.ChatsRoute
+import eu.tintera.plume.features.chats.ChatSearchNavigation
+import eu.tintera.plume.features.chats.ChatSearchScreen
+import eu.tintera.plume.core.adaptive.ListPaneAnchor
+import eu.tintera.plume.core.navigation.ChatSearchRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.SavedTopicsRoute
@@ -611,9 +615,16 @@ private fun ShellContent(
          * metadaty ([listWidthBesideProfile]).
          */
         val listExpansion = rememberListPaneExpansion(base.defaultPanePreferredWidth)
-        val mainListShown = navigation.section == ChatsRoute &&
-            chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List } == ChatsRoute
+        // Hledání je seznam chatů v jiné podobě (`docs/navrh-hledani.md`): táhlo i šířka platí
+        // dál, jinak by panel při otevření hledání skočil na výchozí šířku.
+        val shownListRoute = chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List }
+        val searchShown = navigation.section == ChatsRoute && shownListRoute is ChatSearchRoute
+        val mainListShown = navigation.section == ChatsRoute && (shownListRoute == ChatsRoute || searchShown)
         val draggable = twoPane && mainListShown && !extraShown
+        // Hledání ve sbaleném sloupci (zkratka, nabídka, hashtag) by bylo nečitelné: panel se rozbalí.
+        LaunchedEffect(searchShown, twoPane) {
+            if (searchShown && twoPane && listExpansion.anchor == ListPaneAnchor.Collapsed) listExpansion.expand()
+        }
         // Ve třech panelech táhlo knihovny není — seznam má vlastní (`rememberListPaneResize`).
         val listResize = rememberListPaneResize(listExpansion, base.defaultPanePreferredWidth, maxWidth)
         val listPaneWidth = listResize.width.takeIf { threePane && mainListShown }
@@ -912,12 +923,51 @@ private fun shellEntryProvider(
                 onManageFolders = { navigation.openChatFolders(slot) },
                 onEditFolder = { id -> navigation.openChatFolder(slot, id) },
                 onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane) },
-                onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
+                onOpenSearch = { navigation.openSearch(slot, query = "", keepConversation = twoPane) },
                 onOpenStories = { chatId -> chatsStack.openStories(slot, chatId) },
                 onComposeStory = { path, video -> chatsStack.add(StoryComposerRoute(slot, path, video)) },
             ),
-            searchRequest = navigation.searchRequest,
-            onSearchRequestHandled = navigation::consumeSearchRequest,
+            scrollToChat = navigation.chatListScroll,
+            onScrolledToChat = navigation::consumeChatListScroll,
+            modifier = Modifier.listPaneInsets(twoPane),
+        )
+    }
+
+    /*
+     * Hledání v seznamu chatů jako vlastní obrazovka v panelu seznamu (`docs/navrh-hledani.md`).
+     * Táž scéna a šířka jako seznam chatů; v zásobníku leží pod konverzací
+     * (`AppNavigation.openSearch`), výsledek se otevře nad ním a hledání vlevo zůstane.
+     */
+    entry<ChatSearchRoute>(
+        metadata = Panes.list(
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
+        ) + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
+    ) { route ->
+        val slot = route.slot
+        val settings = koinInject<AppSettings>()
+        val savedMessagesChatId = LocalSavedMessagesChatId.current
+        ChatSearchScreen(
+            slot = slot,
+            initialQuery = route.query,
+            navigation = ChatSearchNavigation(
+                onClose = { chatsStack.remove(route) },
+                onChatClick = { chatId, chatSlot, forum ->
+                    val target = chatSlot ?: slot
+                    // Seznam pod hledáním dojede na vybraný chat, ať je po zavření hledání vidět.
+                    if (target == slot) navigation.scrollChatListTo(chatId)
+                    when {
+                        forum -> chatsStack.openForum(target, chatId)
+                        // Uložené zprávy po chatech, když si to uživatel zvolil (jako ze seznamu).
+                        target == slot && chatId == savedMessagesChatId && settings.savedMessagesAsChats.value ->
+                            chatsStack.openSavedTopics(slot, chatId)
+                        else -> chatsStack.openConversation(target, chatId)
+                    }
+                },
+                onMessageClick = { chatId, messageId, topicId, chatSlot ->
+                    if ((chatSlot ?: slot) == slot) navigation.scrollChatListTo(chatId)
+                    chatsStack.openFoundMessage(chatSlot ?: slot, chatId, messageId, topicId)
+                },
+            ),
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -1097,7 +1147,7 @@ private fun shellEntryProvider(
                 ),
                 navigation = ConversationNavigation(
                     // Odebírá SVOU položku, ne poslední — viz `pop`. Vedle seznamu zavře celou větev nad ním.
-                    onBack = { chatsStack.closeConversation(route, list = ChatsRoute, sideBySide = sideBySide) },
+                    onBack = { chatsStack.closeConversation(route, list = chatsStack.mainListBelow(route), sideBySide = sideBySide) },
                     onChatGone = { chatsStack.closeChat(route.slot, route.chatId) },
                     onOpenMedia = { messageId ->
                         chatsStack.add(MediaRoute(slot, route.chatId, messageId))
@@ -1127,7 +1177,7 @@ private fun shellEntryProvider(
                     // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
                     // a skupina s tématy do seznamu témat (`openTarget`).
                     onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = false) },
-                    onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
+                    onSearch = { query -> navigation.openSearch(slot, query, keepConversation = twoPane) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                     // Kalendář zpráv jako třetí panel (na telefonu přes celou obrazovku) — tam, kde jde
                     // skok na datum (ne vlákno komentářů, ne téma skupiny).
@@ -1547,7 +1597,7 @@ private fun shellEntryProvider(
                     },
                     onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(slot, route.chatId, messageId)) },
                     onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = true) },
-                    onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
+                    onSearch = { query -> navigation.openSearch(slot, query, keepConversation = false) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                     onOpenCalendar = if (route.threadId == null && route.topicId == null) {
                         { anchor ->

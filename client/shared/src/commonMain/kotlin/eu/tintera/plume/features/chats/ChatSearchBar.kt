@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.accounts.rememberShownAccount
 import eu.tintera.plume.core.accounts.Accounts
@@ -7,8 +9,6 @@ import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountBadge
 import androidx.compose.foundation.interaction.DragInteraction
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarHost
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.sponsored_report
@@ -36,11 +36,8 @@ import eu.tintera.plume.core.ui.contextClickable
 import eu.tintera.plume.resources.chats_search_ai
 import eu.tintera.plume.resources.auto_awesome_24dp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import eu.tintera.plume.core.ui.TextFieldSlot
-import eu.tintera.plume.core.ui.reject
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.core.ui.resolve
@@ -69,7 +66,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -91,6 +87,8 @@ import eu.tintera.plume.resources.chats_search_show_less
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.TextButton
@@ -119,20 +117,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.ExpandedFullScreenSearchBar
-import eu.tintera.plume.core.ui.LocalPanesSideBySide
-import eu.tintera.plume.core.ui.PopupBackAfterKeyboard
-import eu.tintera.plume.core.ui.popupDismissesOnBack
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.material3.ExpandedDockedSearchBarWithGap
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -140,14 +126,11 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarScrollBehavior
-import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -158,15 +141,11 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.SecretChatLock
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_search
-import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.chats_search_empty
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.close_24dp
-import kotlinx.coroutines.launch
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.ui.ConnectionStatusIcon
 import eu.tintera.plume.core.ui.label
@@ -174,15 +153,21 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
 import eu.tintera.plume.core.adaptive.LocalWindowControlsClearance
-import eu.tintera.plume.core.ui.overTitleBar
 import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Hlavička seznamu chatů: vyhledávací pilulka, na jejím konci [trailing] (hromádka příběhů)
  * a VEDLE ní [actions] (fotka účtu s menu).
  *
+ * **Pilulka se nerozbaluje, jen otevře hledání** ([onOpenSearch] → `ChatSearchRoute`,
+ * `ChatSearchScreen`). Hledání je vlastní obrazovka v panelu seznamu (`docs/navrh-hledani.md`):
+ * dřív se z pilulky rozbalovalo na telefonu přes celou obrazovku a na široké ploše jako malý
+ * panel pod pilulkou nad seznamem — popup s řadou obcházek a výsledky nacpanými do okénka.
+ * Pole v pilulce proto není, jen nápověda; `AppBarWithSearch` zůstává kvůli tvaru, barvám,
+ * odjíždění při scrollu a slotu pro fotku účtu.
+ *
  * **Fotka účtu stojí mimo pilulku**, ve slotu `actions` baru. Dokud byla uvnitř (vzor Gmailu),
- * ťuknutí kousek vedle fotky padlo na pilulku a místo menu se rozbalilo hledání: hranice
+ * ťuknutí kousek vedle fotky padlo na pilulku a místo menu se otevřelo hledání: hranice
  * tlačítka uvnitř tónové plochy není vidět. Mezera mezi pilulkou a fotkou je teď mrtvá zóna
  * a fotka mohla vyrůst.
  *
@@ -200,59 +185,20 @@ import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
  * ([ConnectionStatusIcon]), ne nadpis ani vlastní prvek. Skoro celou dobu je `null` a pak je
  * vidět jen „Hledat v chatech"; nadpis „Chaty" by jen opakoval, co říká navigace. Fotka účtu
  * stav nenese — je to identita, ne kontrolka.
- *
- * **Hledá se ve všech známých chatech** ([ChatSearch]): i v archivu a v chatech, které
- * v žádném seznamu nejsou; pod nimi veřejné chaty a zprávy. Pod prázdným dotazem jsou
- * nejčastější lidé a historie hledání.
- * Uložené zprávy se najdou podle přeloženého názvu — TDLib je zná pod jménem účtu.
  */
 @Composable
 internal fun ChatSearchBar(
     connection: ConnectionState?,
-    search: ChatSearchState,
-    savedMessagesChatId: Long?,
     scrollBehavior: SearchBarScrollBehavior,
-    controls: ChatSearchControls,
-    /** Chat z výsledků; slot = účet chatu při hledání přes víc účtů ([ChatSummary.slot]), jinak `null`. */
-    onChatClick: (chatId: Long, slot: AccountSlot?) -> Unit,
-    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?, slot: AccountSlot?) -> Unit,
-    /** Úklid návrhů pod prázdným dotazem: vymazat historii, odebrat jeden chat, odebrat člověka. */
-    suggestionActions: SuggestionActions,
-    /** Sponzorované chaty ve výsledcích: zhlédnutí, otevření, nahlášení. */
-    sponsoredActions: SponsoredActions,
-    /**
-     * Hlášky z rozbaleného hledání (výsledek nahlášení reklamy). Hledání je vlastní okno (popup),
-     * takže snackbar seznamu chatů by zůstal pod ním a uživatel by ho neviděl.
-     */
-    snackbarHostState: SnackbarHostState,
-    /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
-    request: String?,
-    onRequestHandled: () -> Unit,
-    /** Konec sbalené pilulky (hromádka příběhů). V rozbaleném hledání není — tam je ✕ dotazu. */
+    onOpenSearch: () -> Unit,
+    /** Konec pilulky (hromádka příběhů). */
     trailing: @Composable () -> Unit,
     /** Vedle pilulky, na ploše stránky (menu účtu). */
     actions: @Composable RowScope.() -> Unit,
-    /**
-     * Hledání přirozeným jazykem (`NaturalSearchModel`): věta → slova a filtry. `null` = model
-     * není (vypnutá AI, nestažený model) a ikona se nenabízí.
-     */
-    aiSearch: (suspend (String) -> NaturalSearch?)? = null,
-    localSources: LocalSearchSources = LocalSearchSources(),
 ) {
+    // `AppBarWithSearch` stav chce; pole v pilulce není, takže se nikdy nerozbalí.
     val searchBarState = rememberSearchBarState()
-    val textFieldState = rememberTextFieldState()
-    val scope = rememberCoroutineScope()
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-    val expanded = searchBarState.currentValue == SearchBarValue.Expanded
-    val haptics = LocalHapticFeedback.current
-    // Model zrovna čte dotaz; ikona se zatím točí a druhé ťuknutí nic nedělá.
-    var aiBusy by remember { mutableStateOf(false) }
-
-    fun collapse() {
-        scope.launch {
-            searchBarState.animateToCollapsed()
-        }
-    }
 
     // Bar má barvu stránky i nad odscrollovaným seznamem — tónovaný pruh přes celou šířku byl
     // to, co vadilo na sbaleném velkém baru. Odstup od obsahu nese pilulka.
@@ -270,150 +216,68 @@ internal fun ChatSearchBar(
         }
     }
 
-    val inputField = @Composable {
-        SearchBarDefaults.InputField(
-            textFieldState = textFieldState,
-            searchBarState = searchBarState,
-            onSearch = {},
-            colors = colors.searchBarColors.inputFieldColors,
+    val searchLabel = stringResource(Res.string.chats_search)
+    val pill = @Composable {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SearchBarDefaults.InputFieldHeight)
+                .clip(SearchBarDefaults.inputFieldShape)
+                .clickable(onClickLabel = searchLabel, role = Role.Button, onClick = onOpenSearch),
+        ) {
             /*
-             * Ve sbalené pilulce nese nápověda stav spojení (znak místo lupy ukazuje, ŽE něco
-             * není v pořádku, text CO). Rozbalené hledání má nápovědu vždycky svoji — uživatel
-             * se tam dívá na výsledky, ne na spojení.
-             *
-             * Výměna je fade through, ne `Crossfade`: dva texty na témže místě napůl průhledné
-             * přes sebe („Čekání na síť" přes „Připojování") se nedají přečíst a vypadají jako
-             * chyba vykreslení — tatáž úvaha jako u přechodů mezi obrazovkami.
+             * Lupa, nebo bez spojení jeho znak. Prolnutí, ne fade through jako u nápovědy: dvě
+             * malé ikony přes sebe se nepletou jako dva texty. Klíč je jen „je výpadek": mezi
+             * stavy výpadku se přechod nespouští (ten si řeší znak sám) a odcházející znak si
+             * nechá poslední stav, ne `null`.
              */
-            placeholder = {
-                val hint = connection?.label().takeUnless { expanded } ?: Res.string.chats_search
+            val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+            val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+            Box(Modifier.padding(start = 4.dp).size(48.dp), contentAlignment = Alignment.Center) {
                 AnimatedContent(
-                    targetState = hint,
-                    transitionSpec = {
-                        fadeIn(tween(HINT_FADE_IN_MS, delayMillis = HINT_FADE_OUT_MS, easing = LinearOutSlowInEasing)) togetherWith
-                            fadeOut(tween(HINT_FADE_OUT_MS, easing = FastOutLinearInEasing))
-                    },
-                ) {
-                    Text(
-                        stringResource(it),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            },
-            leadingIcon = {
-                if (expanded) {
-                    TextFieldSlot {
-                        IconButton(onClick = ::collapse, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                painterResource(Res.drawable.arrow_back_24dp),
-                                contentDescription = stringResource(Res.string.common_back),
-                            )
-                        }
-                    }
-                } else {
-                    /*
-                     * Lupa, nebo bez spojení jeho znak. Prolnutí, ne fade through jako
-                     * u nápovědy: dvě malé ikony přes sebe se nepletou jako dva texty.
-                     * Klíč je jen „je výpadek": mezi stavy výpadku se přechod nespouští (ten
-                     * si řeší znak sám) a odcházející znak si nechá poslední stav, ne `null`.
-                     */
-                    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-                    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-                    AnimatedContent(
-                        targetState = connection,
-                        transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
-                        contentAlignment = Alignment.Center,
-                        contentKey = { it != null },
-                        label = "search-leading",
-                    ) { shown ->
-                        if (shown != null) {
-                            ConnectionStatusIcon(shown)
-                        } else {
-                            // Lupa přeletí do tlačítka hledání sbaleného sloupce (`collapseFlight`).
-                            Icon(painterResource(Res.drawable.search_24dp), contentDescription = null, modifier = Modifier.collapseFlight("search"))
-                        }
+                    targetState = connection,
+                    transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
+                    contentAlignment = Alignment.Center,
+                    contentKey = { it != null },
+                    label = "search-leading",
+                ) { shown ->
+                    if (shown != null) {
+                        ConnectionStatusIcon(shown)
+                    } else {
+                        Icon(
+                            painterResource(Res.drawable.search_24dp),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 }
-            },
-            // Avatar účtu, vymazat a AI jsou tlačítka — kurzor jako nad tlačítkem, ne nad textem.
-            trailingIcon = {
-                TextFieldSlot {
-                    when {
-                        expanded && textFieldState.text.isNotEmpty() -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            // „Hledat s AI" jen u věty, ne u jména chatu: jedno dvě slova se hledají
-                            // tak, jak jsou, a ikona by u nich jen překážela.
-                            if (aiSearch != null && (aiBusy || naturalSentence(textFieldState.text.toString()))) {
-                                AiSearchButton(
-                                    busy = aiBusy,
-                                    onClick = {
-                                        val query = textFieldState.text.toString()
-                                        aiBusy = true
-                                        scope.launch {
-                                            val found = try {
-                                                aiSearch(query)
-                                            } finally {
-                                                aiBusy = false
-                                            }
-                                            // Dotaz se mezitím změnil — výsledek patří k jinému.
-                                            if (textFieldState.text.toString() != query) return@launch
-                                            if (found == null) {
-                                                haptics.reject()
-                                            } else {
-                                                // Napřed filtr, pak text: hledání se pustí jednou,
-                                                // s obojím (`ChatSearch` sbírá nejnovější).
-                                                controls.onFilterChange(found.filter)
-                                                textFieldState.setTextAndPlaceCursorAtEnd(found.text)
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                            IconButton(
-                                onClick = { textFieldState.clearText() },
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(
-                                    painterResource(Res.drawable.close_24dp),
-                                    contentDescription = stringResource(Res.string.chats_search_clear),
-                                )
-                            }
-                        }
-                        // V rozbaleném hledání příběhy nepatří — uživatel se dívá na výsledky.
-                        !expanded -> trailing()
-                    }
-                }
-            },
-        )
-    }
-
-    // Hledání zavřené gestem zpět jde mimo `collapse()`; dotaz by jinak zůstal v pilulce.
-    LaunchedEffect(expanded) {
-        if (!expanded) {
-            textFieldState.clearText()
-            // Filtr patří k jednomu hledání, jako dotaz; příště se začíná bez něj.
-            controls.onFilterChange(MessageSearchFilter())
+            }
+            /*
+             * Nápověda nese stav spojení (znak místo lupy ukazuje, ŽE něco není v pořádku, text
+             * CO). Výměna je fade through, ne `Crossfade`: dva texty na témže místě napůl
+             * průhledné přes sebe („Čekání na síť" přes „Připojování") se nedají přečíst
+             * a vypadají jako chyba vykreslení — tatáž úvaha jako u přechodů mezi obrazovkami.
+             */
+            val hint = connection?.label() ?: Res.string.chats_search
+            AnimatedContent(
+                targetState = hint,
+                transitionSpec = {
+                    fadeIn(tween(HINT_FADE_IN_MS, delayMillis = HINT_FADE_OUT_MS, easing = LinearOutSlowInEasing)) togetherWith
+                        fadeOut(tween(HINT_FADE_OUT_MS, easing = FastOutLinearInEasing))
+                },
+                modifier = Modifier.weight(1f).padding(start = 4.dp),
+            ) {
+                Text(
+                    stringResource(it),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(Modifier.padding(end = 4.dp)) { trailing() }
         }
-        // Návrhy (nejčastější, historie) se načítají jen při otevřeném hledání.
-        controls.onExpandedChange(expanded)
-    }
-
-    /*
-     * Dotaz zvenku. Napřed rozbalit, pak vepsat text: efekt nad `expanded` při sbalení text
-     * maže, a kdyby text přišel dřív, smazal by ho ještě přechod ze sbaleného stavu.
-     * Požadavek se nuluje AŽ NAKONEC — vynulování mění klíč efektu, a hned na začátku by
-     * efekt zrušilo i s rozbalováním (tatáž past jako „Vrátit" u odepnuté zprávy).
-     */
-    LaunchedEffect(request) {
-        val query = request ?: return@LaunchedEffect
-        searchBarState.animateToExpanded()
-        textFieldState.setTextAndPlaceCursorAtEnd(query)
-        onRequestHandled()
-    }
-
-    val onQueryChangeLatest by rememberUpdatedState(controls.onQueryChange)
-    LaunchedEffect(textFieldState) {
-        snapshotFlow { textFieldState.text.toString() }.collect { onQueryChangeLatest(it) }
     }
 
     // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
@@ -427,7 +291,7 @@ internal fun ChatSearchBar(
         val windowControls = LocalWindowControlsClearance.current.start > 0.dp
         AppBarWithSearch(
             state = searchBarState,
-            inputField = inputField,
+            inputField = pill,
             navigationIcon = if (windowControls) {
                 { WindowControlsSpace() }
             } else {
@@ -441,94 +305,8 @@ internal fun ChatSearchBar(
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         )
     }
-
-    val results: @Composable ColumnScope.() -> Unit = {
-        Box(Modifier.fillMaxSize()) {
-        SearchResults(
-            query = textFieldState.text.toString(),
-            search = search,
-            savedMessagesChatId = savedMessagesChatId,
-            clicks = SearchResultClicks(
-                onPick = { chatId, slot ->
-                    collapse()
-                    onChatClick(chatId, slot)
-                },
-                onMessageClick = { chatId, messageId, topicId, slot ->
-                    collapse()
-                    onMessageClick(chatId, messageId, topicId, slot)
-                },
-                // Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal.
-                onPickTag = { tag -> textFieldState.setTextAndPlaceCursorAtEnd(tag) },
-                onPickSponsored = { ad ->
-                    // Otevření se hlásí dřív, než se chat otevře (specifikace reklam).
-                    sponsoredActions.onOpen(ad.uniqueId)
-                    collapse()
-                    onChatClick(ad.chat.id, null)
-                },
-            ),
-            controls = controls,
-            suggestionActions = suggestionActions,
-            sponsoredActions = sponsoredActions,
-            localSources = localSources,
-        )
-        SnackbarHost(
-            snackbarHostState,
-            Modifier.align(Alignment.BottomCenter).padding(bottom = resultsPadding().calculateBottomPadding()),
-        )
-        }
-    }
-
-    /*
-     * Na široké ploše (dva panely) se hledání rozbalí jako panel pod pilulkou, ne přes celou
-     * obrazovku. Seznam chatů tam je jen levý panel a celoobrazovkové hledání by zakrylo
-     * i otevřenou konverzaci vpravo — a výsledky by se natáhly přes celý rozložený Fold.
-     * Material doporučuje přesně tohle: docked na střední a velké šířce, full screen na telefonu.
-     */
-    if (LocalPanesSideBySide.current) {
-        /*
-         * Zpět má napřed schovat klávesnici, teprve další zpět hledání zavřít — jako na telefonu.
-         * Panel je popup a ten si na Androidu 13+ bere zpět PŘED klávesnicí: zavřel hledání
-         * i s ní. Zavírá ho proto `PopupBackAfterKeyboard`, až když klávesnice vidět není; jestli
-         * je, ví jen okno popupu (klávesnice patří jemu), tak sedí v poli uvnitř.
-         */
-        CompositionLocalProvider(LocalDockedResults provides true) {
-            ExpandedDockedSearchBarWithGap(
-                state = searchBarState,
-                inputField = {
-                    PopupBackAfterKeyboard { collapse() }
-                    inputField()
-                },
-                colors = colors.searchBarColors,
-                properties = PopupProperties(
-                    focusable = true,
-                    clippingEnabled = false,
-                    dismissOnBackPress = popupDismissesOnBack,
-                ).overTitleBar(),
-                content = results,
-            )
-        }
-    } else {
-        ExpandedFullScreenSearchBar(
-            state = searchBarState,
-            inputField = inputField,
-            colors = colors.searchBarColors,
-            /*
-             * Spodní inset si berou seznamy výsledků (`resultsPadding`), ne hledání. Výchozí
-             * `safeDrawing` dává obsahu spodek jako padding, takže výsledky končily useknuté nad
-             * navigační lištou na holé ploše. Takhle jedou pod lištu a poslední položka se nad ni
-             * doroluje. Klávesnice je ve `safeDrawing` taky, takže nic nezakryje.
-             */
-            windowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
-            content = results,
-        )
-    }
 }
 
-/**
- * Výsledky leží v panelu pod pilulkou (široká plocha), ne přes celou obrazovku. Panel ke spodku
- * okna nesahá, takže spodní lišta ani klávesnice do jeho odsazení nepatří.
- */
-private val LocalDockedResults = staticCompositionLocalOf { false }
 
 /**
  * Obsah rozbaleného hledání. Bez dotazu návrhy (řádek nejčastějších lidí, historie hledání),
@@ -539,7 +317,7 @@ private val LocalDockedResults = staticCompositionLocalOf { false }
  * jich je desítky a zprávy by skončily daleko pod nimi. Zprávy se stránkují, dokud se listuje.
  */
 @Composable
-private fun SearchResults(
+internal fun SearchResults(
     query: String,
     search: ChatSearchState,
     savedMessagesChatId: Long?,
@@ -1359,8 +1137,8 @@ internal data class LocalSearchSources(
     val describedPhotos: List<StoredPhotoDescription> = emptyList(),
 )
 
-/** Co udělá ťuknutí na výsledek hledání; [ChatSearchBar] po něm hledání zavře. */
-private data class SearchResultClicks(
+/** Co udělá ťuknutí na výsledek hledání (`ChatSearchScreen`). */
+internal data class SearchResultClicks(
     val onPick: (chatId: Long, slot: AccountSlot?) -> Unit,
     val onMessageClick: (chatId: Long, messageId: Long, topicId: Int?, slot: AccountSlot?) -> Unit,
     /** Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal. */
@@ -1370,14 +1148,10 @@ private data class SearchResultClicks(
 
 private val TOP_CHAT_WIDTH = 76.dp
 
-/** Odsazení seznamů v hledání: spodní systémové lišty a klávesnice (viz `windowInsets` hledání). */
+/** Odsazení seznamů v hledání: spodní systémové lišty a klávesnice. */
 @Composable
-private fun resultsPadding(): PaddingValues {
-    val bottom = if (LocalDockedResults.current) {
-        0.dp
-    } else {
-        WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
-    }
+internal fun resultsPadding(): PaddingValues {
+    val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
     return PaddingValues(top = 8.dp, bottom = 8.dp + bottom)
 }
 
@@ -1439,7 +1213,7 @@ private const val NATURAL_SEARCH_MIN_WORDS = 3
 /** Ikona „Hledat s AI"; během čtení modelem se místo ní točí indikátor. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AiSearchButton(busy: Boolean, onClick: () -> Unit) {
+internal fun AiSearchButton(busy: Boolean, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = !busy, shapes = IconButtonDefaults.shapes()) {
         if (busy) {
             LoadingIndicator(Modifier.size(24.dp))

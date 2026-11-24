@@ -657,6 +657,15 @@ data class ShareToChatRoute(override val slot: AccountSlot, val chatId: Long) : 
 @Serializable
 data class NewChatRoute(override val slot: AccountSlot = AccountSlot.Primary) : AccountRoute
 
+/**
+ * Hledání v seznamu chatů účtu [slot] (chaty, veřejné chaty, zprávy) jako vlastní obrazovka
+ * v panelu seznamu (`docs/navrh-hledani.md`). Na široké ploše nahradí seznam chatů a konverzace
+ * vpravo zůstane: v zásobníku leží POD konverzací (`AppNavigation.openSearch`). [query] je dotaz
+ * zvenku (hashtag ťuknutý v konverzaci).
+ */
+@Serializable
+data class ChatSearchRoute(override val slot: AccountSlot = AccountSlot.Primary, val query: String = "") : AccountRoute
+
 /** Nový kontakt podle telefonního čísla; po přidání se otevře konverzace s ním. */
 @Serializable
 data class NewContactRoute(override val slot: AccountSlot = AccountSlot.Primary) : AccountRoute
@@ -789,6 +798,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(DraftsRoute::class, DraftsRoute.serializer())
             subclass(BookmarksRoute::class, BookmarksRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
+            subclass(ChatSearchRoute::class, ChatSearchRoute.serializer())
             subclass(NewContactRoute::class, NewContactRoute.serializer())
             subclass(NewGroupMembersRoute::class, NewGroupMembersRoute.serializer())
             subclass(CreateChatRoute::class, CreateChatRoute.serializer())

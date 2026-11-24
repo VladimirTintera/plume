@@ -2,12 +2,20 @@ package eu.tintera.plume.features.chats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.bookmarks.MessageBookmark
+import eu.tintera.plume.core.bookmarks.MessageBookmarks
+import eu.tintera.plume.core.settings.StoredPhotoDescription
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.SponsoredSearchChat
+import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.features.report.ReportFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -30,7 +38,34 @@ class ChatSearchViewModel(
     private val repository: ChatRepository,
     /** Hledání přirozeným jazykem; bez něj se „Hledat s AI" nenabízí. */
     private val naturalSearch: NaturalSearchModel? = null,
+    /** Záložky zpráv; ty, jejichž text sedí na dotaz, mají ve výsledcích vlastní blok. */
+    bookmarks: MessageBookmarks? = null,
+    /** Fotky popsané modelem v zařízení; hledání je najde podle popisu. */
+    photoDescriptions: PhotoDescriptions? = null,
 ) : ViewModel() {
+
+    /** Uložené zprávy: TDLib je zná pod jménem účtu, výsledky je hledají podle přeloženého názvu. */
+    val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId
+
+    /** Záložky přihlášeného účtu ze všech chatů (hledání v zařízení). */
+    val bookmarks: StateFlow<List<MessageBookmark>> = (bookmarks?.all ?: flowOf(emptyList()))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Popsané fotky (popis modelem v zařízení) — hledání je najde podle obsahu. */
+    val describedPhotos: StateFlow<List<StoredPhotoDescription>> = (photoDescriptions?.all ?: flowOf(emptyList()))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Názvy chatů se záložkami a popsanými fotkami. Dotahují se zvlášť (`summaries`, lokální),
+     * protože takový chat nemusí být v načteném seznamu — archivovaný, opuštěný.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val foundChatTitles: StateFlow<Map<Long, String>> = combine(this.bookmarks, describedPhotos) { marks, photos ->
+        (marks.map { it.chatId } + photos.map { it.chatId }).distinct()
+    }
+        .distinctUntilChanged()
+        .mapLatest { ids -> repository.summaries(ids).associate { it.id to it.title } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy, se sponzorovanými chaty). */
     val search = ChatSearch(repository, viewModelScope, everywhere = true, sponsored = true)

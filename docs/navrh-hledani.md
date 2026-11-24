@@ -1,7 +1,8 @@
 # Návrh: hledání jako destinace v panelu seznamu
 
-> **Stav:** návrh, nic z něj není v kódu. Vychází z `main` po VladimirTintera/plume#32
-> a z rozboru `ChatSearchBar`, `ChatSearch` a navigace z 24. 11. 2026.
+> **Stav:** kroky 1–3 hotové (VladimirTintera/plume#35): stav v `ChatSearchViewModel`, routa
+> a obrazovka hledání, úklid popupu. Zbývá přechod pilulka → pole (krok 4); režim Všechny účty
+> je v obrazovce od kroku 2. Poučení z provedení jsou v `docs/poznatky/hledani-a-zakladani-chatu.md`.
 
 Hledání v seznamu chatů se dnes rozbaluje z pilulky v hlavičce. Na telefonu je to popup přes
 celou obrazovku (`ExpandedFullScreenSearchBar`), na široké ploše malý panel pod pilulkou

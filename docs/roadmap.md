@@ -1664,21 +1664,18 @@ seznam". Zbývá:
 1. **Drobnosti.**
    - ~~Sbalený seznam nemá FAB ani výběr víc chatů~~ — hotovo (`feat/sbaleny-seznam-fab-vyber`;
      karty nad seznamem hlásí tlačítko s tečkou).
-   - **Zkratka hledání (⌘K / Ctrl+K, nabídka Chaty → Hledat v chatech) se sbaleným seznamem
-     nic neukáže.** `openSearch` nastaví jen požadavek; rozbalit panel umí jen tlačítko hledání
-     ve sloupci (`LocalExpandListPane`). Hledání se otevře až po ručním rozbalení. Nalezeno
-     24. 11. 2026 na desktopu. Vyřeší to hledání jako destinace (`docs/navrh-hledani.md`, krok 2)
-     — `openSearch` tam bude navigovat, a s tím může panel rozbalit.
+   - ~~Zkratka hledání se sbaleným seznamem nic neukáže~~ — hotovo s hledáním jako destinací
+     (panel se při otevření hledání rozbalí).
 2. **Hlavička nad kartou: zbývá ověřit.** Konverzace, profil, jeho podstránky a kalendář mají
    hlavičku na ploše okna a kartu od výšky prvního řádku seznamu až k dolnímu kraji
    (`feat/conversation-header-outside-card`, `docs/poznatky/navigace.md`, „Hlavička konverzace
    leží NAD kartou"). Neověřené: desktop (horní řada vůči titulku okna), tablet, naležato,
    predictive back z konverzace, podstránky profilu naživo (skupina nebo kanál se statistikami
    a pozvánkami), výběr zpráv a pruhy nad zprávami (připnuté, spam) u horní hrany karty.
-3. **Hledání jako destinace v panelu seznamu.** Docked panel pod pilulkou je na široké ploše
-   malé plovoucí okénko nad seznamem, a jako popup s sebou táhne řadu obcházek. Hledání má
-   nahradit seznam v panelu na celou výšku, konverzace vpravo zůstane, pilulka se promění v pole.
-   Návrh a postup po krocích: [navrh-hledani.md](navrh-hledani.md).
+3. **Hledání jako destinace v panelu seznamu: zbývá přechod.** Hledání je vlastní obrazovka
+   v panelu seznamu (VladimirTintera/plume#35). Zbývá krok 4 z [navrh-hledani.md](navrh-hledani.md):
+   pilulka se má do pole proměnit (container transform), dnes se obrazovka jen vymění. Naživo
+   neověřené: Android (telefon, Fold) a režim Všechny účty.
 4. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
    `docs/poznatky/navigace.md`, „Nízké okno"). Naživo zbývá prohlížeč příběhů (účet, který
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení

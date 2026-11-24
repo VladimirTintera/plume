@@ -34,6 +34,7 @@ import eu.tintera.plume.core.navigation.ChangePhoneRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
 import eu.tintera.plume.core.navigation.NewGroupMembersRoute
 import eu.tintera.plume.core.telegram.AppScreen
+import eu.tintera.plume.core.navigation.ChatSearchRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
@@ -137,7 +138,7 @@ class AppNavigation internal constructor(
             AppScreen.NewChat -> openInChats(NewChatRoute(slot))
             AppScreen.NewGroup -> openInChats(NewGroupMembersRoute(slot))
             AppScreen.NewChannel -> openInChats(CreateChatRoute(slot, channel = true))
-            AppScreen.Search -> openSearch("", keepConversation = twoPane)
+            AppScreen.Search -> openSearch(slot, "", keepConversation = twoPane)
         }
     }
 
@@ -290,19 +291,14 @@ class AppNavigation internal constructor(
     }
 
     /**
-     * Dotaz, se kterým se má otevřít hledání v seznamu chatů (hashtag ťuknutý v konverzaci).
-     * Stav, ne událost: seznam chatů v tu chvíli nemusí být složený (na telefonu ho konverzace
-     * překrývá) a vyzvedne si ho, až se složí — viz [consumeSearchRequest].
+     * Hledání v seznamu chatů účtu [slot] ([ChatSearchRoute]), s dotazem [query] (hashtag
+     * z konverzace). Hledání je list panel: na telefonu se zásobník Chatů srovná na kořen
+     * a hledání jde nad něj, v dvoupanelu zůstane otevřená konverzace ([keepConversation])
+     * a hledání se vloží POD ni — list-detail scéna bere za seznam poslední položku v roli
+     * seznamu a za detail jen to, co leží nad ní. Výsledek se pak otevře nad hledáním a hledání
+     * vlevo zůstane. Archiv jde pryč v obou případech, hledání má jen hlavní seznam.
      */
-    var searchRequest: String? by mutableStateOf(null)
-        private set
-
-    /**
-     * Hledání v seznamu chatů s dotazem. Seznam musí být vidět: na telefonu se zásobník Chatů
-     * srovná na kořen, v dvoupanelu zůstane otevřená konverzace ([keepConversation]) — hledání
-     * je vlevo vedle ní. Archiv jde pryč v obou případech, hledání má jen hlavní seznam.
-     */
-    fun openSearch(query: String, keepConversation: Boolean) {
+    fun openSearch(slot: AccountSlot, query: String, keepConversation: Boolean) {
         selected.value = ChatsRoute
         val stack = stack(ChatsRoute)
         if (keepConversation) {
@@ -310,11 +306,23 @@ class AppNavigation internal constructor(
         } else {
             popToRoot(ChatsRoute)
         }
-        searchRequest = query
+        stack.add(stack.indexOfFirst { it is ChatsRoute } + 1, ChatSearchRoute(slot, query))
     }
 
-    fun consumeSearchRequest() {
-        searchRequest = null
+    /**
+     * Chat, na který má seznam chatů dojet (vybraný v hledání). Stav, ne událost: seznam v tu
+     * chvíli nemusí být složený (na telefonu ho překrývá hledání i konverzace) a vyzvedne si ho,
+     * až se složí — viz [consumeChatListScroll].
+     */
+    var chatListScroll: Long? by mutableStateOf(null)
+        private set
+
+    fun scrollChatListTo(chatId: Long) {
+        chatListScroll = chatId
+    }
+
+    fun consumeChatListScroll() {
+        chatListScroll = null
     }
 
     /**
