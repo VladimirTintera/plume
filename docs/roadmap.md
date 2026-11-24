@@ -1672,9 +1672,10 @@ seznam". Zbývá:
    leží NAD kartou"). Neověřené: desktop (horní řada vůči titulku okna), tablet, naležato,
    predictive back z konverzace, podstránky profilu naživo (skupina nebo kanál se statistikami
    a pozvánkami), výběr zpráv a pruhy nad zprávami (připnuté, spam) u horní hrany karty.
-3. **Hledání jako destinace v panelu seznamu: zbývá ověřit naživo.** Hotovo i s přechodem pilulka →
-   pole (VladimirTintera/plume#35, [navrh-hledani.md](navrh-hledani.md)). Neověřené: Android
-   (telefon se zpět a klávesnicí, Fold s otevřeným hledáním při skládání) a režim Všechny účty.
+3. **Hledání jako destinace v panelu seznamu: zbývá režim Všechny účty.** Hotovo i s přechodem
+   pilulka → pole (VladimirTintera/plume#35, [navrh-hledani.md](navrh-hledani.md)), ověřené na
+   desktopu a na emulátoru Fold (telefon i rozložený, skládání s otevřeným hledáním). Naživo
+   neověřený zbývá režim Všechny účty (hledání přes víc účtů naráz).
 4. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
    `docs/poznatky/navigace.md`, „Nízké okno"). Naživo zbývá prohlížeč příběhů (účet, který
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení

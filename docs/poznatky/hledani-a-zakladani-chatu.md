@@ -162,7 +162,9 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   - **Pole má tvar, barvu a výšku pilulky** (`SearchBarDefaults.InputField` bez `SearchBarState`
     v `Surface` s `inputFieldShape`) a stojí 4 dp od horního kraje lišty jako ona; na desktopu
     nechává místo tlačítkům okna (`WindowControlsSpace`). Klávesnice vyjede hned (fokus při
-    otevření).
+    otevření) — **jen při otevření** (`rememberSaveable`): na telefonu konverzace otevřená
+    z výsledků hledání překryje a po návratu se obrazovka skládá znovu, a klávesnice pak vyjela
+    přes výsledky, ke kterým se uživatel vracel.
   - **Pole vyrůstá z pilulky** (`SearchMorph`, `growFrom` v `ChatSearchScreen`): začne v její
     poloze a šířce, roztáhne se, lupa se prolne do šipky zpět a výsledky se objeví až od třetiny
     růstu (fade through). Zavření šipkou nebo Esc přehraje totéž pozpátku a seznam chatů pak svůj
@@ -176,6 +178,12 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
     - **Pole se rozkládá rovnou na plnou šířku a odkrývá ořezem** (vrstva s tvarem pilulky
       rostoucí šířky). S měněnou šířkou rozložení se nápověda v úzkém poli zalomila na dva
       řádky — zachyceno snímkem.
+    - **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, 24. 11. 2026): rozložený — hledání
+      v levém panelu s klávesnicí, výsledek (Notifikátor) vpravo a hledání zůstane, zpět napřed
+      schová klávesnici, pak zavře konverzaci, pak hledání; čtyři cykly `adb emu fold`/`unfold`
+      s otevřeným hledáním bez pádu (dotaz i výsledky zůstanou, složený ukazuje hledání přes
+      celou obrazovku). Složený — výsledek přes celou obrazovku, zpět do výsledků bez klávesnice,
+      další zpět do seznamu, který dojel na vybraný chat. Režim Všechny účty neověřený.
     - **Pilulka si při zmizení polohu smaže** (`onDispose`). Hledání otevřené ze sbaleného sloupce
       (pilulka tam není) by jinak rostlo z místa, kde pilulka stála naposledy. Mezi novou
       obrazovkou a smazáním je pořadí jisté: obrazovka hledání si polohu přečte při složení
