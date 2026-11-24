@@ -69,7 +69,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
@@ -129,6 +129,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -215,7 +216,7 @@ internal fun ChatCalendarPane(
     onClose: () -> Unit,
 ) {
     val sideBySide = LocalPanesSideBySide.current
-    // Spodek si berou seznamy měsíců (`navigationBarsPadding`). Vedle konverzace stojí panel
+    // Spodek si berou seznamy měsíců do odsazení obsahu (`monthListPadding`). Vedle konverzace stojí panel
     // vpravo, takže levý výřez displeje není jeho; sám přes celou obrazovku bere obě strany.
     val sides = if (sideBySide) WindowInsetsSides.Top + WindowInsetsSides.End else WindowInsetsSides.Top + WindowInsetsSides.Horizontal
     // S hlavičkou nad kartou (`PaneHeader`) dostane plochu až obsah pod hlavičkou.
@@ -454,7 +455,9 @@ private fun TodayButton(visible: Boolean, onClick: () -> Unit, modifier: Modifie
         visible = visible,
         enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
         exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-        modifier = modifier.navigationBarsPadding().padding(bottom = TODAY_BUTTON_MARGIN),
+        modifier = modifier
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+            .padding(bottom = TODAY_BUTTON_MARGIN),
     ) {
         FilledTonalButton(onClick = onClick, shapes = ButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.keyboard_arrow_up_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
@@ -473,6 +476,19 @@ private val TODAY_BUTTON_MARGIN = 16.dp
  * když je seznam odrolovaný, tedy i na úplném konci.
  */
 private val TODAY_BUTTON_CLEARANCE = TODAY_BUTTON_MARGIN + ButtonDefaults.MinHeight + TODAY_BUTTON_MARGIN
+
+/**
+ * Odsazení obsahu seznamu měsíců (i ročního přehledu). Seznam sám jde až ke spodní hraně, pod
+ * navigační lištu, a spodní inset (lišta, otevřená klávesnice u hledání) je až v odsazení obsahu:
+ * poslední měsíc se nad lištu doroluje a nad ní je vidět, co pod ní projíždí. Dřív měl inset
+ * seznam na modifikátoru (`navigationBarsPadding`) — seznam končil nad lištou a pod ním zůstal
+ * prázdný pruh plochy, stránka byla o lištu useknutá. Stejně to dělá profil.
+ */
+@Composable
+private fun monthListPadding(bottom: Dp): PaddingValues {
+    val inset = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+    return PaddingValues(top = 16.dp, bottom = bottom + inset)
+}
 
 /**
  * Čipy: všechny zprávy, hledání, člen skupiny (s hledáním se kombinuje — výraz od toho člena)
@@ -594,10 +610,10 @@ private fun AllMessagesMonths(
     val itemPlacement = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
     val monthResize = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     LazyColumn(
-        Modifier.fillMaxWidth().navigationBarsPadding(),
+        Modifier.fillMaxWidth(),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = TODAY_BUTTON_CLEARANCE),
+        contentPadding = monthListPadding(bottom = TODAY_BUTTON_CLEARANCE),
     ) {
         itemsIndexed(months, key = { _, month -> month.toString() }) { _, month ->
             Column(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemPlacement, fadeOutSpec = itemFadeOut)) {
@@ -781,10 +797,10 @@ private fun ServerMonths(
     val itemPlacement = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
     val monthResize = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     LazyColumn(
-        Modifier.fillMaxWidth().navigationBarsPadding(),
+        Modifier.fillMaxWidth(),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = TODAY_BUTTON_CLEARANCE),
+        contentPadding = monthListPadding(bottom = TODAY_BUTTON_CLEARANCE),
     ) {
         itemsIndexed(months, key = { _, month -> month.month.toString() }) { index, month: CalendarMonth ->
             // Dotahuje se, už když se ukáže předposlední měsíc. Klíčem je místo, odkud se
@@ -878,10 +894,10 @@ private fun YearOverview(
 ) {
     val years = (newest.year downTo oldest.year).toList()
     LazyColumn(
-        Modifier.fillMaxWidth().navigationBarsPadding(),
+        Modifier.fillMaxWidth(),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
+        contentPadding = monthListPadding(bottom = 16.dp),
     ) {
         itemsIndexed(years, key = { _, year -> year }) { index, year ->
             if (onReachEnd != null && index == years.size - 1) LaunchedEffect(oldest) { onReachEnd() }
