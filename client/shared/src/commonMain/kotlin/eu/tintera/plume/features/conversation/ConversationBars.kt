@@ -29,6 +29,8 @@ import kotlinx.coroutines.delay
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.hazeBlur
+import eu.tintera.plume.core.adaptive.ContentWidth
+import eu.tintera.plume.core.adaptive.centeredColumn
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -137,10 +139,14 @@ internal fun BoxScope.ConversationBars(
     /*
      * Pruh proti spamu a připnuté zprávy plavou nad seznamem spolu a měří se spolu: seznam
      * se odsazuje o výšku obou. Spam stojí nahoře — je důležitější než připnutá zpráva.
+     *
+     * Na široké ploše ve sloupci uprostřed, stejně jako zprávy pod nimi a vstupní pole: přes
+     * celý panel se pilulka připnutých táhla od okraje k okraji, daleko za bubliny.
      */
     Column(
         Modifier
             .align(Alignment.TopCenter)
+            .centeredColumn(ContentWidth.Conversation)
             .onSizeChanged { onPinnedHeight(with(density) { it.height.toDp() }) },
     ) {
         Column(Modifier.onSizeChanged { onBarsHeight(with(density) { it.height.toDp() }) }) {
