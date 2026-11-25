@@ -2,6 +2,8 @@ package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
 import eu.tintera.plume.core.adaptive.PaneHeader
+import eu.tintera.plume.core.adaptive.PaneBandActions
+import eu.tintera.plume.core.adaptive.inPaneBand
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -45,6 +47,7 @@ import eu.tintera.plume.core.adaptive.WindowControlsSpace
  * leží v jednom pásu nad kartami (`PaneHeader`) a střední bar (přes 100 dp) by vedle 64dp
  * hlavičky konverzace začínal kartu níž — pás by se zlomil a podstránka vypadala jako cizí
  * okno. Název a podtitulek se do malého baru vejdou stejně jako jméno a stav v konverzaci.
+ * V pásu (`PaneBand`) je bez šipky zpět a na konci nese akce konverzace ([PaneBandActions]).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -58,9 +61,13 @@ internal fun ProfileSubpageTopBar(
     // Vedle konverzace leží nad kartou profilu (`PaneHeader`), jinak je obyčejná.
     val titleText: @Composable () -> Unit = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     val subtitleText: (@Composable () -> Unit)? = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+    // V pásu vedle konverzace je to boční panel: zavírá ho přepínač panelu, šipku nemá.
+    val inBand = inPaneBand()
     val back: @Composable () -> Unit = {
-        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+        if (!inBand) {
+            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+            }
         }
     }
     val colors = TopAppBarDefaults.topAppBarColors(
@@ -75,6 +82,7 @@ internal fun ProfileSubpageTopBar(
                 navigationIcon = { WindowControlsSpace { back() } },
                 actions = {
                     actions()
+                    PaneBandActions()
                     WindowControlsEndSpace()
                 },
                 colors = colors,
@@ -86,6 +94,7 @@ internal fun ProfileSubpageTopBar(
                 navigationIcon = { WindowControlsSpace { back() } },
                 actions = {
                     actions()
+                    PaneBandActions()
                     WindowControlsEndSpace()
                 },
                 colors = colors,
@@ -97,6 +106,7 @@ internal fun ProfileSubpageTopBar(
                 navigationIcon = { WindowControlsSpace { back() } },
                 actions = {
                     actions()
+                    PaneBandActions()
                     WindowControlsEndSpace()
                 },
                 colors = colors,

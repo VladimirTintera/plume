@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.adaptive
 
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -15,11 +17,18 @@ import eu.tintera.plume.core.ui.LocalPanesSideBySide
  * Jeden pás hlavičky přes konverzaci a boční panel vedle ní (profil, kalendář, podstránky).
  *
  * Konverzace v něm nechává vlevo sebe (šipka, avatar, název) a své akce (hovor, panel, ⋮) pošle
- * sem ([publishToPaneBand]); karta bočního panelu je nakreslí nad sebou u pravého okraje okna
- * (`PaneCard`). Akce tak stojí na STEJNÉM místě s panelem i bez něj — dřív s otevřeným panelem
- * uskočily doprostřed okna, i tlačítko, kterým se panel právě otevřel. A protože pás je chatu,
- * boční panel do něj nepíše: jméno chatu by v něm bylo podruhé a jeho vlastní ovládání (šipka
- * zpět, nadpis podstránky, přepínač roku v kalendáři) patří k jeho obsahu, takže leží v kartě.
+ * sem ([publishToPaneBand]). Boční panel má hlavičku NAD kartou, v téže řadě (`PaneCard` mu ji
+ * natáhne do výšky hlavičky konverzace), a na konec svých akcí přidá akce konverzace
+ * ([PaneBandActions]). Řada je tak jedna: „← konverzace | ← nadpis panelu · akce panelu · akce
+ * konverzace". Akce konverzace stojí na STEJNÉM místě s panelem i bez něj — dřív s otevřeným
+ * panelem uskočily doprostřed okna, i tlačítko, kterým se panel právě otevřel.
+ *
+ * Šipku zpět boční panel v pásu nemá ([inPaneBand]): zavírá ho přepínač panelu.
+ *
+ * **Dřív měl boční panel lištu v kartě, pod pásem** (pás nesl jen akce konverzace): úprava
+ * kanálu, kalendář i podstránky profilu tak měly dvě horní lišty pod sebou. Kořen profilu vedle
+ * vlastní konverzace nadpis nemá (jméno je v hlavičce konverzace), jeho lišta nese jen akce
+ * konverzace.
  *
  * Jen v Chatech ([PaneNeighbours.extraCard]) — podstránka Nastavení vedle sekce pás nemá.
  */
@@ -63,3 +72,25 @@ fun publishToPaneBand(actions: @Composable () -> Unit): Boolean {
     }
     return active
 }
+
+/** Akce konverzace pro hlavičku bočního panelu; `null` = panel v pásu není. */
+internal val LocalPaneBandActions = compositionLocalOf<(@Composable () -> Unit)?> { null }
+
+/**
+ * Akce konverzace na konci lišty bočního panelu, který stojí v pásu vedle ní ([PaneBand]).
+ * Patří do slotu `actions` KAŽDÉ lišty, kterou může panel v Chatech mít (profil, kalendář,
+ * `ProfileSubpageTopBar`), za vlastní akce a před [WindowControlsEndSpace]. Lišta bez nich by
+ * akce konverzace (přepínač panelu, ⋮) schovala. Mimo pás nedělá nic.
+ */
+@Composable
+fun RowScope.PaneBandActions() {
+    LocalPaneBandActions.current?.invoke()
+}
+
+/**
+ * Stojí obrazovka jako boční panel v pásu vedle konverzace? Pak **nemá šipku zpět ani ✕**:
+ * je to boční panel a zavírá ho přepínač panelu v pásu (`ProfilePaneButton`), ne vlastní
+ * navigace — ani podstránka (úprava kanálu, pozvánky) nad profilem.
+ */
+@Composable
+fun inPaneBand(): Boolean = LocalPaneBandActions.current != null

@@ -10,6 +10,8 @@ import eu.tintera.plume.core.adaptive.paneHeaderOutside
 import androidx.compose.material3.TopAppBarDefaults
 import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
 import eu.tintera.plume.core.adaptive.PaneHeader
+import eu.tintera.plume.core.adaptive.PaneBandActions
+import eu.tintera.plume.core.adaptive.inPaneBand
 import eu.tintera.plume.core.adaptive.paneScaffoldColor
 import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
@@ -301,13 +303,14 @@ fun ChatProfileScreen(
      * Profil je kořen bočního panelu vedle konverzace: bez šipky zpět i bez ✕. Panel otevírá
      * a zavírá přepínač v hlavičce konverzace (`ProfilePaneButton`), který stojí pořád na jednom
      * místě. Profil nad jiným panelem (člen z profilu skupiny) a obrazovky otevřené z profilu
-     * (úprava, práva člena) šipku zpět mají — vedou zpátky v panelu.
+     * (úprava, práva člena) šipku zpět mají — vedou zpátky v panelu. V pásu vedle konverzace
+     * (`inPaneBand`) ji nemá nikdo: boční panel zavírá přepínač panelu.
      */
     paneRoot: Boolean = false,
     /**
-     * Profil stojí vedle konverzace s týmž chatem: lištu nemá vůbec. Jméno chatu je v hlavičce
-     * konverzace a její akce nad bočním panelem (`PaneBand`), akce nad chatem i úprava jsou v jejím
-     * ⋮ ([ChatActions]) — druhá lišta by jen opakovala totéž o kousek vedle.
+     * Profil stojí vedle konverzace s týmž chatem: v liště (v pásu s hlavičkou konverzace,
+     * `PaneBand`) nemá nadpis ani vlastní akce, jen akce konverzace. Jméno chatu je v hlavičce
+     * konverzace, akce nad chatem i úprava v jejím ⋮ ([ChatActions]) — opakovaly by totéž vedle.
      */
     besideOwnConversation: Boolean = false,
     modifier: Modifier = Modifier,
@@ -431,13 +434,15 @@ fun ChatProfileScreen(
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                if (!besideOwnConversation) {
+                // V pásu vedle konverzace je hlavička v jedné řadě s její hlavičkou a nese i její
+                // akce. Kořen vedle VLASTNÍ konverzace má jen ty: jméno je v hlavičce konverzace,
+                // akce nad chatem i Upravit v jejím ⋮ (`ChatActions`).
                 PaneHeader {
                     TopAppBar(
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
                         title = {
                             AnimatedVisibility(
-                                visible = titleInBar && state.profile != null,
+                                visible = titleInBar && state.profile != null && !besideOwnConversation,
                                 enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
                                     slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
                                 exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
@@ -448,7 +453,8 @@ fun ChatProfileScreen(
                         },
                         navigationIcon = {
                             WindowControlsSpace {
-                                if (!paneRoot) {
+                                // Boční panel v pásu zavírá přepínač panelu, šipku nemá.
+                                if (!paneRoot && !inPaneBand()) {
                                     IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                                     }
@@ -456,7 +462,7 @@ fun ChatProfileScreen(
                             }
                         },
                         actions = {
-                            state.profile?.let { profile ->
+                            state.profile?.takeIf { !besideOwnConversation }?.let { profile ->
                                 ProfileEditButton(profile = profile, onEdit = onEdit, onEditContact = { editContact = true })
                                 ChatActions(
                                     viewModel = actions,
@@ -467,10 +473,10 @@ fun ChatProfileScreen(
                                     onCall = rememberStartCall(profile.userId),
                                 ) { groups -> ProfileMenuButton(groups) }
                             }
+                            PaneBandActions()
                             WindowControlsEndSpace()
                         },
                     )
-                }
                 }
             },
         ) { scaffoldPadding ->
@@ -1804,7 +1810,7 @@ private fun ProfileEditButton(profile: ChatProfile, onEdit: () -> Unit, onEditCo
  *
  * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
  * profilu chodí; tohle se dělá jednou za čas. Vedle konverzace s týmž chatem je tytéž akce
- * nabízí její ⋮ a profil lištu nemá (`besideOwnConversation`).
+ * nabízí její ⋮ a profil ho nemá (`besideOwnConversation`).
  */
 @Composable
 private fun ProfileMenuButton(groups: ChatActionGroups) {
