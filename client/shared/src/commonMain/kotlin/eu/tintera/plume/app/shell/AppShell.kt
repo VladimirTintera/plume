@@ -1183,7 +1183,7 @@ private fun shellEntryProvider(
 
     entry<ConversationRoute>(metadata = Panes.detail() + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             val settings = koinInject<AppSettings>()
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
@@ -1277,7 +1277,7 @@ private fun shellEntryProvider(
      */
     entry<SavedTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             SavedTopicsScreen(
                 viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -1297,7 +1297,7 @@ private fun shellEntryProvider(
      */
     entry<DirectTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             DirectTopicsScreen(
                 viewModel = koinViewModel(key = "direct-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -1317,7 +1317,7 @@ private fun shellEntryProvider(
      */
     entry<ForumTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -1336,7 +1336,7 @@ private fun shellEntryProvider(
 
     entry<ArchiveDirectTopicsRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             DirectTopicsScreen(
                 viewModel = koinViewModel(key = "direct-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -1352,7 +1352,7 @@ private fun shellEntryProvider(
 
     entry<ArchiveForumTopicsRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -1383,13 +1383,13 @@ private fun shellEntryProvider(
      * vystřídá kalendářem té nové (`followProfile`).
      */
     entry<ChatCalendarRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
-        ChatColorTheme(route.chatId) {
+        ChatColorTheme(route.chatId, onBack = { chatsStack.pop(route) }) {
             ChatCalendarPaneHost(route.chatId, route.savedTopicId, route.directTopicId, route.anchor, onClose = { chatsStack.pop(route) })
         }
     }
 
     entry<ArchiveChatCalendarRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
-        ChatColorTheme(route.chatId) {
+        ChatColorTheme(route.chatId, onBack = { chatsStack.pop(route) }) {
             ChatCalendarPaneHost(route.chatId, savedTopicId = null, route.directTopicId, route.anchor, onClose = { chatsStack.pop(route) })
         }
     }
@@ -1404,7 +1404,7 @@ private fun shellEntryProvider(
         val slot = LocalAccount.current.slot
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
-        ChatColorTheme(route.chatId) {
+        ChatColorTheme(route.chatId, onBack = { chatsStack.pop(route) }) {
             ChatProfileScreen(
                 viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -1615,7 +1615,7 @@ private fun shellEntryProvider(
 
     entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
                 viewModel = koinViewModel(
@@ -1687,7 +1687,7 @@ private fun shellEntryProvider(
         val slot = LocalAccount.current.slot
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
-        ChatColorTheme(route.chatId) {
+        ChatColorTheme(route.chatId, onBack = { chatsStack.pop(route) }) {
             ChatProfileScreen(
                 viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -2653,10 +2653,13 @@ private fun NavKey?.isOverSettingsSection(): Boolean =
         this == StickerSetsRoute || this == EmojiSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute || this == DeleteAccountRoute
 
-/** Kontejner obrazovky chatu (konverzace, seznam témat) v barvě chatu (`ChatColorTheme`). */
+/**
+ * Kontejner obrazovky chatu (konverzace, seznam témat) v barvě chatu (`ChatColorTheme`).
+ * [onBack] zavře obrazovku z brány zamčeného chatu (šipka, a když se chat právě zamkl).
+ */
 @Composable
-private fun ColoredChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Unit) {
-    ChatContainer(chatId, fromList) { ChatColorTheme(chatId, content) }
+private fun ColoredChatContainer(chatId: Long, fromList: Boolean, onBack: () -> Unit, content: @Composable () -> Unit) {
+    ChatContainer(chatId, fromList) { ChatColorTheme(chatId, onBack, content) }
 }
 
 /**

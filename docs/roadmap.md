@@ -2054,10 +2054,9 @@ Nic z toho zatím nikdo nezačal. Velikost: S = malé, M = střední, L = velké
     chce sadu zamčených zrcadlenou do App Group. Až budou notifikace na iOS živé.
   - **Hodinky** sadu neznají a zamčené chaty ukazují; poslat ji z telefonu (Data Layer), nebo
     na hodinkách zamčené neukazovat vůbec.
-  - **Jméno v obrazovce hovoru a v kanálu notifikací jednoho chatu** (vlastní nastavení
-    upozornění) — zamčení je nemění.
-  - **Brána nemá šipku zpět** (jen systémové gesto) a po zamčení otevřené konverzace ukáže
-    číselník místo toho, aby ji zavřela.
+  - **Kanál notifikací jednoho chatu** (vlastní nastavení upozornění) nese v systémovém
+    nastavení jméno chatu; zamčení ho nemění.
+  - ~~Jméno v hovoru, šipka zpět v bráně, zavření konverzace po zamčení~~ — hotovo.
   - **Odhlášení jiného účtu zahodí zámek aplikace** a nový PIN zamčené chaty otevře — zvážit
     vlastní záznam pro zamčené chaty, nebo zámek po účtech.
 - **Live Updates na Androidu 16** (S–M). Notifikace s `ProgressStyle` (povýšená průběžná)

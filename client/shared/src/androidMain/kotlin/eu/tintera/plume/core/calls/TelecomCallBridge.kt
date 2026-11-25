@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.calls
 
+import org.jetbrains.compose.resources.getString
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.locked_chat_notification_title
 import android.content.Context
 import android.media.AudioManager
 import android.net.Uri
@@ -73,7 +76,12 @@ class TelecomCallBridge(
     internal fun routes(): CallAudioRoutes = if (registered) audio else CallAudioRouter(context.getSystemService(AudioManager::class.java))
 
     private suspend fun track(call: ActiveCall) {
-        val name = chats.summaries(listOf(call.userId)).firstOrNull()?.title ?: ""
+        // Jméno z Telecomu čte systémové UI hovoru, auto i hodinky — zamčený chat ho nedá.
+        val name = if (call.userId in chats.lockedChatIds.value) {
+            getString(Res.string.locked_chat_notification_title)
+        } else {
+            chats.summaries(listOf(call.userId)).firstOrNull()?.title ?: ""
+        }
         val attributes = CallAttributesCompat(
             displayName = name,
             address = Uri.fromParts(URI_SCHEME, call.userId.toString(), null),

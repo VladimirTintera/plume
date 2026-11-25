@@ -1,9 +1,27 @@
 package eu.tintera.plume.features.lockedchats
 
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
+import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.locked_chat_notification_title
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,19 +75,48 @@ import androidx.compose.ui.platform.LocalHapticFeedback
  *   nenačte a hlavně nic nehlásí přečtení.
  * - **Bez zámku aplikace se zamčený chat otevřít nedá** (není čím ověřit): vysvětlení, kde
  *   zámek zapnout. Stane se to, když se zámek vypne, nebo zahodí odhlášením jiného účtu.
+ * - **[onBack] zavře obrazovku**: šipka v hlavičce brány (bez ní šlo zpět jen gestem) — a když
+ *   se chat zamkne, zatímco je otevřený (⋮ → Zamknout chat). Konverzace pak odejde, místo aby
+ *   uživateli, který ji právě zamkl, ukázala číselník. Návrat z pozadí obrazovku nezavírá:
+ *   zamkne se sezení, ne chat, a po PINu je uživatel tam, kde byl.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LockedChatGate(chatId: Long, content: @Composable () -> Unit) {
+fun LockedChatGate(chatId: Long, onBack: (() -> Unit)?, content: @Composable () -> Unit) {
     val settings = koinInject<AccountSettings>()
     val session = koinInject<LockedChatsSession>()
     val locked by settings.lockedChats.collectAsStateWithLifecycle()
     val unlocked by session.unlocked.collectAsStateWithLifecycle()
-    val ids = locked ?: return
-    if (chatId !in ids || unlocked) {
+    val currentBack by rememberUpdatedState(onBack)
+    val isLocked = locked?.let { chatId in it }
+    // Jak byl chat zamčený naposledy; `null` = sada se ještě nenačetla, nic se neporovnává.
+    var lastLocked by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(isLocked) {
+        if (isLocked == null) return@LaunchedEffect
+        if (isLocked && lastLocked == false) currentBack?.invoke()
+        lastLocked = isLocked
+    }
+    if (isLocked == null) return
+    if (!isLocked || unlocked) {
         content()
         return
     }
-    LockedChatsUnlock(onUnlocked = session::unlock)
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        if (onBack != null) {
+            TopAppBar(
+                title = { Text(stringResource(Res.string.locked_chat_notification_title)) },
+                navigationIcon = {
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
+                    }
+                },
+                actions = { WindowControlsEndSpace() },
+            )
+        }
+        LockedChatsUnlock(onUnlocked = session::unlock, modifier = Modifier.weight(1f))
+    }
 }
 
 /**
@@ -183,6 +230,6 @@ fun LockedChatsUnlock(onUnlocked: () -> Unit, modifier: Modifier = Modifier) {
         onDelete = { if (!busy) pin = pin.dropLast(1) },
         onBiometrics = biometrics,
         enabled = !isBlocked && !busy,
-        modifier = modifier.then(surface).safeDrawingPadding(),
+        modifier = modifier.then(surface).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)),
     )
 }

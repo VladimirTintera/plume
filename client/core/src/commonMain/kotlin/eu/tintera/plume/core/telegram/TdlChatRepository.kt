@@ -245,6 +245,8 @@ class TdlChatRepository(
 
     /** Totéž co [hidden] pro toky nad [all] (koncepty): [all] se změnou zámku nezmění. */
     private val hiddenIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    override val lockedChatIds: StateFlow<Set<Long>> = hiddenIds.asStateFlow()
     private val mutex = Mutex()
 
     /**

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.calls
 
+import eu.tintera.plume.resources.locked_chat_notification_title
+import androidx.compose.runtime.collectAsState
+import eu.tintera.plume.core.lock.LockedChatsSession
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.call_busy_other_account_ok
 import eu.tintera.plume.resources.call_busy_other_account_text
@@ -253,14 +256,22 @@ fun CallOverlay(
     }
 }
 
-/** Jméno a fotka protějšku (soukromý chat má id uživatele). */
+/**
+ * Jméno a fotka protějšku (soukromý chat má id uživatele). Zamčený chat (`LockedChats`) se
+ * dokud nejsou zamčené chaty odemčené, jmenuje jen „Zamčený chat" a fotku nemá — obrazovka
+ * hovoru leží přes celou aplikaci, i přes seznam chatů.
+ */
 @Composable
 internal fun rememberPeer(userId: Long): Pair<String, Int?> {
     val chats = koinInject<ChatRepository>()
+    val session = koinInject<LockedChatsSession>()
+    val locked by chats.lockedChatIds.collectAsState()
+    val unlocked by session.unlocked.collectAsState()
     var peer by remember(userId) { mutableStateOf("" to null as Int?) }
     LaunchedEffect(userId) {
         chats.summaries(listOf(userId)).firstOrNull()?.let { peer = it.title to it.avatarFileId }
     }
+    if (userId in locked && !unlocked) return stringResource(Res.string.locked_chat_notification_title) to null
     return peer
 }
 
