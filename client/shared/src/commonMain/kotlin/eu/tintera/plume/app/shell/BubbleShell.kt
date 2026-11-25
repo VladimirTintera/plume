@@ -64,7 +64,7 @@ private fun BubbleContent(accounts: Accounts, slot: AccountSlot, chatId: Long, o
     )
     val provider = entryProvider<NavKey> {
         entry<ConversationRoute> { route ->
-            ChatColorTheme(route.chatId) {
+            ChatColorTheme(route.chatId, onBack = onClose) {
                 ConversationScreen(
                     viewModel = koinViewModel(
                         key = "bubble-conversation-${route.chatId}",

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.calls
 
+import eu.tintera.plume.resources.locked_chat_notification_title
 import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
@@ -143,9 +144,14 @@ class CallService : Service(), KoinComponent {
     }
 
     private suspend fun notification(call: ActiveCall): Notification {
-        val name = callerName
-            ?: chats.summaries(listOf(call.userId)).firstOrNull()?.title?.also { callerName = it }
-            ?: getString(Res.string.notification_call_unknown)
+        // Zamčený chat: notifikace hovoru (i na zamykací obrazovce) bez jména, jako jeho zprávy.
+        val name = if (call.userId in chats.lockedChatIds.value) {
+            getString(Res.string.locked_chat_notification_title)
+        } else {
+            callerName
+                ?: chats.summaries(listOf(call.userId)).firstOrNull()?.title?.also { callerName = it }
+                ?: getString(Res.string.notification_call_unknown)
+        }
         val person = Person.Builder().setName(name).setImportant(true).build()
         val builder = NotificationCompat.Builder(this, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)

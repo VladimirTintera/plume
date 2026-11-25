@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.awaitCancellation
@@ -75,6 +76,12 @@ interface ChatRepository {
      * otevírají se z menu v horní liště.
      */
     val savedMessagesChatId: StateFlow<Long?>
+
+    /**
+     * Chaty zamčené v tomhle zařízení (`LockedChats`). Pro místa, která chat ukazují podle id
+     * mimo seznamy — hovor (notifikace služby, Telecom, obrazovka hovoru) — a musí jméno schovat.
+     */
+    val lockedChatIds: StateFlow<Set<Long>> get() = NO_LOCKED_CHATS
 
     /**
      * Emoji, které odejdou jako hod (kostka, šipky, míč…), když je zpráva složená jen z jednoho
@@ -779,6 +786,9 @@ data class PublicChat(val chat: ChatSummary, val username: String)
  * Telegram kóduje i připnutí, takže se podle něj řadí sestupně a nic dalšího se nedopočítává.
  * [order] i [isPinned] platí pro [folder], ve které chat právě je.
  */
+
+private val NO_LOCKED_CHATS: StateFlow<Set<Long>> = MutableStateFlow(emptySet())
+
 data class ChatSummary(
     val id: Long,
     val title: String,

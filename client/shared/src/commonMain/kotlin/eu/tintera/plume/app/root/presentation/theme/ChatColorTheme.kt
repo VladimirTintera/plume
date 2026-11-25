@@ -32,10 +32,11 @@ import org.koin.compose.koinInject
  * CÍLOVÉ schéma aplikace ([LocalAppColorScheme]), ne prolínané.
  */
 @Composable
-fun ChatColorTheme(chatId: Long, content: @Composable () -> Unit) {
+fun ChatColorTheme(chatId: Long, onBack: (() -> Unit)? = null, content: @Composable () -> Unit) {
     // Přes tuhle funkci jde každá obrazovka jednoho chatu (konverzace, témata, profil, bublina),
-    // proto je tady i brána zamčených chatů — chat se neukáže, odkud se otevře.
-    LockedChatGate(chatId) {
+    // proto je tady i brána zamčených chatů — chat se neukáže, odkud se otevře. [onBack] obrazovku
+    // zavře (šipka v bráně, a když se chat zamkne, zatímco je otevřený).
+    LockedChatGate(chatId, onBack) {
         val chatColors = koinInject<ChatColors>()
         val flow = remember(chatColors, chatId) { chatColors.colors.map { it[chatId] } }
         val color by flow.collectAsState(initial = remember(chatColors, chatId) { chatColors.current()[chatId] })

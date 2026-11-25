@@ -59,6 +59,14 @@ a zamčeného nic nevidí.
   otevírá (notifikace, widget, odkaz, zkratka, obnovený zásobník). Pod zamčenou bránou se obsah
   vůbec neskládá: ViewModel konverzace nevznikne a nic se nehlásí jako přečtené. Po návratu
   z pozadí se otevřená konverzace schová znovu.
+- **Brána má šipku zpět a umí obrazovku zavřít** (`onBack` u `ChatColorTheme`, z `AppShell`
+  `chatsStack.pop(route)`, v bublině její zavření). Zavírá i sama, když se chat zamkne,
+  zatímco je otevřený: kdo ho právě zamkl, nemá dostat číselník. Pozná to podle PŘECHODU
+  z odemčeného na zamčený (`lastLocked`), ne podle stavu — návrat z pozadí zamyká sezení, ne
+  chat, a konverzace má zůstat otevřená za bránou. Do načtení sady (`null`) se nic neporovnává,
+  jinak by studený start s otevřeným zamčeným chatem obrazovku zavřel.
+- **Bránu zavírá volající, ne ona sama**: obrazovka chatu neví, jak se do ní přišlo (seznam,
+  notifikace, list-detail), a programové „zpět" Navigation3 nemá.
 - **Přehled zamčených** je `LockedChatsRoute` v list panelu (jako historie hovorů), chat se
   otevírá v hlavním zásobníku. Položka v menu účtu je jen tehdy, když nějaký zamčený chat je,
   a **bez počtu nepřečtených**.
@@ -78,7 +86,6 @@ a zamčeného nic nevidí.
   notifikací (`NotificationService.swift`), a to by potřebovalo sadu zrcadlenou do App Group.
   Notifikace na iOS zatím čekají na certifikát, viz roadmapa.
 - **Hodinky** sadu neznají (je v nastavení telefonu) a ukazují zamčené chaty normálně.
-- **Obrazovka probíhajícího hovoru** v aplikaci (`CallOverlay`, služba hovoru) ukazuje jméno.
 - **Kanál notifikací pro jeden chat** (vlastní nastavení upozornění) nese v systémovém
   nastavení jméno chatu.
 - **Zmínky jinde**: přeposlaná zpráva, citace nebo poslední zpráva skupiny, kterou napsal
@@ -87,6 +94,15 @@ a zamčeného nic nevidí.
   účtů pak nejde otevřít, dokud se zámek nezapne znovu. Nový PIN je otevře — kdo drží
   odemčenou aplikaci, může tak zamčené chaty zpřístupnit odhlášením jiného účtu.
 
+## Hovor
+
+Jméno protějšku se v hovoru bere podle id (`summaries`), mimo seznamy, takže ho filtr seznamů
+nechytí. Proto `ChatRepository.lockedChatIds` a tři místa ho kontrolují sama: notifikace služby
+hovoru (`CallService`, i na zamykací obrazovce), Telecom (jméno čte systémové UI, auto
+a hodinky) — obojí vždycky „Zamčený chat" — a obrazovka hovoru v aplikaci (`rememberPeer`), ta
+jen dokud zamčené chaty nejsou odemčené. Ověřené to na zařízení není: na emulátoru není kdo
+by volal.
+
 ## Ověřeno na emulátoru
 
 Plume_Barvy (Android 16, testovací účet, Notifikátor, zámek aplikace s dočasným PINem):
@@ -94,4 +110,7 @@ bez zámku aplikace dialog; po zamčení brána hned přes otevřenou konverzaci
 seznamu, v menu účtu přibyla položka; přehled za PINem a otevření chatu z něj; zpráva od bota
 v pozadí → notifikace „Zamčený chat / Nová zpráva" bez zkratky a akcí; po návratu z pozadí
 brána znovu, text zprávy ve stromu obrazovky nebyl; odemčení vrátilo chat do seznamu a položka
-z menu zmizela. **Neověřeno**: Android Auto, widget, Direct Share po zamčení, desktop a iOS.
+z menu zmizela. Listopad 2026: zamčení z otevřené konverzace ji zavře rovnou do seznamu; chat
+otevřený intentem (jako z notifikace) ukáže bránu se šipkou, šipka vrátí do seznamu (třikrát
+po sobě); po odemčení v bráně a odchodu do pozadí zůstane konverzace otevřená za bránou.
+**Neověřeno**: Android Auto, widget, Direct Share po zamčení, desktop a iOS.
