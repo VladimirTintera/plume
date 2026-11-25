@@ -200,9 +200,9 @@ album. Bublina ukazuje průběh nahrávání.
     který už `.mp4` měl, nic neudělal a vrátil ho — a `supportsStreaming` šel `true`, i když index
     mohl ležet na konci. Z galerie to nevadilo (tam chodí `.mov`), soubory z „Souborů" ano.
   - **Desktop zůstává u souboru** — rozměry a délku by musel přečíst dekodér, který nemá.
-  - **Z galerie původní jméno NEPŘIJDE**: Android Photo Picker hlásí jako `DISPLAY_NAME` jen
-    číslo (video poslané z galerie dorazilo botovi jako `2143.mp4`). Kdo chce jméno, musí
-    přes „Soubor".
+  - **Z galerie skutečné jméno často nepřijde** — Google Fotky hlásí číslo položky (`2143.mp4`)
+    a Plume ho nahradí datem natočení (viz „Jméno odesílaného videa"). Přesně to jméno, které
+    soubor má, nese jen „Soubor"; tam se nepřejmenovává, číselné ani jiné.
   - **Ověřeno na emulátoru (Android 16)** v chatu s Notifikátorem: `Svatba 2025.mp4` ze
     Stažených nad polem s náhledem jako video, bot dostal `video` s `file_name` „Svatba
     2025.mp4". iOS jen přeložené.

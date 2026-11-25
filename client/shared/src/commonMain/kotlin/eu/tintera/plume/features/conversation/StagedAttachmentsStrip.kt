@@ -52,6 +52,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_mode_title
 import eu.tintera.plume.resources.attachment_remove_file
 import eu.tintera.plume.resources.attachment_remove_photo
+import eu.tintera.plume.resources.attachment_remove_video
 import eu.tintera.plume.resources.attachments_albums
 import eu.tintera.plume.resources.attachments_group
 import eu.tintera.plume.resources.attachments_separate_messages
@@ -320,7 +321,7 @@ private fun SinglePhotoPreview(
             ) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
-                    contentDescription = stringResource(Res.string.attachment_remove_photo),
+                    contentDescription = stringResource(if (isVideo) Res.string.attachment_remove_video else Res.string.attachment_remove_photo),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -484,7 +485,7 @@ private fun PhotoCarousel(
             ) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
-                    contentDescription = stringResource(Res.string.attachment_remove_photo),
+                    contentDescription = stringResource(if (isVideo) Res.string.attachment_remove_video else Res.string.attachment_remove_photo),
                     modifier = Modifier.size(18.dp),
                 )
             }

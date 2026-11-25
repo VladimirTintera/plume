@@ -252,13 +252,20 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
         copyBounded(input, target)
     }
-    return videoAt(target)
+    return videoAt(target) { recordedAt ->
+        renamedByRecordingDate(target, displayName = name.takeIf { it != FALLBACK_VIDEO_NAME }, recordedAt)
+    }
 }
 
-/** Video, které už leží v `outgoing` ([target]): rozměry, délka, náhled a příznak streamování. */
-private fun videoAt(target: File): OutgoingAttachment.Video {
+/**
+ * Video, které už leží v `outgoing` ([target]): rozměry, délka, náhled a příznak streamování.
+ * [rename] dostane datum natočení z hlavičky a vrátí soubor, pod kterým video odejde — galerie
+ * tak číselné jméno nahradí datem ([renamedByRecordingDate]). Soubor ze sponky „Soubor" si
+ * jméno nechává: vybral ho uživatel i se jménem.
+ */
+private fun videoAt(target: File, rename: (recordedAt: String?) -> File = { target }): OutgoingAttachment.Video {
     val video = videoMetadata(target)
-    val named = renamedByRecordingDate(target, displayName = name.takeIf { it != FALLBACK_VIDEO_NAME }, video.recordedAt)
+    val named = rename(video.recordedAt)
     return OutgoingAttachment.Video(
         path = named.absolutePath,
         width = video.width,
