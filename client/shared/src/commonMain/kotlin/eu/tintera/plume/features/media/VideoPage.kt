@@ -32,6 +32,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
 import eu.tintera.plume.core.video.VideoPositions
+import eu.tintera.plume.core.video.VideoSource
 import eu.tintera.plume.resources.media_video_from_start
 import eu.tintera.plume.resources.media_video_resumed
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -248,6 +249,11 @@ internal fun VideoPage(
      * neotevře) a tajný chat ne — po tajném chatu nemá v zařízení zůstat stopa.
      */
     rememberPosition: Boolean = false,
+    /**
+     * Zpráva, ze které video hraje, k pamatované pozici — pro seznam Rozkoukaná videa. `null` =
+     * stránka není zprávou chatu (příběh, reklama, anketa, článek); pozice se pamatuje i tak.
+     */
+    positionSource: VideoSource? = null,
     /** Volba kvality v liště; `null` = bez nabídky (hraje se, co vybere automatika). */
     quality: VideoQualitySelection? = null,
     /** Hraje-li vybraná stránka (viz druhé [VideoPage]); prohlížeč podle toho vypíná listování. */
@@ -332,7 +338,9 @@ internal fun VideoPage(
                 else -> video.startSeconds * 1000L
             },
             resumedFromMs = resumed,
-            onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
+            onProgress = positionKey?.let { key ->
+                { position, duration -> positions.record(key, position, duration, source = positionSource) }
+            },
         ),
         storyboard = video.storyboard,
         fullscreen = fullscreen,

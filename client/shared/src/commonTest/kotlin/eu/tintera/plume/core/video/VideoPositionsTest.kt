@@ -42,4 +42,34 @@ class VideoPositionsTest {
         assertEquals("new", list.first().key)
         assertEquals("k${MAX_VIDEO_POSITIONS - 2}", list.last().key)
     }
+
+    @Test
+    fun sourceIsKeptWhenTheSameFilePlaysWithoutOne() {
+        val source = VideoSource(accountId = 1, chatId = 2, messageId = 3)
+        val list = listOf(VideoPosition("a", 20_000, hour, source)).withPosition("a", 40_000, hour)
+        assertEquals(source, list.single().source)
+        val moved = list.withPosition("a", 50_000, hour, source = VideoSource(1, 2, 9))
+        assertEquals(9, moved.single().source?.messageId)
+    }
+
+    @Test
+    fun restoredPositionReturnsToItsPlace() {
+        val list = listOf(VideoPosition("a", 20_000, hour), VideoPosition("c", 30_000, hour))
+        val restored = list.withRestored(RemovedPosition(VideoPosition("b", 25_000, hour), index = 1))
+        assertEquals(listOf("a", "b", "c"), restored.map { it.key })
+    }
+
+    @Test
+    fun newerPositionWinsOverRestore() {
+        val list = listOf(VideoPosition("b", 90_000, hour))
+        val restored = list.withRestored(RemovedPosition(VideoPosition("b", 25_000, hour), index = 0))
+        assertEquals(90_000, restored.single().positionMs)
+    }
+
+    @Test
+    fun oldEntriesWithoutSourceStillDecode() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val decoded = json.decodeFromString<List<VideoPosition>>("""[{"key":"a","positionMs":1,"durationMs":2}]""")
+        assertNull(decoded.single().source)
+    }
 }

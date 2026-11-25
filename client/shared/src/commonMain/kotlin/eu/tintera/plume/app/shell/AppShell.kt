@@ -184,6 +184,9 @@ import eu.tintera.plume.features.calls.CallsScreen
 import eu.tintera.plume.features.calls.rememberCallSources
 import eu.tintera.plume.core.navigation.CallsRoute
 import eu.tintera.plume.core.navigation.DownloadsRoute
+import eu.tintera.plume.core.navigation.ContinueWatchingRoute
+import eu.tintera.plume.features.watching.ContinueWatchingScreen
+import eu.tintera.plume.core.video.ContinueWatching
 import eu.tintera.plume.core.navigation.MyStoriesRoute
 import eu.tintera.plume.features.stories.MyStoriesScreen
 import eu.tintera.plume.features.downloads.DownloadsScreen
@@ -938,6 +941,7 @@ private fun shellEntryProvider(
                 onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
                     .takeIf { koinInject<CallRepository>().supported },
                 onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
+                onOpenContinueWatching = { if (chatsStack.lastOrNull() !is ContinueWatchingRoute) chatsStack.add(ContinueWatchingRoute(slot)) },
                 onOpenDrafts = { navigation.openSheet(ChatsRoute, DraftsRoute(slot)) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot)) },
                 onOpenMyQrCode = { navigation.openSheet(ChatsRoute, MyQrCodeRoute) },
@@ -1076,6 +1080,21 @@ private fun shellEntryProvider(
                     else -> chatsStack.openConversation(route.slot, chat.id)
                 }
             },
+        )
+    }
+
+    // Rozkoukaná videa: seznam vlevo, video přes celou plochu v prohlížeči, který sám pokračuje
+    // z pamatované pozice; „Zobrazit v chatu" jako nalezená zpráva.
+    entry<ContinueWatchingRoute>(
+        metadata = Panes.list(
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
+        ),
+    ) { route ->
+        ContinueWatchingScreen(
+            viewModel = koinViewModel(key = "continue-watching-${route.slot.id}"),
+            onBack = { chatsStack.remove(route) },
+            onOpenVideo = { chatId, messageId -> chatsStack.add(MediaRoute(route.slot, chatId, messageId)) },
+            onShowInChat = { chatId, messageId -> chatsStack.openFoundMessage(route.slot, chatId, messageId, topicId = null) },
         )
     }
 
@@ -1742,6 +1761,7 @@ private fun shellEntryProvider(
         val sponsoredLinks = koinInject<SponsoredLinkRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         val tabRequests = koinInject<ProfileTabRequests>()
+        val continueWatching = koinInject<ContinueWatching>()
         /*
          * Klíč sdíleného prvku fotky nese, ODKUD se letí: táž fotka je v bublině i v mřížce
          * sdílených médií v profilu a se společným klíčem se ty dvě spárovaly mezi sebou —
@@ -1811,6 +1831,12 @@ private fun shellEntryProvider(
                 },
                 onShowAllMedia = if (route.showsChatMessages) {
                     { chatsStack.showAllMedia(route, tabRequests) }
+                } else {
+                    null
+                },
+                // Rozkoukaná videa otevírají zprávu znovu, takže jen média ze zpráv chatu.
+                positionSource = if (route.showsChatMessages) {
+                    { messageId: Long -> continueWatching.sourceFor(route.chatId, messageId) }
                 } else {
                     null
                 },

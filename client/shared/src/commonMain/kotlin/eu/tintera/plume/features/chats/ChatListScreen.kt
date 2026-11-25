@@ -40,6 +40,8 @@ import eu.tintera.plume.resources.chats_empty_title
 import eu.tintera.plume.features.notices.rememberNoticeLinkOpener
 import androidx.compose.material3.ButtonDefaults
 import org.koin.compose.koinInject
+import kotlinx.coroutines.flow.map
+import eu.tintera.plume.core.video.ContinueWatching
 import eu.tintera.plume.core.ui.neighbourChat
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.core.ui.KeyboardShortcut
@@ -268,6 +270,9 @@ fun ChatListScreen(
      * Koncepty, záložky a Můj QR kód jsou navigační destinace (`SheetRoute`), otevírá je shell.
      */
     val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
+    // Rozkoukaná videa účtu: položka v menu jen tehdy, když nějaká jsou (jako koncepty a záložky).
+    val continueWatching = koinInject<ContinueWatching>()
+    val watchingCount by remember(continueWatching) { continueWatching.all.map { it.size } }.collectAsStateWithLifecycle(0)
     var showFolderSuggestions by remember { mutableStateOf(false) }
     var showNewFolderChats by remember { mutableStateOf(false) }
     // Složky jsou po účtech na serveru; společný seznam je jen hlavní seznam, pilulky nemá.
@@ -428,6 +433,7 @@ fun ChatListScreen(
             onLockedChats = navigation.onOpenLockedChats.takeIf { lockedChats.isNotEmpty() },
             onCalls = navigation.onOpenCalls,
             onDownloads = navigation.onOpenDownloads,
+            onContinueWatching = navigation.onOpenContinueWatching.takeIf { watchingCount > 0 },
             onMyStories = navigation.onOpenMyStories,
             draftCount = drafts?.size ?: 0,
             onDrafts = navigation.onOpenDrafts,

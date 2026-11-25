@@ -135,6 +135,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.NavigationEventInfo
 import eu.tintera.plume.core.ui.rememberWindowFullscreen
+import eu.tintera.plume.core.video.VideoSource
 import androidx.compose.ui.platform.LocalWindowInfo
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.RemoteImage
@@ -258,6 +259,11 @@ fun MediaViewerScreen(
      * Média. `null` = stránky nejsou média ze zpráv chatu (stejně jako [onShowInChat]).
      */
     onShowAllMedia: (() -> Unit)? = null,
+    /**
+     * Ze které zprávy video hraje, k pamatované pozici (seznam Rozkoukaná videa). `null` = stránky
+     * nejsou zprávy chatu (stejně jako [onShowInChat]).
+     */
+    positionSource: ((messageId: Long) -> VideoSource?)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val stickerSource = state.stickerSource
@@ -329,6 +335,7 @@ fun MediaViewerScreen(
                 dismissDrag = dismissDrag,
                 onPageChanged = viewModel::onPageChanged,
                 actions = ViewerItemActions(
+                    positionSource = positionSource,
                     onReact = viewModel::toggleReaction,
                     onReply = onReply?.let { reply ->
                         { messageId: Long ->
@@ -895,6 +902,7 @@ private fun ViewerContent(
                     mute = VideoMute(muted = videoMuted, onToggle = { videoMuted = !videoMuted }),
                     quality = VideoQualitySelection(choice = videoQuality, onChoose = { videoQuality = it }),
                     // Mizející médium má vlastní lištu s odpočtem, druhá by se s ní srazila.
+                    positionSource = actions.positionSource?.invoke(item.messageId),
                     fullscreen = videoFullscreen(
                         VideoFullscreenHeader(
                             onBack = leaveImmersive,
@@ -1739,6 +1747,8 @@ private class ViewerContextMenu(val messageId: Long, val at: Offset)
  */
 internal data class ViewerItemActions(
     val onReact: (messageId: Long, emoji: String) -> Unit,
+    /** Ze které zprávy video hraje, k pamatované pozici (Rozkoukaná videa); `null` = stránky nejsou zprávy chatu. */
+    val positionSource: ((messageId: Long) -> VideoSource?)? = null,
     /** `null` = není kam odpovědět. */
     val onReply: ((messageId: Long) -> Unit)?,
     val onForward: (messageId: Long) -> Unit,

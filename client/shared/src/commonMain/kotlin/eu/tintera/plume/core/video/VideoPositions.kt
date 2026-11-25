@@ -11,9 +11,26 @@ import kotlinx.serialization.Serializable
  * odkudkoli. [durationMs] kvůli proužku „zhlédnuto" v bublině.
  */
 @Serializable
-data class VideoPosition(val key: String, val positionMs: Long, val durationMs: Long) {
+data class VideoPosition(
+    val key: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    /**
+     * Odkud se video naposledy pouštělo (účet, chat, zpráva) — pro seznam Rozkoukaná videa.
+     * `null` u zvuku, u videa mimo zprávu chatu (příběh, reklama, anketa, článek) a u záznamů
+     * starších než ten seznam: z id souboru zprávu dohledat nejde, TDLib na to nemá dotaz.
+     */
+    val source: VideoSource? = null,
+) {
     val fraction: Float get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 }
+
+/**
+ * Zpráva s videem. [accountId] je id uživatele účtu (Uložené zprávy, jako u záložek), ne slot:
+ * slot se po odhlášení přidělí dalšímu účtu, id uživatele ne.
+ */
+@Serializable
+data class VideoSource(val accountId: Long, val chatId: Long, val messageId: Long)
 
 /**
  * Pozice, od které stojí za to příště pokračovat; `null` = zapomenout.
@@ -34,16 +51,21 @@ fun resumePosition(positionMs: Long, durationMs: Long, minDurationMs: Long = MIN
 /**
  * Seznam s novou pozicí pro [key]: nejnovější vpředu, nejvýš [MAX_VIDEO_POSITIONS] (nejstarší
  * odpadají), a když pozici pamatovat nemá cenu ([resumePosition]), záznam zmizí.
+ *
+ * Bez [source] zůstane ten, který záznam už měl: týž soubor se dá pustit i odjinud (bublina
+ * přeposlané zprávy v anketě, článek), a seznam by o video přišel.
  */
 fun List<VideoPosition>.withPosition(
     key: String,
     positionMs: Long,
     durationMs: Long,
     minDurationMs: Long = MIN_RESUME_DURATION_MS,
+    source: VideoSource? = null,
 ): List<VideoPosition> {
+    val previous = firstOrNull { it.key == key }
     val others = filterNot { it.key == key }
     val resume = resumePosition(positionMs, durationMs, minDurationMs) ?: return others
-    return (listOf(VideoPosition(key, resume, durationMs)) + others).take(MAX_VIDEO_POSITIONS)
+    return (listOf(VideoPosition(key, resume, durationMs, source ?: previous?.source)) + others).take(MAX_VIDEO_POSITIONS)
 }
 
 /**
@@ -58,9 +80,39 @@ class VideoPositions(private val settings: AppSettings) {
     fun of(key: String): VideoPosition? = settings.videoPositions.value.firstOrNull { it.key == key }
 
     /** Zapíše pozici, nebo ji zapomene (dohráno, začátek, krátké video) — viz [resumePosition]. */
-    fun record(key: String, positionMs: Long, durationMs: Long, minDurationMs: Long = MIN_RESUME_DURATION_MS) {
-        settings.updateVideoPositions { it.withPosition(key, positionMs, durationMs, minDurationMs) }
+    fun record(
+        key: String,
+        positionMs: Long,
+        durationMs: Long,
+        minDurationMs: Long = MIN_RESUME_DURATION_MS,
+        source: VideoSource? = null,
+    ) {
+        settings.updateVideoPositions { it.withPosition(key, positionMs, durationMs, minDurationMs, source) }
     }
+
+    /** Zapomene pozici (Rozkoukaná videa → Odebrat); vrací ji i s pořadím kvůli „Vrátit". */
+    fun remove(key: String): RemovedPosition? {
+        val list = settings.videoPositions.value
+        val index = list.indexOfFirst { it.key == key }
+        if (index < 0) return null
+        settings.updateVideoPositions { current -> current.filterNot { it.key == key } }
+        return RemovedPosition(list[index], index)
+    }
+
+    /** Vrátí odebranou pozici na její místo — jen když se mezitím nezapsala nová. */
+    fun restore(removed: RemovedPosition) {
+        settings.updateVideoPositions { it.withRestored(removed) }
+    }
+}
+
+/** Zapomenutá pozice a kde v seznamu stála. */
+data class RemovedPosition(val position: VideoPosition, val index: Int)
+
+/** Seznam s vrácenou pozicí na původním místě; novější zápis téhož souboru vyhrává. */
+fun List<VideoPosition>.withRestored(removed: RemovedPosition): List<VideoPosition> {
+    if (any { it.key == removed.position.key }) return this
+    val index = removed.index.coerceIn(0, size)
+    return (take(index) + removed.position + drop(index)).take(MAX_VIDEO_POSITIONS)
 }
 
 const val MIN_RESUME_DURATION_MS = 2 * 60 * 1000L

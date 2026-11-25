@@ -1284,6 +1284,13 @@
     <string name="downloads_deleted">Soubor smazán</string>
     <string name="downloads_cleared">Stažené soubory odebrány ze seznamu</string>
     <string name="downloads_undo">Vrátit</string>
+    <string name="continue_watching_title">Rozkoukaná videa</string>
+    <string name="continue_watching_empty_title">Nic rozkoukaného</string>
+    <string name="continue_watching_empty">Videa, která nedokoukáte, se objeví tady a budete v nich moct pokračovat.</string>
+    <string name="continue_watching_progress">%1$s / %2$s</string>
+    <string name="continue_watching_remove">Odebrat ze seznamu</string>
+    <string name="continue_watching_removed">Odebráno z rozkoukaných videí</string>
+    <string name="continue_watching_undo">Vrátit</string>
     <string name="calls_title">Hovory</string>
     <string name="calls_all">Všechny</string>
     <string name="calls_missed">Zmeškané</string>

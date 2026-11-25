@@ -1255,6 +1255,13 @@
     <string name="downloads_deleted">File deleted</string>
     <string name="downloads_cleared">Downloaded files cleared</string>
     <string name="downloads_undo">Undo</string>
+    <string name="continue_watching_title">Continue watching</string>
+    <string name="continue_watching_empty_title">Nothing to continue</string>
+    <string name="continue_watching_empty">Videos you stop watching partway show up here, so you can pick up where you left off.</string>
+    <string name="continue_watching_progress">%1$s / %2$s</string>
+    <string name="continue_watching_remove">Remove from list</string>
+    <string name="continue_watching_removed">Removed from Continue watching</string>
+    <string name="continue_watching_undo">Undo</string>
     <string name="calls_title">Calls</string>
     <string name="calls_all">All</string>
     <string name="calls_missed">Missed</string>
