@@ -375,9 +375,10 @@ otázku, kterou otevřený kód sám nezodpoví: jestli stažený balíček opra
 ## Oprávnění workflow
 
 **Desktop si přílohy GitHub Release sám stahuje a instaluje** (`docs/poznatky/desktop.md`,
-„Aktualizace z GitHub Release"), a balíčky nejsou podepsané, takže je aktualizace pustí bez
-SmartScreen i Gatekeeperu. Kdo umí přepsat přílohu vydání, spustí svůj kód u všech uživatelů
-desktopu, jakmile ťuknou na Restartovat. Proto:
+„Aktualizace z GitHub Release"), a balíčky nejsou podepsané pro systém, takže je aktualizace
+pustí bez SmartScreen i Gatekeeperu. Kdo umí přepsat přílohu vydání, spustil by svůj kód
+u všech uživatelů desktopu, jakmile ťuknou na Restartovat. Aplikace proto chce podpis
+aktualizace klíčem ze secretu (`docs/poznatky/desktop.md`, „Podpis aktualizací"), a dál:
 
 - **V `desktop-release.yml` má zápis jen job `release`** (`contents`, `id-token`,
   `attestations`); workflow jako celek má `contents: read`. Joby `windows` a `macos` pouštějí
@@ -407,7 +408,8 @@ desktopu, jakmile ťuknou na Restartovat. Proto:
     (schválit jde i API), proti cizímu kódu v CI a omylem pushnutému tagu ano.
   - **Secrets releasu jsou v environmentu `release`, ne v repu**: `ANDROID_KEYSTORE_BASE64`,
     `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`,
-    `GOOGLE_SERVICES_JSON` a `PLAY_SERVICE_ACCOUNT_JSON`. Secret repa dostane jakýkoli běh na
+    `GOOGLE_SERVICES_JSON`, `PLAY_SERVICE_ACCOUNT_JSON` a `DESKTOP_UPDATE_SIGNING_KEY`
+    (PEM klíče Ed25519 pro podpis aktualizací desktopu). Secret repa dostane jakýkoli běh na
     jakékoli větvi (stačí pushnout větev s workflow, které ho vypíše); secret environmentu jen
     job přihlášený do `release`, po schválení a z povoleného ref. Proto je v environmentu
     i `play-listing.yml` a environment kromě tagů pouští větev `main`, odkud se Play Listing

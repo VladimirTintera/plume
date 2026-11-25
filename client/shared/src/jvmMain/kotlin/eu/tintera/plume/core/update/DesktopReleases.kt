@@ -54,9 +54,15 @@ internal data class ReleaseAsset(
      * nenabízí, protože by se stažený soubor neměl proti čemu ověřit (viz [latestDesktopRelease]).
      */
     val sha256: String,
+    /**
+     * Podpis balíčku, příloha `<jméno>.sig` ([UpdateSignature]). Povinný stejně jako [sha256]:
+     * vydání bez něj se nenabízí.
+     */
+    val signatureUrl: String,
 )
 
-internal data class DesktopRelease(val version: DesktopVersion, val asset: ReleaseAsset) {
+/** [tag] je `tag_name` vydání tak, jak ho podepsal workflow (součást podepsaného textu). */
+internal data class DesktopRelease(val version: DesktopVersion, val tag: String, val asset: ReleaseAsset) {
 
     /**
      * Jméno staženého balíčku v `updates/` — z verze a přípony, ne ze jména přílohy z API: to
@@ -81,28 +87,37 @@ internal fun assetMatches(name: String, os: DesktopOs, arm64: Boolean): Boolean 
  * nebo `null`. V repu jsou i vydání Androidu (`android-…`), proto se nebere `releases/latest`
  * — to by vrátilo, co vyšlo naposledy, klidně Android. Rozpracovaná (draft) a předběžná
  * (pre-release, `0.x`) vydání se nenabízejí, stejně jako balíček bez platného `digest`
- * (bez kontrolního součtu by se instaloval cokoli, co přijde).
+ * (bez kontrolního součtu by se instaloval cokoli, co přijde) nebo bez podpisu `<jméno>.sig`.
+ * Podpis samotný se tu jen najde — ověřuje ho `AppUpdates` po stažení ([UpdateSignature]).
  */
 internal fun latestDesktopRelease(json: String, os: DesktopOs, arm64: Boolean): DesktopRelease? {
     val releases = runCatching { Json.parseToJsonElement(json).jsonArray }.getOrNull() ?: return null
     return releases.mapNotNull { element ->
         val release = element as? JsonObject ?: return@mapNotNull null
         if (release.flag("draft") || release.flag("prerelease")) return@mapNotNull null
-        val version = DesktopVersion.fromTag(release.text("tag_name")) ?: return@mapNotNull null
-        val asset = (release["assets"] as? JsonArray).orEmpty()
-            .mapNotNull { it as? JsonObject }
-            .firstOrNull { assetMatches(it.text("name").orEmpty(), os, arm64) }
-            ?.toAsset() ?: return@mapNotNull null
-        DesktopRelease(version, asset)
+        val tag = release.text("tag_name") ?: return@mapNotNull null
+        val version = DesktopVersion.fromTag(tag) ?: return@mapNotNull null
+        val assets = (release["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+        val asset = assets.firstOrNull { assetMatches(it.text("name").orEmpty(), os, arm64) }
+            ?.toAsset(assets) ?: return@mapNotNull null
+        DesktopRelease(version, tag, asset)
     }.maxByOrNull { it.version }
 }
 
-private fun JsonObject.toAsset(): ReleaseAsset? {
+private fun JsonObject.toAsset(all: List<JsonObject>): ReleaseAsset? {
     val name = text("name") ?: return null
+    val signatureUrl = all.firstOrNull { it.text("name") == "$name$SIGNATURE_SUFFIX" }
+        ?.text("browser_download_url")?.takeIf { it.startsWith("https://") } ?: return null
     val url = text("browser_download_url")?.takeIf { it.startsWith("https://") } ?: return null
     val sha256 = text("digest")?.takeIf { it.startsWith(SHA256_PREFIX) }?.removePrefix(SHA256_PREFIX)?.lowercase()
         ?.takeIf(SHA256_HEX::matches) ?: return null
-    return ReleaseAsset(name = name, url = url, size = (this["size"] as? JsonPrimitive)?.longOrNull ?: 0L, sha256 = sha256)
+    return ReleaseAsset(
+        name = name,
+        url = url,
+        size = (this["size"] as? JsonPrimitive)?.longOrNull ?: 0L,
+        sha256 = sha256,
+        signatureUrl = signatureUrl,
+    )
 }
 
 private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
@@ -110,5 +125,8 @@ private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive
 private fun JsonObject.flag(key: String): Boolean = (this[key] as? JsonPrimitive)?.booleanOrNull == true
 
 private const val SHA256_PREFIX = "sha256:"
+
+/** Přípona přílohy s podpisem, jak ji dává `sign-desktop-update.sh`. */
+private const val SIGNATURE_SUFFIX = ".sig"
 
 private val SHA256_HEX = Regex("[0-9a-f]{64}")

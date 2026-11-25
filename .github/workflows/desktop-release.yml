@@ -397,6 +397,16 @@ jobs:
             dist/*.msi
             dist/*.dmg
 
+      # Podpis pro self-update (Ed25519): aplikace nabídne jen balíček s platným `<soubor>.sig`.
+      # SHA-256 z API GitHubu chrání jen proti poškození, podpis i proti přepsané příloze.
+      # Klíč je secret environmentu `release` (sem se dostane jen po schválení a z tagu);
+      # skript odmítne podepsat klíčem, který nesedí na veřejný klíč v aplikaci.
+      # Viz docs/poznatky/desktop.md, „Podpis aktualizací".
+      - name: Sign update packages
+        env:
+          DESKTOP_UPDATE_SIGNING_KEY: ${{ secrets.DESKTOP_UPDATE_SIGNING_KEY }}
+        run: bash .github/scripts/sign-desktop-update.sh "${GITHUB_REF_NAME}" dist/*.msi dist/*.dmg
+
       - name: Generate changelog
         id: notes
         run: |
@@ -430,10 +440,10 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           if gh release view "$TAG" > /dev/null 2>&1; then
             # re-run: release už existuje, jen vyměníme MSI a poznámky
-            gh release upload "$TAG" dist/*.msi dist/*.dmg --clobber
+            gh release upload "$TAG" dist/*.msi dist/*.dmg dist/*.sig --clobber
             gh release edit "$TAG" --notes-file release-notes.md
           else
-            gh release create "$TAG" dist/*.msi dist/*.dmg \
+            gh release create "$TAG" dist/*.msi dist/*.dmg dist/*.sig \
               --title "$TAG" \
               --notes-file release-notes.md \
               ${{ steps.notes.outputs.prerelease }}

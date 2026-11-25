@@ -824,7 +824,7 @@ hledá v API GitHubu, `DesktopInstaller` instaluje.
   - **Jméno souboru je `Plume-<verze>.msi|dmg`**, ne jméno přílohy z API: to jde do cesty
     a pak do skriptu instalátoru.
   - **SHA-256 chrání jen proti poškození, ne proti podvržení**: přichází z téže odpovědi jako
-    odkaz. Viz „Oprávnění workflow" v `docs/poznatky/release.md`.
+    odkaz. Proti podvržení je podpis, viz „Podpis aktualizací" níž.
 - **Instaluje samostatný proces, který počká na konec aplikace** (běžící aplikace se sama
   přepsat nemůže): na Windows PowerShell (`Wait-Process`, `msiexec /i … /passive /norestart`,
   znovu spustit launcher z `jpackage.app-path`; skript přes `-EncodedCommand` a cesty
@@ -846,6 +846,42 @@ hledá v API GitHubu, `DesktopInstaller` instaluje.
   s kontrolou součtu, konec aplikace se zavřením TDLib, výměna bundlu za 1.1.1 a nové spuštění
   ze stejné cesty. **Neověřeno**: Windows (MSI přes PowerShell) a karta naživo — vzhled karty je
   společný s Androidem.
+
+## Podpis aktualizací
+
+Aplikace nabídne jen vydání, jehož balíček má platný podpis Ed25519 (`UpdateSignature`, testy
+`UpdateSignatureTest` a `DesktopReleasesTest`). Kdo umí přepsat přílohu vydání, přepíše
+i její SHA-256 v API — podpis klíčem, který v repu neleží, ne.
+
+- **Podepisuje release workflow** (job `release`, krok „Sign update packages",
+  `.github/scripts/sign-desktop-update.sh`) klíčem ze secretu `DESKTOP_UPDATE_SIGNING_KEY`
+  v environmentu `release`: dostane se k němu jen job po schválení a z tagu `desktop-*`.
+  Chrání to proti přepsané příloze a cizímu kódu v buildu (joby `windows` / `macos` klíč
+  nevidí), **ne proti tomu, kdo ovládne účet nebo token s právem schvalovat** — rozhodnuto
+  vědomě místo ručního podpisu u vývojáře, který by byl krok navíc u každého vydání.
+- **Podepisuje se text, ne soubor**: `plume-desktop-update-v1\n<tag>\n<jméno přílohy>\n<sha256>\n`.
+  Tag a jméno drží podpis u jednoho balíčku jedné verze — nejde ho přenést na starší vydání
+  (návrat ke známé chybě) ani na balíček pro jiný systém. Soubor sám se proti SHA-256 ověřuje
+  při stažení i před instalací jako dřív. Formát textu musí sedět bajt po bajtu mezi skriptem
+  a `UpdateSignature.message`; první řádek nese verzi formátu.
+- **Podpis je příloha `<balíček>.sig`** (base64 na jednom řádku). Vydání bez ní se nenabízí
+  (`latestDesktopRelease`), neplatný podpis se zaloguje jako chyba a aktualizace se nenabídne.
+  Ověřuje se v `refresh` dřív, než se vydání uloží — stažení i instalace vidí jen ověřené.
+- **Veřejný klíč je `UPDATE_PUBLIC_KEY`** (SubjectPublicKeyInfo v base64). Skript ho čte
+  z Kotlinu (`sed`) a klíčem, který na něj nesedí, podepsat odmítne: vydání podepsané jiným
+  klíčem by aplikace tiše ignorovala. Bez secretu release spadne, místo aby vydal balíčky,
+  které nikdo nedostane.
+- **Ověřuje JDK** (`Signature.getInstance("Ed25519")`, od JDK 15), žádná knihovna. Že podpis
+  z `openssl pkeyutl -sign -rawin` JDK přečte, hlídá testovací vektor v `UpdateSignatureTest`.
+- **Soukromý klíč je ve správci hesel vývojáře** (záloha); GitHub hodnotu secretu nevydá.
+  **Výměna klíče** = vydání s novým `UPDATE_PUBLIC_KEY`, podepsané ještě STARÝM klíčem (instalace
+  znají jen ten), a teprve pak nový secret. **Ztracený klíč** = starší verze aktualizaci už
+  nedostanou a musí se přeinstalovat ručně.
+- **Přechod**: verze bez téhle kontroly (do desktop-1.2.12 včetně) podpis nečtou a aktualizují se
+  postaru; první verze s kontrolou ho chce u všech dalších vydání.
+- **Ověřeno**: skript lokálně (podpis s ostrým klíčem, odmítnutí cizího a chybějícího klíče,
+  `openssl` 3 i 4), testy na JVM. **Neověřeno**: běh v CI a aktualizace naživo — poprvé při
+  příštím vydání desktopu (dvě po sobě: až druhé ověří podpis).
 
 ## Cesty k souborům na Windows
 

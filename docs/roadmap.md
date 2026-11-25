@@ -30,9 +30,11 @@ Teď je prázdné.
   (`docs/poznatky/ai-v-zarizeni.md`, „Runtime jako součást z Google Play"). **Do té doby jsou
   součásti dočasně „s instalací"** (+13,7 MB ke stažení na arm64): před produkcí vrátit
   v manifestech obou součástí `<dist:on-demand />` a teprve pak ověřit doinstalaci z Play.
-- **Podpis balíčků desktopu** (Authenticode, Developer ID, nebo vlastní klíč mimo GitHub),
-  který self-update ověří před instalací — SHA-256 i attestace vznikají uvnitř GitHubu
-  (`docs/poznatky/release.md`, „Oprávnění workflow").
+- ~~**Podpis aktualizací desktopu**~~ — hotovo: Ed25519 ze secretu v environmentu `release`,
+  self-update nabídne jen podepsané (`docs/poznatky/desktop.md`, „Podpis aktualizací"). Ověří
+  se až dvěma vydáními po sobě. **Podpis pro systém zbývá** (Authenticode pro SmartScreen,
+  Developer ID a notarizace pro Gatekeeper a trvalé povolení kamery na macOS) — chce placené
+  certifikáty, rozhodnout spolu s Apple účtem pro iOS.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - ~~**Název aplikace u `api_id` je „MGram"**~~ — hotovo, přejmenované na my.telegram.org.
