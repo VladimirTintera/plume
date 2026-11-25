@@ -61,15 +61,31 @@ import eu.tintera.plume.resources.videocam_24dp
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Položky akcí nad chatem pro ⋮ ([ChatActions]), ve dvou skupinách: [chat] (odkaz, kontakt,
- * plocha, tajný chat, návrhy) a [block] (zablokování — patří k nahlášení, ne mezi běžné akce).
+ * Položky akcí nad chatem pro ⋮ ([ChatActions]) ve skupinách podle významu. Kdo je skládá, volí,
+ * co dá nahoru a co do podnabídky: konverzace má nahoře jen [main], zbytek pod „Další".
  */
 @Immutable
-data class ChatActionGroups(val chat: List<MenuAction>, val block: List<MenuAction>) {
-    val isEmpty: Boolean get() = chat.isEmpty() && block.isEmpty()
+data class ChatActionGroups(
+    /** Úprava chatu nebo kontaktu, přidání členů, hovor — co se s chatem dělá běžně. */
+    val main: List<MenuAction>,
+    /** Odkaz, QR kód, sdílení kontaktu. */
+    val share: List<MenuAction>,
+    /** Tajný chat, zástupce na ploše. */
+    val extras: List<MenuAction>,
+    /** Návrh profilové fotky a data narození. */
+    val suggest: List<MenuAction>,
+    /** Kontakt: úprava (když tužku bere úprava chatu), přidání a odebrání. */
+    val contact: List<MenuAction>,
+    /** Zablokování — patří k nahlášení, ne mezi běžné akce. */
+    val block: List<MenuAction>,
+) {
+    /** Všechno kromě [main] a [block], ve skupinách. */
+    val secondary: List<List<MenuAction>> get() = listOf(share, extras, suggest, contact)
+
+    val isEmpty: Boolean get() = main.isEmpty() && secondary.all { it.isEmpty() } && block.isEmpty()
 
     companion object {
-        val Empty = ChatActionGroups(emptyList(), emptyList())
+        val Empty = ChatActionGroups(emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
     }
 }
 
@@ -112,7 +128,6 @@ internal fun ChatActions(
         return
     }
     // Člověk (ne bot, ne vlastní účet — to jsou `SavedMessages`): kontakt, tajný chat, návrhy.
-    // Tajný chat jde začít i z jiného tajného chatu: každý je vázaný na jedno zařízení.
     val isPerson = profile.kind == ProfileKind.User && profile.userId != null
     // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
     val canShareContact = isPerson && !profile.phone.isNullOrBlank()
@@ -121,7 +136,7 @@ internal fun ChatActions(
     val canEditChat = profile.editRights.any
     val canEditContact = isPerson && profile.contact != null
 
-    val chat = listOfNotNull(
+    val main = listOfNotNull(
         when {
             onEdit == null -> null
             canEditChat -> MenuAction(stringResource(Res.string.profile_edit), Res.drawable.edit_24dp, onClick = onEdit)
@@ -137,6 +152,18 @@ internal fun ChatActions(
         } else {
             null
         },
+        if (isPerson && onCall != null) {
+            MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = { onCall(false) })
+        } else {
+            null
+        },
+        if (isPerson && onCall != null && videoCalls) {
+            MenuAction(stringResource(Res.string.call_start_video), Res.drawable.videocam_24dp, onClick = { onCall(true) })
+        } else {
+            null
+        },
+    )
+    val share = listOfNotNull(
         profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = viewModel::copyLink) },
         // QR kód a sdílení odkazu: kdo stojí vedle, naskenuje; komu se posílá, dostane odkaz.
         profile.link?.let { MenuAction(stringResource(Res.string.link_qr_code), Res.drawable.qr_code_24dp, onClick = { showQr = true }) },
@@ -149,26 +176,21 @@ internal fun ChatActions(
         } else {
             null
         },
-        if (viewModel.canAddToHomeScreen) {
-            MenuAction(stringResource(Res.string.chat_add_to_home_screen), Res.drawable.add_to_home_screen_24dp, onClick = viewModel::addToHomeScreen)
-        } else {
-            null
-        },
-        if (isPerson && onCall != null) {
-            MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = { onCall(false) })
-        } else {
-            null
-        },
-        if (isPerson && onCall != null && videoCalls) {
-            MenuAction(stringResource(Res.string.call_start_video), Res.drawable.videocam_24dp, onClick = { onCall(true) })
-        } else {
-            null
-        },
+    )
+    // Tajný chat jde začít i z jiného tajného chatu: každý je vázaný na jedno zařízení.
+    val extras = listOfNotNull(
         if (isPerson) {
             MenuAction(stringResource(Res.string.secret_chat_start), Res.drawable.lock_24dp, onClick = viewModel::startSecretChat)
         } else {
             null
         },
+        if (viewModel.canAddToHomeScreen) {
+            MenuAction(stringResource(Res.string.chat_add_to_home_screen), Res.drawable.add_to_home_screen_24dp, onClick = viewModel::addToHomeScreen)
+        } else {
+            null
+        },
+    )
+    val suggest = listOfNotNull(
         // Návrh fotky a data narození dostane jen člověk; vlastní je v úpravě profilu.
         if (isPerson && viewModel.canCropPhoto) {
             MenuAction(stringResource(Res.string.photo_suggest), Res.drawable.add_photo_alternate_24dp, onClick = photoPicker::pickMedia)
@@ -180,6 +202,8 @@ internal fun ChatActions(
         } else {
             null
         },
+    )
+    val contactActions = listOfNotNull(
         if (canEditContact && canEditChat) {
             MenuAction(stringResource(Res.string.contact_edit), Res.drawable.edit_24dp, onClick = { editContact = true })
         } else {
@@ -208,7 +232,7 @@ internal fun ChatActions(
             null
         },
     )
-    content(ChatActionGroups(chat = chat, block = block))
+    content(ChatActionGroups(main = main, share = share, extras = extras, suggest = suggest, contact = contactActions, block = block))
 
     if (confirmBlock) {
         ConfirmDialog(

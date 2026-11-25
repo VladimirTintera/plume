@@ -1805,7 +1805,7 @@ private fun ProfileMenuButton(groups: ChatActionGroups) {
         IconButton(onClick = { expanded = true }, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
         }
-        ExpressiveMenu(expanded = expanded, onDismiss = { expanded = false }, groups = listOf(groups.chat, groups.block))
+        ExpressiveMenu(expanded = expanded, onDismiss = { expanded = false }, groups = listOf(groups.main) + groups.secondary + listOf(groups.block))
     }
 }
 

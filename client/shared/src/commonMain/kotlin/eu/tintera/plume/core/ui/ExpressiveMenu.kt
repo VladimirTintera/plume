@@ -1,11 +1,23 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.remember
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -18,11 +30,23 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MenuGroupShapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.chevron_right_24dp
+import eu.tintera.plume.resources.common_back
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Položka [ExpressiveMenu]. [destructive] = nevratná akce, kreslí se v chybové barvě.
@@ -32,6 +56,9 @@ import org.jetbrains.compose.resources.painterResource
  *
  * [supporting] je drobný text pod popiskem — třeba rychlejší cesta k téže akci („podržte šipku
  * zpět"), kterou se uživatel dozví pokaždé, když položku použije.
+ *
+ * [submenu] = řádek otevře podnabídku s těmito skupinami MÍSTO [onClick]. Skládá se přes
+ * [submenuAction], která podnabídku kvůli jediné položce nevyrobí.
  */
 class MenuAction(
     val label: String,
@@ -41,8 +68,23 @@ class MenuAction(
     val supporting: String? = null,
     /** Vlastní obsah místo [icon] (fotka účtu v menu účtu). */
     val leading: (@Composable () -> Unit)? = null,
+    val submenu: List<List<MenuAction>> = emptyList(),
     val onClick: () -> Unit,
 )
+
+/**
+ * Řádek s podnabídkou ([MenuAction.submenu]) — nebo nic, když v ní nic není, a rovnou ta
+ * položka, když je jediná: podnabídka a zpět kvůli jedné položce jsou dva kroky navíc a nahoře
+ * zabere tentýž řádek (stejné pravidlo jako „Další" nad zprávou). Prázdné skupiny zahodí.
+ */
+fun submenuAction(label: String, icon: DrawableResource?, groups: List<List<MenuAction>>): MenuAction? {
+    val shown = groups.filter { it.isNotEmpty() }
+    return when (shown.sumOf { it.size }) {
+        0 -> null
+        1 -> shown.single().single()
+        else -> MenuAction(label, icon, submenu = shown, onClick = {})
+    }
+}
 
 /**
  * Nabídka v podobě M3 Expressive: položky ve skupinách (`DropdownMenuGroup`) se společným
@@ -54,6 +96,11 @@ class MenuAction(
  *
  * Prázdné skupiny se zahazují, takže volající může skupinu poskládat z podmíněných položek
  * a nemusí hlídat, jestli v ní něco zbylo. Nabídka zavře sebe sama před akcí ([onDismiss]).
+ *
+ * **Podnabídky** ([MenuAction.submenu], jedna úroveň) se chovají jako „Další" nad zprávou
+ * (`docs/poznatky/konverzace-akce.md`): na telefonu vymění obsah na místě, první řádek je šipka
+ * zpět a systémové zpět vede o úroveň výš, ne pryč; na desktopu ([submenusCascade]) se otevřou
+ * do strany po najetí myší nebo kliknutím. Nová nabídka začíná vždycky nahoře.
  *
  * Okno nabídky si nebere klávesnici ([MenuPopupProperties]): nabídka nad vstupním polem ji
  * nechá otevřenou a konverzace pod ní neposkočí. Obsah roluje ([menuScroll]).
@@ -69,39 +116,179 @@ fun ExpressiveMenu(
     properties: PopupProperties = MenuPopupProperties,
 ) {
     val shown = groups.filter { it.isNotEmpty() }
+    // Otevřená podnabídka (podle popisku řádku). Klíč `expanded`: nová nabídka začíná nahoře.
+    var openSubmenu by remember(expanded) { mutableStateOf<String?>(null) }
+    // Úroveň, ze které se nabídka zavírá: dojede v ní a během zavírání neskočí zpátky nahoru.
+    var closingFrom by remember { mutableStateOf<String?>(null) }
+    val host = MenuHost(
+        expanded = expanded,
+        openSubmenu = openSubmenu,
+        onOpenSubmenu = { openSubmenu = it },
+        onAction = { action ->
+            closingFrom = openSubmenu
+            onDismiss()
+            action.onClick()
+        },
+    )
     DropdownMenuPopup(
         expanded = expanded,
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            closingFrom = openSubmenu
+            onDismiss()
+        },
         modifier = Modifier.menuScroll(),
         popupPositionProvider = popupPositionProvider,
         properties = properties,
     ) {
-        MenuColors {
-            shown.forEachIndexed { groupIndex, group ->
-                if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = menuGroupShape(groupIndex, shown.size)) {
-                    group.forEachIndexed { index, action ->
-                        val colors = if (action.destructive) {
-                            MenuDefaults.itemColors(
-                                textColor = MaterialTheme.colorScheme.error,
-                                leadingIconColor = MaterialTheme.colorScheme.error,
-                            )
+        // Zpět se registruje u okna nabídky (popup má vlastní dispečer zpět) a přednost má
+        // před jeho zavřením: z podnabídky vede o úroveň výš.
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = expanded && openSubmenu != null && !submenusCascade,
+            onBackCompleted = { openSubmenu = null },
+        )
+        val level = (if (expanded) openSubmenu else closingFrom).takeIf { !submenusCascade }
+        val submenu = level?.let { label -> shown.flatten().firstOrNull { it.label == label && it.submenu.isNotEmpty() } }
+        val motion = MaterialTheme.motionScheme
+        AnimatedContent(
+            targetState = submenu,
+            contentKey = { it?.label },
+            transitionSpec = {
+                // Do podnabídky se jde doprava (jako do hloubky), zpět doleva.
+                val direction = if (targetState != null) 1 else -1
+                (
+                    slideInHorizontally(motion.fastSpatialSpec()) { direction * it / 4 } +
+                        fadeIn(motion.fastEffectsSpec())
+                    ) togetherWith (
+                    slideOutHorizontally(motion.fastSpatialSpec()) { -direction * it / 4 } +
+                        fadeOut(motion.fastEffectsSpec())
+                    ) using SizeTransform(clip = false) { _, _ -> motion.fastSpatialSpec() }
+            },
+            label = "menu-level",
+        ) { sub ->
+            MenuColors {
+                if (sub == null) {
+                    MenuGroups(shown, host)
+                } else {
+                    MenuGroups(sub.submenu, host, back = sub.label)
+                }
+            }
+        }
+    }
+}
+
+/** Stav nabídky, který potřebují řádky: otevřená podnabídka a co dělá ťuknutí na položku. */
+private class MenuHost(
+    val expanded: Boolean,
+    val openSubmenu: String?,
+    val onOpenSubmenu: (String?) -> Unit,
+    val onAction: (MenuAction) -> Unit,
+)
+
+/**
+ * Skupiny pod sebou. [back] = jsme v podnabídce na telefonu, první řádek je šipka zpět s jejím
+ * názvem. [interactionSource] sdílí podnabídka na desktopu s řádkem, který ji otevřel: najetí
+ * myší na ni se počítá jako najetí na řádek, takže cesta myší k podnabídce ji nezavře.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MenuGroups(
+    groups: List<List<MenuAction>>,
+    host: MenuHost,
+    back: String? = null,
+    interactionSource: MutableInteractionSource? = null,
+) {
+    Column {
+        groups.forEachIndexed { groupIndex, group ->
+            if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            DropdownMenuGroup(shapes = menuGroupShape(groupIndex, groups.size), interactionSource = interactionSource) {
+                val backRow = back != null && groupIndex == 0
+                val count = group.size + if (backRow) 1 else 0
+                if (backRow) {
+                    DropdownMenuItem(
+                        onClick = { host.onOpenSubmenu(null) },
+                        text = { Text(back, style = MaterialTheme.typography.titleSmall) },
+                        shape = MenuDefaults.itemShape(0, count).shape,
+                        leadingIcon = {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        },
+                    )
+                }
+                group.forEachIndexed { i, action ->
+                    val index = i + if (backRow) 1 else 0
+                    key(action.label) {
+                        if (action.submenu.isEmpty()) {
+                            MenuItem(action, index, count, host)
                         } else {
-                            MenuDefaults.itemColors()
+                            SubmenuItem(action, index, count, host)
                         }
-                        DropdownMenuItem(
-                            onClick = {
-                                onDismiss()
-                                action.onClick()
-                            },
-                            text = { Text(action.label) },
-                            shape = MenuDefaults.itemShape(index, group.size).shape,
-                            leadingIcon = action.leading ?: action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
-                            trailingContent = action.trailing,
-                            supportingText = action.supporting?.let { text -> { Text(text) } },
-                            colors = colors,
-                        )
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MenuItem(action: MenuAction, index: Int, count: Int, host: MenuHost) {
+    val colors = if (action.destructive) {
+        MenuDefaults.itemColors(
+            textColor = MaterialTheme.colorScheme.error,
+            leadingIconColor = MaterialTheme.colorScheme.error,
+        )
+    } else {
+        MenuDefaults.itemColors()
+    }
+    DropdownMenuItem(
+        onClick = { host.onAction(action) },
+        text = { Text(action.label) },
+        shape = MenuDefaults.itemShape(index, count).shape,
+        leadingIcon = action.leading ?: action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
+        trailingContent = action.trailing,
+        supportingText = action.supporting?.let { text -> { Text(text) } },
+        colors = colors,
+    )
+}
+
+/**
+ * Řádek, který otevře podnabídku: šipka na konci říká, že ťuknutí vede hlouběji, ne k akci.
+ * Na desktopu nese i podnabídku samu — vnořený `DropdownMenuPopup` ukotvený vedle řádku
+ * (`MenuAnchorPosition.End`, vzor `MenuWithCascadingMenusSample` z material3), bez fokusu, jinak
+ * by najetí myší na hlavní nabídku přestalo chodit.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SubmenuItem(action: MenuAction, index: Int, count: Int, host: MenuHost) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val open = host.openSubmenu == action.label
+    Box {
+        DropdownMenuItem(
+            onClick = { host.onOpenSubmenu(if (open) null else action.label) },
+            text = { Text(action.label) },
+            shape = MenuDefaults.itemShape(index, count).shape,
+            leadingIcon = action.leading ?: action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
+            trailingContent = {
+                Icon(
+                    painterResource(Res.drawable.chevron_right_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(MenuDefaults.TrailingIconSize),
+                )
+            },
+            supportingText = action.supporting?.let { text -> { Text(text) } },
+            interactionSource = interaction,
+        )
+        if (submenusCascade) {
+            DropdownMenuPopup(
+                expanded = host.expanded && (open || hovered),
+                onDismissRequest = { if (open) host.onOpenSubmenu(null) },
+                modifier = Modifier.menuScroll(),
+                popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.End),
+                properties = PopupProperties(focusable = false),
+            ) {
+                MenuColors {
+                    MenuGroups(action.submenu, host, interactionSource = interaction)
                 }
             }
         }

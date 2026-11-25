@@ -18,6 +18,11 @@ import eu.tintera.plume.core.telegram.ClearHistoryRights
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.submenuAction
+import eu.tintera.plume.features.chats.MUTE_OPTIONS
+import eu.tintera.plume.resources.menu_more
+import eu.tintera.plume.resources.more_horiz_24dp
+import eu.tintera.plume.resources.snooze_24dp
 import eu.tintera.plume.features.chats.ChatDeleteSheet
 import eu.tintera.plume.features.profile.ChatActionGroups
 import eu.tintera.plume.features.profile.ChatActions
@@ -63,11 +68,15 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * ⋮ v hlavičce konverzace: všechno kromě hovoru (ten je v liště, `ConversationCallButtons`).
  *
- * Skupiny podle významu: přepnutí na jiný chat (otevře přepínač pod šipkou zpět), práce s obsahem chatu (hledat, přejít na datum, shrnout, Uložené po chatech, ztlumit),
- * akce nad chatem ([ChatActions]: odkaz, QR kód, kontakt, plocha, tajný chat, návrhy — dřív jen
- * v ⋮ profilu), nahlášení se zablokováním a nakonec nevratné akce v chybové barvě — ukončit tajný chat, smazat chat / opustit
- * skupinu nebo kanál. Nahlášení a smazání sem přešly z ⋮ profilu: týkají se konverzace, ne
- * člověka, a v profilu otevřeném z cizí zprávy ve skupině nedávaly smysl.
+ * Dvě úrovně, jako nabídka nad zprávou. **Nahoře** je, kvůli čemu se ⋮ v chatu otevírá:
+ * přepnutí na jiný chat (otevře přepínač pod šipkou zpět), práce s obsahem (hledat, přejít na
+ * datum, shrnout, Uložené po chatech), ztlumení s výběrem doby a běžné akce nad chatem (úprava,
+ * přidat členy), pak řádek „Další" a nakonec nevratné akce v chybové barvě — vymazat historii,
+ * ukončit tajný chat, smazat chat / opustit skupinu nebo kanál. Mazání se nehledá, zůstává nahoře.
+ * **Pod „Další"** jsou akce, které se dělají jednou za čas ([ChatActionGroups.secondary]: odkaz,
+ * QR kód, sdílet kontakt, tajný chat, plocha, návrhy, kontakt) a nahlášení se zablokováním.
+ * Nahlášení a smazání sem přešly z ⋮ profilu: týkají se konverzace, ne člověka, a v profilu
+ * otevřeném z cizí zprávy ve skupině nedávaly smysl.
  *
  * [showsContent] je `false` u prázdného chatu s botem (je to jeho profil) a u skrytého obsahu —
  * pak není co hledat ani shrnout. Ve vlákně a tématu zůstávají jen akce nad obsahem; ztlumení
@@ -186,29 +195,31 @@ private fun ConversationMenuContent(
             },
             onViewAsChats?.let { MenuAction(stringResource(Res.string.saved_view_as_chats), Res.drawable.forum_24dp, onClick = it) },
             onViewAsTopics?.let { MenuAction(stringResource(Res.string.forum_view_as_topics), Res.drawable.forum_24dp, onClick = { viewModel.viewAsTopics(it) }) },
-            muted?.let {
-                MenuAction(
-                    stringResource(if (it) Res.string.profile_unmute else Res.string.profile_mute),
-                    if (it) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp,
-                    onClick = viewModel::toggleMute,
-                )
-            },
         ),
-        chatActions.chat,
-        // Nahlášení se ptá na důvod (průvodce), proto „…". Jen u spamového action baru ho
-        // server vezme rovnou jako spam, a pak to popisek řekne. Zablokování k němu patří:
-        // obojí je obrana před tím druhým, ne práce s chatem.
+        // Ztlumení s výběrem doby (jako v seznamu chatů a v profilu); zapnout zvuk jedním ťuknutím.
+        listOfNotNull(muted?.let { muteAction(it, viewModel) }) + chatActions.main,
+        // „Další": co se dělá jednou za čas. Nahlášení se ptá na důvod (průvodce); jen u spamového
+        // action baru ho server vezme rovnou jako spam, a pak to popisek řekne. Zablokování
+        // k němu patří: obojí je obrana před tím druhým, ne práce s chatem.
         listOfNotNull(
-            if (wholeChat && spam?.canReport == true) {
-                MenuAction(
-                    stringResource(if (spam.reportsSpamDirectly) Res.string.chats_delete_report else Res.string.chats_action_report),
-                    Res.drawable.flag_24dp,
-                    onClick = viewModel::reportChat,
-                )
-            } else {
-                null
-            },
-        ) + chatActions.block,
+            submenuAction(
+                stringResource(Res.string.menu_more),
+                Res.drawable.more_horiz_24dp,
+                chatActions.secondary + listOf(
+                    listOfNotNull(
+                        if (wholeChat && spam?.canReport == true) {
+                            MenuAction(
+                                stringResource(if (spam.reportsSpamDirectly) Res.string.chats_delete_report else Res.string.chats_action_report),
+                                Res.drawable.flag_24dp,
+                                onClick = viewModel::reportChat,
+                            )
+                        } else {
+                            null
+                        },
+                    ) + chatActions.block,
+                ),
+            ),
+        ),
         listOfNotNull(
             clearRights?.let {
                 MenuAction(
@@ -292,6 +303,31 @@ private fun ConversationMenuContent(
         )
     }
 }
+
+/**
+ * Ztlumit jako podnabídka s dobami ([MUTE_OPTIONS], tytéž jako v seznamu chatů a v profilu),
+ * ztlumený chat jen „Zapnout zvuk" — vrátit zvuk je jedna volba, ne výběr.
+ */
+@Composable
+private fun muteAction(muted: Boolean, viewModel: ConversationViewModel): MenuAction =
+    if (muted) {
+        MenuAction(stringResource(Res.string.profile_unmute), Res.drawable.notifications_24dp, onClick = viewModel::toggleMute)
+    } else {
+        MenuAction(
+            stringResource(Res.string.profile_mute),
+            Res.drawable.notifications_off_24dp,
+            submenu = listOf(
+                MUTE_OPTIONS.map { (label, duration) ->
+                    MenuAction(
+                        stringResource(label),
+                        if (duration == null) Res.drawable.notifications_off_24dp else Res.drawable.snooze_24dp,
+                        onClick = { viewModel.mute(duration) },
+                    )
+                },
+            ),
+            onClick = {},
+        )
+    }
 
 /**
  * Ořez fotky a hlášky akcí nad chatem z ⋮ ([ChatActionsHost]). Ve vlastní funkci kvůli

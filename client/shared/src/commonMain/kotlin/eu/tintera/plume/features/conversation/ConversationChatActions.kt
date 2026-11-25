@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
 
 /**
  * Chat jako celek, ne jeho zprávy: pruhy nad konverzací (spam, sdílení čísla, žádosti o vstup,
@@ -235,6 +236,16 @@ internal class ConversationChatActions(
         val muted = state.value.muted ?: return
         scope.launch {
             chatRepository.setMuted(chatId, !muted).onFailure { failure ->
+                state.update { it.copy(error = failure.reported(logger, Res.string.profile_mute_failed)) }
+            }
+        }
+    }
+
+    /** Ztlumit z ⋮ konverzace na [duration]; `null` = navždy. Potvrzení přijde updatem. */
+    fun mute(duration: Duration?) {
+        scope.launch {
+            val result = if (duration == null) chatRepository.setMuted(chatId, true) else chatRepository.muteFor(chatId, duration)
+            result.onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.profile_mute_failed)) }
             }
         }

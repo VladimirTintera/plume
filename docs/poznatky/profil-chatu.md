@@ -143,7 +143,8 @@ nevejde, má nad seznamem pole hledání (`MemberList`, testy `MemberListTest`).
   - **Nabízí je ⋮ konverzace i ⋮ profilu, jedna implementace.** Dřív byly jen v profilu, ačkoli
     se týkají chatu, ne obrazovky profilu — a ztlumit bylo v konverzaci, blokovat v profilu, takže
     člověk musel vědět, kde hledat. V konverzaci jen u celého chatu (ne ve vlákně, tématu ani
-    v Uložených), hovor tam v nabídce není (tlačítka v liště); zablokovat stojí u nahlášení.
+    v Uložených), hovor tam v nabídce není (tlačítka v liště); v konverzaci je většina z nich pod
+    „Další" a zablokovat stojí u nahlášení (viz „⋮ v hlavičce konverzace a jeho „Další"" v `konverzace-akce.md`).
   - **Profil vedle konverzace s TÝMŽ celým chatem nemá lištu vůbec** (`besideOwnConversation`,
     `standsOnOwnConversation` v `ChatsStack.kt`): jméno je v hlavičce konverzace, akce jsou v pásu
     nad profilem (viz „Konverzace a boční panel mají jeden pás hlavičky" v `navigace.md`)
