@@ -394,7 +394,12 @@ internal fun MessageAttachment(
                                 },
                                 onLongClick = onRequestMenu,
                             )
-                            .mediaDragOut(messageId, media.fileId, enabled = !isSelfDestruct && revealed && !file.uploading),
+                            .mediaDragOut(
+                                messageId,
+                                media.fileId,
+                                originalName = media.fileName,
+                                enabled = !isSelfDestruct && revealed && !file.uploading,
+                            ),
                     )
                 }
             }
