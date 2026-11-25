@@ -41,6 +41,19 @@ interface AccountSettings {
     fun confirmWebAppBot(botUserId: Long)
 
     /**
+     * Chaty zamčené v tomhle zařízení (`LockedChatsSession`, `docs/poznatky/zamcene-chaty.md`):
+     * mimo seznam zamčených se nikde neukazují a otevřou se až po PINu nebo biometrii. Jen
+     * v zařízení, na server se nic neposílá.
+     *
+     * **`null` = nastavení se ještě čte.** Výchozí prázdná sada by po studeném startu na pár
+     * snímků ukázala zamčené chaty v seznamu i v konverzaci; kdo je filtruje, počká na hodnotu.
+     */
+    val lockedChats: StateFlow<Set<Long>?>
+
+    /** Zamkne / odemkne chat [chatId]. Neblokuje. */
+    fun setChatLocked(chatId: Long, locked: Boolean)
+
+    /**
      * Použité jednorázové klávesnice botů: chat → zpráva, ze které klávesnice pochází. Klávesnice
      * po použití v chatu ZŮSTÁVÁ (Bot API ji jen schová) a TDLib si nepamatuje, že byla použitá —
      * bez tohohle by se při každém otevření chatu ukázala zase rozbalená. Tak to drží i oficiální

@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.lockedchats.LockedChatsScreen
+import eu.tintera.plume.core.navigation.LockedChatsRoute
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountViewModels
@@ -932,6 +934,7 @@ private fun shellEntryProvider(
                 onOpenArchive = {
                     if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
                 },
+                onOpenLockedChats = { if (chatsStack.lastOrNull() !is LockedChatsRoute) chatsStack.add(LockedChatsRoute(slot)) },
                 onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
                     .takeIf { koinInject<CallRepository>().supported },
                 onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
@@ -1052,6 +1055,27 @@ private fun shellEntryProvider(
             sources = rememberCallSources(),
             onBack = { chatsStack.remove(CallsRoute) },
             onOpenChat = { slot, chatId -> chatsStack.openConversation(slot, chatId) },
+        )
+    }
+
+    // Zamčené chaty: seznam vlevo, konverzace vedle v hlavním zásobníku (jako historie hovorů).
+    // Konverzaci pustí brána (`LockedChatGate`), protože je sezení po odemčení seznamu odemčené.
+    entry<LockedChatsRoute>(
+        metadata = Panes.list(
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
+        ),
+    ) { route ->
+        val settings = koinInject<AppSettings>()
+        val savedMessagesChatId = LocalSavedMessagesChatId.current
+        LockedChatsScreen(
+            onBack = { chatsStack.remove(route) },
+            onOpenChat = { chat ->
+                when {
+                    chat.opensAsTopics -> chatsStack.openForum(route.slot, chat.id)
+                    chat.id == savedMessagesChatId && settings.savedMessagesAsChats.value -> chatsStack.openSavedTopics(route.slot, chat.id)
+                    else -> chatsStack.openConversation(route.slot, chat.id)
+                }
+            },
         )
     }
 

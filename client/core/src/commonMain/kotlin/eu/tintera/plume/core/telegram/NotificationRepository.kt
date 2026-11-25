@@ -118,6 +118,13 @@ sealed interface NotificationUpdate {
     data object Cleared : NotificationUpdate
 
     /**
+     * Chat se právě zamkl: z lišty musí zmizet jeho notifikace se jménem a textem, i zkratka
+     * konverzace, kterou kvůli nim systém dostal. Další zprávy už přijdou začerněné
+     * ([ChatNotification.isLocked]).
+     */
+    data class ChatLocked(val chatId: Long) : NotificationUpdate
+
+    /**
      * Příchozí hovor (`NotificationTypeNewCall`). Zruší ho [Removed] se stejným [IncomingCall.groupId],
      * jakmile hovor skončí (přijatý jinde, odmítnutý, zmeškaný) — to hlídá TDLib.
      */
@@ -206,6 +213,13 @@ data class ChatNotification(
      * hovor nezná, přijde až skutečná zpráva po připojení).
      */
     val callBack: CallBack? = null,
+    /**
+     * Zpráva ze zamčeného chatu (`LockedChats`). [chatTitle] a [text] jsou už obecné („Plume",
+     * „Nová zpráva"), fotky, obrázek i akce prázdné. Presenter k ní nesmí přidat nic, co chat
+     * prozradí: zkratku konverzace (Direct Share, jméno v Android Auto), bublinu, ani
+     * profilovku — ťuknutí otevře chat až po odemčení.
+     */
+    val isLocked: Boolean = false,
 )
 
 /**

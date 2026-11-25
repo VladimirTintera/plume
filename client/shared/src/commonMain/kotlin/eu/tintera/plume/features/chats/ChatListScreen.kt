@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.settings.AccountSettings
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -411,6 +412,7 @@ fun ChatListScreen(
     }
 
     val accountSwitcher = rememberAccountSwitcher()
+    val lockedChats = koinInject<AccountSettings>().lockedChats.collectAsStateWithLifecycle().value.orEmpty()
     // Přidávaný účet už v aplikaci je: přihlášení se zahodilo, tak to říct, ať uživatel neváhá.
     LaunchedEffect(accounts) {
         accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(getString(Res.string.accounts_already_signed_in)) }
@@ -423,6 +425,7 @@ fun ChatListScreen(
             archiveUnread = archiveUnread,
             onSavedMessages = { viewModel.openSavedMessages(navigation.onChatClick) },
             onArchive = navigation.onOpenArchive,
+            onLockedChats = navigation.onOpenLockedChats.takeIf { lockedChats.isNotEmpty() },
             onCalls = navigation.onOpenCalls,
             onDownloads = navigation.onOpenDownloads,
             onMyStories = navigation.onOpenMyStories,

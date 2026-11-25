@@ -1,5 +1,9 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.connectivity.AppForeground
+import eu.tintera.plume.core.accounts.LockedChats
+import eu.tintera.plume.core.lock.LockedChatsSession
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -226,6 +230,14 @@ fun appModule() = module {
                 .distinctUntilChanged()
         }
     }
+    // Zamčené chaty pro `core` (seznamy, hledání, počty, notifikace). Až po načtení nastavení:
+    // výchozí prázdná sada by je po startu na chvíli ukázala.
+    single<LockedChats> {
+        val settings = get<AppSettings>()
+        LockedChats { slot -> settings.forAccount(slot).lockedChats.filterNotNull() }
+    }
+    // Odemčení zamčených chatů: do odchodu do pozadí nebo zamčení aplikace (`LockedChatsSession`).
+    single { LockedChatsSession(foreground = get<AppForeground>().isForeground, lock = get<AppLock>().state, scope = get(named(APP_SCOPE))) }
     single(createdAtStart = true) { AutoDownloadPolicy(settings = get(), network = get(), scope = get(named(APP_SCOPE))) }
 
     // Zámek aplikace musí znát stav dřív, než se složí první obrazovka, a sledovat popředí
@@ -339,7 +351,7 @@ fun appAccountModule() = module {
     single { LocalTranscripts(settings = get(), chats = get()) }
     // Přepis v telefonu i pro hodinky (WatchTranscriptionService); AI a systémový přepis jen na Androidu.
     single { OnDeviceTranscription(settings = get(), files = get(), local = get(), onDeviceAi = getOrNull(), speechToText = getOrNull()) }
-    single { PhotoDescriptions(settings = get(), chats = get()) }
+    single { PhotoDescriptions(settings = get(), chats = get(), locked = get<AccountSettings>().lockedChats) }
     single<BackgroundPhotoDescription> { BackgroundPhotoDescriber(settings = get(), chats = get(), files = get(), ai = get(), descriptions = get(), load = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     factory { NaturalSearchModel(ai = get(), settings = get()) }
@@ -347,7 +359,7 @@ fun appAccountModule() = module {
     single { ChatTriage(ai = get(), settings = get(), conversations = get(), appScope = get(named(APP_SCOPE)), load = get()) }
     single { MessageContexts(ai = get(), settings = get(), appScope = get(named(APP_SCOPE)), load = get()) }
     single { ChatSwitcher(chats = get()) }
-    single { MessageBookmarks(settings = get(), chats = get()) }
+    single { MessageBookmarks(settings = get(), chats = get(), locked = get<AccountSettings>().lockedChats) }
     single { CommentDrafts(settings = get(), chats = get(), threads = get()) }
     // Smazání chatu s „Vrátit" doběhne i po zavření archivu, proto ve scope aplikace.
     single { PendingChatDeletes(repository = get(), scope = get(named(APP_SCOPE))) }
@@ -389,6 +401,7 @@ fun appAccountModule() = module {
             publisher = get(),
             scope = get(named(APP_SCOPE)),
             accountName = { get<Accounts>().notificationName(get()) },
+            locked = get<AccountSettings>().lockedChats,
         )
     }
 

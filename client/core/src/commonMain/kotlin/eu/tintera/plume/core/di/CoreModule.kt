@@ -2,6 +2,7 @@ package eu.tintera.plume.core.di
 
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.accounts.AccountVisibility
+import eu.tintera.plume.core.accounts.LockedChats
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
@@ -262,6 +263,8 @@ internal fun accountModule(slot: AccountSlot): Module = module {
             holder = get(),
             session = get(),
             scope = get(named(APP_SCOPE)),
+            // Zamčené chaty dodává aplikace (`LockedChats`), hodinky ne.
+            locked = getOrNull<LockedChats>()?.locked(slot) ?: flowOf(emptySet()),
         )
     }
 
@@ -271,7 +274,12 @@ internal fun accountModule(slot: AccountSlot): Module = module {
     single<VideoChatRepository> { TdlVideoChatRepository(holder = get()) }
 
     single<StoryRepository>(createdAtStart = true) {
-        TdlStoryRepository(holder = get(), session = get(), scope = get(named(APP_SCOPE)))
+        TdlStoryRepository(
+            holder = get(),
+            session = get(),
+            scope = get(named(APP_SCOPE)),
+            locked = getOrNull<LockedChats>()?.locked(slot) ?: flowOf(emptySet()),
+        )
     }
 
     // Eager ze stejného důvodu: zmrazení účtu a podmínky služby TDLib pošle hned po startu
@@ -287,7 +295,9 @@ internal fun accountModule(slot: AccountSlot): Module = module {
 
     single<NotificationSoundRepository> { TdlNotificationSoundRepository(holder = get()) }
 
-    single<DownloadsRepository> { TdlDownloadsRepository(holder = get()) }
+    single<DownloadsRepository> {
+        TdlDownloadsRepository(holder = get(), locked = getOrNull<LockedChats>()?.locked(slot) ?: flowOf(emptySet()))
+    }
 
     // Eager: příchozí hovor chodí updatem a nesmí se minout. Mediální vrstva je jen tam,
     // kde ji platformní modul aplikace zaregistruje (`CallMedia`); jinde jsou hovory nedostupné.
@@ -341,7 +351,11 @@ internal fun accountModule(slot: AccountSlot): Module = module {
     // Eagerně: v konstruktoru se odebírá `havePendingNotificationsUpdates`, který chodí jen na
     // změnu. Presenter si ho sice vyžádá ze `startKoin` taky, ale na tom pořadí nemá co viset.
     single<NotificationRepository>(createdAtStart = true) {
-        TdlNotificationRepository(holder = get(), scope = get(named(APP_SCOPE)))
+        TdlNotificationRepository(
+            holder = get(),
+            scope = get(named(APP_SCOPE)),
+            locked = getOrNull<LockedChats>()?.locked(slot) ?: flowOf(emptySet()),
+        )
     }
 
     // Eagerně ze stejného důvodu jako FileRepository: v konstruktoru se přihlašuje k odběru

@@ -148,6 +148,8 @@ open class UnimplementedAccountSettings : AccountSettings {
     override fun setContactSyncEnabled(enabled: Boolean): Unit = error("setContactSyncEnabled")
     override val confirmedWebAppBots: StateFlow<Set<Long>> get() = error("confirmedWebAppBots")
     override fun confirmWebAppBot(botUserId: Long): Unit = error("confirmWebAppBot")
+    override val lockedChats: StateFlow<Set<Long>?> get() = error("lockedChats")
+    override fun setChatLocked(chatId: Long, locked: Boolean): Unit = error("setChatLocked")
     override val usedOneTimeKeyboards: StateFlow<Map<Long, Long>> get() = error("usedOneTimeKeyboards")
     override fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long): Unit = error("markOneTimeKeyboardUsed")
     override val lastStorageCleanup: StateFlow<Long?> get() = error("lastStorageCleanup")

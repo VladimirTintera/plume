@@ -54,6 +54,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.seconds
@@ -67,6 +71,8 @@ class TdlStoryRepository(
     private val holder: TelegramClientHolder,
     private val session: TelegramSession,
     private val scope: CoroutineScope,
+    /** Chaty zamčené v tomhle zařízení (`LockedChats`): jejich příběhy se nikde neukazují. */
+    locked: Flow<Set<Long>> = flowOf(emptySet()),
 ) : StoryRepository {
 
     private val logger = Logger.withTag("Stories")
@@ -74,7 +80,10 @@ class TdlStoryRepository(
     private val client get() = holder.client
 
     private val _active = MutableStateFlow<Map<Long, ActiveStories>>(emptyMap())
-    override val active: StateFlow<Map<Long, ActiveStories>> = _active.asStateFlow()
+    // Lem u avataru a hromádka v pilulce by prozradily, že zamčený chat existuje a kdo to je.
+    override val active: StateFlow<Map<Long, ActiveStories>> = combine(_active, locked) { all, hidden ->
+        if (hidden.isEmpty()) all else all - hidden
+    }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     init {
         scope.launch {

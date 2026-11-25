@@ -1,5 +1,24 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.shield_person_24dp
+import eu.tintera.plume.resources.lock_open_24dp
+import eu.tintera.plume.resources.locked_chats_need_app_lock_title
+import eu.tintera.plume.resources.chat_lock_needs_app_lock
+import eu.tintera.plume.resources.chat_lock_text
+import eu.tintera.plume.resources.chat_lock_title
+import eu.tintera.plume.resources.chat_unlock
+import eu.tintera.plume.resources.chat_lock
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.lock.AppLockState
+import eu.tintera.plume.core.lock.AppLock
+import eu.tintera.plume.core.settings.AccountSettings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -120,6 +139,11 @@ internal fun ChatActions(
     var pickBirthdate by rememberSaveable { mutableStateOf(false) }
     var showQr by rememberSaveable { mutableStateOf(false) }
     var editContact by rememberSaveable { mutableStateOf(false) }
+    var confirmLock by rememberSaveable { mutableStateOf(false) }
+    var needsAppLock by rememberSaveable { mutableStateOf(false) }
+    val accountSettings = koinInject<AccountSettings>()
+    val appLock = koinInject<AppLock>()
+    val lockedChats by accountSettings.lockedChats.collectAsStateWithLifecycle()
     val photoPicker = rememberAttachmentPicker(onPicked = viewModel::suggestPhotoFrom, onError = viewModel::reportError)
     val personalPhotoPicker = rememberAttachmentPicker(onPicked = viewModel::personalPhotoFrom, onError = viewModel::reportError)
 
@@ -189,6 +213,21 @@ internal fun ChatActions(
         } else {
             null
         },
+        // Zamčený chat v tomhle zařízení (`LockedChatGate`). Uložené zprávy ne — jsou vlastní.
+        when {
+            profile.kind == ProfileKind.SavedMessages || lockedChats == null -> null
+            viewModel.chatId in lockedChats.orEmpty() -> MenuAction(
+                stringResource(Res.string.chat_unlock),
+                Res.drawable.lock_open_24dp,
+                onClick = { accountSettings.setChatLocked(viewModel.chatId, false) },
+            )
+            else -> MenuAction(
+                stringResource(Res.string.chat_lock),
+                Res.drawable.shield_person_24dp,
+                // Bez zámku aplikace není čím odemknout — napřed říct, kde ho zapnout.
+                onClick = { if (appLock.state.value is AppLockState.Disabled) needsAppLock = true else confirmLock = true },
+            )
+        },
     )
     val suggest = listOfNotNull(
         // Návrh fotky a data narození dostane jen člověk; vlastní je v úpravě profilu.
@@ -233,6 +272,31 @@ internal fun ChatActions(
         },
     )
     content(ChatActionGroups(main = main, share = share, extras = extras, suggest = suggest, contact = contactActions, block = block))
+
+    if (confirmLock) {
+        ConfirmDialog(
+            title = stringResource(Res.string.chat_lock_title),
+            text = stringResource(Res.string.chat_lock_text),
+            confirmLabel = stringResource(Res.string.chat_lock),
+            icon = Res.drawable.shield_person_24dp,
+            onConfirm = {
+                confirmLock = false
+                accountSettings.setChatLocked(viewModel.chatId, true)
+            },
+            onDismiss = { confirmLock = false },
+        )
+    }
+    if (needsAppLock) {
+        AlertDialog(
+            onDismissRequest = { needsAppLock = false },
+            icon = { Icon(painterResource(Res.drawable.shield_person_24dp), contentDescription = null) },
+            title = { Text(stringResource(Res.string.locked_chats_need_app_lock_title)) },
+            text = { Text(stringResource(Res.string.chat_lock_needs_app_lock)) },
+            confirmButton = {
+                TextButton(onClick = { needsAppLock = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) }
+            },
+        )
+    }
 
     if (confirmBlock) {
         ConfirmDialog(

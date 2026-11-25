@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import kotlinx.coroutines.flow.flowOf
 import androidx.compose.runtime.compositionLocalOf
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.StoredPhotoDescription
@@ -20,12 +21,17 @@ import kotlin.time.Clock
  *   ([eu.tintera.plume.features.conversation.LocalTranscripts]): popis je obsah, ne nastavení.
  * - **Účet je id Uložených zpráv**; dokud není známý, popis se neukládá.
  */
-class PhotoDescriptions(private val settings: AppSettings, private val chats: ChatRepository) {
+class PhotoDescriptions(
+    private val settings: AppSettings,
+    private val chats: ChatRepository,
+    /** Zamčené chaty: hledání fotek podle obsahu je nevrací. `null` = čte se. */
+    locked: Flow<Set<Long>?> = flowOf(emptySet()),
+) {
 
-    /** Všechny popisy účtu, nejnovější poslední — pro hledání fotek podle obsahu. */
+    /** Všechny popisy účtu, nejnovější poslední — pro hledání fotek podle obsahu; bez zamčených chatů. */
     val all: Flow<List<StoredPhotoDescription>> =
-        combine(settings.storedPhotoDescriptions, chats.savedMessagesChatId) { stored, account ->
-            if (account == null) emptyList() else stored.filter { it.accountId == account }
+        combine(settings.storedPhotoDescriptions, chats.savedMessagesChatId, locked) { stored, account, hidden ->
+            if (account == null || hidden == null) emptyList() else stored.filter { it.accountId == account && it.chatId !in hidden }
         }
 
     /** Popisy fotek v chatu [chatId] podle id zprávy. */

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.locked_chats_title
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Immutable
@@ -101,6 +103,8 @@ internal fun AccountMenu(
     archiveUnread: ArchiveUnread,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
+    /** Zamčené chaty; `null` = žádné nejsou a položka chybí (nikomu neříká, že funkce existuje). */
+    onLockedChats: (() -> Unit)?,
     /** Historie hovorů; `null` = bez položky (platforma bez hovorů). */
     onCalls: (() -> Unit)?,
     onDownloads: () -> Unit,
@@ -248,6 +252,8 @@ internal fun AccountMenu(
                         trailing = archiveBadge,
                         onClick = onArchive,
                     ),
+                    // Bez počtu nepřečtených: odznak by prozradil, že v zamčeném chatu je zpráva.
+                    onLockedChats?.let { MenuAction(stringResource(Res.string.locked_chats_title), Res.drawable.lock_24dp, onClick = it) },
                     onCalls?.let { MenuAction(stringResource(Res.string.calls_title), Res.drawable.call_24dp, onClick = it) },
                     MenuAction(stringResource(Res.string.downloads_title), Res.drawable.download_24dp, onClick = onDownloads),
                     MenuAction(stringResource(Res.string.my_stories_title), Res.drawable.history_toggle_off_24dp, onClick = onMyStories),

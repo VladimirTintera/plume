@@ -4954,4 +4954,21 @@
         <item quantity="many">Smazat %1$d hovoru z historie?</item>
         <item quantity="other">Smazat %1$d hovorů z historie?</item>
     </plurals>
+    <string name="locked_chat_notification_title">Zamčený chat</string>
+    <string name="locked_chat_notification_text">Nová zpráva</string>
+    <string name="locked_chat_caller">Hovor ze zamčeného chatu</string>
+    <string name="locked_chats_title">Zamčené chaty</string>
+    <string name="locked_chats_unlock_title">Odemknout zamčené chaty</string>
+    <string name="locked_chats_biometrics_prompt">Odemknout zamčené chaty</string>
+    <string name="locked_chats_need_app_lock_title">Zámek aplikace je vypnutý</string>
+    <string name="locked_chats_need_app_lock">Zamčené chaty se odemykají PINem zámku aplikace. Zapni ho v Nastavení → Soukromí → Zámek aplikace.</string>
+    <string name="locked_chats_lock_now">Zamknout hned</string>
+    <string name="locked_chats_empty_title">Žádné zamčené chaty</string>
+    <string name="locked_chats_empty">Chat zamkneš v jeho nabídce ⋮. V tomhle zařízení zmizí ze seznamu chatů, z hledání i z notifikací.</string>
+    <string name="locked_chats_unlock_chat">Odemknout chat</string>
+    <string name="chat_lock">Zamknout chat</string>
+    <string name="chat_unlock">Odemknout chat</string>
+    <string name="chat_lock_title">Zamknout tenhle chat?</string>
+    <string name="chat_lock_text">V tomhle zařízení zmizí ze seznamu chatů, z hledání i z widgetu a notifikace řeknou jen „Nová zpráva“. Najdeš ho v menu účtu → Zamčené chaty, za PINem zámku aplikace.</string>
+    <string name="chat_lock_needs_app_lock">Zamčené chaty se odemykají PINem zámku aplikace. Napřed zapni zámek v Nastavení → Soukromí → Zámek aplikace.</string>
 </resources>

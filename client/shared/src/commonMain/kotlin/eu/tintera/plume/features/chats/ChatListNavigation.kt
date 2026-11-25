@@ -32,6 +32,8 @@ data class ChatListNavigation(
     val onAccountMessageClick: (slot: AccountSlot, chatId: Long, messageId: Long, topicId: Int?) -> Unit =
         { _, chatId, messageId, topicId -> onMessageClick(chatId, messageId, topicId) },
     val onOpenArchive: () -> Unit,
+    /** Menu účtu → Zamčené chaty (položka jen tehdy, když nějaké jsou). */
+    val onOpenLockedChats: () -> Unit = {},
     /** Menu účtu → Hovory; `null` = položka není (platforma bez hovorů). */
     val onOpenCalls: (() -> Unit)? = null,
     /** Menu účtu → Stahování. */
