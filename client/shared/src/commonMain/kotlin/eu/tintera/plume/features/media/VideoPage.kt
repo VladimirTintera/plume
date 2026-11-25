@@ -89,6 +89,7 @@ import eu.tintera.plume.features.conversation.SpeedChip
 import eu.tintera.plume.core.settings.AppSettings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -523,6 +524,15 @@ internal fun VideoPage(
     var loadedKey by remember { mutableStateOf<Any?>(null) }
     // Po výměně kvality hrající video čeká na data nového souboru: točí se průběh uprostřed.
     var swapping by remember { mutableStateOf(false) }
+    /*
+     * Poměr stran podle přehrávače (poměr pixelu, otočení), jakmile ho zná; do té doby z rozměrů
+     * ve zprávě. Ty uvádí odesílatel a u videa s nečtvercovými pixely jsou to uložené rozměry:
+     * 720 × 720 u obrazu 9 : 16 dalo čtvercovou kartu, na telefonu s náhledem po stranách
+     * a ne přes celou obrazovku. Karta se do skutečného poměru přelije, bez překmitu.
+     */
+    var playerAspect by remember { mutableStateOf<Float?>(null) }
+    val targetAspect = playerAspect ?: aspectRatio
+    val shownAspect by animateFloatAsState(targetAspect, MaterialTheme.motionScheme.defaultEffectsSpec(), label = "video-aspect")
 
     // `load` hlasitost i rychlost přenastaví, takže se obojí zapisuje až PO načtení — i po
     // výměně kvality (klíč `loadedKey`).
@@ -622,6 +632,7 @@ internal fun VideoPage(
             playing = player.isPlaying
             ended = player.isEnded
             failed = player.isFailed
+            player.aspectRatio?.takeIf { it.isFinite() && it > 0f }?.let { playerAspect = it }
             // Optimistické `playing = true` z tlačítka by jinak po chybě viselo do dalšího tiknutí.
             if (failed) playing = false
             if (playing) hasPlayed = true
@@ -660,7 +671,7 @@ internal fun VideoPage(
     val pip = if (pictureInPicture != null && active && loaded) {
         rememberPictureInPicture(
             player = player,
-            aspectRatio = aspectRatio,
+            aspectRatio = targetAspect,
             playing = playing,
             onTogglePlay = {
                 if (player.isPlaying) player.pause() else player.play()
@@ -816,7 +827,7 @@ internal fun VideoPage(
     val tabletopBottom = hinge?.let { (it.bottom - pageTop).roundToInt() }?.takeIf { tabletopTop != null }
 
     MediaPageLayout(
-        aspectRatio = aspectRatio,
+        aspectRatio = shownAspect,
         caption = caption,
         reservedTop = placement.reservedTop,
         reservedBottom = placement.reservedBottom,

@@ -8,10 +8,13 @@ import org.bytedeco.ffmpeg.avcodec.AVCodecContext
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
 import org.bytedeco.ffmpeg.avformat.AVInputFormat
+import org.bytedeco.ffmpeg.avformat.AVStream
 import org.bytedeco.ffmpeg.avutil.AVDictionary
 import org.bytedeco.ffmpeg.avutil.AVFrame
 import org.bytedeco.ffmpeg.global.avcodec.av_packet_alloc
+import org.bytedeco.ffmpeg.global.avcodec.AV_PKT_DATA_DISPLAYMATRIX
 import org.bytedeco.ffmpeg.global.avcodec.av_packet_free
+import org.bytedeco.ffmpeg.global.avcodec.av_packet_side_data_get
 import org.bytedeco.ffmpeg.global.avcodec.av_packet_unref
 import org.bytedeco.ffmpeg.global.avcodec.avcodec_alloc_context3
 import org.bytedeco.ffmpeg.global.avcodec.avcodec_find_decoder
@@ -23,6 +26,7 @@ import org.bytedeco.ffmpeg.global.avcodec.avcodec_receive_frame
 import org.bytedeco.ffmpeg.global.avcodec.avcodec_send_packet
 import org.bytedeco.ffmpeg.global.avformat.AVSEEK_FLAG_BACKWARD
 import org.bytedeco.ffmpeg.global.avformat.av_find_best_stream
+import org.bytedeco.ffmpeg.global.avformat.av_guess_sample_aspect_ratio
 import org.bytedeco.ffmpeg.global.avformat.av_read_frame
 import org.bytedeco.ffmpeg.global.avformat.av_seek_frame
 import org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info
@@ -32,6 +36,7 @@ import org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_VIDEO
 import org.bytedeco.ffmpeg.global.avutil.AV_LOG_ERROR
 import org.bytedeco.ffmpeg.global.avutil.AV_NOPTS_VALUE
 import org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGRA
+import org.bytedeco.ffmpeg.global.avutil.av_display_rotation_get
 import org.bytedeco.ffmpeg.global.avutil.av_frame_alloc
 import org.bytedeco.ffmpeg.global.avutil.av_frame_free
 import org.bytedeco.ffmpeg.global.avutil.av_log_set_level
@@ -43,6 +48,7 @@ import org.bytedeco.ffmpeg.global.swscale.sws_scale_frame
 import org.bytedeco.ffmpeg.presets.avutil.AVERROR_EAGAIN
 import org.bytedeco.ffmpeg.swscale.SwsContext
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.IntPointer
 import org.bytedeco.javacpp.PointerPointer
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
@@ -65,6 +71,15 @@ internal class FfmpegVideoDecoder private constructor(
     private val startTs: Long,
     /** Délka v ms; `0`, když ji soubor neuvádí. */
     val durationMs: Long,
+    /**
+     * Poměr stran pixelu (SAR), šířka ku výšce; `1` u čtvercových. Video 720 × 720 s SAR 9 : 16
+     * se má ukázat na výšku — bez přepočtu by z něj byl čtverec.
+     */
+    private val pixelAspect: Float,
+    /** O kolik stupňů po směru hodinových ručiček se obraz při kreslení otočí (0, 90, 180, 270). */
+    val rotation: Int,
+    /** Poměr stran obrazu, jak se ukáže (s [pixelAspect] i [rotation]); `null`, když ho soubor neuvádí. */
+    val displayAspectRatio: Float?,
     /** Vlákna dekodéru i převodu; `0` = podle jader. */
     threads: Int,
 ) : AutoCloseable {
@@ -131,9 +146,13 @@ internal class FfmpegVideoDecoder private constructor(
      * Poslední dekódovaný snímek jako obrázek pro Skiu, zmenšený tak, aby se vešel do
      * [target] (zvětšuje se až při kreslení). GIF 1280 × 720 v bublině o třetinové šířce by
      * jinak převáděl a nahrával do GPU devětkrát víc pixelů, než je vidět.
+     *
+     * Pixely obrázku jsou čtvercové (převod roztáhne šířku podle [pixelAspect]), otočení
+     * ([rotation]) zůstává na kreslení — do [target] se proto vepisuje už otočený.
      */
     fun toImage(target: IntSize): Image {
-        val (width, height) = fitSize(frame.width(), frame.height(), target)
+        val upright = if (rotation % 180 == 0) target else IntSize(target.height, target.width)
+        val (width, height) = fitSize(squarePixelWidth(frame.width(), pixelAspect), frame.height(), upright)
         val size = width * height * 4
         if (outputBytes.size != size) {
             output.close()
@@ -215,12 +234,44 @@ internal class FfmpegVideoDecoder private constructor(
                     format.duration() != AV_NOPTS_VALUE && format.duration() > 0 -> format.duration() / 1000
                     else -> 0L
                 }
-                return FfmpegVideoDecoder(input, codec, streamIndex, num, den, start, durationMs, threads)
+                val pixelAspect = av_guess_sample_aspect_ratio(format, stream, null as AVFrame?)
+                    .let { if (it.num() > 0 && it.den() > 0) it.num().toFloat() / it.den() else 1f }
+                val rotation = stream.rotation()
+                val displayAspect = displayAspectRatio(
+                    width = stream.codecpar().width(),
+                    height = stream.codecpar().height(),
+                    pixelAspect = pixelAspect,
+                    rotation = rotation,
+                )
+                return FfmpegVideoDecoder(
+                    input = input,
+                    codec = codec,
+                    streamIndex = streamIndex,
+                    timeBaseNum = num,
+                    timeBaseDen = den,
+                    startTs = start,
+                    durationMs = durationMs,
+                    pixelAspect = pixelAspect,
+                    rotation = rotation,
+                    displayAspectRatio = displayAspect,
+                    threads = threads,
+                )
             } catch (failure: Throwable) {
                 codec?.let(::avcodec_free_context)
                 input.close()
                 throw failure
             }
+        }
+
+        /**
+         * Otočení z matice zobrazení (`tkhd` v MP4) — video z telefonu na výšku je uložené
+         * naležato s příznakem otočení. FFmpeg úhel vrací proti směru hodinových ručiček.
+         */
+        private fun AVStream.rotation(): Int {
+            val parameters = codecpar()
+            val side = av_packet_side_data_get(parameters.coded_side_data(), parameters.nb_coded_side_data(), AV_PKT_DATA_DISPLAYMATRIX)
+            if (side == null || side.isNull || side.size() < DISPLAY_MATRIX_BYTES) return 0
+            return clockwiseRotation(av_display_rotation_get(IntPointer(side.data())))
         }
 
         private fun Int.checked(call: String): Int =
@@ -244,6 +295,30 @@ internal fun fitSize(width: Int, height: Int, target: IntSize): Pair<Int, Int> {
     val scale = min(1f, min(target.width / width.toFloat(), target.height / height.toFloat()))
     return (width * scale).roundToInt().coerceAtLeast(1) to (height * scale).roundToInt().coerceAtLeast(1)
 }
+
+/** Šířka snímku se čtvercovými pixely: uložená šířka roztažená podle poměru pixelu. */
+internal fun squarePixelWidth(width: Int, pixelAspect: Float): Int =
+    (width * pixelAspect).roundToInt().coerceAtLeast(1)
+
+/** Poměr stran ukázaného obrazu; `null`, když soubor rozměry neuvádí. */
+internal fun displayAspectRatio(width: Int, height: Int, pixelAspect: Float, rotation: Int): Float? {
+    if (width <= 0 || height <= 0) return null
+    val ratio = width * pixelAspect / height
+    return if (rotation % 180 == 0) ratio else 1f / ratio
+}
+
+/**
+ * Úhel z `av_display_rotation_get` (proti směru hodinových ručiček, i záporný) jako otočení
+ * po směru hodinových ručiček na celé čtvrtotáčky; `NaN` (matice bez otočení) = 0.
+ */
+internal fun clockwiseRotation(counterClockwise: Double): Int {
+    if (counterClockwise.isNaN()) return 0
+    val quarters = (-counterClockwise / 90).roundToInt()
+    return ((quarters % 4 + 4) % 4) * 90
+}
+
+/** Matice zobrazení je 3 × 3 celých čísel. */
+private const val DISPLAY_MATRIX_BYTES = 9 * 4
 
 /** Odhad délky snímku, když u něj soubor čas neuvádí (25 snímků za vteřinu). */
 private const val FALLBACK_FRAME_MS = 40L

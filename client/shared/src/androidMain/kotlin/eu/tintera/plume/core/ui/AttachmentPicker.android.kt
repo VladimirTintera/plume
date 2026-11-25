@@ -14,6 +14,7 @@ import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -280,6 +281,38 @@ private fun lastSampleTimeMs(target: File): Long {
     }
 }
 
+/**
+ * Poměr stran pixelu (šířka ku výšce) první obrazové stopy; `1`, když ho soubor neuvádí.
+ *
+ * **`MediaMetadataRetriever` (a s ním MediaStore) hlásí ULOŽENÉ rozměry** a poměr pixelu
+ * pomíjí: video 720 × 720 s SAR 9 : 16 (`pasp` v MP4, zobrazuje se 405 × 720) by odešlo jako
+ * 720 × 720 a Telegram by ho všude kreslil jako čtverec — rozměry ve zprávě bere od nás, sám
+ * je neměří. Poměr zná `MediaExtractor`. Klíče `sar-width` / `sar-height` jsou veřejné
+ * (`KEY_PIXEL_ASPECT_RATIO_*`) až od Androidu 11, extraktor je ale plní i dřív; kde chybí,
+ * zůstanou uložené rozměry jako dosud.
+ */
+private fun pixelAspect(target: File): Float {
+    val extractor = MediaExtractor()
+    return try {
+        extractor.setDataSource(target.absolutePath)
+        val format = (0 until extractor.trackCount)
+            .map(extractor::getTrackFormat)
+            .firstOrNull { it.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true }
+        val width = format?.takeIf { it.containsKey(SAR_WIDTH) }?.getInteger(SAR_WIDTH) ?: 0
+        val height = format?.takeIf { it.containsKey(SAR_HEIGHT) }?.getInteger(SAR_HEIGHT) ?: 0
+        if (width > 0 && height > 0) width.toFloat() / height else 1f
+    } catch (failure: Exception) {
+        Logger.withTag("VideoMetadata").w(failure) { "Poměr pixelu videa nejde přečíst." }
+        1f
+    } finally {
+        extractor.release()
+    }
+}
+
+/** `MediaFormat.KEY_PIXEL_ASPECT_RATIO_WIDTH` / `_HEIGHT` (API 30), tady i pro starší systémy. */
+private const val SAR_WIDTH = "sar-width"
+private const val SAR_HEIGHT = "sar-height"
+
 internal class VideoMetadata(val width: Int, val height: Int, val durationSeconds: Int, val thumbnail: OutgoingThumbnail?)
 
 /** Rozměry (po otočení), délka a první snímek jako JPEG náhled vedle souboru. */
@@ -288,8 +321,12 @@ internal fun videoMetadata(target: File): VideoMetadata {
     try {
         retriever.setDataSource(target.absolutePath)
         fun metadata(key: Int) = retriever.extractMetadata(key)?.toIntOrNull() ?: 0
-        val rawWidth = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+        // Uložená šířka roztažená podle poměru pixelu (viz [pixelAspect]).
+        val storedWidth = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+        val pixelAspect = pixelAspect(target)
+        val rawWidth = (storedWidth * pixelAspect).roundToInt()
         val rawHeight = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+        Logger.withTag("VideoMetadata").d { "Uloženo ${storedWidth}×$rawHeight, poměr pixelu $pixelAspect → ${rawWidth}×$rawHeight" }
         val rotated = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) % 180 != 0
         val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
             ?.takeIf { it > 0 }
