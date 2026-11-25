@@ -434,10 +434,15 @@ class ShareRequestsTest {
             streamable = false,
         )
         val file = OutgoingAttachment.Document(copy("smlouva.pdf"))
+        // Obrázek jako soubor nese náhled; po zabití procesu ho řádek nad polem musí mít dál.
+        val image = OutgoingAttachment.Document(
+            copy("plan.png"),
+            thumbnail = eu.tintera.plume.core.telegram.OutgoingThumbnail(copy("plan-thumb.jpg"), 320, 240),
+        )
         val requests = process()
         val id = requests.start(text = null, hasFiles = true)
-        requests.prepared(id, listOf(video, file), failed = 0)
+        requests.prepared(id, listOf(video, file, image), failed = 0)
 
-        assertEquals(listOf(video, file), process().incoming.value?.attachments)
+        assertEquals(listOf(video, file, image), process().incoming.value?.attachments)
     }
 }

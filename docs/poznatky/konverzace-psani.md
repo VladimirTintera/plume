@@ -186,6 +186,23 @@ album. Bublina ukazuje průběh nahrávání.
   a HEIC se tím zároveň převede na JPEG.
 - **Soubor jde beze změny s `disableContentTypeDetection = true`** — uživatel posílal „soubor",
   TDLib by jinak z videa udělal přehrávatelnou zprávu.
+- **Soubor, který je obrázek nebo video, má náhled** (`OutgoingAttachment.Document.thumbnail`,
+  JPEG do 320 px vedle kopie; Android `withPreview` přes `decodeScaled` / `videoMetadata`, iOS
+  přes `UIImage` / `AVAssetImageGenerator`). Nad polem ho kreslí řádek souboru místo ikony
+  (40 dp, `ShapeDefaults.Small`; ikona má tutéž šířku, ať jména začínají pod sebou) a **odejde
+  se souborem** (`InputDocument.thumbnail`), takže ho příjemce vidí v bublině — dřív se posílal
+  `null` a soubor měl u příjemce ikonu, i když šlo o fotku. Totéž platí pro video přepnuté na
+  „Jako soubor" (náhled už má) a pro skladbu jako soubor (obal alba, `Audio.asDocument`).
+  - **Náhled se nesmí jmenovat jako soubor sám**: kopie leží ve vlastní složce a náhled vedle ní
+    jako `thumbnail.jpg`, takže soubor téhož jména dostane náhled `preview.jpg`.
+  - **Fotka přepnutá na „Jako soubor" náhled neposílá** — je to připravená fotka do 2560 px
+    a vlastní náhled pro ni nikdo nevyrábí.
+  - **Desktop náhled nedělá** — soubor neposílá kopií z cache, ale z původního místa, a náhled
+    by se musel zapisovat jinam.
+  - **Ověřeno na emulátoru (Android 16)** v chatu s Notifikátorem: `plan.png` přes „Soubor" →
+    řádek nad polem s miniaturou, bot dostal `document` s `thumbnail` 144 × 320 a bublina v Plume
+    ukázala velký snímek nad jménem souboru. Video jako soubor a skladba s obalem jen testy,
+    iOS jen přeložené.
 - **Video vybrané sponkou „Soubor" odejde jako video, se jménem ze souborů** (`isFileVideo`,
   `prepareFile`). Dřív šlo jako soubor bez náhledu, a jméno souboru (třeba „Svatba 2025.mp4")
   zase nešlo ovlivnit z galerie, kde ho uživatel nevidí. Telegram jméno u videa nezahazuje:

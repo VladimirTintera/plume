@@ -402,7 +402,7 @@ internal fun videoMetadata(target: File): VideoMetadata {
                 (frame.height * scale).roundToInt().coerceAtLeast(1),
                 true,
             )
-            val file = File(target.parentFile, "thumbnail.jpg")
+            val file = File(target.parentFile, THUMBNAIL_NAME)
             file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
             OutgoingThumbnail(path = file.absolutePath, width = scaled.width, height = scaled.height)
         }.getOrNull()
@@ -493,11 +493,11 @@ private fun Bitmap.opaque(): Bitmap {
     return flattened
 }
 
-private fun decodeScaled(context: Context, uri: Uri): Bitmap {
+private fun decodeScaled(context: Context, uri: Uri, maxEdge: Int = PHOTO_MAX_EDGE): Bitmap {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
         return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-            val (width, height) = fitInto(info.size.width, info.size.height)
+            val (width, height) = fitInto(info.size.width, info.size.height, maxEdge)
             decoder.setTargetSize(width, height)
             // Softwarová bitmapa: hardwarová se nedá zkomprimovat do JPEG.
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
@@ -509,7 +509,7 @@ private fun decodeScaled(context: Context, uri: Uri): Bitmap {
     resolver.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, bounds) }
     // Nejbližší mocnina dvou nad cílem: načte se menší bitmapa a doškáluje se přesně níž.
     var sample = 1
-    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= PHOTO_MAX_EDGE) sample *= 2
+    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxEdge) sample *= 2
     val decoded = resolver.openInputStream(uri).use {
         BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
     } ?: error("Obrázek nejde dekódovat.")
@@ -522,7 +522,7 @@ private fun decodeScaled(context: Context, uri: Uri): Bitmap {
             else -> 0f
         }
     }
-    val (width, height) = fitInto(decoded.width, decoded.height)
+    val (width, height) = fitInto(decoded.width, decoded.height, maxEdge)
     val matrix = Matrix().apply {
         postScale(width.toFloat() / decoded.width, height.toFloat() / decoded.height)
         postRotate(rotation)
@@ -530,11 +530,11 @@ private fun decodeScaled(context: Context, uri: Uri): Bitmap {
     return Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
 }
 
-/** Rozměry zmenšené tak, aby delší strana nepřesáhla [PHOTO_MAX_EDGE]. Menší fotka se nezvětšuje. */
-private fun fitInto(width: Int, height: Int): Pair<Int, Int> {
+/** Rozměry zmenšené tak, aby delší strana nepřesáhla [maxEdge]. Menší fotka se nezvětšuje. */
+private fun fitInto(width: Int, height: Int, maxEdge: Int = PHOTO_MAX_EDGE): Pair<Int, Int> {
     val longest = max(width, height)
-    if (longest <= PHOTO_MAX_EDGE) return width to height
-    val scale = PHOTO_MAX_EDGE.toFloat() / longest
+    if (longest <= maxEdge) return width to height
+    val scale = maxEdge.toFloat() / longest
     return (width * scale).roundToInt() to (height * scale).roundToInt()
 }
 
@@ -568,10 +568,36 @@ internal fun prepareFile(context: Context, uri: Uri, videos: Boolean = true): Ou
         type?.startsWith("audio/") == true -> runCatching { audioMetadata(file) }.getOrNull() ?: document
         videos && isFileVideo(file.name, type) -> runCatching { videoAt(file) }.getOrNull()
             ?.takeIf { it.width > 0 && it.height > 0 }
-            ?: document
-        else -> document
+            ?: document.withPreview(context, type)
+        else -> document.withPreview(context, type)
     }
 }
+
+/**
+ * Soubor, který je obrázek nebo video, dostane náhled (JPEG do [VIDEO_THUMBNAIL_EDGE] vedle
+ * kopie): nad polem ho kreslí řádek souboru a odejde se souborem, takže ho příjemce vidí
+ * v bublině místo ikony. Co náhled nemá nebo ho nejde vyrobit, zůstane bez něj.
+ */
+private fun OutgoingAttachment.Document.withPreview(context: Context, type: String?): OutgoingAttachment.Document {
+    val file = File(path)
+    val preview = runCatching {
+        when {
+            type == null -> null
+            type.startsWith("video/") -> videoMetadata(file).thumbnail
+            type.startsWith("image/") && type != "image/svg+xml" -> {
+                val bitmap = decodeScaled(context, Uri.fromFile(file), VIDEO_THUMBNAIL_EDGE).opaque()
+                // Soubor sám se může jmenovat „thumbnail.jpg"; náhled ho nesmí přepsat.
+                val target = File(file.parentFile, if (file.name == THUMBNAIL_NAME) "preview.jpg" else THUMBNAIL_NAME)
+                target.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
+                OutgoingThumbnail(path = target.absolutePath, width = bitmap.width, height = bitmap.height)
+            }
+            else -> null
+        }
+    }.onFailure { Logger.withTag("Attachments").w(it) { "Náhled souboru nejde vyrobit." } }.getOrNull()
+    return if (preview != null) copy(thumbnail = preview) else this
+}
+
+private const val THUMBNAIL_NAME = "thumbnail.jpg"
 
 /** Název, interpret, délka a obal alba (JPEG do 320 px vedle souboru) ze značek skladby. */
 private fun audioMetadata(target: File): OutgoingAttachment.Audio {

@@ -55,6 +55,7 @@ import platform.CoreGraphics.CGSizeMake
 import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
 import platform.Foundation.NSData
+import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
@@ -470,10 +471,31 @@ internal suspend fun prepareFile(url: NSURL, videos: Boolean = true): OutgoingAt
     val audio = UTType.typeWithFilenameExtension(extension)?.conformsToType(UTTypeAudio) == true
     // Soubor, který se jako skladba nebo video přečíst nedá, odejde aspoň jako soubor.
     if (audio) return runCatching { audioAt(document.path) }.getOrNull() ?: document
-    if (!videos || !isFileVideo(document.path.substringAfterLast('/'))) return document
+    if (!videos || !isFileVideo(document.path.substringAfterLast('/'))) return document.withPreview()
     // Přebalení původní kopii smaže; bez videa ve stopě se proto vrací cesta, kde soubor skončil.
     val video = runCatching { prepareVideoAt(document.path) }.getOrNull() ?: return document
-    return video.takeIf { it.width > 0 && it.height > 0 } ?: OutgoingAttachment.Document(path = video.path)
+    return video.takeIf { it.width > 0 && it.height > 0 } ?: OutgoingAttachment.Document(path = video.path).withPreview()
+}
+
+/**
+ * Soubor, který je obrázek nebo video, dostane náhled (JPEG do [VIDEO_THUMBNAIL_EDGE] vedle
+ * kopie): nad polem ho kreslí řádek souboru a odejde se souborem, takže ho příjemce vidí
+ * v bublině místo ikony. Typ podle přípony; co náhled nemá nebo ho nejde vyrobit, zůstane bez něj.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private fun OutgoingAttachment.Document.withPreview(): OutgoingAttachment.Document {
+    val type = UTType.typeWithFilenameExtension(path.substringAfterLast('.', missingDelimiterValue = "")) ?: return this
+    val directory = directoryOf(path)
+    // Soubor sám se může jmenovat „thumbnail.jpg"; náhled ho nesmí přepsat.
+    val name = if (path.substringAfterLast('/') == "thumbnail.jpg") "preview.jpg" else "thumbnail.jpg"
+    val preview = runCatching {
+        when {
+            type.conformsToType(UTTypeMovie) -> videoThumbnail(AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null), directory)
+            type.conformsToType(UTTypeImage) -> NSData.dataWithContentsOfFile(path)?.let { coverThumbnail(it, directory, name) }
+            else -> null
+        }
+    }.getOrNull()
+    return if (preview != null) copy(thumbnail = preview) else this
 }
 
 /** Název, interpret, délka a obal alba (JPEG do [VIDEO_THUMBNAIL_EDGE]) ze značek skladby. */
@@ -496,9 +518,12 @@ private fun audioAt(path: String): OutgoingAttachment.Audio {
     )
 }
 
-/** Obal alba zmenšený na [VIDEO_THUMBNAIL_EDGE] jako JPEG vedle skladby; bez něj skladba odejde taky. */
+/**
+ * Obrázek zmenšený na [VIDEO_THUMBNAIL_EDGE] jako JPEG [name] v [directory] — obal alba vedle
+ * skladby, náhled obrázku posílaného jako soubor. Bez něj příloha odejde taky.
+ */
 @OptIn(ExperimentalForeignApi::class)
-private fun coverThumbnail(data: NSData, directory: String): OutgoingThumbnail? {
+private fun coverThumbnail(data: NSData, directory: String, name: String = "cover.jpg"): OutgoingThumbnail? {
     val image = UIImage.imageWithData(data) ?: return null
     val (width, height) = image.size.useContents { width to height }
     if (width <= 0.0 || height <= 0.0) return null
@@ -509,7 +534,7 @@ private fun coverThumbnail(data: NSData, directory: String): OutgoingThumbnail? 
         image.drawInRect(CGRectMake(0.0, 0.0, width * scale, height * scale))
     }
     val jpeg = UIImageJPEGRepresentation(scaled, PHOTO_JPEG_QUALITY / 100.0) ?: return null
-    val target = "$directory/cover.jpg"
+    val target = "$directory/$name"
     if (!jpeg.writeToFile(target, atomically = true)) return null
     return OutgoingThumbnail(path = target, width = (width * scale).roundToInt(), height = (height * scale).roundToInt())
 }

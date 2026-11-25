@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -190,12 +191,30 @@ private fun StagedAttachmentsItems(
                 fileIndices.forEach { index ->
                     val attachment = sendable[index]
                     val audio = attachment as? OutgoingAttachment.Audio
+                    // Obrázek a video jako soubor ukazují náhled, skladba obal alba — to, co pak
+                    // příjemce uvidí v bublině místo ikony.
+                    val preview = when (attachment) {
+                        is OutgoingAttachment.Document -> attachment.thumbnail?.path
+                        is OutgoingAttachment.Audio -> attachment.cover?.path
+                        else -> null
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painterResource(if (audio != null) Res.drawable.music_note_24dp else Res.drawable.description_24dp),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
+                        if (preview != null) {
+                            AsyncImage(
+                                model = localImage(preview),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(FILE_PREVIEW_SIZE).clip(ShapeDefaults.Small),
+                            )
+                        } else {
+                            Icon(
+                                painterResource(if (audio != null) Res.drawable.music_note_24dp else Res.drawable.description_24dp),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                // Stejně široké jako náhled, ať jména v řádcích začínají pod sebou.
+                                modifier = Modifier.width(FILE_PREVIEW_SIZE),
+                            )
+                        }
                         Text(
                             // Skladba se představí jako v přehrávači; bez značek aspoň jménem souboru.
                             text = audio?.title?.let { title -> listOfNotNull(title, audio.performer).joinToString(" – ") }
@@ -608,4 +627,7 @@ internal fun formatDuration(seconds: Int): String {
 }
 
 private val PHOTO_ITEM_WIDTH = 120.dp
+
+/** Náhled obrázku, videa nebo obalu alba v řádku souboru nad polem. */
+private val FILE_PREVIEW_SIZE = 40.dp
 private val PHOTO_ITEM_HEIGHT = 120.dp

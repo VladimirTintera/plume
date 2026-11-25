@@ -69,7 +69,7 @@ sealed interface StoredAttachment {
 
     @Serializable
     @SerialName("document")
-    data class Document(override val path: String) : StoredAttachment
+    data class Document(override val path: String, val thumbnail: StoredThumbnail? = null) : StoredAttachment
 
     @Serializable
     @SerialName("audio")
@@ -98,7 +98,7 @@ internal fun OutgoingAttachment.toStored(): StoredAttachment = when (this) {
         thumbnail = thumbnail?.toStored(),
         streamable = streamable,
     )
-    is OutgoingAttachment.Document -> StoredAttachment.Document(path)
+    is OutgoingAttachment.Document -> StoredAttachment.Document(path, thumbnail?.toStored())
     is OutgoingAttachment.Audio -> StoredAttachment.Audio(path, title, performer, durationSeconds, cover?.toStored())
 }
 
@@ -112,7 +112,7 @@ internal fun StoredAttachment.toOutgoing(): OutgoingAttachment = when (this) {
         thumbnail = thumbnail?.toOutgoing(),
         streamable = streamable,
     )
-    is StoredAttachment.Document -> OutgoingAttachment.Document(path)
+    is StoredAttachment.Document -> OutgoingAttachment.Document(path, thumbnail?.toOutgoing())
     is StoredAttachment.Audio -> OutgoingAttachment.Audio(path, title, performer, durationSeconds, cover?.toOutgoing())
 }
 
@@ -125,6 +125,7 @@ internal fun OutgoingAttachment.files(): List<String> = listOfNotNull(
     path,
     (this as? OutgoingAttachment.Video)?.thumbnail?.path,
     (this as? OutgoingAttachment.Audio)?.cover?.path,
+    (this as? OutgoingAttachment.Document)?.thumbnail?.path,
 )
 
 /**

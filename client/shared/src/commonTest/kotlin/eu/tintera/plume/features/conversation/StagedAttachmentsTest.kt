@@ -108,6 +108,14 @@ class StagedAttachmentsTest {
     }
 
     @Test
+    fun skladbaJakoSouborSiNechaObal() {
+        // Obal alba odejde jako náhled souboru — příjemce ho uvidí v bublině místo ikony.
+        val cover = eu.tintera.plume.core.telegram.OutgoingThumbnail("/a/cover.jpg", 320, 320)
+        val audio = OutgoingAttachment.Audio(path = "/a.mp3", durationSeconds = 1, title = null, performer = null, cover = cover)
+        assertEquals(OutgoingAttachment.Document("/a.mp3", thumbnail = cover), sendableTogether(listOf(document(1), audio)).last())
+    }
+
+    @Test
     fun skladbaVedleVideaZustavaSkladbou() {
         val audio = OutgoingAttachment.Audio(path = "/a.mp3", durationSeconds = 1, title = null, performer = null, cover = null)
         assertEquals(listOf(listOf(video(1)), listOf(audio)), attachmentBatches(listOf(video(1), audio), separately = false))

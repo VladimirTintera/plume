@@ -1371,8 +1371,12 @@ sealed interface OutgoingAttachment {
         override val mode: AttachmentMode = AttachmentMode.Standard,
     ) : OutgoingAttachment
 
-    /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */
-    data class Document(override val path: String) : OutgoingAttachment {
+    /**
+     * Cokoli jako soubor, beze změny. Název souboru se bere z cesty. [thumbnail] je náhled (JPEG
+     * do 320 px) u obrázku, videa nebo skladby s obalem: kreslí se v řádku nad polem a odejde
+     * se souborem, takže ho příjemce uvidí v bublině místo ikony.
+     */
+    data class Document(override val path: String, val thumbnail: OutgoingThumbnail? = null) : OutgoingAttachment {
         override val mode: AttachmentMode get() = AttachmentMode.AsFile
     }
 
@@ -1393,7 +1397,7 @@ sealed interface OutgoingAttachment {
         override val mode: AttachmentMode get() = AttachmentMode.Standard
 
         /** Tentýž soubor jako obecný soubor — tam, kde skladba nesmí (právo chatu, album se soubory). */
-        fun asDocument(): Document = Document(path)
+        fun asDocument(): Document = Document(path, thumbnail = cover)
     }
 }
 
