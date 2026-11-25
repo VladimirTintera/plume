@@ -29,7 +29,7 @@ internal val LocalMediaDragOut = compositionLocalOf<MediaDragOut?> { null }
  * Tah přílohy zprávy [messageId] ven. Táhne se soubor [fileId], a když ještě není stažený,
  * [fallbackFileId] (fotka: ostrá verze, jinak ta z bubliny). Nestažený soubor se netáhne —
  * stav se jen sleduje (`observe`), tah ven kvůli bublině nic stahovat nesmí. [originalName]
- * je jméno souboru od odesílatele; fotka a video ho nemají.
+ * je jméno souboru od odesílatele; fotka ho nemá nikdy, video jen někdy.
  */
 @Composable
 internal fun Modifier.mediaDragOut(

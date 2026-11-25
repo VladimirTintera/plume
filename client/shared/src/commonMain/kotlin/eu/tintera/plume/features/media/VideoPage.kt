@@ -256,7 +256,7 @@ internal fun VideoPage(
     val dragOut = if (dragSentAt != null && !spoiler.hidden) {
         {
             (original as? FileState.Ready)?.let { ready ->
-                DraggedFile(ready.path, savedFileName(null, ready.path, dragSentAt, TimeZone.currentSystemDefault()))
+                DraggedFile(ready.path, savedFileName(video.fileName, ready.path, dragSentAt, TimeZone.currentSystemDefault()))
             }
         }
     } else {

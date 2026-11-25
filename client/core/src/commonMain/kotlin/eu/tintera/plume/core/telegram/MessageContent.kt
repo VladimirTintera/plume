@@ -1196,6 +1196,7 @@ internal fun Video.toMedia(
     fileKey = video.remote.uniqueId.ifBlank { null },
     sizeBytes = video.expectedSize,
     hasStickers = hasStickers,
+    fileName = fileName.ifBlank { null },
 )
 
 /** Přepočítané kvality videa (zpráva i anketa) i s HLS seznamem, viz [VideoQuality]. */

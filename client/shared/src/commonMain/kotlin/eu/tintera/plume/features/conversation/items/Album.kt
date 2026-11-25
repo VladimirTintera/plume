@@ -261,7 +261,7 @@ private fun AlbumTile(
                         }
                     },
                     onLongClick = onRequestMenu,
-                ).mediaDragOut(messageId, media.fileId, enabled = revealed && !uploading),
+                ).mediaDragOut(messageId, media.fileId, originalName = media.fileName, enabled = revealed && !uploading),
             )
         }
 

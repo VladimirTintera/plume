@@ -428,7 +428,7 @@ class MediaViewerViewModel(
                         isOutgoing = message.isOutgoing,
                         senderName = message.senderName,
                         timestamp = message.timestamp,
-                        fileName = (media as? MessageMedia.Document)?.fileName,
+                        fileName = media?.originalFileName,
                     )
                 }
                 _state.update {
@@ -1123,7 +1123,7 @@ class MediaViewerViewModel(
             senderName = senderName,
             timestamp = timestamp,
             reactions = reactions,
-            fileName = (this.media as? MessageMedia.Document)?.fileName,
+            fileName = this.media?.originalFileName,
         )
     }
 
@@ -1337,6 +1337,7 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
             durationSeconds = 0,
             // MP4 poslané jako soubor (desktop tak posílá každé video) se streamuje taky.
             mimeType = mimeType,
+            fileName = fileName.ifBlank { null },
         )
         DocumentKind.Other -> null
     }
@@ -1371,6 +1372,17 @@ data class PhotoDescription(
 /** Stažený soubor připravený k uložení nebo sdílení, se jménem, pod kterým se má objevit. */
 data class PreparedMedia(val path: String, val fileName: String, val isVideo: Boolean)
 
+/**
+ * Jméno souboru od odesílatele, pod kterým se médium uloží a sdílí. Soubor a video ho nesou,
+ * fotka nikdy (server ji překóduje do vlastních velikostí a jméno zahodí).
+ */
+internal val MessageMedia.originalFileName: String?
+    get() = when (this) {
+        is MessageMedia.Document -> fileName.ifBlank { null }
+        is MessageMedia.Video -> fileName
+        else -> null
+    }
+
 data class ViewerItem(
     val messageId: Long,
     /** [MessageMedia.Photo], nebo [MessageMedia.Video] — i soubor se na jedno z nich převede. */
@@ -1382,7 +1394,7 @@ data class ViewerItem(
     val senderName: String?,
     val timestamp: Int,
     val reactions: List<MessageReaction> = emptyList(),
-    /** Původní jméno souboru, když je stránka soubor; fotka a video ho nemají. */
+    /** Původní jméno souboru od odesílatele ([originalFileName]); fotka ho nemá nikdy, video jen někdy. */
     val fileName: String? = null,
 )
 

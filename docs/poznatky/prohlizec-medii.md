@@ -202,9 +202,18 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   i výslovným `grantUriPermission` všem, kdo `ACTION_SEND` přijme — tatáž past jako
   u otevírání souborů. Na iPadu potřebuje `UIActivityViewController` kotvu popoveru, jinak
   aplikace spadne.
-- **Fotka a video se ukládají pod jménem podle času zprávy** (`savedFileName`,
-  `Plume_20260918_233025.jpg`). TDLib je drží jako `5868681087951770588_121.jpg`, což v galerii
+- **Fotka se ukládá pod jménem podle času zprávy** (`savedFileName`,
+  `Plume_20260918_233025.jpg`). TDLib ji drží jako `5868681087951770588_121.jpg`, což v galerii
   nic neřekne. Soubor si nechává jméno, které mu dal odesílatel.
+- **Video si jméno od odesílatele nechává taky, když nějaké má** (`MessageMedia.Video.fileName`,
+  společný výběr `originalFileName` v prohlížeči). Jméno nastavuje TDLib podle cesty
+  nahrávaného souboru: Plume kopíruje vybrané video do `cache/outgoing/<uuid>/` pod původním
+  `DISPLAY_NAME`, takže `PXL_20261125_….mp4` dojde příjemci i s názvem. Doménový model ho
+  dřív nenesl, prohlížeč dával jméno jen souboru a video ze sdílení, „Uložit jako" i tahu ven
+  vyšlo vždycky jako `Plume_…`, přestože ho server znal (automatické ukládání do galerie čte
+  `video.fileName` přímo z TDLib a jméno mělo). Video bez jména (natočené v aplikaci,
+  od klienta, který jméno neposílá) dostane `Plume_…` dál. **Fotka jméno nemá nikdy**: server
+  ji překóduje do vlastních velikostí a název nikde neuchová; projde jen fotka poslaná jako soubor.
 - **Ověřuje se dotazem na `MediaStore`**, ne pohledem do galerie: `adb shell "content query
   --uri content://media/external/images/media --projection _display_name:_size --where
   \"relative_path LIKE 'Pictures/Plume%'\""`. Velikost prozradí, jestli se uložila ostrá verze.

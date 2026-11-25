@@ -2681,6 +2681,12 @@ sealed interface MessageMedia {
         val alternatives: List<VideoQuality> = emptyList(),
         /** Ve videu jsou samolepky (`Video.hasStickers`), jako u [Photo.hasStickers]. */
         val hasStickers: Boolean = false,
+        /**
+         * Původní jméno souboru od odesílatele (`Video.fileName`, TDLib ho bere z cesty
+         * nahrávaného souboru); `null`, když ho odesílatel neposlal. V bublině se neukazuje,
+         * slouží jako jméno při uložení, sdílení a tažení ven (`savedFileName`).
+         */
+        val fileName: String? = null,
     ) : MessageMedia {
         /** Soubor od odesílatele jako jedna z kvalit, vedle [alternatives]. */
         val original: VideoQuality
