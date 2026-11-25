@@ -25,6 +25,7 @@ import eu.tintera.plume.features.conversation.groupAlbums
 import eu.tintera.plume.features.conversation.composerEdit
 import eu.tintera.plume.features.conversation.readBadgeRows
 import eu.tintera.plume.features.conversation.showsLinkPreviewCard
+import eu.tintera.plume.features.conversation.showsQuote
 import eu.tintera.plume.features.conversation.showsBareMedia
 
 /**
@@ -180,6 +181,7 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
             messageItem(
                 frame = frame,
                 album = row.members.takeIf { row.isAlbum },
+                threadRootId = state.threadRootId,
                 // Odpověď na zprávu z jiného chatu nese zástupnou citaci sama — v historii téhle
                 // konverzace citovaná zpráva není.
                 // Ve vlákně komentářů odpovídá kořeni skoro každý komentář — citace příspěvku nad
@@ -244,6 +246,7 @@ private fun typingItem(state: ConversationState): TypingItem? {
 private fun messageItem(
     frame: MessageFrameData,
     album: List<ChatMessage>?,
+    threadRootId: Long?,
     quoted: ChatMessage?,
     partnerName: String?,
 ): MessageItem {
@@ -252,7 +255,8 @@ private fun messageItem(
     // Popisek alba z pár emoji je pořád popisek pod fotkami, ne velké emoji bez bubliny.
     // Citace i značka přeposlání jsou údaj navíc a obsah s údajem navíc je karta: bublinu si
     // vynutí, jako popisek u fotky (holý text vedle samolepky by od ní odplul).
-    val needsCard = message.replyToMessageId != null || message.hasOriginLabel
+    // Kořen vlákna komentářů se necituje, takže ani bublinu nevynutí (viz showsQuote).
+    val needsCard = message.showsQuote(threadRootId) || message.hasOriginLabel
     val emojiCount = if (album != null || media != null || needsCard) {
         0
     } else {
@@ -265,8 +269,8 @@ private fun messageItem(
         poll != null -> PollMessageItem(frame, poll = poll, quoted = quoted, partnerName = partnerName)
         checklist != null -> ChecklistMessageItem(frame, checklist = checklist, quoted = quoted, partnerName = partnerName)
         emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
-        showsBareMedia(message, album) -> MediaMessageItem(frame, album)
-        preview != null && showsLinkPreviewCard(message) -> LinkPreviewMessageItem(frame, preview)
+        showsBareMedia(message, album, threadRootId) -> MediaMessageItem(frame, album)
+        preview != null && showsLinkPreviewCard(message, threadRootId) -> LinkPreviewMessageItem(frame, preview)
         (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji || media is MessageMedia.Dice ||
             media is MessageMedia.VideoNote) &&
             !needsCard -> StickerMessageItem(frame, media)

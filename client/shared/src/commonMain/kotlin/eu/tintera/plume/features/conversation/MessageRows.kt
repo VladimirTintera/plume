@@ -130,14 +130,16 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
  * naopak dostane vlastní: text na holé ploše by se ztratil.
  *
  * Podmínkou je, že na zprávě nevisí nic, co pozadí potřebuje:
- * - **citace** se bez pozadí ztratí (tentýž důvod, proč si bublinu drží i zpráva z pár emoji),
+ * - **citace** se bez pozadí ztratí (tentýž důvod, proč si bublinu drží i zpráva z pár emoji) —
+ *   jen ta, která se opravdu kreslí ([showsQuote]),
  * - **náhled odkazu** má vlastní kartu (viz [showsLinkPreviewCard]).
  *
  * Ostatní přílohy bublinu potřebují dál: soubor, hlasovka i samolepkový popis jsou řádky s textem
- * a ikonou, ne obrázek. [album] nese zprávy alba, u samostatné zprávy `null`.
+ * a ikonou, ne obrázek. [album] nese zprávy alba, u samostatné zprávy `null`; [threadRootId] je
+ * kořen otevřeného vlákna komentářů.
  */
-internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Boolean {
-    if (message.replyToMessageId != null || message.linkPreview != null) return false
+internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?, threadRootId: Long? = null): Boolean {
+    if (message.showsQuote(threadRootId) || message.linkPreview != null) return false
     // Obrázek nebo video poslané jako soubor jde na plochu jen samo — album souborů je seznam.
     if (album == null && (message.media as? MessageMedia.Document)?.showsLargePreview == true) return true
     val media = album?.map { it.media } ?: listOf(message.media)
@@ -183,10 +185,27 @@ internal fun MessageMedia.Document.loadsOriginalPreview(limit: Long): Boolean =
  * Náhled u zprávy s přílohou nebo citací zůstává v bublině, jako celá ta zpráva: karta by se
  * s přílohou i s citací přela o to, co je hlavní obsah.
  */
-internal fun showsLinkPreviewCard(message: ChatMessage): Boolean {
+internal fun showsLinkPreviewCard(message: ChatMessage, threadRootId: Long? = null): Boolean {
     val preview = message.linkPreview ?: return false
     val hasContent = preview.photo != null || preview.siteName != null || preview.title != null || preview.description != null
-    return hasContent && message.media == null && message.replyToMessageId == null
+    return hasContent && message.media == null && !message.showsQuote(threadRootId)
+}
+
+/**
+ * Kreslí se nad zprávou citace — tedy odpovídá na něco, co v téhle konverzaci NENÍ jen kořen
+ * vlákna?
+ *
+ * **Ve vlákně komentářů odpovídá kořeni (příspěvku kanálu) skoro každý komentář** — TDLib mu
+ * `replyTo` vyplní, i když nikdo „Odpovědět" neťukl. Citace kořene se tam nekreslí (stál by nad
+ * každým komentářem znovu), takže si nesmí vynutit ani bublinu: dokud pravidla hleděla jen na
+ * `replyToMessageId != null`, šly fotky, videa i samolepky v komentářích do prázdné bubliny.
+ *
+ * Odpověď na zprávu z jiného chatu (`externalReply`, i odpověď na příběh) citaci kreslí taky,
+ * přestože `replyToMessageId` nemá.
+ */
+internal fun ChatMessage.showsQuote(threadRootId: Long?): Boolean {
+    val replyTo = replyToMessageId
+    return (replyTo != null && replyTo != threadRootId) || externalReply != null
 }
 
 /**

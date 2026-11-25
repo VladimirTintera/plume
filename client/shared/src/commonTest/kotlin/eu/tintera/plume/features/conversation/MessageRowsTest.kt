@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.settings.MEDIUM_BYTES
 import eu.tintera.plume.core.telegram.Article
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ExternalReply
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
@@ -317,6 +318,28 @@ class MessageRowsTest {
     }
 
     @Test
+    fun korenVlaknaKomentaruBublinuNevynuti() {
+        // Komentář odpovídá příspěvku kanálu, i když nikdo „Odpovědět" neťukl. Citace kořene se
+        // ve vlákně nekreslí, takže fotka i video jdou na plochu jako všude jinde.
+        val comment = message(id = 1, media = video(), replyToMessageId = 7L)
+
+        assertTrue(showsBareMedia(comment, album = null, threadRootId = 7L))
+        assertTrue(showsBareMedia(comment.copy(media = photo()), album = null, threadRootId = 7L))
+        // Odpověď na jiný komentář ve vlákně citaci kreslí, a tím i bublinu.
+        assertFalse(showsBareMedia(comment.copy(replyToMessageId = 8L), album = null, threadRootId = 7L))
+    }
+
+    @Test
+    fun odpovedZJinehoChatuSiBublinuVynuti() {
+        // Citovaná zpráva v historii není, citaci nese `externalReply` — bez bubliny by zmizela.
+        val external = message(id = 1, media = photo()).copy(
+            externalReply = ExternalReply(quote = message(id = 9, text = "jinde"), target = null),
+        )
+
+        assertFalse(showsBareMedia(external, album = null))
+    }
+
+    @Test
     fun albumFotekJdeNaPlochu() {
         val members = listOf(message(id = 1, media = photo()), message(id = 2, media = video()))
 
@@ -396,6 +419,13 @@ class MessageRowsTest {
         val reply = message(id = 1, text = "odkaz", linkPreview = preview(), replyToMessageId = 7L)
 
         assertFalse(showsLinkPreviewCard(reply))
+    }
+
+    @Test
+    fun nahledVeVlaknuKomentaruJeKarta() {
+        val comment = message(id = 1, text = "odkaz", linkPreview = preview(), replyToMessageId = 7L)
+
+        assertTrue(showsLinkPreviewCard(comment, threadRootId = 7L))
     }
 
     @Test

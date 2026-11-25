@@ -300,6 +300,14 @@ Messages.
   zprávy bez bubliny, se musí odsadit o zaoblení** — ořez nekončí u snímku.
 - **Citace si bublinu vynutí.** Bez pozadí se ztratí, tentýž důvod, proč si ji drží i zpráva
   z pár emoji. Náhled odkazu má vlastní kartu (viz „Náhled odkazu jako karta").
+- **Rozhoduje citace, která se KRESLÍ, ne `replyToMessageId`** (`showsQuote` v `MessageRows.kt`).
+  Ve vlákně komentářů TDLib vyplní odpověď na kořen (příspěvek kanálu) skoro každému komentáři,
+  i bez ťuknutí na „Odpovědět"; citace kořene se tam nekreslí (`quoted` ho přeskočí). Pravidla
+  bubliny ale hleděla jen na `replyToMessageId != null`, takže fotky, videa i samolepky
+  v komentářích ležely v prázdné bublině a náhled odkazu nebyl karta — nahlášené u videa,
+  protože tam zrovna bylo. Naopak odpověď na zprávu z JINÉHO chatu (`externalReply`, i odpověď
+  na příběh) `replyToMessageId` nemá, citaci kreslí, a fotka s ní šla na plochu bez citace.
+  Ověřeno na emulátoru ve vlákně komentářů kanálu.
 - **Soubor, hlasovka ani samolepkový popis na plochu nejdou.** Jsou to řádky s textem a ikonou,
   ne obrázek — pozadí je to jediné, co je drží pohromadě.
 - **Reakce a odznak doručení plochu snesou.** Čipy reakcí mají vlastní pozadí a odznak je pod
