@@ -6,6 +6,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopOs
 import eu.tintera.plume.core.platform.desktopOs
 import eu.tintera.plume.core.ui.openInSystem
+import eu.tintera.plume.core.ui.showLater
 import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
@@ -220,11 +221,12 @@ actual val copiesAnyFile: Boolean = true
 actual fun rememberSaveAs(): SaveAsLauncher? = remember {
     object : SaveAsLauncher {
         override fun launch(path: String, fileName: String, onResult: (saved: Boolean?) -> Unit) {
-            val dialog = FileDialog(null as Frame?, null, FileDialog.SAVE).apply { file = fileName }
-            dialog.isVisible = true
-            val name = dialog.file ?: return onResult(null)
-            val target = File(dialog.directory, name)
-            onResult(runCatching { File(path).copyTo(target, overwrite = true) }.isSuccess)
+            // Modální dialog ne přímo odsud: volá se z korutiny Compose, viz [showLater].
+            FileDialog(null as Frame?, null, FileDialog.SAVE).apply { file = fileName }.showLater { dialog ->
+                val name = dialog.file ?: return@showLater onResult(null)
+                val target = File(dialog.directory, name)
+                onResult(runCatching { File(path).copyTo(target, overwrite = true) }.isSuccess)
+            }
         }
     }
 }

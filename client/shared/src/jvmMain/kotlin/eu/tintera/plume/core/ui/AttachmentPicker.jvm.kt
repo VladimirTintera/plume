@@ -44,9 +44,8 @@ actual fun rememberAttachmentPicker(
 
             override fun pickDocument() = pick(media = false)
 
-            private fun pick(media: Boolean) {
-                val files = chooseFiles(media)
-                if (files.isEmpty()) return
+            private fun pick(media: Boolean) = chooseFiles(media) { files ->
+                if (files.isEmpty()) return@chooseFiles
                 scope.launch {
                     // Souběžně, ale nejvýš po několika — viz `AttachmentPrepareDispatcher`.
                     val results = withContext(AttachmentPrepareDispatcher) {
@@ -64,16 +63,15 @@ actual fun rememberAttachmentPicker(
     }
 }
 
-private fun chooseFiles(media: Boolean): List<File> {
-    val dialog = FileDialog(null as Frame?).apply {
+/** Modální dialog přes [showLater]: volající může běžet v korutině Compose. */
+private fun chooseFiles(media: Boolean, onChosen: (List<File>) -> Unit) {
+    FileDialog(null as Frame?).apply {
         isMultipleMode = true
         if (media) {
             // Filtr jde jen přes jméno; macOS FileDialog ho respektuje, Windows ne (tam projde vše).
             setFilenameFilter { _, name -> name.substringAfterLast('.', "").lowercase() in MEDIA_EXTENSIONS }
         }
-    }
-    dialog.isVisible = true
-    return dialog.files.orEmpty().toList().take(PICK_LIMIT)
+    }.showLater { dialog -> onChosen(dialog.files.orEmpty().toList().take(PICK_LIMIT)) }
 }
 
 internal fun prepareAttachment(file: File, media: Boolean): OutgoingAttachment {
