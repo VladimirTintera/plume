@@ -523,7 +523,7 @@ internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Doc
  * uživatel soubor nepojmenovává. Poslat ho jako soubor jde dál přes režim přílohy („Jako soubor").
  * Ze smíšeného výběru jde video jako video taky: nad polem čeká v carouselu nad řádky
  * souborů a odejde vlastním albem (`stageAttachments`, `attachmentBatches`). [videos] = `false`
- * nechá video souborem: smíšené sdílení ze systému odchází celé jako soubory (`ShareIntake`).
+ * nechá video souborem beze změny: export chatu ze sdílení (`ShareIntake`).
  */
 internal fun prepareFile(context: Context, uri: Uri, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(context, uri)

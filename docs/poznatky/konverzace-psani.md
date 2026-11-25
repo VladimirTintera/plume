@@ -194,7 +194,7 @@ album. Bublina ukazuje průběh nahrávání.
   - **Jen rodina MP4** (MP4, M4V, MOV podle typu od systému, bez něj podle přípony). MKV, AVI
     nebo WebM zůstávají soubory: nic se nepřekódovává a jako video by se jinde nemusely přehrát.
   - **I ze smíšeného výběru jde video jako video** — nad polem v carouselu nad řádky souborů.
-    Sdílení ze systému smíšený výběr dál posílá celý jako soubory (`prepareFile(videos = false)`).
+    Totéž platí pro sdílení ze systému; výjimkou je jen export chatu (`docs/poznatky/sdileni.md`).
   - **Video, které nejde přečíst** (nulové rozměry, výjimka), odejde jako soubor.
   - **iOS přebaluje i MP4** (do podadresáře `mp4/`, ať jméno zůstane). Dřív `exportMp4` u souboru,
     který už `.mp4` měl, nic neudělal a vrátil ho — a `supportsStreaming` šel `true`, i když index
@@ -214,7 +214,7 @@ album. Bublina ukazuje průběh nahrávání.
   MP3 neumí). Totéž platí pro hudbu sdílenou z jiných aplikací.
   - **Skladba patří ke SOUBORŮM**, ne k fotkám: vybírá se sponkou „Soubor" a přidává se k nim.
     Jenže do alba ji TDLib pustí jen se skladbami („Documents and audio files can be only grouped
-    in an album with messages of the same type"), takže **smíšený výběr odejde celý jako soubory**
+    in an album with messages of the same type"), takže **skladby mezi soubory odejdou jako soubory**
     (`sendableTogether`) — a řádek nad polem to ukazuje stejně (ikona souboru místo noty).
   - **Chat bez práva na hudbu (`canSendAudios`) dostane skladbu jako soubor**, smí-li soubory
     (`allowedByContent`). `ContentAccess.audios` proto přibyl; dřív tam hudba nebyla, protože se

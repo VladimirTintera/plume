@@ -461,7 +461,8 @@ internal fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
  * a všechno ostatní beze změny jako soubor. Typ se pozná podle přípony.
  *
  * Ze smíšeného výběru jde video jako video taky (nad polem v carouselu nad řádky souborů).
- * [videos] = `false` nechá video souborem: smíšené sdílení ze systému odchází celé jako soubory.
+ * [videos] = `false` nechá video souborem beze změny (přebalení by ho přejmenovalo na `.mp4`):
+ * export chatu ze sdílení, import páruje přílohy podle jmen.
  */
 internal suspend fun prepareFile(url: NSURL, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(url)
