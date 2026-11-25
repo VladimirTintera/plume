@@ -53,6 +53,31 @@ class CloseConversationTest {
     }
 
     @Test
+    fun vlaknoKomentaruSeVraciDoKanalu() {
+        val thread = ConversationRoute(slot, chatId = 4, threadId = 11)
+        val stack = mutableListOf<NavKey>(ChatsRoute, a, thread, ChatProfileRoute(slot, chatId = 4))
+        stack.closeConversation(thread, list = ChatsRoute, sideBySide = true)
+        assertEquals(listOf<NavKey>(ChatsRoute, a), stack)
+    }
+
+    @Test
+    fun vlaknoKomentaruVArchivuSeVraciDoKanalu() {
+        val channel = ArchiveConversationRoute(slot, chatId = 9)
+        val thread = ArchiveConversationRoute(slot, chatId = 4, threadId = 11)
+        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, channel, thread)
+        stack.closeConversation(thread, list = ArchiveRoute, sideBySide = true)
+        assertEquals(listOf<NavKey>(ChatsRoute, ArchiveRoute, channel), stack)
+    }
+
+    @Test
+    fun vlaknoKomentaruPrimoNaSeznamuSeZavre() {
+        val thread = ConversationRoute(slot, chatId = 4, threadId = 11)
+        val stack = mutableListOf<NavKey>(ChatsRoute, thread)
+        stack.closeConversation(thread, list = ChatsRoute, sideBySide = true)
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
+    }
+
+    @Test
     fun archivNechaHlavniKonverzaciPodSebou() {
         val y = ArchiveConversationRoute(slot, chatId = 9)
         val stack = mutableListOf<NavKey>(ChatsRoute, a, ArchiveRoute, y)

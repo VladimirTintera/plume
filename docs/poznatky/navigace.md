@@ -522,6 +522,11 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   z druhé i profil — a zůstane seznam s placeholderem. Procházet zpátky řetězem zmínek šipkou
   nedávalo smysl, když je seznam vedle. Systémové zpět a Esc jdou dál po jedné položce, na
   telefonu je šipka obyčejné zpět. Téma nad seznamem témat se vrací do něj (rodič, ne historie).
+  **Vlákno komentářů nad konverzací se vrací do ní** (testy `vlaknoKomentaru…`): čip pod
+  příspěvkem ho otevřel nad kanálem, takže kanál je jeho rodič. Dokud se bralo jako zmínka,
+  zavřela šipka na desktopu i kanál a na telefonu ne. Vlákno přímo na seznamu (z přehledu
+  konceptů) se zavře celé. Třetí panel pro komentáře se zvažoval a zatím ne: třetí panel nese
+  profil (`followProfile`, přepínač, táhlo) a pod Large by se tři panely stejně nevešly.
   **Šipku neschovávat**: bez ní nešla otevřená konverzace zavřít vůbec (zkusilo se, vrátilo se).
 
 ### Táhlo profilu
