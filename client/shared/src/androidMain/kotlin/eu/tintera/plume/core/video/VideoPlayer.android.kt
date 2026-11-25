@@ -227,7 +227,8 @@ private class PartialFileDataSource(private val source: StreamingSource) : BaseD
      *
      * Když pozice leží mimo stažený úsek, **přesune stahování na ni** — jinak by se čekalo na
      * data, která TDLib vůbec nestahuje. Požádá se jen jednou za skok: `downloadFile` s týmž
-     * offsetem sice nevadí, ale volat ho dvacetkrát za vteřinu je zbytečné.
+     * offsetem sice nevadí, ale volat ho dvacetkrát za vteřinu je zbytečné. A vůbec ne, když
+     * čtení jen dohnalo konec staženého úseku ([downloadHeadsTo]) — tam se stahuje i bez žádosti.
      */
     private fun awaitBytes(): Long {
         var waited = 0L
@@ -236,7 +237,7 @@ private class PartialFileDataSource(private val source: StreamingSource) : BaseD
             val range = source.downloaded()
             if (position in range) return range.last - position + 1
 
-            if (!requested) {
+            if (!requested && !downloadHeadsTo(range, position)) {
                 source.requestFrom(position)
                 requested = true
             }

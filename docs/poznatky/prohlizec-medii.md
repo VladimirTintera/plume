@@ -1033,6 +1033,15 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Bez přesouvání stahování by to nefungovalo.** Přehrávač si hned na začátku řekne o `moov`
   atom, a ten u většiny videí leží na KONCI souboru; TDLib přitom stahuje od začátku, takže by
   se na něj čekalo marně. `StreamingSource.requestFrom` proto volá `downloadFile` s offsetem.
+- **Přesouvat jen tam, kam se nestahuje** (`downloadHeadsTo` v `core/video/VideoStreaming.kt`,
+  na všech třech platformách). Přehrávač čte rychleji, než data chodí, takže čtení pořád dohání
+  konec staženého úseku. Android tam pokaždé zavolal `downloadFile` s offsetem, kam TDLib stejně
+  stahoval: v logu desítky řádků „Stahování souboru … se přesouvá na …" za vteřinu, po krocích
+  stovek KB (změřeno na 348MB MP4). Konec úseku a místo těsně za ním proto žádost nespustí;
+  desktop a iOS tu podmínku měly odjakživa, jen každý vlastní kopií.
+  Ověřeno na emulátoru `Plume_Galerie_Fold` na téže 348MB MP4 (index na konci, smazaná
+  lokální kopie): přesun na index, na pamatovanou pozici a po „přehrát znovu" jednou na
+  začátek — tři řádky za celé přehrání místo desítek za vteřinu; video dohrálo do konce.
 - **`downloadedPrefixSize` se počítá od `downloadOffset`, ne od začátku souboru.** Po skoku na
   konec je dostupný úsek `downloadOffset ..< downloadOffset + prefix` — prvních N bajtů
   dostupných NENÍ, i když se předtím stáhly (testy `FileStateTest`). Kdo to plete, čte díry.
