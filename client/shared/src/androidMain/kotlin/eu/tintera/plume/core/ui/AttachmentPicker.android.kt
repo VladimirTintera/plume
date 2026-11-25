@@ -39,11 +39,13 @@ import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.video.mp4IndexBeforeData
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_camera_permission
 import eu.tintera.plume.resources.attachment_camera_unavailable
 import eu.tintera.plume.resources.attachment_prepare_failed
 import java.io.File
+import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -235,8 +237,9 @@ internal fun prepareVisual(context: Context, uri: Uri): OutgoingAttachment =
  * otočení; bez prohození by bublina měla poměr stran na šířku. Snímek z `getFrameAtTime` už
  * otočený je.
  *
- * Nepřekódovává se (to by znamenalo MediaCodec a minuty práce u delšího videa). `streamable` je
- * `false`: u MP4 z foťáku bývá index na konci souboru, takže přehrávání během stahování nejde.
+ * Nepřekódovává se (to by znamenalo MediaCodec a minuty práce u delšího videa) ani nepřebaluje.
+ * `streamable` (příznak `supportsStreaming`) podle skutečné stavby souboru ([indexBeforeData]):
+ * u MP4 z foťáku bývá index na konci, video z jiné aplikace ho mívá na začátku.
  */
 private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     val name = displayName(context, uri) ?: "video.mp4"
@@ -252,8 +255,28 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
         height = video.height,
         durationSeconds = video.durationSeconds,
         thumbnail = video.thumbnail,
-        streamable = false,
+        streamable = indexBeforeData(target),
     )
+}
+
+/**
+ * Leží v MP4 index (`moov`) před daty? Jen pak se smí poslat `supportsStreaming`: příjemce
+ * podle něj přehrává soubor od začátku, jak se stahuje. Čtou se jen hlavičky boxů nejvyšší
+ * úrovně ([mp4IndexBeforeData]); co není MP4 nebo nejde přečíst, odejde bez příznaku.
+ */
+private fun indexBeforeData(target: File): Boolean = try {
+    RandomAccessFile(target, "r").use { file ->
+        mp4IndexBeforeData(file.length()) { offset, count ->
+            // `count` nikdy nesahá za konec souboru (hlídá to volaný).
+            ByteArray(count).also { bytes ->
+                file.seek(offset)
+                file.readFully(bytes)
+            }
+        }
+    }.also { Logger.withTag("VideoMetadata").d { "Index ${if (it) "před daty" else "za daty nebo neznámý"}: ${target.name}" } }
+} catch (failure: Exception) {
+    Logger.withTag("VideoMetadata").w(failure) { "Stavbu MP4 nejde přečíst, video odejde bez streamování." }
+    false
 }
 
 /**
