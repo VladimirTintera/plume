@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.video
 
 import eu.tintera.plume.core.settings.AppSettings
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
 
@@ -21,6 +22,11 @@ data class VideoPosition(
      * starších než ten seznam: z id souboru zprávu dohledat nejde, TDLib na to nemá dotaz.
      */
     val source: VideoSource? = null,
+    /**
+     * Kdy se pozice naposledy zapsala (ms od epochy); `0` u záznamů starších než synchronizace.
+     * Při slučování dvou zařízení vyhraje novější zápis téhož souboru.
+     */
+    val at: Long = 0,
 ) {
     val fraction: Float get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 }
@@ -61,11 +67,12 @@ fun List<VideoPosition>.withPosition(
     durationMs: Long,
     minDurationMs: Long = MIN_RESUME_DURATION_MS,
     source: VideoSource? = null,
+    at: Long = 0,
 ): List<VideoPosition> {
     val previous = firstOrNull { it.key == key }
     val others = filterNot { it.key == key }
     val resume = resumePosition(positionMs, durationMs, minDurationMs) ?: return others
-    return (listOf(VideoPosition(key, resume, durationMs, source ?: previous?.source)) + others).take(MAX_VIDEO_POSITIONS)
+    return (listOf(VideoPosition(key, resume, durationMs, source ?: previous?.source, at)) + others).take(MAX_VIDEO_POSITIONS)
 }
 
 /**
@@ -87,7 +94,8 @@ class VideoPositions(private val settings: AppSettings) {
         minDurationMs: Long = MIN_RESUME_DURATION_MS,
         source: VideoSource? = null,
     ) {
-        settings.updateVideoPositions { it.withPosition(key, positionMs, durationMs, minDurationMs, source) }
+        val now = Clock.System.now().toEpochMilliseconds()
+        settings.updateVideoPositions { it.withPosition(key, positionMs, durationMs, minDurationMs, source, now) }
     }
 
     /** Zapomene pozici (Rozkoukaná videa → Odebrat); vrací ji i s pořadím kvůli „Vrátit". */

@@ -1065,8 +1065,11 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 ## Barva konverzace
 
 Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barva aplikace
-(`ChatColorSheet` nad `ThemeColorPicker`). Uložená je jen v tomhle zařízení, po účtech
-(`ChatColors`, `AppSettings.chatColors`, jako odložené chaty).
+(`ChatColorSheet` nad `ThemeColorPicker`). Uložená po účtech (`ChatColors`,
+`AppSettings.chatColors`, jako odložené chaty) a **mezi zařízeními ji nese synchronizace přes
+úložiště bota** (`CloudSync`, skupina `ChatColors`; `docs/poznatky/nastaveni.md`,
+„Synchronizace nastavení mezi zařízeními"). Barva APLIKACE se naopak nesynchronizuje: kamaráda
+modře chce uživatel vidět všude, tmavý desktop a telefon podle tapety jsou volba zařízení.
 
 - **Mění se CELÉ schéma, ne vybrané plochy** (`ChatColorTheme` kolem konverzace, seznamu témat,
   profilu a bubliny konverzace). Z barvy se dopočítá celá M3 paleta (`chatColorScheme`),

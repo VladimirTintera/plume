@@ -1143,9 +1143,57 @@ aplikace — hotové UI knihovny by táhlo vlastní material3).
 
 ## Synchronizace nastavení mezi zařízeními bez vlastního backendu
 
-Stav: **průzkum, nic z toho v kódu není.** Jde o data, která má jen Plume (barva motivu,
-velikost písma zpráv, rychlost hlasovek, viděné nápovědy gest…), ne o nastavení, které zná
-Telegram sám.
+Stav: **hotovo přes úložiště bota `@PlumeSyncBot`** (`core/settings/sync`: `CloudSync`,
+`BotCloudStore`, čisté funkce v `CloudSyncData.kt`, testy `CloudSyncTest` a `CloudSyncDataTest`).
+Jde o data, která má jen Plume (barvy chatů, velikost písma zpráv, rychlost hlasovek,
+rozkoukaná videa, záložky…), ne o nastavení, které zná Telegram sám. Průzkum, ze kterého to
+vyšlo, je níž.
+
+- **Skupiny** (`CloudSyncGroup`), každá v úložišti zvlášť: **vzhled** (mezery v seznamu, písmo
+  zpráv, řádky náhledu, samolepky), **přehrávání a chování** (rychlost hlasovek a videa, ticho,
+  rychlá reakce, odkazy v aplikaci, čištění odkazů, tahy v seznamu, viděné nápovědy gest),
+  **rozkoukaná videa**, **záložky zpráv** a **barvy chatů** (`StoredChatColor`).
+- **Motiv a barva aplikace se vědomě NEsynchronizují** (dřív ve skupině vzhledu byly): uživatel
+  chce desktop vždy tmavý a telefon podle tapety, je to volba zařízení. Synchronizuje se barva
+  jednotlivých chatů — kamarád modře, kanál fialově všude. Klíče, které ze skupiny vypadly, se
+  z úložiště smažou samy: chybí v místních položkách, a sloučení to vezme jako smazání.
+  Dál vědomě ne: barvy z tapety, kotvy panelů, zámek aplikace, modely AI, úložiště, automatické
+  stahování (to má Telegram vlastní, viz níž).
+- **Volby se nesahají jednotlivě**: `AppSettings.syncedPreferences` / `applySyncedPreferences`
+  čtou a zapisují vybrané klíče DataStore obecně (`SYNCED_KEYS` v `DataStoreAppSettings`, podle
+  typu). Seznam skupin (`SYNCED_PREFERENCE_GROUPS`) a seznam klíčů jsou dva, test
+  `everyGroupedPreferenceIsStoredBySettings` hlídá, že se nerozešly. Nová volba ke
+  synchronizaci = řádek v obou.
+- **Sloučení je trojcestné** (`merge3`) proti základu z poslední synchronizace
+  (`AccountSettings.cloudSyncBase`, za slot, s id účtu — cizí základ po odhlášení se zahodí).
+  Změna jedné strany vyhraje, smazání se propíše (odebrané rozkoukané video se z úložiště
+  nevrátí), smazání proti změně prohraje. Obě strany změněné: u voleb úložiště, u pozic novější
+  zápis (`VideoPosition.at`, nové pole), u záložek později uložená. **Bez základu** (první
+  synchronizace zařízení) se data sjednotí — nové zařízení si tak vezme nastavení účtu, ale
+  volba, kterou má jen ono, se pošle ostatním.
+- **Za účet**: úložiště má každý účet své a `CloudSync` běží v kontejneru účtu. Volby jdou přes
+  všechny účty; rozkoukaná videa, záložky a barvy chatů jen ty, které k účtu patří
+  (`source.accountId`, `MessageBookmark.accountId`, `StoredChatColor.accountId`) — do úložiště
+  jiného účtu nepatří, co si uživatel prohlížel jinde.
+  Pozice bez zdroje (zvuk, starší záznamy) se nesynchronizují.
+- **Kdy**: po každém `Ready` (start i přihlášení), po místní změně s prodlevou 15 s (pozice se
+  za přehrávání zapisuje každých 10 s) a každých 15 minut — server změny neohlašuje. Vlastní
+  zápis synchronizace další synchronizaci nespouští (porovnává se se stavem po poslední).
+- **Formát v úložišti**: záhlaví skupiny `plume_<skupina>` = `{"v":1,"n":<kusů>}`, data
+  v kusech `plume_<skupina>_<i>` po nejvýš 4000 znacích (`chunkForCloud` nerozpůlí náhradní
+  dvojici UTF-16 — emoji v otisku záložky). Kusy se píšou napřed, záhlaví nakonec; chybí-li kus
+  nebo je verze novější, skupina se nebere ani nepřepisuje. Hodnota je objekt id → text JSON.
+- **Bot se překládá `searchPublicChat`** (`ChatRepository.chatByUsername`) a id se pamatuje;
+  odpovědi `getStorageValues` jsou objekt klíč → hodnota (prázdná hodnota = klíč není).
+- **Token bota aplikace nepotřebuje** a nikde není. Uživatel ho po založení zneplatnil.
+- **Ověřeno 25. 11. 2026** na emulátoru `Plume_Galerie_Fold` a ladicím desktopu (macOS), oba
+  na skutečném účtu: obě zařízení se po startu synchronizovala (log `CloudSync: Synchronizováno`),
+  varhanní video rozkoukané na Foldu se na desktopu ukázalo v Rozkoukaných videích s pozicí
+  z Foldu a fialová barva chatu z Foldu se objevila v nastavení desktopu (`chat_colors`). Z první
+  verze, která motiv ještě synchronizovala, se propsala i zelená barva aplikace; po vyřazení
+  motivu klíče z úložiště zmizely (`Appearance 0`). **Neověřené**: iOS, záložky na zařízení
+  (jen testy), konflikt dvou zařízení na živém úložišti, jestli se bot ukáže v oficiálním
+  klientu.
 
 - **Napřed to, co Telegram synchronizuje sám.** Rychlá reakce (`setDefaultReactionType`,
   `QuickReaction`), výchozí automatické mazání (`DefaultAutoDeleteSettings`), upozornění po
@@ -1213,12 +1261,7 @@ Telegram sám.
     stejný (`@BotFather` a `@DurgerKingBot`, kterého účet dřív otevřel). Chat s Notifikátorem ani
     s DurgerKingem nevznikl (`positions` 0 u DurgerKinga). **Pohled do oficiálního klienta zbývá.**
   - **Strop 4096 znaků na hodnotu sonda nepotvrdila**: logcat dlouhý řádek uřízl i s výsledkem.
-  - **Postup, až se to bude stavět:** bota založí uživatel přes BotFather, jeho uživatelské jméno
-    bude v kódu jako konstanta. Jeden klíč na nastavení, hodnota `{v, ts}`, a při konfliktu
-    vyhraje novější zápis. Server změny neohlašuje, takže se čte při přihlášení (viz automatické
-    stahování výš: ze serveru při přihlášení, změna hned na server). Zápisy se sdružují, protože
-    limit rychlosti neznáme. Synchronizuje se jen to, co není vázané na zařízení: zámek aplikace,
-    velikost písma, stažený model ani úložiště ne.
+  - **Postavené podle tohohle postupu**, viz začátek oddílu.
 - **Proč ne tichý push (FCM / APNs):** potřebuje běžící server (klíče FCM/APNs, párování push
   tokenů mezi zařízeními uživatele) a iOS tiché pushe (`content-available: 1`) škrtí.
 - **Proč ne zpráva v Uložených zprávách, koncept zprávy, složka nebo soukromý kanál:** oficiální
