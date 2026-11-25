@@ -174,6 +174,38 @@ otevírá, zbytek pod „Další". Návrh i varianty prošly náčrtem s uživat
 - **Pozor při bumpu material3:** v alpha03 má `DropdownMenuItem` šipku v parametru `trailingIcon`,
   novější androidx ho přejmenoval na `trailingContent`.
 
+### ⋮ v hlavičce konverzace a jeho „Další"
+
+S akcemi nad chatem (`ChatActions`, přešly z ⋮ profilu) měla ⋮ v hlavičce konverzace v soukromém
+chatu s kontaktem až 18 řádků v pěti skupinách. Teď má dvě úrovně jako nabídka nad zprávou
+(`ConversationMenu`), v soukromém chatu nahoře osm řádků:
+
+- **Nahoře:** Přepnout chat; Hledat, Přejít na datum, Shrnout, Zobrazit jako chaty / témata;
+  Ztlumit ▸ s běžnými akcemi nad chatem (`ChatActionGroups.main`: Upravit, Přidat členy); „Další ▸";
+  nevratné akce (Vymazat historii, Ukončit tajný chat, Smazat / Opustit). Mazání se nehledá,
+  zůstává nahoře.
+- **Pod „Další":** `ChatActionGroups.secondary` — odkaz, QR kód a sdílet kontakt; tajný chat
+  a plocha; návrhy fotky a data narození; úprava a přidání / odebrání kontaktu — a nakonec
+  Nahlásit se Zablokovat. Zablokovat není nevratné, pravidlo o mazání se ho netýká.
+- **Ztlumit je podnabídka s dobami** (`MUTE_OPTIONS`, tytéž jako v seznamu chatů a v profilu),
+  ztlumený chat má jen „Zapnout zvuk" jedním ťuknutím. Dřív to byl přepínač bez doby.
+- **Přepnout chat zůstává nahoře** i se dvouřádkovou nápovědou: je tam hlavně proto, aby se člověk
+  dozvěděl o podržení šipky zpět, a pod „Další" by ho nenašel.
+- **Podnabídky umí `ExpressiveMenu` sama** (`MenuAction.submenu`, jedna úroveň), ne jen nabídka nad
+  zprávou: telefon vymění obsah na místě se šipkou zpět, desktop otevře podnabídku do strany
+  (`submenusCascade`, tentýž vzor jako výš). Řádek se skládá přes `submenuAction`, která prázdnou
+  podnabídku zahodí a jedinou položku dá rovnou nahoru (testy `SubmenuActionTest`).
+- **Zpět z podnabídky:** okno nabídky (`PopupLayout`) má vlastní dispečer navigačních událostí
+  (`NavigationEventDispatcherOwner`, ověřeno `javap` nad ui-android 1.13.0-rc01) a jeho zavření je
+  v něm zaregistrované jako handler. `NavigationBackHandler` uvnitř obsahu nabídky se registruje
+  později, takže má přednost: zpět vede z podnabídky nahoru a nabídka zůstane otevřená (ověřeno
+  na emulátoru). Ťuknutí mimo nabídku ji zavře celou.
+- **Úroveň při zavírání se drží** (`closingFrom`): nabídka dojede v podnabídce, ze které se
+  zavírala, místo aby během mizení sjela zpátky nahoru. Nová nabídka začíná vždycky nahoře
+  (`remember(expanded)`).
+- **⋮ profilu, který stojí sám, zůstává jedna úroveň**, jen ve skupinách podle `ChatActionGroups`:
+  do profilu se kvůli těmhle akcím chodí a je jich tam míň (bez hledání, ztlumení a mazání).
+
 ### Citace z nabídky
 
 Text **kopie zprávy v nabídce jde označit** (dlouhým stiskem na slovo, pak úchyty). S označeným

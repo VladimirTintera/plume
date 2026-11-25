@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import kotlin.time.Duration
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.GifRepository
 import kotlinx.coroutines.flow.Flow
@@ -606,6 +607,7 @@ class ConversationViewModel(
     fun join() = chatActions.join()
     fun unblock() = chatActions.unblock()
     fun toggleMute() = chatActions.toggleMute()
+    fun mute(duration: Duration?) = chatActions.mute(duration)
     fun toggleDefaultSilent() = chatActions.toggleDefaultSilent()
     fun addSpamBarContact() = chatActions.addSpamBarContact()
     fun unarchiveFromSpamBar() = chatActions.unarchiveFromSpamBar()

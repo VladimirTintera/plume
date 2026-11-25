@@ -430,8 +430,8 @@ fun ChatActionsSheet(
     }
 }
 
-/** Doby ztlumení v nabídce; `null` = navždy. Stejné jako v profilu chatu. */
-private val MUTE_OPTIONS: List<Pair<StringResource, Duration?>> = listOf(
+/** Doby ztlumení v nabídce; `null` = navždy. Stejné jako v profilu chatu a v ⋮ konverzace. */
+internal val MUTE_OPTIONS: List<Pair<StringResource, Duration?>> = listOf(
     Res.string.profile_notif_mute_1h to 1.hours,
     Res.string.profile_notif_mute_8h to 8.hours,
     Res.string.profile_notif_mute_2d to 2.days,
