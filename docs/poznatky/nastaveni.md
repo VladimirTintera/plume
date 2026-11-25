@@ -299,9 +299,10 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
 
 ### Nastavení jiného účtu (víc účtů)
 
-S víc přihlášenými účty jsou pod kartou účtu čipy s fotkou a jménem každého účtu
-(`AccountChips` v `SettingsScreen`); vybraný je účet karty. Ťuknutí přepne CELÉ Nastavení na ten
-účet (`AppNavigation.selectSettingsAccount`). Dřív Nastavení patřila vždycky výchozímu účtu
+S víc přihlášenými účty jsou pod kartou účtu řádky se všemi účty (`AccountRows`
+v `SettingsScreen`): karta a řádky jsou jeden blok, řádek má malou fotku pod fotkou karty, jméno
+pod jménem karty a vpravo přepínač výběru (radio); vybraný je účet karty. Ťuknutí přepne CELÉ
+Nastavení na ten účet (`AppNavigation.selectSettingsAccount`). Dřív Nastavení patřila vždycky výchozímu účtu
 a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom nebyla ani zmínka.
 
 - **Výchozí účet se nemění.** `accounts.setDefault` by přes `DefaultAccountScope` složil celý
@@ -332,13 +333,17 @@ a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom n
   výchozí účet, složí se jako dřív celý shell znovu.
 - **Rolování seznamu leží NAD klíčem účtu** (`LocalSettingsListScroll`, podává ho
   `SettingsAccountScope` jen kořeni Nastavení). S rolováním uvnitř seznamu seznam po ťuknutí
-  na čip odskočil na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě:
+  na účet odskočil na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě:
   `SaveableStateHolder` položky drží uložený stav větve `key(slot)` i po zavření Nastavení
-  a nová kompozice téže větve si ho vezme. Čipy tak zmizely z dohledu (zjištěno na emulátoru).
+  a nová kompozice téže větve si ho vezme. Účty pod kartou tak zmizely z dohledu (zjištěno na emulátoru).
+- **Účty jsou podpoložky karty, ne čipy** (první verze měla `FilterChip` s fotkou pod kartou).
+  Čipy stály mimo blok a četly se jako filtr; řádky mluví stejným jazykem jako „Přidat do
+  složky" v nabídce nad chatem. Řádek je složený jako karta (`Row`, odsazení a mezera 16 dp),
+  ne `ListItem`: ten má mezi ikonou a textem jinou mezeru a jméno nestálo pod jménem na kartě.
 - **Volby aplikace jsou stejné, ať je vybraný kterýkoli účet** (vzhled, jazyk, AI, zámek);
   ukazují se v Nastavení každého účtu. Označení „pro všechny účty" u řádků zatím není.
-- **Ověřeno na emulátoru Fold** (Android, anglicky; dva účty, režim Všechny účty): čipy pod
-  kartou, přepnutí karty i sekcí (Zařízení a Blokovaní ukazují data vybraného účtu), seznam
+- **Ověřeno na emulátoru Fold** (Android, anglicky; dva účty, režim Všechny účty): řádky účtů
+  pod kartou, přepnutí karty i sekcí (Zařízení a Blokovaní ukazují data vybraného účtu), seznam
   chatů se nezměnil, menu účtu otevře Nastavení zase za výchozí účet, „Sign out <jméno>",
   ve dvoupanelu zůstane otevřená sekce a seznam drží pozici. Neověřené: odhlášení účtu
   z jeho Nastavení, odkaz `tg://settings/…` z chatu jiného účtu, desktop a iOS.

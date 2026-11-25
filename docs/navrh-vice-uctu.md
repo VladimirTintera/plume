@@ -941,8 +941,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       u `rememberChatSources`). Řádek se skládá v `AccountScope` svého účtu a otevírá chat
       v něm. Podrobnosti v `hovory.md` („Historie hovorů") a `prohlizec-medii.md` („Stahování").
     - Moje příběhy zůstávají výchozího účtu (rozhodnuto): příběhy jsou „moje" jednoho účtu.
-      Nastavení se otevírají za výchozí účet, ale od listopadu 2026 mají pod kartou účtu čipy
-      s ostatními účty a přepnou se na kterýkoli, aniž by se změnil výchozí účet
+      Nastavení se otevírají za výchozí účet, ale od listopadu 2026 mají pod kartou účtu řádky
+      se všemi účty a přepnou se na kterýkoli, aniž by se změnil výchozí účet
       (`docs/poznatky/nastaveni.md`, „Nastavení jiného účtu"). Moje příběhy, a mimo režim Vše i Hovory
       a Stahování, mají s víc účty pod nadpisem jméno účtu (`AccountTopAppBar`).
     - Archiv v režimu jednoho účtu je archiv výchozího účtu, a to je ten zobrazený — správně.

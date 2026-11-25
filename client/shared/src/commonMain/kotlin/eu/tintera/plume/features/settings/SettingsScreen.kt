@@ -10,13 +10,13 @@ import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,19 +55,17 @@ import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.features.chats.AccountEntry
 import eu.tintera.plume.features.chats.rememberAccountSwitcher
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
-import eu.tintera.plume.resources.settings_account_choice
 import eu.tintera.plume.resources.settings_sign_out_account
 import eu.tintera.plume.resources.settings_sign_out_account_title
 import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.navigation3.runtime.NavKey
-import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.core.ui.groupRow
@@ -146,7 +144,7 @@ fun SettingsScreen(
     searchResetKey: Int = 0,
     /** QR kód na kartě účtu — sheet je navigační destinace (`MyQrCodeRoute`), otevírá ho shell. */
     onMyQrCode: () -> Unit = {},
-    /** Nastavení jiného přihlášeného účtu (čipy pod kartou účtu, jen s víc účty). */
+    /** Nastavení jiného přihlášeného účtu (řádky účtů pod kartou účtu, jen s víc účty). */
     onSelectAccount: (AccountSlot) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
@@ -231,10 +229,17 @@ fun SettingsScreen(
                 return@Column
             }
 
-            // Karta a čipy pod ní jsou jeden celek („čí Nastavení to jsou"), proto blíž k sobě.
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile, onMyQrCode = onMyQrCode)
-                if (accounts.size > 1) AccountChips(accounts = accounts, selected = currentSlot, onSelect = onSelectAccount)
+            // Karta a účty pod ní jsou jeden blok („čí Nastavení to jsou").
+            val multipleAccounts = accounts.size > 1
+            Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
+                AccountCard(
+                    viewModel = viewModel,
+                    selected = accountSelected,
+                    onClick = onEditProfile,
+                    onMyQrCode = onMyQrCode,
+                    last = !multipleAccounts,
+                )
+                if (multipleAccounts) AccountRows(accounts = accounts, selected = currentSlot, onSelect = onSelectAccount)
             }
 
             // Sekce jsou jeden blok se společným zaoblením, stejný jazyk jako seznam chatů.
@@ -298,20 +303,34 @@ fun SettingsScreen(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick: () -> Unit, onMyQrCode: () -> Unit) {
+private fun AccountCard(
+    viewModel: SettingsViewModel,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onMyQrCode: () -> Unit,
+    /** Karta je posledním řádkem bloku; s víc účty pod ní následují řádky účtů ([AccountRows]). */
+    last: Boolean,
+) {
     val account by viewModel.account.collectAsStateWithLifecycle()
 
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val secondary = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-    val shape = RoundedCornerShape(GROUP_CORNER)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = animatedGroupItemShape(first = true, last = last, selected = selected, pressed = pressed)
     Card(
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .clickable(onClickLabel = stringResource(Res.string.settings_edit_profile), onClick = onClick),
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(),
+                onClickLabel = stringResource(Res.string.settings_edit_profile),
+                onClick = onClick,
+            ),
     ) {
         Row(
             Modifier.padding(16.dp),
@@ -357,43 +376,69 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
 }
 
 /**
- * Čí Nastavení to jsou, s víc účty: čip za každý přihlášený účet, vybraný je účet karty nad nimi.
- * Výběr přepne celé Nastavení na ten účet, výchozí účet (a tím seznam chatů) nechá být.
+ * Čí Nastavení to jsou, s víc účty: řádek za každý přihlášený účet hned pod kartou účtu, v témže
+ * bloku (karta nahoře, účty jako její podpoložky). Vybraný je účet karty. Výběr přepne celé
+ * Nastavení na ten účet, výchozí účet (a tím seznam chatů) nechá být.
  *
- * - **Čipy, ne nabídka u karty.** Šipka s nabídkou by volbu schovala stejně jako dřív, kdy se
- *   účet Nastavení dal změnit jen v menu účtu nad seznamem chatů a v Nastavení o tom nic nebylo.
- *   Účty jsou nejvýš tři (`Accounts.MAX_ACCOUNTS`), takže se vejdou; `FlowRow` je zalomí,
- *   kdyby byla jména dlouhá.
- * - **Fotka místo fajfky.** Účty se poznají podle fotky; výběr nese barva i tvar čipu
- *   (`FilterChipDefaults.shapes()`, vybraný je pilulka) a čtečka ho čte z role čipu.
+ * - **Podpoložky karty, ne čipy.** Stejný jazyk jako „Přidat do složky" v nabídce nad chatem:
+ *   odsazené řádky pod nadpisem s ovládacím prvkem vpravo. Čipy pod kartou stály mimo blok
+ *   a vypadaly jako filtr, ne jako volba účtu.
+ * - **Fotka pod fotkou karty, jméno pod jménem.** Fotka 32 dp leží uprostřed sloupce velké fotky
+ *   karty ([ACCOUNT_AVATAR_SIZE]), takže jméno začíná tam, kde jméno na kartě.
+ * - **Přepínač výběru (radio), ne fajfka.** Vybírá se právě jeden; výběr nese tvar prvku,
+ *   ne jen barva, a čtečka ho čte z role řádku (`selectable`, `selectableGroup`).
  * - Fotka jiného účtu se stahuje jeho klientem, proto `AccountScope` kolem ní (jako v menu účtu).
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AccountChips(accounts: List<AccountEntry>, selected: AccountSlot, onSelect: (AccountSlot) -> Unit) {
-    val description = stringResource(Res.string.settings_account_choice)
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = description },
+private fun AccountRows(accounts: List<AccountEntry>, selected: AccountSlot, onSelect: (AccountSlot) -> Unit) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
     ) {
-        accounts.forEach { entry ->
+        accounts.forEachIndexed { index, entry ->
             val slot = entry.account.slot
-            FilterChip(
-                selected = slot == selected,
-                onClick = { onSelect(slot) },
-                label = { Text(entry.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = {
+            val isSelected = slot == selected
+            val interaction = remember { MutableInteractionSource() }
+            val pressed by interaction.collectIsPressedAsState()
+            val shape = animatedGroupItemShape(first = false, last = index == accounts.lastIndex, selected = false, pressed = pressed)
+            // Složený jako karta (odsazení i mezera 16 dp), ne `ListItem`: ten má mezi ikonou
+            // a textem jinou mezeru a jméno by nestálo pod jménem na kartě.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.groupRow)
+                    .selectable(
+                        selected = isSelected,
+                        interactionSource = interaction,
+                        indication = ripple(),
+                        role = Role.RadioButton,
+                        onClick = { onSelect(slot) },
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Box(Modifier.width(ACCOUNT_AVATAR_SIZE), contentAlignment = Alignment.Center) {
                     AccountScope(entry.account) {
                         Avatar(
                             chatId = entry.info?.id ?: 0L,
                             title = entry.title,
                             avatarFileId = entry.info?.photoFileId,
-                            size = ACCOUNT_CHIP_AVATAR_SIZE,
+                            size = ACCOUNT_ROW_AVATAR_SIZE,
                         )
                     }
-                },
-                shapes = FilterChipDefaults.shapes(),
-            )
+                }
+                Text(
+                    entry.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                RadioButton(selected = isSelected, onClick = null)
+            }
         }
     }
 }
@@ -516,12 +561,12 @@ internal val SettingsSection.summary: StringResource
     }
 
 /**
- * Rolování seznamu Nastavení, které přežije přepnutí účtu (čipy pod kartou). Podává ho shell nad
+ * Rolování seznamu Nastavení, které přežije přepnutí účtu (řádky účtů pod kartou). Podává ho shell nad
  * obalem účtu (`SettingsAccountScope`), protože obsah pod ním se s jiným účtem skládá znovu.
  *
- * Kdyby si stav rolování držel seznam sám, po ťuknutí na čip by odskočil: buď na začátek, nebo
+ * Kdyby si stav rolování držel seznam sám, po ťuknutí na účet by odskočil: buď na začátek, nebo
  * (ověřeno na emulátoru) na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě —
- * `SaveableStateHolder` položky ji drží pod klíčem účtu i po zavření Nastavení. Čipy, na které
+ * `SaveableStateHolder` položky ji drží pod klíčem účtu i po zavření Nastavení. Řádky účtů, na které
  * se právě ťuklo, by tak zmizely z dohledu.
  */
 internal val LocalSettingsListScroll = staticCompositionLocalOf<ScrollState?> { null }
@@ -531,5 +576,5 @@ private val BLOCK_SPACING = 16.dp
 /** Fotka účtu na kartě: zhruba výška tří řádků textu vedle ní, takže karta kvůli ní nepovyroste. */
 private val ACCOUNT_AVATAR_SIZE = 56.dp
 
-/** Fotka v čipu účtu: velikost avataru v M3 vstupním čipu, menší by se nepoznala. */
-private val ACCOUNT_CHIP_AVATAR_SIZE = 24.dp
+/** Fotka v řádku účtu pod kartou: velikost ikony seznamu by byla na fotku malá, 40 dp by řádek zvedlo. */
+private val ACCOUNT_ROW_AVATAR_SIZE = 32.dp

@@ -555,7 +555,7 @@ private fun SettingsAccountScope(slot: AccountSlot?, list: Boolean, content: @Co
     val shell = LocalAccount.current
     val all by koinInject<Accounts>().all.collectAsStateWithLifecycle()
     val account = slot?.let { wanted -> all.firstOrNull { it.slot == wanted } } ?: shell
-    // Nad klíčem účtu: seznam [list] po ťuknutí na čip účtu zůstane, kde byl (viz LocalSettingsListScroll).
+    // Nad klíčem účtu: seznam [list] po ťuknutí na řádek účtu zůstane, kde byl (viz LocalSettingsListScroll).
     val listScroll = if (list) rememberRestoringScrollState() else null
     CompositionLocalProvider(LocalSettingsListScroll provides listScroll) {
         if (account.slot == shell.slot) {
