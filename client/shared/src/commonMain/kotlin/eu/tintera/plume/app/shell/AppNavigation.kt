@@ -8,6 +8,9 @@ import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.LocalShowAccountBadge
+import eu.tintera.plume.core.adaptive.LocalPaneNeighbours
+import eu.tintera.plume.core.adaptive.PaneRole
+import eu.tintera.plume.core.adaptive.paneInfo
 import eu.tintera.plume.features.settings.LocalSettingsListScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
@@ -536,7 +539,11 @@ internal fun ((NavKey) -> NavEntry<NavKey>).inRouteAccount(accounts: Accounts): 
 internal fun ((NavKey) -> NavEntry<NavKey>).inSettingsAccount(navigation: AppNavigation): (NavKey) -> NavEntry<NavKey> = { key ->
     val entry = this(key)
     NavEntry(key, entry.contentKey, entry.metadata) {
-        SettingsAccountScope(navigation.settingsAccount, list = key == SettingsRoute) { entry.Content() }
+        SettingsAccountScope(
+            slot = navigation.settingsAccount,
+            list = key == SettingsRoute,
+            extra = entry.paneInfo?.role == PaneRole.Extra,
+        ) { entry.Content() }
     }
 }
 
@@ -552,16 +559,22 @@ internal fun ((NavKey) -> NavEntry<NavKey>).inSettingsAccount(navigation: AppNav
  * účtu i s jeho repository.
  */
 @Composable
-private fun SettingsAccountScope(slot: AccountSlot?, list: Boolean, content: @Composable () -> Unit) {
+private fun SettingsAccountScope(slot: AccountSlot?, list: Boolean, extra: Boolean, content: @Composable () -> Unit) {
     val shell = LocalAccount.current
     val all by koinInject<Accounts>().all.collectAsStateWithLifecycle()
     val account = slot?.let { wanted -> all.firstOrNull { it.slot == wanted } } ?: shell
     // Nad klíčem účtu: seznam [list] po ťuknutí na řádek účtu zůstane, kde byl (viz LocalSettingsListScroll).
     val listScroll = if (list) rememberRestoringScrollState() else null
+    /*
+     * Fotka účtu v liště (AccountBadgeAction): jen s víc účty, jen když vedle není vidět seznam
+     * s kartou účtu, a z panelů vedle sebe jen v PRAVÉM. Se sekcí a podstránkou vedle sebe (seznam
+     * schovaný) by jinak byla ve dvou lištách hned vedle sebe; nese ji podstránka (role Extra).
+     */
+    val neighbours = LocalPaneNeighbours.current
+    val badge = !list && all.size > 1 && !neighbours.listBeside && (extra || !neighbours.extraBeside)
     CompositionLocalProvider(
         LocalSettingsListScroll provides listScroll,
-        // Sekce a podstránky ukážou v liště, čí jsou; seznam to má na kartě účtu.
-        LocalShowAccountBadge provides (!list && all.size > 1),
+        LocalShowAccountBadge provides badge,
     ) {
         if (account.slot == shell.slot) {
             content()
