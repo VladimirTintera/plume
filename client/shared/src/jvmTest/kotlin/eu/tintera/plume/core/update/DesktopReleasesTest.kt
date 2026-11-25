@@ -95,11 +95,24 @@ class DesktopReleasesTest {
     }
 
     @Test
+    fun releaseWithoutSignatureIsNotOffered() {
+        val json = """[
+          {"tag_name":"desktop-1.5.0","draft":false,"prerelease":false,"assets":[{"name":"Plume-1.5.0.msi","browser_download_url":"https://example.com/5.msi","size":1,"digest":"sha256:$DIGEST_12"}]},
+          {"tag_name":"desktop-1.4.0","draft":false,"prerelease":false,"assets":[{"name":"Plume-1.4.0.msi","browser_download_url":"https://example.com/4.msi","size":1,"digest":"sha256:$DIGEST_12"},${sig("Plume-1.3.0.msi")}]},
+          $V120
+        ]"""
+        val release = latestDesktopRelease(json, DesktopOs.Windows, arm64 = false)
+        assertEquals(DesktopVersion(1, 2, 0), release?.version, "podpis jiného balíčku se nepočítá")
+        assertEquals("desktop-1.2.0", release?.tag)
+        assertEquals("https://example.com/Plume-1.2.0.msi.sig", release?.asset?.signatureUrl)
+    }
+
+    @Test
     fun downloadedFileNameComesFromVersionNotFromAssetName() {
-        val asset = ReleaseAsset("..\\..\\evil.msi", "https://example.com/a.msi", 1, DIGEST_AB)
-        assertEquals("Plume-1.3.0.msi", DesktopRelease(DesktopVersion(1, 3, 0), asset).fileName)
+        val asset = ReleaseAsset("..\\..\\evil.msi", "https://example.com/a.msi", 1, DIGEST_AB, "https://example.com/a.msi.sig")
+        assertEquals("Plume-1.3.0.msi", DesktopRelease(DesktopVersion(1, 3, 0), "desktop-1.3.0", asset).fileName)
         val dmg = asset.copy(name = "Plume-1.3.0-macos-arm64.dmg")
-        assertEquals("Plume-1.3.0.dmg", DesktopRelease(DesktopVersion(1, 3, 0), dmg).fileName)
+        assertEquals("Plume-1.3.0.dmg", DesktopRelease(DesktopVersion(1, 3, 0), "desktop-1.3.0", dmg).fileName)
     }
 
     private companion object {
@@ -109,7 +122,11 @@ class DesktopReleasesTest {
 
         val V120 = """{"tag_name":"desktop-1.2.0","draft":false,"prerelease":false,"assets":[
             {"name":"Plume-1.2.0.msi","browser_download_url":"https://example.com/1.2.0.msi","size":10,"digest":"sha256:$DIGEST_12"},
-            {"name":"Plume-1.2.0-macos-arm64.dmg","browser_download_url":"https://example.com/1.2.0.dmg","size":20,"digest":"sha256:$DIGEST_12"}]}"""
+            {"name":"Plume-1.2.0-macos-arm64.dmg","browser_download_url":"https://example.com/1.2.0.dmg","size":20,"digest":"sha256:$DIGEST_12"},
+            ${sig("Plume-1.2.0.msi")}, ${sig("Plume-1.2.0-macos-arm64.dmg")}]}"""
+
+        /** Příloha s podpisem balíčku [name], jak ji nahrává release workflow. */
+        fun sig(name: String) = """{"name":"$name.sig","browser_download_url":"https://example.com/$name.sig","size":88}"""
 
         val RELEASES = """[
           {"tag_name":"android-1.9.0-90","draft":false,"prerelease":false,"assets":[{"name":"app.aab","browser_download_url":"https://example.com/app.aab","size":1,"digest":"sha256:$DIGEST_12"}]},
@@ -117,7 +134,8 @@ class DesktopReleasesTest {
           {"tag_name":"desktop-1.4.0","draft":false,"prerelease":true,"assets":[{"name":"Plume-1.4.0.msi","browser_download_url":"https://example.com/4.msi","size":1,"digest":"sha256:$DIGEST_12"}]},
           {"tag_name":"desktop-1.3.0","draft":false,"prerelease":false,"assets":[
             {"name":"Plume-1.3.0.msi","browser_download_url":"https://example.com/1.3.0.msi","size":10,"digest":"sha256:${DIGEST_CD.uppercase()}"},
-            {"name":"Plume-1.3.0-macos-arm64.dmg","browser_download_url":"https://example.com/1.3.0.dmg","size":20,"digest":"sha256:${DIGEST_AB.uppercase()}"}]},
+            {"name":"Plume-1.3.0-macos-arm64.dmg","browser_download_url":"https://example.com/1.3.0.dmg","size":20,"digest":"sha256:${DIGEST_AB.uppercase()}"},
+            ${sig("Plume-1.3.0.msi")}, ${sig("Plume-1.3.0-macos-arm64.dmg")}]},
           $V120
         ]"""
     }

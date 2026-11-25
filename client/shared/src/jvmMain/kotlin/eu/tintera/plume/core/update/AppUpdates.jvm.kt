@@ -42,9 +42,12 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - **Jen zabalená aplikace** (`jpackage.app-version`), ne ladicí běh ani tréninkový běh při
  *   balení. Lokální balíček bez `-PdesktopVersion` je 1.0.0 a novější vydání nabídne — to je
  *   v pořádku, je to pravda.
- * - **Stahuje se do dat aplikace** (`updates/`) a ověřuje proti SHA-256, který GitHub
- *   k příloze uvádí (`digest`). Stažený balíček přežije restart: další `check` ho najde a karta
- *   rovnou nabídne Restartovat.
+ * - **Nabídne se jen podepsané vydání** ([UpdateSignature]): podpis verze, jména a SHA-256
+ *   se ověří zabudovaným klíčem dřív, než se vydání vůbec ukáže. SHA-256 z API sám nestačí —
+ *   přichází z téže odpovědi jako odkaz.
+ * - **Stahuje se do dat aplikace** (`updates/`) a ověřuje proti podepsanému SHA-256 (tentýž
+ *   `digest` z API). Stažený balíček přežije restart: další `check` ho najde a karta rovnou
+ *   nabídne Restartovat.
  * - **Instalaci dělá samostatný proces, který počká na konec aplikace** ([DesktopInstaller]):
  *   běžící aplikace sama sebe přepsat nemůže.
  *
@@ -106,6 +109,17 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
             directory.deleteRecursively()
             _state.value = AppUpdateState.None
             return UpdateCheckResult.UpToDate
+        }
+        // Až po podpisu: [release] (a s ním stažení i instalace) vidí jen ověřené vydání.
+        val signature = runCatching { fetchSignature(latest.asset.signatureUrl) }
+            .onFailure { logger.i(it) { "Podpis vydání ${latest.version} se nepodařilo stáhnout." } }
+            .getOrElse { return UpdateCheckResult.Failed }
+        if (!UpdateSignature.verify(signature, latest.tag, latest.asset.name, latest.asset.sha256)) {
+            logger.e { "Vydání ${latest.version} nemá platný podpis aktualizace, nenabízím ho." }
+            release = null
+            directory.deleteRecursively()
+            _state.value = AppUpdateState.None
+            return UpdateCheckResult.Failed
         }
         release = latest
         val file = target(latest)
@@ -184,6 +198,21 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
             }
             val body = connection.inputStream.use { it.readBytes().decodeToString() }
             return latestDesktopRelease(body, desktopOs, desktopArm64)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Obsah přílohy `.sig`; víc než [UpdateSignature.SIGNATURE_MAX_BYTES] je chyba. */
+    private fun fetchSignature(url: String): String {
+        val connection = open(url)
+        try {
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                throw IOException("Podpis skončil kódem ${connection.responseCode}")
+            }
+            val bytes = connection.inputStream.use { it.readNBytes(UpdateSignature.SIGNATURE_MAX_BYTES + 1) }
+            if (bytes.size > UpdateSignature.SIGNATURE_MAX_BYTES) throw IOException("Podpis je příliš velký.")
+            return bytes.decodeToString()
         } finally {
             connection.disconnect()
         }
