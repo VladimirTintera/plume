@@ -1335,6 +1335,8 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
             height = thumbnailHeight,
             // Délku dokument nenese; přehrávač ji zjistí sám, jakmile video otevře.
             durationSeconds = 0,
+            // MP4 poslané jako soubor (desktop tak posílá každé video) se streamuje taky.
+            mimeType = mimeType,
         )
         DocumentKind.Other -> null
     }

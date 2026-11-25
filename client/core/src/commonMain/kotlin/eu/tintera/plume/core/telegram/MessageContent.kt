@@ -1191,6 +1191,7 @@ internal fun Video.toMedia(
     isSecret = isSecret,
     selfDestructType = selfDestructType,
     supportsStreaming = supportsStreaming,
+    mimeType = mimeType,
     minithumbnail = minithumbnail?.toDomain(),
     fileKey = video.remote.uniqueId.ifBlank { null },
     sizeBytes = video.expectedSize,

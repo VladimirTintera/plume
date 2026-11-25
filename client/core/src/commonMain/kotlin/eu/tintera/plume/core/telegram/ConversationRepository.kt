@@ -2650,14 +2650,14 @@ sealed interface MessageMedia {
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
         /**
-         * Video se dá přehrávat během stahování.
-         *
-         * Říká to server (`Video.supportsStreaming`) a znamená to, že **index je na začátku
-         * souboru** — bez něj přehrávač z rozestavěného souboru nepozná nic a musí se počkat
-         * na celý. Odesílatel to ovlivňuje tím, jak soubor uložil (viz `streamable`
-         * u odesílané přílohy).
+         * Odesílatel tvrdí, že se video dá přehrávat během stahování (`Video.supportsStreaming`):
+         * má mít **index na začátku souboru** (viz `streamable` u odesílané přílohy). Ověřené to
+         * není a MP4 bez příznaku se streamuje taky — rozhoduje `streamOriginalVideo` podle
+         * příznaku a [mimeType].
          */
         val supportsStreaming: Boolean = false,
+        /** Typ souboru od odesílatele (`video/mp4`, `video/quicktime`…); prázdný, když ho nezná. */
+        val mimeType: String = "",
         val minithumbnail: Minithumbnail? = null,
         /**
          * Trvalé id souboru na serveru (`RemoteFile.uniqueId`) — klíč pamatované pozice

@@ -25,9 +25,10 @@ expect class VideoPlayer {
     /**
      * Načte soubor, který se ještě stahuje, a **čeká na data místo aby skončil**.
      *
-     * Volá se jen tam, kde to platforma umí ([videoStreamingSupported]) a kde má video index na
-     * začátku (`MessageMedia.Video.supportsStreaming`) — jinak z rozestavěného souboru přehrávač
-     * nepozná nic.
+     * Volá se jen tam, kde to platforma umí ([videoStreamingSupported]), a u původního souboru
+     * jen s příznakem `supportsStreaming` nebo u MP4 / MOV ([streamOriginalVideo]). Index na konci
+     * souboru nevadí: přehrávač si o něj řekne a [StreamingSource.requestFrom] tam přesune
+     * stahování.
      */
     fun loadStreaming(source: StreamingSource, loop: Boolean = false, muted: Boolean = false)
 

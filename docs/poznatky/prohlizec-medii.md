@@ -1038,7 +1038,38 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   dostupných NENÍ, i když se předtím stáhly (testy `FileStateTest`). Kdo to plete, čte díry.
 - **`supportsStreaming` od serveru říká, co tvrdí odesílatel, ne kde index doopravdy je.**
   Ověřeno: video poslané botem s `supports_streaming=true` mělo `moov` na konci. Nedá se z něj
-  tedy usuzovat, že skok nebude potřeba — jen se podle něj streamování vůbec zkusí.
+  tedy usuzovat, že skok nebude potřeba — a ani to, že bez něj streamovat nejde (viz další bod).
+- **Video bez příznaku `supportsStreaming` se streamuje taky, je-li to MP4 / MOV**
+  (`streamOriginalVideo` v `core/video/VideoStreaming.kt`, podle `MessageMedia.Video.mimeType`).
+  Dřív se původní soubor bez příznaku stahoval celý a teprve pak hrál — na Androidu, iOS
+  i desktopu; 62minutové video (384 MB) poslané z Plume na Androidu (tehdy vždy bez příznaku)
+  tak čekalo na stažení celé. Přehrávače přitom MP4 z rozestavěného souboru umí i s indexem
+  na konci (`requestFrom`, viz výš), takže příznak o tom, JESTLI streamovat jde, nerozhoduje.
+  - **Návrat k čekání na celý soubor**: ohlásí-li přehrávač chybu u streamu dřív, než video
+    poprvé hrálo (`VideoPage`, `streamFailedKey`), stránka se vrátí do stavu „stahuje se"
+    (náhled a průběh stahování uprostřed) a načte hotový soubor, jakmile je; hraje od místa,
+    kde stream skončil. Jednou na zdroj — selže-li i hotový soubor, je to chyba jako dřív.
+    **Chyba po rozběhnutí zůstává chybou** s tlačítkem přehrát: bývá to výpadek sítě (čtení se
+    po 30 s bez dat vzdá) a přehrát zkusí stream znovu, kdežto čekání na celé hodinové video
+    by trvalo.
+  - **Rizika, která zůstávají:** (1) špatně prokládané MP4 (zvuk daleko od obrazu, viz „Některé
+    původní soubory se streamují špatně") se rozbíhá dlouho, protože TDLib přeskakuje mezi
+    dvěma místy — totéž se dřív stávalo s příznakem a čekání na celý soubor by trvalo ještě
+    déle. (2) Stream, který se jen vleče (data chodí, ale pomalu), chybou nekončí, takže se
+    k čekání na celý soubor nevrátí; točí se průběh bez procent. (3) Jiné kontejnery (WebM,
+    MKV, AVI) se bez příznaku dál stahují celé — rozestavěný soubor se na nich neověřoval.
+    (4) Mime typ určuje odesílatel (TDLib podle přípony); MP4 s jinou příponou nebo jiný
+    formát s příponou `.mp4` dopadne podle návratu výš.
+  - **Video poslané jako soubor** (desktop tak posílá každé video) se v prohlížeči otevírá přes
+    `asViewerMedia` a nese mime typ dokumentu, takže MP4 se streamuje taky.
+  - **Příběhy a animovaná profilovka mime typ nenesou** (prázdný) a nestreamují se — jsou krátké.
+- **Odesílání z Androidu posílá `supportsStreaming` podle stavby souboru**
+  (`indexBeforeData` v `AttachmentPicker.android.kt`, `mp4IndexBeforeData` v `core/video`,
+  testy `VideoStreamingTest`): projdou se hlavičky boxů nejvyšší úrovně (8 nebo 16 bajtů na
+  box, i u gigabajtového videa pár čtení) a příznak jde jen s `moov` před `mdat`. Dřív vždy
+  `false`. Video z foťáku má `moov` na konci (data se píšou za záznamu, index až po něm), takže
+  příznak nedostane — a stejně se streamuje díky bodu výš. Soubor se nepřebaluje: přesunout
+  index na začátek znamená přepsat celý soubor (na iOS to dělá `AVAssetExportSession`).
 - **Čekání na data blokuje vlákno ExoPlayeru, a tak to má být** — je to jeho vlastní vlákno pro
   načítání. Po 30 s bez nových dat se čtení vzdá: stahování mohlo spadnout a věčné čekání by
   vypadalo jako zamrzlý přehrávač.

@@ -156,6 +156,7 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.StreamingSource
+import eu.tintera.plume.core.video.streamOriginalVideo
 import eu.tintera.plume.core.video.videoStreamingSupported
 import kotlinx.coroutines.flow.MutableStateFlow
 import eu.tintera.plume.core.video.rememberVideoPlayer
@@ -357,12 +358,17 @@ internal fun VideoPage(
             key = chosenId,
             /*
              * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Původní soubor
-             * jen s `supportsStreaming` od serveru. Přepočítané kvality vyrábí server pro streamování
-             * (fragmentované MP4), takže vždycky — kde je platforma umí
+             * s `supportsStreaming` od serveru, nebo je-li to MP4 / MOV ([streamOriginalVideo]);
+             * nerozběhne-li se, čeká se na celý soubor. Přepočítané kvality vyrábí server pro
+             * streamování (fragmentované MP4), takže vždycky — kde je platforma umí
              * ([videoFragmentedStreamingSupported]; iOS přes HLS).
              */
             streamable = streaming && videoStreamingSupported &&
-                if (chosen.isOriginal) video.supportsStreaming else videoFragmentedStreamingSupported,
+                if (chosen.isOriginal) {
+                    streamOriginalVideo(video.supportsStreaming, video.mimeType)
+                } else {
+                    videoFragmentedStreamingSupported
+                },
             // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
             // čekal marně. Lambda nese `fileId` té kvality, pro kterou zdroj vznikl.
             requestFrom = { offset -> scope.launch { repository.downloadFrom(chosenId, offset) } },
@@ -504,7 +510,14 @@ internal fun VideoPage(
         }
         else -> downloadedRange.value = LongRange.EMPTY
     }
-    val streamPath = downloading?.path?.takeIf { source.streamable }
+    /*
+     * Zdroj, u kterého se stream nerozběhl (přehrávač ohlásil chybu dřív, než video poprvé
+     * hrálo): u něj se už nestreamuje a čeká se na celý soubor. Týká se hlavně MP4 bez příznaku
+     * `supportsStreaming`, kde se stream zkouší naslepo (viz [streamOriginalVideo]). Jednou na
+     * zdroj, takže se nezacyklí: selže-li i celý soubor, ukáže se chyba jako dřív.
+     */
+    var streamFailedKey by remember { mutableStateOf<Any?>(null) }
+    val streamPath = downloading?.path?.takeIf { source.streamable && streamFailedKey != sourceKey }
     val streamTotal = downloading?.totalSize ?: 0L
 
     val player = rememberVideoPlayer()
@@ -533,6 +546,10 @@ internal fun VideoPage(
     var playerAspect by remember { mutableStateOf<Float?>(null) }
     val targetAspect = playerAspect ?: aspectRatio
     val shownAspect by animateFloatAsState(targetAspect, MaterialTheme.motionScheme.defaultEffectsSpec(), label = "video-aspect")
+    // Přehrávač má rozestavěný soubor (`loadStreaming`), ne hotový — jen pak má smysl návrat k čekání.
+    var loadedStreaming by remember { mutableStateOf(false) }
+    // Kde se stream vzdal; po načtení celého souboru se pokračuje odtud.
+    var streamFailedAtMs by remember { mutableStateOf<Long?>(null) }
 
     // `load` hlasitost i rychlost přenastaví, takže se obojí zapisuje až PO načtení — i po
     // výměně kvality (klíč `loadedKey`).
@@ -550,10 +567,13 @@ internal fun VideoPage(
         if (loaded && loadedKey == sourceKey) return@LaunchedEffect
         val swap = loaded
         val wasPlaying = swap && player.isPlaying
-        val resumeAt = if (swap) player.positionMs else startMs
+        val resumeAt = if (swap) player.positionMs else streamFailedAtMs ?: startMs
         when {
             // Hotový soubor má přednost: jednodušší cesta a nic se na něj nečeká.
-            path != null -> player.load(path)
+            path != null -> {
+                player.load(path)
+                loadedStreaming = false
+            }
             // Streamovat se dá, teprve až je na disku začátek souboru s indexem.
             streamPath != null && streamTotal > 0 -> {
                 // Bez seznamu (nestáhl se) zbývá počkat na celý soubor: efekt se znovu spustí s `path`.
@@ -568,6 +588,7 @@ internal fun VideoPage(
                         hlsPlaylist = playlist,
                     ),
                 )
+                loadedStreaming = true
             }
             else -> return@LaunchedEffect
         }
@@ -635,6 +656,21 @@ internal fun VideoPage(
             player.aspectRatio?.takeIf { it.isFinite() && it > 0f }?.let { playerAspect = it }
             // Optimistické `playing = true` z tlačítka by jinak po chybě viselo do dalšího tiknutí.
             if (failed) playing = false
+            /*
+             * Stream se nerozběhl: místo chyby počkat na celý soubor (průběh stahování uprostřed,
+             * náhled místo obrazu). Chyba až po rozběhnutí zůstává chybou — bývá to výpadek sítě
+             * a tlačítko přehrát zkusí stream znovu, kdežto čekání na celé video by trvalo.
+             */
+            if (failed && loadedStreaming && !hasPlayed) {
+                logger.w { "Video ${sourceKey}: stream se nerozběhl, čeká se na celý soubor." }
+                streamFailedKey = sourceKey
+                streamFailedAtMs = player.positionMs.takeIf { it > 0 }
+                loadedStreaming = false
+                failed = false
+                loaded = false
+                loadedKey = null
+                break
+            }
             if (playing) hasPlayed = true
             if (playing || failed) swapping = false
             delay(POSITION_TICK_MS)
