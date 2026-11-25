@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.useContents
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.setActive
@@ -26,6 +27,7 @@ import platform.AVFoundation.currentItem
 import platform.AVFoundation.currentTime
 import platform.AVFoundation.duration
 import platform.AVFoundation.pause
+import platform.AVFoundation.presentationSize
 import platform.AVFoundation.play
 import platform.AVFoundation.rate
 import platform.AVFoundation.replaceCurrentItemWithPlayerItem
@@ -202,6 +204,13 @@ actual class VideoPlayer {
 
     actual val isFailed: Boolean
         get() = player.currentItem?.status == AVPlayerItemStatusFailed
+
+    /** Velikost, ve které AVPlayer obraz ukazuje (i s poměrem pixelu); nulová, dokud ji nezná. */
+    @OptIn(ExperimentalForeignApi::class)
+    actual val aspectRatio: Float?
+        get() = player.currentItem?.presentationSize?.useContents {
+            if (width > 0 && height > 0) (width / height).toFloat() else null
+        }
 
     private fun seconds(value: Double): Long = if (value.isNaN() || value.isInfinite()) 0 else (value * 1000).toLong()
 }

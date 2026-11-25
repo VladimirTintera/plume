@@ -105,7 +105,13 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
     actual val isEnded: Boolean get() = exo.playbackState == Player.STATE_ENDED
 
     actual val isFailed: Boolean get() = exo.playerError != null
+
+    actual val aspectRatio: Float? get() = exo.videoSize.displayAspectRatio()
 }
+
+/** Poměr stran obrazu i s poměrem pixelu; `null`, dokud ExoPlayer rozměry nezná. */
+private fun VideoSize.displayAspectRatio(): Float? =
+    if (width > 0 && height > 0) width * pixelWidthHeightRatio / height else null
 
 /** Zvuk videa: běžné médium, takže ztlumí hudbu a ustoupí hovoru. */
 private val audioAttributes = AudioAttributes.Builder()
@@ -148,9 +154,7 @@ actual fun VideoSurface(player: VideoPlayer, modifier: Modifier) {
                 addView(texture, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER))
                 val frame = this
                 fun applySize(size: VideoSize) {
-                    if (size.width > 0 && size.height > 0) {
-                        frame.setAspectRatio(size.width * size.pixelWidthHeightRatio / size.height)
-                    }
+                    size.displayAspectRatio()?.let(frame::setAspectRatio)
                 }
                 applySize(player.exo.videoSize)
                 listener[0] = object : Player.Listener {

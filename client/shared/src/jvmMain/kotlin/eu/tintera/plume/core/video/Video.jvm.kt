@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.skiaCanvas
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
@@ -65,6 +66,13 @@ actual class VideoPlayer internal constructor() {
     internal var image: Image? by mutableStateOf(null)
         private set
 
+    /**
+     * O kolik stupňů po směru hodinových ručiček se [image] při kreslení otočí
+     * ([FfmpegVideoDecoder.rotation]); mění se spolu se snímkem na hlavním vlákně.
+     */
+    internal var imageRotation: Int by mutableStateOf(0)
+        private set
+
     /** Hraje v okénku obrazu v obraze ([DesktopPip]); jen hlavní vlákno. */
     internal var heldByPip = false
 
@@ -89,6 +97,7 @@ actual class VideoPlayer internal constructor() {
     @Volatile private var ended = false
     @Volatile private var failed = false
     @Volatile private var muted = false
+    @Volatile private var displayAspect: Float? = null
 
     /**
      * Zvuk videa; `null` u ztlumeného načtení ([load] s `muted`) a u videa bez zvukové stopy.
@@ -158,6 +167,8 @@ actual class VideoPlayer internal constructor() {
 
     actual val isFailed: Boolean get() = failed
 
+    actual val aspectRatio: Float? get() = displayAspect
+
     /** Hraje i zvuk (pro testy): načtené se zvukem, stopa v souboru a výstup v systému. */
     internal val playsSound: Boolean get() = audio != null
 
@@ -179,6 +190,7 @@ actual class VideoPlayer internal constructor() {
         pendingSeek.set(NO_SEEK)
         position = 0
         duration = 0
+        displayAspect = null
         ended = false
         failed = false
         replaceImage(null)
@@ -201,6 +213,7 @@ actual class VideoPlayer internal constructor() {
         val sound = if (source.muted) null else openAudio(input())
         try {
             duration = decoder.durationMs
+            displayAspect = decoder.displayAspectRatio
             // Jako ExoPlayer: připravené video ukáže první snímek, i když ještě nehraje.
             val first = decoder.decodeNext()
             if (first == null) {
@@ -359,6 +372,7 @@ actual class VideoPlayer internal constructor() {
             withContext(Dispatchers.Main) {
                 // Snímek z předchozího souboru nebo po uvolnění už nikam nepatří.
                 if (token == generation && !released) {
+                    imageRotation = decoder.rotation
                     replaceImage(next)
                     taken = true
                 }
@@ -403,19 +417,27 @@ actual fun VideoSurface(player: VideoPlayer, modifier: Modifier) {
             .onSizeChanged { player.surfaceSize = it }
             .drawBehind {
                 val image = player.image ?: return@drawBehind
-                val scale = min(size.width / image.width, size.height / image.height)
+                val rotation = player.imageRotation
+                // Otočený o čtvrt otáčky zabírá na ploše prohozené rozměry.
+                val quarterTurned = rotation % 180 != 0
+                val shownWidth = if (quarterTurned) image.height else image.width
+                val shownHeight = if (quarterTurned) image.width else image.height
+                val scale = min(size.width / shownWidth, size.height / shownHeight)
                 val width = image.width * scale
                 val height = image.height * scale
+                // Kreslí se neotočený obrázek kolem středu plochy a otočí se celé plátno.
                 val target = Rect.makeXYWH((size.width - width) / 2, (size.height - height) / 2, width, height)
-                drawIntoCanvas { canvas ->
-                    canvas.skiaCanvas.drawImageRect(
-                        image,
-                        Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
-                        target,
-                        FilterMipmap(FilterMode.LINEAR, MipmapMode.NONE),
-                        null,
-                        false,
-                    )
+                rotate(rotation.toFloat()) {
+                    drawIntoCanvas { canvas ->
+                        canvas.skiaCanvas.drawImageRect(
+                            image,
+                            Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
+                            target,
+                            FilterMipmap(FilterMode.LINEAR, MipmapMode.NONE),
+                            null,
+                            false,
+                        )
+                    }
                 }
             },
     )

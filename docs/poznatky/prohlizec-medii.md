@@ -1262,6 +1262,39 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **iOS: `AVPlayer` + `AVPlayerLayer` v UIKit view** (`UIKitView`, `interactionMode = null`, aby
   dotyky šly do Compose). Vrstva velikost s view nemění sama — nastavuje se v `layoutSubviews`
   bez implicitní animace. „Dohráno" AVPlayer stavem nehlásí, pozná se podle pozice u konce.
+- **Poměr stran karty dodá přehrávač, rozměry ve zprávě jsou jen odhad** (`VideoPlayer.aspectRatio`,
+  ve `VideoPage` `playerAspect`). Telegram uvádí, co poslal odesílatel, a u videa s NEČTVERCOVÝMI
+  PIXELY (SAR) to jsou uložené rozměry: video 720 × 720 s SAR 9 : 16 (`ffprobe … sample_aspect_ratio`)
+  má ve zprávě 720 × 720, ukázat se má 405 × 720. Karta byla čtverec, na telefonu s náhledem
+  (`ContentScale.Crop`) po stranách a ne přes celou obrazovku, a bublina v konverzaci je čtverec
+  dodnes (dřív, než se soubor stáhne, se skutečný poměr zjistit nedá). Jakmile ho přehrávač zná,
+  karta se do něj přelije (effects spec, bez překmitu) a drží ho i po návratu do galerie.
+  - **Android**: `VideoSize.width × pixelWidthHeightRatio / height` (ExoPlayer otočení aplikuje
+    sám). **iOS**: `AVPlayerItem.presentationSize` — jen přeložené.
+  - **Desktop FFmpeg poměr pixelu ani otočení sám neaplikuje.** Převod snímku (`toImage`) šířku
+    roztáhne podle SAR (`av_guess_sample_aspect_ratio`), takže pixely obrázku jsou čtvercové;
+    otočení z matice zobrazení (`coded_side_data`, `AV_PKT_DATA_DISPLAYMATRIX`,
+    `av_display_rotation_get` vrací úhel PROTI směru hodinových ručiček) se aplikuje až při
+    kreslení (`VideoSurface` otočí plátno). Bez toho bylo anamorfní video zmáčknuté do čtverce
+    a video z telefonu na výšku, které Plume posílá bez překódování, leželo na boku. Testy
+    `FfmpegVideoGeometryTest` nad vzorky z `ffmpeg -f lavfi -i testsrc` (`setsar` +
+    `h264_metadata=sample_aspect_ratio`, `-display_rotation 90`).
+  - **Rozměry ve zprávě posílá ODESÍLATEL, Telegram je neměří** (`InputVideo.width/height`).
+    To video poslal Plume z Androidu: `MediaMetadataRetriever` (i MediaStore, který na něm stojí)
+    hlásí uložených 720 × 720 a poměr pixelu pomíjí, přestože MP4 nese v `tkhd` zobrazovací
+    405 × 720. Příprava videa (`videoMetadata` v `AttachmentPicker.android.kt`) proto šířku
+    roztáhne podle `sar-width` / `sar-height` z `MediaExtractor` (veřejné klíče až od API 30,
+    extraktor je plní i dřív). **Náhled z `getFrameAtTime` poměr pixelu aplikuje sám** (vyšel
+    180 × 320), ten se nepřepočítává. Ověřeno na Foldu přiložením vzorku 720 × 720 se SAR 9 : 16
+    (`ffmpeg -f lavfi -i testsrc=size=720x720 -vf setsar=9/16`), log `VideoMetadata`:
+    „Uloženo 720×720, poměr pixelu 0.5625 → 405×720"; neodesláno. iOS bere `naturalSize`
+    s `preferredTransform` — jestli u takového videa vrátí zobrazovací rozměry, ověřené NENÍ.
+  - **Ověřeno na emulátoru `Plume_Galerie_Fold`** (složený, vnější displej) na skutečném videu
+    v Uložených zprávách: před opravou čtverec s náhledem po stranách, po ní 9 : 16 přes celou
+    šířku a karta na výšku i v galerii. Na ladicím desktopu (macOS) totéž video hraje 9 : 16
+    s přirozenými proporcemi; dokud se rozestavěný soubor neotevře, je karta čtverec z metadat
+    a pak se zúží. **Otočené video na skutečném souboru ověřené NENÍ**, jen testem dekodéru;
+    iOS jen přeložené.
 - **Tah na zavření posouvá video `offset`em, ne `graphicsLayer`** — nativní view (UIKit) dostane
   jen pozici z layoutu, transformaci vrstvy ne.
 - **Náhled MPEG-4 se zahazuje** (`ThumbnailFormatMpeg4`) — není to obrázek a Coil ho neotevře.

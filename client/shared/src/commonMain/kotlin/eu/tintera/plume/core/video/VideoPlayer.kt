@@ -65,6 +65,16 @@ expect class VideoPlayer {
      * nehne; [play] ho zkusí připravit znovu.
      */
     val isFailed: Boolean
+
+    /**
+     * Poměr stran obrazu, jak se má ukázat — s poměrem pixelu (SAR) a otočením z metadat
+     * souboru; `null`, dokud ho přehrávač nezná.
+     *
+     * **Rozměry ve zprávě nestačí**: Telegram uvádí, co poslal odesílatel, a u videa
+     * s nečtvercovými pixely to jsou uložené rozměry (720 × 720 u obrazu, který se ukazuje
+     * 9 : 16). Karta prohlížeče se podle nich kreslila jako čtverec.
+     */
+    val aspectRatio: Float?
 }
 
 @Composable
