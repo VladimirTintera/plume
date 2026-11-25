@@ -58,6 +58,8 @@ import eu.tintera.plume.core.ui.KeepScreenOn
 import eu.tintera.plume.core.ui.statusBarArea
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.media_lock_controls
 import eu.tintera.plume.resources.media_rotate_screen
@@ -98,6 +100,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1225,9 +1228,11 @@ internal fun VideoPage(
                     }
                 }
 
-                if (fullscreen != null) {
+                val header = fullscreen?.header
+                if (fullscreen != null && header != null) {
                     VideoTopControls(
                         visible = immersive && loaded && !inPip && if (locked) lockHint else controlsVisible,
+                        header = header,
                         locked = locked,
                         onLockChange = { on ->
                             fullscreen.onLockChange(on)
@@ -1441,6 +1446,19 @@ internal class VideoFullscreen(
     val window: Boolean = false,
     /** Přepne okno přes celou obrazovku; `null`, kde to platforma nemá (telefon). */
     val onWindowChange: ((Boolean) -> Unit)? = null,
+    /**
+     * Šipka zpět a titulek vlevo nahoře; `null` = horní lištu kreslí prohlížeč sám (mizející
+     * médium má vlastní s odpočtem) a ovládání celé obrazovky nahoře není vůbec.
+     */
+    val header: VideoFullscreenHeader? = null,
+)
+
+/** Levá část horní lišty videa na celé obrazovce: cesta zpět a co hraje. */
+internal class VideoFullscreenHeader(
+    /** Zpět z celé obrazovky do galerie — totéž co systémové zpět a Esc. */
+    val onBack: () -> Unit,
+    /** Odesílatel a čas, jako v liště galerie. */
+    val title: @Composable () -> Unit,
 )
 
 /**
@@ -1518,14 +1536,20 @@ internal sealed interface VideoCommand {
 }
 
 /**
- * Zámek a otočení v levém horním rohu stránky.
+ * Horní lišta videa na celé obrazovce: vlevo šipka zpět a titulek, vpravo akce (otočení, celá
+ * obrazovka okna, zámek) — rozložení jako YouTube nebo Fotky Google. Časová osa a ovládání
+ * přehrávání jsou dole.
  *
- * - **Dole místo není**: čas, posuvník, rychlost, obraz v obraze a zvuk. S dalšími dvěma
- *   tlačítky by posuvníku na telefonu na výšku zbyl palec.
- * - **Zamčené video ukazuje jen zámek**, vyplněný: ťuknutí kamkoli ho vytáhne, ťuknutí na něj
- *   odemkne. Stav nese výplň, ne jen tvar ikony.
- * - **Roh ustupuje stavové liště a výřezu, jen kam stránka opravdu sahá** (insety samy nevědí,
- *   kde prvek leží, takže se porovnávají s polohou v okně).
+ * - **Dřív tu byl jen zámek a otočení vlevo** a cesta ven nebyla vidět vůbec: lišta galerie se na
+ *   celé obrazovce schová a do galerie vedlo jen ťuknutí na obraz.
+ * - **Zamčené video ukazuje jen zámek**, vyplněný, na TÉMŽE místě vpravo: ťuknutí kamkoli ho
+ *   vytáhne, ťuknutí na něj odemkne. Stav nese výplň, ne jen tvar ikony. Zpět ani titulek za
+ *   zamčení nejsou — zámek je proti nechtěným dotykům.
+ * - **Dole místo není**: čas, posuvník, rychlost, obraz v obraze a zvuk. S dalšími tlačítky by
+ *   posuvníku na telefonu na výšku zbyl palec.
+ * - **Lišta ustupuje stavové liště, výřezu a navigační liště, jen kam stránka opravdu sahá**
+ *   (insety samy nevědí, kde prvek leží, takže se porovnávají s polohou v okně), na obou
+ *   stranách — naležato bývá výřez vlevo a navigační lišta vpravo.
  *   Bere se místo lišty i schované ([statusBarArea]): vrací se spolu s ovládáním a tlačítka by
  *   jinak během jejího vyjetí poskočila.
  */
@@ -1533,6 +1557,7 @@ internal sealed interface VideoCommand {
 @Composable
 private fun BoxScope.VideoTopControls(
     visible: Boolean,
+    header: VideoFullscreenHeader,
     locked: Boolean,
     onLockChange: (Boolean) -> Unit,
     onRotate: (() -> Unit)?,
@@ -1545,7 +1570,8 @@ private fun BoxScope.VideoTopControls(
         .union(WindowInsets.displayCutout)
         .union(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
     var insetTop by remember { mutableFloatStateOf(0f) }
-    var insetStart by remember { mutableFloatStateOf(0f) }
+    var insetLeft by remember { mutableFloatStateOf(0f) }
+    var insetRight by remember { mutableFloatStateOf(0f) }
     val haptics = LocalHapticFeedback.current
     AnimatedVisibility(
         visible = visible,
@@ -1558,11 +1584,8 @@ private fun BoxScope.VideoTopControls(
                 val bounds = coordinates.boundsInWindow()
                 val windowWidth = coordinates.findRootCoordinates().size.width
                 insetTop = (safe.getTop(density) - bounds.top).coerceAtLeast(0f)
-                insetStart = if (ltr) {
-                    safe.getLeft(density, LayoutDirection.Ltr) - bounds.left
-                } else {
-                    safe.getRight(density, LayoutDirection.Rtl) - (windowWidth - bounds.right)
-                }.coerceAtLeast(0f)
+                insetLeft = (safe.getLeft(density, LayoutDirection.Ltr) - bounds.left).coerceAtLeast(0f)
+                insetRight = (safe.getRight(density, LayoutDirection.Ltr) - (windowWidth - bounds.right)).coerceAtLeast(0f)
             },
     ) {
         Row(
@@ -1574,29 +1597,27 @@ private fun BoxScope.VideoTopControls(
                     ),
                 )
                 .padding(
-                    start = with(density) { insetStart.toDp() },
+                    start = with(density) { (if (ltr) insetLeft else insetRight).toDp() },
+                    end = with(density) { (if (ltr) insetRight else insetLeft).toDp() },
                     top = with(density) { insetTop.toDp() },
                 )
                 .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconToggleButton(
-                checked = locked,
-                onCheckedChange = { on ->
-                    haptics.toggle(on)
-                    onLockChange(on)
-                },
-                colors = IconButtonDefaults.iconToggleButtonColors(
-                    contentColor = Color.White,
-                    checkedContainerColor = Color.White,
-                    checkedContentColor = Color.Black,
-                ),
-                shapes = IconButtonDefaults.toggleableShapes(),
-            ) {
-                Icon(
-                    painterResource(if (locked) Res.drawable.lock_24dp else Res.drawable.lock_open_24dp),
-                    contentDescription = stringResource(if (locked) Res.string.media_unlock_controls else Res.string.media_lock_controls),
-                )
+            if (!locked) {
+                IconButton(
+                    onClick = header.onBack,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.arrow_back_24dp),
+                        contentDescription = stringResource(Res.string.common_back),
+                    )
+                }
+                Box(Modifier.weight(1f).padding(start = 4.dp, end = 8.dp)) { header.title() }
+            } else {
+                Spacer(Modifier.weight(1f))
             }
             if (onRotate != null && !locked) {
                 IconButton(
@@ -1621,6 +1642,24 @@ private fun BoxScope.VideoTopControls(
                         contentDescription = stringResource(if (window) Res.string.media_fullscreen_exit else Res.string.media_fullscreen_enter),
                     )
                 }
+            }
+            IconToggleButton(
+                checked = locked,
+                onCheckedChange = { on ->
+                    haptics.toggle(on)
+                    onLockChange(on)
+                },
+                colors = IconButtonDefaults.iconToggleButtonColors(
+                    contentColor = Color.White,
+                    checkedContainerColor = Color.White,
+                    checkedContentColor = Color.Black,
+                ),
+                shapes = IconButtonDefaults.toggleableShapes(),
+            ) {
+                Icon(
+                    painterResource(if (locked) Res.drawable.lock_24dp else Res.drawable.lock_open_24dp),
+                    contentDescription = stringResource(if (locked) Res.string.media_unlock_controls else Res.string.media_lock_controls),
+                )
             }
         }
     }

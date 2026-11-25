@@ -620,10 +620,16 @@ private fun ViewerContent(
     }
     val leaveFullscreenOnClose by rememberUpdatedState(windowFullscreenOn)
     DisposableEffect(windowFullscreen) { onDispose { if (leaveFullscreenOnClose) windowFullscreen?.set(false) } }
+    /*
+     * Zpět (i Esc na desktopu) vede o krok zpátky, ne rovnou ven: z okna přes celou obrazovku
+     * do okna, z celé obrazovky do galerie, teprve z galerie prohlížeč zavře (jako YouTube).
+     * Mizející médium galerii nemá, tam zpět zavírá rovnou. Šipka v liště videa dělá totéž.
+     */
+    val leaveImmersive = { immersive = false }
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = windowFullscreenOn,
-        onBackCompleted = { setWindowFullscreen?.invoke(false) },
+        isBackEnabled = windowFullscreenOn || (immersive && !state.isSelfDestruct),
+        onBackCompleted = { if (windowFullscreenOn) setWindowFullscreen?.invoke(false) else leaveImmersive() },
     )
     LaunchedEffect(immersive) {
         if (!immersive) {
@@ -642,13 +648,17 @@ private fun ViewerContent(
     } else {
         null
     }
-    val videoFullscreen = VideoFullscreen(
-        locked = controlsLocked,
-        onLockChange = { controlsLocked = it },
-        onRotate = rotate,
-        window = windowFullscreenOn,
-        onWindowChange = setWindowFullscreen,
-    )
+    // Hlavička (zpět a titulek) patří stránce, proto se skládá u ní ([VideoFullscreen.header]).
+    val videoFullscreen = { header: VideoFullscreenHeader? ->
+        VideoFullscreen(
+            locked = controlsLocked,
+            onLockChange = { controlsLocked = it },
+            onRotate = rotate,
+            window = windowFullscreenOn,
+            onWindowChange = setWindowFullscreen,
+            header = header,
+        )
+    }
     val enterImmersive = { immersive = true }
     val toggleImmersive = { if (!state.isSelfDestruct) immersive = !immersive }
 
@@ -884,7 +894,13 @@ private fun ViewerContent(
                     modifier = pageModifier,
                     mute = VideoMute(muted = videoMuted, onToggle = { videoMuted = !videoMuted }),
                     quality = VideoQualitySelection(choice = videoQuality, onChoose = { videoQuality = it }),
-                    fullscreen = videoFullscreen,
+                    // Mizející médium má vlastní lištu s odpočtem, druhá by se s ní srazila.
+                    fullscreen = videoFullscreen(
+                        VideoFullscreenHeader(
+                            onBack = leaveImmersive,
+                            title = { ViewerTitle(item = item, state = state, pagerState = pagerState) },
+                        ).takeIf { !state.isSelfDestruct },
+                    ),
                     commands = videoCommands,
                     onPlayingChange = { playing ->
                         if (playing) {
@@ -1251,42 +1267,7 @@ private fun TopBar(
     ) {
         CloseButton(onClose)
 
-        Column(Modifier.weight(1f).padding(start = 4.dp)) {
-            Text(
-                text = when {
-                    item.isOutgoing -> stringResource(Res.string.sender_you)
-                    else -> item.senderName ?: state.chatTitle.orEmpty()
-                },
-                style = MaterialTheme.typography.titleMedium,
-                color = ON_SCRIM,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            // Počítadlo se odvozuje od pozice otevřené fotky posunem indexu: výřez je souvislý.
-            val position = state.initialPosition
-            val initial = state.items.indexOfFirst { it.messageId == state.initialMessageId }
-            val number = position?.let { it.number + (pagerState.currentPage - initial) }
-            val counter = if (position != null && initial >= 0 && number != null && number in 1..position.total) {
-                stringResource(Res.string.media_position, number, position.total)
-            } else {
-                null
-            }
-            // Reklama čas nemá; místo něj štítek, ať se nesplete s příspěvkem kanálu.
-            val sponsored = state.sponsored
-            val subtitle = if (sponsored != null) {
-                stringResource(if (sponsored.isRecommended) Res.string.sponsored_recommended else Res.string.sponsored_sponsored)
-            } else {
-                "${item.timestamp.asDayLabel()} ${item.timestamp.asTimeOfDay()}"
-            }
-            Text(
-                text = listOfNotNull(subtitle, counter).joinToString(" · "),
-                style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
-                color = ON_SCRIM.copy(alpha = SECONDARY_ALPHA),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        ViewerTitle(item = item, state = state, pagerState = pagerState, modifier = Modifier.weight(1f).padding(start = 4.dp))
 
         /*
          * Venku jsou jen dvě nejčastější akce, zbytek je v nabídce ⋮. Se Sdílením by byly ikony
@@ -1567,6 +1548,54 @@ private fun SponsoredButtonBar(item: ViewerItem, sponsored: ViewerSponsored, onC
 private fun ChromeIcon(icon: org.jetbrains.compose.resources.DrawableResource, description: String, onClick: () -> Unit) {
     IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
         Icon(painterResource(icon), contentDescription = description, tint = ON_SCRIM)
+    }
+}
+
+/**
+ * Kdo a kdy snímek poslal (a kolikátý je): v liště galerie i v liště videa na celé obrazovce.
+ */
+@Composable
+internal fun ViewerTitle(
+    item: ViewerItem,
+    state: MediaViewerState,
+    pagerState: PagerState,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier) {
+        Text(
+            text = when {
+                item.isOutgoing -> stringResource(Res.string.sender_you)
+                else -> item.senderName ?: state.chatTitle.orEmpty()
+            },
+            style = MaterialTheme.typography.titleMedium,
+            color = ON_SCRIM,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        // Počítadlo se odvozuje od pozice otevřené fotky posunem indexu: výřez je souvislý.
+        val position = state.initialPosition
+        val initial = state.items.indexOfFirst { it.messageId == state.initialMessageId }
+        val number = position?.let { it.number + (pagerState.currentPage - initial) }
+        val counter = if (position != null && initial >= 0 && number != null && number in 1..position.total) {
+            stringResource(Res.string.media_position, number, position.total)
+        } else {
+            null
+        }
+        // Reklama čas nemá; místo něj štítek, ať se nesplete s příspěvkem kanálu.
+        val sponsored = state.sponsored
+        val subtitle = if (sponsored != null) {
+            stringResource(if (sponsored.isRecommended) Res.string.sponsored_recommended else Res.string.sponsored_sponsored)
+        } else {
+            "${item.timestamp.asDayLabel()} ${item.timestamp.asTimeOfDay()}"
+        }
+        Text(
+            text = listOfNotNull(subtitle, counter).joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+            color = ON_SCRIM.copy(alpha = SECONDARY_ALPHA),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
