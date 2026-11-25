@@ -297,6 +297,42 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   název stojí hned vedle. „Co je nového" má megafon, ne raketu: raketou se uvnitř sekce značí
   novinka u jedné poznámky.
 
+### Nastavení jiného účtu (víc účtů)
+
+S víc přihlášenými účty jsou pod kartou účtu čipy s fotkou a jménem každého účtu
+(`AccountChips` v `SettingsScreen`); vybraný je účet karty. Ťuknutí přepne CELÉ Nastavení na ten
+účet (`AppNavigation.selectSettingsAccount`). Dřív Nastavení patřila vždycky výchozímu účtu
+a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom nebyla ani zmínka.
+
+- **Výchozí účet se nemění.** `accounts.setDefault` by přes `DefaultAccountScope` složil celý
+  shell znovu (Nastavení by se zavřela) a seznam chatů by v režimu Všechny účty přešel na jeden
+  účet. Účet Nastavení je proto vlastní stav navigace (`AppNavigation.settingsAccount`, `null`
+  = výchozí), který přežije zabití procesu (`SettingsAccountSaver`, id slotu).
+- **Routy Nastavení slot nenesou; účet dává obal celého zásobníku** (`inSettingsAccount`,
+  `SettingsAccountScope` v `AppNavigation.kt`): každá položka zásobníku Nastavení se skládá
+  v `AccountScope` vybraného účtu. Slot v ~20 routách by znamenal přepsat i index hledání
+  v Nastavení, odkazy `tg://settings/…` a testy — a sekce jsou smíšené (Chaty: složky a rychlá
+  reakce účtu vedle velikosti písma aplikace), takže by se stejně skládaly celé v jednom účtu.
+  Routy s účtem (`ChatFolderEditRoute`, `MediaRoute` z úpravy profilu) dál skládá
+  `inRouteAccount` svým slotem a otevírají se se slotem z `LocalAccount`, tedy účtu Nastavení.
+- **Účet se čte až v kompozici položky, ne při její stavbě**: `rememberDecoratedNavEntries`
+  si položky pamatuje podle klíčů, takže obsah musí na změnu účtu reagovat sám.
+- **Jiný účet než shellu má vlastní úložiště ViewModelů** (`AccountViewModels` uvnitř položky)
+  a obsah se se změnou složí od začátku (`key(slot)`). `koinViewModel()` bez klíče by jinak
+  našel ViewModel předchozího účtu i s jeho repository — stejná past jako u přepnutí výchozího
+  účtu (CLAUDE.md, „ViewModel na detailu MUSÍ mít klíč").
+- **Po přepnutí zůstane jen otevřený detail** (sekce nebo úprava profilu, `keepSettingsDetail`,
+  testy `SettingsAccountStackTest`); podstránky, sheet a routy s účtem nad ním patřily
+  předchozímu účtu.
+- **Menu účtu otevírá Nastavení výchozího účtu**, ne naposledy vybraného (`openSettings()`
+  stav vynuluje): menu slibuje Nastavení účtu, jehož fotku ukazuje. Odkaz z chatu
+  (`openScreen`), složky a proxy ze seznamu chatů předávají svůj slot.
+- **Odhlášení říká koho** („Odhlásit VT2", i v titulku dialogu), jen s víc účty. Odhlásí účet
+  Nastavení; shell pak (efekt nad `accounts.all`) přepne Nastavení na účet shellu, a když to byl
+  výchozí účet, složí se jako dřív celý shell znovu.
+- **Volby aplikace jsou stejné, ať je vybraný kterýkoli účet** (vzhled, jazyk, AI, zámek);
+  ukazují se v Nastavení každého účtu. Označení „pro všechny účty" u řádků zatím není.
+
 ### Hledání v Nastavení (`SettingsSearch.kt`)
 
 Pilulka nahoře v seznamu sekcí (`SearchPill`, tentýž prvek jako všude jinde). S dotazem jsou

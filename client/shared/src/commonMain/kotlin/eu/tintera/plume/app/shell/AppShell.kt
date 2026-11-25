@@ -409,6 +409,8 @@ fun AppShell(modifier: Modifier = Modifier) {
         listOf(ChatsRoute, SettingsRoute).forEach { section ->
             navigation.stack(section).removeAll { it is AccountRoute && it.slot !in slots }
         }
+        // Odhlášený z vlastních Nastavení: Nastavení zůstanou otevřená, za účet shellu.
+        if (navigation.settingsAccount.let { it != null && it !in slots }) navigation.selectSettingsAccount(slot)
     }
 
     // Výška pruhu hovoru / videochatu i se stavovou lištou; 0 = pruh není. Naráz je jen jeden
@@ -771,7 +773,7 @@ private fun ShellContent(
                      */
                     val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
                         ChatsRoute to rememberDecoratedNavEntries(chatsEntries, decorators),
-                        SettingsRoute to rememberDecoratedNavEntries(settingsDrawn, decorators, entryProvider),
+                        SettingsRoute to rememberDecoratedNavEntries(settingsDrawn, decorators, entryProvider.inSettingsAccount(navigation)),
                     )
 
                     val transitions = rememberNavTransitions(chatContainer = !wide)
@@ -943,8 +945,8 @@ private fun shellEntryProvider(
                 onNewGroup = { if (chatsStack.lastOrNull() !is NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute(slot)) },
                 onNewChannel = { chatsStack.add(CreateChatRoute(slot, channel = true)) },
                 onChatArchived = chatsStack::closeConversationOf,
-                onOpenSettings = navigation::openSettings,
-                onOpenProxySettings = navigation::openProxySettings,
+                onOpenSettings = { navigation.openSettings() },
+                onOpenProxySettings = { navigation.openProxySettings(slot) },
                 onCreateFolder = { navigation.openChatFolders(slot, create = true) },
                 onManageFolders = { navigation.openChatFolders(slot) },
                 onEditFolder = { id -> navigation.openChatFolder(slot, id) },
@@ -2133,6 +2135,7 @@ private fun shellEntryProvider(
             onOpenSearchResult = navigation::openSettingsSearchResult,
             searchResetKey = navigation.settingsOpenings,
             onMyQrCode = { navigation.openSheet(SettingsRoute, MyQrCodeRoute) },
+            onSelectAccount = navigation::selectSettingsAccount,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

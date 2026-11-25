@@ -38,8 +38,9 @@ const val SAVED_ROUTES_VERSION = 2
  * klientovi. Shell obsah takové routy skládá v kontejneru účtu [slot] (`AccountScope`), takže
  * obrazovka dostane repository správného účtu a po zabití procesu se otevře zase v něm.
  *
- * Stránky bez id (nastavení účtu, archiv, seznam hovorů) slot zatím nemají a skládají se v účtu
- * shellu; co s nimi, určí UI fáze 1 (`docs/navrh-vice-uctu.md`).
+ * Stránky bez id (archiv, seznam hovorů) slot nemají a skládají se v účtu shellu. Routy Nastavení
+ * slot taky nenesou: celý jejich zásobník skládá shell v účtu, který je v Nastavení vybraný
+ * (`AppNavigation.settingsAccount`, `inSettingsAccount`).
  */
 sealed interface AccountRoute : Route {
     val slot: AccountSlot

@@ -318,6 +318,9 @@
     <string name="settings_sign_out_title">Sign out?</string>
     <string name="settings_sign_out_body">Messages and downloaded files will be deleted from this device. Your account and your chats on other devices stay as they are.</string>
     <string name="settings_sign_out_confirm">Sign out</string>
+    <string name="settings_sign_out_account">Sign out %1$s</string>
+    <string name="settings_sign_out_account_title">Sign out %1$s?</string>
+    <string name="settings_account_choice">Account whose settings are shown</string>
     <string name="settings_section_privacy">Privacy</string>
     <string name="settings_section_privacy_summary">Who sees what, blocked users, passwords, app lock</string>
     <string name="settings_section_chats">Chats</string>

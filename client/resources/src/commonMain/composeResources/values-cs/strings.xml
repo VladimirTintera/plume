@@ -328,6 +328,9 @@
     <string name="settings_sign_out_title">Odhlásit se?</string>
     <string name="settings_sign_out_body">Zprávy a stažené soubory se z tohohle zařízení smažou. Účet i chaty na ostatních zařízeních zůstanou beze změny.</string>
     <string name="settings_sign_out_confirm">Odhlásit</string>
+    <string name="settings_sign_out_account">Odhlásit %1$s</string>
+    <string name="settings_sign_out_account_title">Odhlásit %1$s?</string>
+    <string name="settings_account_choice">Účet, jehož nastavení se ukazuje</string>
     <string name="settings_section_privacy">Soukromí</string>
     <string name="settings_section_privacy_summary">Kdo co vidí, blokovaní, hesla, zámek aplikace</string>
     <string name="settings_section_chats">Chaty</string>

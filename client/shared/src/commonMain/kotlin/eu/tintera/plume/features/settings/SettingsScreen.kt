@@ -48,6 +48,21 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.features.chats.AccountEntry
+import eu.tintera.plume.features.chats.rememberAccountSwitcher
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import eu.tintera.plume.resources.settings_account_choice
+import eu.tintera.plume.resources.settings_sign_out_account
+import eu.tintera.plume.resources.settings_sign_out_account_title
 import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.ui.GROUP_CORNER
@@ -129,8 +144,17 @@ fun SettingsScreen(
     searchResetKey: Int = 0,
     /** QR kód na kartě účtu — sheet je navigační destinace (`MyQrCodeRoute`), otevírá ho shell. */
     onMyQrCode: () -> Unit = {},
+    /** Nastavení jiného přihlášeného účtu (čipy pod kartou účtu, jen s víc účty). */
+    onSelectAccount: (AccountSlot) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
+    // Účet obrazovky je účet Nastavení (`SettingsAccountScope` v shellu), ne nutně výchozí.
+    val accounts = rememberAccountSwitcher().accounts
+    val currentSlot = LocalAccount.current.slot
+    // S víc účty říká tlačítko i dialog, KOHO odhlašují: holé „Odhlásit se" by se snadno
+    // ťuklo v Nastavení účtu, o kterém si uživatel myslel, že je ten druhý.
+    val accountName = viewModel.account.collectAsStateWithLifecycle().value?.displayName
+        ?.takeIf { accounts.size > 1 && it.isNotBlank() }
     val scrollBehavior = settingsScrollBehavior()
     val aiAvailable by viewModel.aiAvailable.collectAsStateWithLifecycle()
     val sections = SettingsSection.entries.filter { section ->
@@ -156,6 +180,7 @@ fun SettingsScreen(
     val results = remember(query, index) { searchSettings(query, index) }
     if (confirmLogOut) {
         LogOutDialog(
+            accountName = accountName,
             onConfirm = {
                 confirmLogOut = false
                 viewModel.logOut()
@@ -204,7 +229,11 @@ fun SettingsScreen(
                 return@Column
             }
 
-            AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile, onMyQrCode = onMyQrCode)
+            // Karta a čipy pod ní jsou jeden celek („čí Nastavení to jsou"), proto blíž k sobě.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile, onMyQrCode = onMyQrCode)
+                if (accounts.size > 1) AccountChips(accounts = accounts, selected = currentSlot, onSelect = onSelectAccount)
+            }
 
             // Sekce jsou jeden blok se společným zaoblením, stejný jazyk jako seznam chatů.
             Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
@@ -240,7 +269,15 @@ fun SettingsScreen(
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                 ),
             ) {
-                Text(stringResource(Res.string.settings_sign_out))
+                Text(
+                    if (accountName != null) {
+                        stringResource(Res.string.settings_sign_out_account, accountName)
+                    } else {
+                        stringResource(Res.string.settings_sign_out)
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -318,6 +355,48 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
 }
 
 /**
+ * Čí Nastavení to jsou, s víc účty: čip za každý přihlášený účet, vybraný je účet karty nad nimi.
+ * Výběr přepne celé Nastavení na ten účet, výchozí účet (a tím seznam chatů) nechá být.
+ *
+ * - **Čipy, ne nabídka u karty.** Šipka s nabídkou by volbu schovala stejně jako dřív, kdy se
+ *   účet Nastavení dal změnit jen v menu účtu nad seznamem chatů a v Nastavení o tom nic nebylo.
+ *   Účty jsou nejvýš tři (`Accounts.MAX_ACCOUNTS`), takže se vejdou; `FlowRow` je zalomí,
+ *   kdyby byla jména dlouhá.
+ * - **Fotka místo fajfky.** Účty se poznají podle fotky; výběr nese barva i tvar čipu
+ *   (`FilterChipDefaults.shapes()`, vybraný je pilulka) a čtečka ho čte z role čipu.
+ * - Fotka jiného účtu se stahuje jeho klientem, proto `AccountScope` kolem ní (jako v menu účtu).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AccountChips(accounts: List<AccountEntry>, selected: AccountSlot, onSelect: (AccountSlot) -> Unit) {
+    val description = stringResource(Res.string.settings_account_choice)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = description },
+    ) {
+        accounts.forEach { entry ->
+            val slot = entry.account.slot
+            FilterChip(
+                selected = slot == selected,
+                onClick = { onSelect(slot) },
+                label = { Text(entry.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                leadingIcon = {
+                    AccountScope(entry.account) {
+                        Avatar(
+                            chatId = entry.info?.id ?: 0L,
+                            title = entry.title,
+                            avatarFileId = entry.info?.photoFileId,
+                            size = ACCOUNT_CHIP_AVATAR_SIZE,
+                        )
+                    }
+                },
+                shapes = FilterChipDefaults.shapes(),
+            )
+        }
+    }
+}
+
+/**
  * Řádek seznamu Nastavení: sekce, jazyk, položka Pomoci. Řádky jdou v blocích se společným
  * zaoblením krajních položek, jako seznam chatů.
  *
@@ -369,11 +448,17 @@ internal fun SettingsListRow(
  */
 @Composable
 private fun LogOutDialog(
+    /** Jméno odhlašovaného účtu, když je přihlášených víc; jinak `null`. */
+    accountName: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ConfirmDialog(
-        title = stringResource(Res.string.settings_sign_out_title),
+        title = if (accountName != null) {
+            stringResource(Res.string.settings_sign_out_account_title, accountName)
+        } else {
+            stringResource(Res.string.settings_sign_out_title)
+        },
         text = stringResource(Res.string.settings_sign_out_body),
         confirmLabel = stringResource(Res.string.settings_sign_out_confirm),
         onConfirm = onConfirm,
@@ -432,3 +517,6 @@ private val BLOCK_SPACING = 16.dp
 
 /** Fotka účtu na kartě: zhruba výška tří řádků textu vedle ní, takže karta kvůli ní nepovyroste. */
 private val ACCOUNT_AVATAR_SIZE = 56.dp
+
+/** Fotka v čipu účtu: velikost avataru v M3 vstupním čipu, menší by se nepoznala. */
+private val ACCOUNT_CHIP_AVATAR_SIZE = 24.dp

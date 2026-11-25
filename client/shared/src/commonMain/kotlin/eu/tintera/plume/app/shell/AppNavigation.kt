@@ -3,6 +3,10 @@ package eu.tintera.plume.app.shell
 import androidx.navigation3.runtime.NavEntry
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountViewModels
+import eu.tintera.plume.core.accounts.LocalAccount
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.koinInject
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.Composable
@@ -67,9 +71,31 @@ import eu.tintera.plume.core.navigation.TopLevelRoute
 class AppNavigation internal constructor(
     private val selected: MutableState<TopLevelRoute>,
     private val stacks: Map<TopLevelRoute, NavBackStack<NavKey>>,
+    private val settingsAccountState: MutableState<AccountSlot?>,
 ) {
     /** Vybraná sekce. */
     val section: TopLevelRoute get() = selected.value
+
+    /**
+     * Účet, jehož Nastavení jsou otevřená; `null` = výchozí účet (účet shellu). Celý zásobník
+     * Nastavení se skládá v kontejneru tohohle účtu (`SettingsAccountScope`), takže sekce
+     * i podstránky slot v routě nenesou.
+     *
+     * **Výchozí účet se tím NEMĚNÍ.** Přepnutí výchozího účtu by složilo celý shell znovu
+     * (Nastavení by se zavřela) a seznam chatů by v režimu Všechny účty přešel na jeden účet —
+     * a kdo jen kontroluje soukromí druhého účtu, nečeká, že se mu přepne seznam chatů.
+     */
+    val settingsAccount: AccountSlot? get() = settingsAccountState.value
+
+    /**
+     * Nastavení účtu [slot] místo dosavadního. Otevřená sekce (nebo úprava profilu) vpravo
+     * zůstane a složí se znovu za nový účet; co leží nad ní, patřilo předchozímu účtu a jde pryč.
+     */
+    fun selectSettingsAccount(slot: AccountSlot) {
+        if (settingsAccountState.value == slot) return
+        settingsAccountState.value = slot
+        stack(SettingsRoute).keepSettingsDetail()
+    }
 
     /** Zásobník konkrétní sekce. Obrazovka navigující „u sebe" ho má brát podle sekce, ne [section]. */
     fun stack(section: TopLevelRoute): NavBackStack<NavKey> = stacks.getValue(section)
@@ -85,8 +111,13 @@ class AppNavigation internal constructor(
      * Nastavení z menu účtu v seznamu chatů — jediný vstup, rail ani lišta nejsou. Proto
      * vždycky na kořen: menu slibuje „Nastavení", ne sekci, kterou tam kdysi uživatel nechal
      * otevřenou. Zpět pak vede do Chatů.
+     *
+     * Účet je [slot], bez něj výchozí: menu účtu slibuje Nastavení toho účtu, který ukazuje
+     * jeho fotka, ne účtu, který tam uživatel vybral minule. Odkaz z chatu (`tg://settings/…`)
+     * a složky ze seznamu chatů nesou svůj účet.
      */
-    fun openSettings() {
+    fun openSettings(slot: AccountSlot? = null) {
+        settingsAccountState.value = slot
         settingsOpenings++
         settingsHighlight.consume()
         showSettingsRoot()
@@ -112,7 +143,7 @@ class AppNavigation internal constructor(
      * Nastavení proxy zvenčí (nabídka nad chatem od provozovatele proxy): Nastavení → Úložiště →
      * Proxy, takže zpět vede po krocích, kudy by se tam uživatel proklikal sám.
      */
-    fun openProxySettings() = openSettingsAt(SettingsSection.Storage, ProxySettingsRoute)
+    fun openProxySettings(slot: AccountSlot) = openSettingsAt(slot, SettingsSection.Storage, ProxySettingsRoute)
 
     /**
      * Odkaz na obrazovku aplikace (`tg://settings/devices`, `tg://new/group`…). Do Nastavení se
@@ -122,18 +153,18 @@ class AppNavigation internal constructor(
      */
     fun openScreen(slot: AccountSlot, screen: AppScreen, twoPane: Boolean) {
         when (screen) {
-            AppScreen.Settings -> openSettings()
-            AppScreen.Privacy -> openSettingsAt(SettingsSection.Privacy)
-            AppScreen.Notifications -> openSettingsAt(SettingsSection.Notifications)
-            AppScreen.Appearance -> openSettingsAt(SettingsSection.Appearance)
-            AppScreen.Devices -> openSettingsAt(SettingsSection.Devices)
-            AppScreen.Storage -> openSettingsAt(SettingsSection.Storage)
+            AppScreen.Settings -> openSettings(slot)
+            AppScreen.Privacy -> openSettingsAt(slot, SettingsSection.Privacy)
+            AppScreen.Notifications -> openSettingsAt(slot, SettingsSection.Notifications)
+            AppScreen.Appearance -> openSettingsAt(slot, SettingsSection.Appearance)
+            AppScreen.Devices -> openSettingsAt(slot, SettingsSection.Devices)
+            AppScreen.Storage -> openSettingsAt(slot, SettingsSection.Storage)
             // Úprava profilu je pod kartou účtu v seznamu sekcí, ne v sekci.
-            AppScreen.EditProfile -> openSettingsWith(EditProfileRoute)
-            AppScreen.TwoStepVerification -> openSettingsAt(SettingsSection.Privacy, TwoStepRoute)
-            AppScreen.LoginEmail -> openSettingsAt(SettingsSection.Privacy, LoginEmailRoute)
-            AppScreen.Passkeys -> openSettingsAt(SettingsSection.Privacy, PasskeysRoute)
-            AppScreen.ChangePhone -> openSettingsWith(EditProfileRoute, ChangePhoneRoute)
+            AppScreen.EditProfile -> openSettingsWith(slot, EditProfileRoute)
+            AppScreen.TwoStepVerification -> openSettingsAt(slot, SettingsSection.Privacy, TwoStepRoute)
+            AppScreen.LoginEmail -> openSettingsAt(slot, SettingsSection.Privacy, LoginEmailRoute)
+            AppScreen.Passkeys -> openSettingsAt(slot, SettingsSection.Privacy, PasskeysRoute)
+            AppScreen.ChangePhone -> openSettingsWith(slot, EditProfileRoute, ChangePhoneRoute)
             AppScreen.ChatFolders -> openChatFolders(slot)
             AppScreen.NewChat -> openInChats(NewChatRoute(slot))
             AppScreen.NewGroup -> openInChats(NewGroupMembersRoute(slot))
@@ -142,8 +173,8 @@ class AppNavigation internal constructor(
         }
     }
 
-    private fun openSettingsAt(section: SettingsSection, screen: NavKey? = null) =
-        openSettingsWith(*listOfNotNull(SettingsSectionRoute(section), screen).toTypedArray())
+    private fun openSettingsAt(slot: AccountSlot, section: SettingsSection, screen: NavKey? = null) =
+        openSettingsWith(slot, *listOfNotNull(SettingsSectionRoute(section), screen).toTypedArray())
 
     /**
      * Výsledek hledání v Nastavení: nad seznamem jen [screens] (sekce a podstránky k volbě).
@@ -155,9 +186,9 @@ class AppNavigation internal constructor(
         stack(SettingsRoute).addAll(screens)
     }
 
-    /** Nastavení na kořeni a nad ním [screens] po řadě — kudy by se tam uživatel proklikal sám. */
-    private fun openSettingsWith(vararg screens: NavKey) {
-        openSettings()
+    /** Nastavení účtu [slot] na kořeni a nad ním [screens] po řadě — kudy by se tam uživatel proklikal sám. */
+    private fun openSettingsWith(slot: AccountSlot, vararg screens: NavKey) {
+        openSettings(slot)
         stack(SettingsRoute).addAll(screens)
     }
 
@@ -175,7 +206,7 @@ class AppNavigation internal constructor(
      * chatů, s [create] rovnou i editor nové složky. Zpět vede po krocích, jako u proxy.
      */
     fun openChatFolders(slot: AccountSlot, create: Boolean = false) {
-        openSettingsAt(SettingsSection.Chats, ChatFoldersRoute)
+        openSettingsAt(slot, SettingsSection.Chats, ChatFoldersRoute)
         if (create) stack(SettingsRoute).add(ChatFolderEditRoute(slot, 0))
     }
 
@@ -184,7 +215,7 @@ class AppNavigation internal constructor(
      * Složky chatů → složka [folderId]. Zpět vede přes správu složek, jako u nové složky.
      */
     fun openChatFolder(slot: AccountSlot, folderId: Int) {
-        openSettingsAt(SettingsSection.Chats, ChatFoldersRoute)
+        openSettingsAt(slot, SettingsSection.Chats, ChatFoldersRoute)
         stack(SettingsRoute).add(ChatFolderEditRoute(slot, folderId))
     }
 
@@ -403,8 +434,18 @@ fun rememberAppNavigation(): AppNavigation {
         }
     }
     val selected = rememberSaveable(saver = SelectedSectionSaver) { mutableStateOf(START_SECTION) }
-    return remember(selected) { AppNavigation(selected, stacks) }
+    val settingsAccount = rememberSaveable(saver = SettingsAccountSaver) { mutableStateOf<AccountSlot?>(null) }
+    return remember(selected, settingsAccount) { AppNavigation(selected, stacks, settingsAccount) }
 }
+
+/**
+ * Účet Nastavení přežije zabití procesu i s otevřenou podstránkou. Ukládá se id slotu (prázdné
+ * = výchozí účet); slot, který mezitím zmizel, `SettingsAccountScope` nahradí výchozím.
+ */
+private val SettingsAccountSaver = Saver<MutableState<AccountSlot?>, String>(
+    save = { state -> state.value?.id.orEmpty() },
+    restore = { id -> mutableStateOf(id.takeIf { it.isNotEmpty() }?.let(::AccountSlot)) },
+)
 
 /** Ukládá se název sekce — přidání nové doprostřed nezmění význam uloženého stavu. */
 private val SelectedSectionSaver = Saver<MutableState<TopLevelRoute>, String>(
@@ -429,6 +470,17 @@ internal fun MutableList<NavKey>.pop(route: NavKey): Boolean {
     if (index <= 0) return false
     removeAt(index)
     return true
+}
+
+/**
+ * Zásobník Nastavení po přepnutí účtu: kořen a otevřený detail (sekce, úprava profilu), nic nad
+ * ním. Detail se složí znovu za nový účet; podstránky, sheet ani routa s účtem (editor složky,
+ * prohlížeč fotek profilu) by patřily předchozímu.
+ */
+internal fun MutableList<NavKey>.keepSettingsDetail() {
+    val detail = getOrNull(1)
+    val keep = if (detail != null && detail !is AccountRoute && detail !is SheetRoute) 2 else 1
+    while (size > keep) removeAt(lastIndex)
 }
 
 /**
@@ -469,5 +521,38 @@ internal fun ((NavKey) -> NavEntry<NavKey>).inRouteAccount(accounts: Accounts): 
         NavEntry(key, entry.contentKey, entry.metadata) { accounts.find(key.slot)?.let { AccountScope(it) { entry.Content() } } }
     } else {
         entry
+    }
+}
+
+/**
+ * Obsah položek zásobníku Nastavení se skládá v kontejneru účtu [AppNavigation.settingsAccount]:
+ * `koinInject` a `koinViewModel` sekcí i podstránek míří do něj a `LocalAccount` je on. Routy
+ * Nastavení proto slot nenesou a hledání v Nastavení skládá zásobník beze změny.
+ */
+internal fun ((NavKey) -> NavEntry<NavKey>).inSettingsAccount(navigation: AppNavigation): (NavKey) -> NavEntry<NavKey> = { key ->
+    val entry = this(key)
+    NavEntry(key, entry.contentKey, entry.metadata) { SettingsAccountScope(navigation.settingsAccount) { entry.Content() } }
+}
+
+/**
+ * [content] v účtu [slot]; bez něj, nebo když účet mezitím zmizel (odhlášený z vlastních
+ * Nastavení), v účtu shellu.
+ *
+ * Účet čte až uvnitř kompozice, ne při stavbě položky: položky si `rememberDecoratedNavEntries`
+ * pamatuje podle klíčů, takže obsah musí na změnu účtu reagovat sám.
+ *
+ * Jiný účet než shellu dostane vlastní úložiště ViewModelů ([AccountViewModels]) a se změnou
+ * se obsah složí od začátku: `koinViewModel()` bez klíče by jinak našel ViewModel předchozího
+ * účtu i s jeho repository.
+ */
+@Composable
+private fun SettingsAccountScope(slot: AccountSlot?, content: @Composable () -> Unit) {
+    val shell = LocalAccount.current
+    val all by koinInject<Accounts>().all.collectAsStateWithLifecycle()
+    val account = slot?.let { wanted -> all.firstOrNull { it.slot == wanted } } ?: shell
+    if (account.slot == shell.slot) {
+        content()
+    } else {
+        key(account.slot) { AccountScope(account) { AccountViewModels(account.slot, content) } }
     }
 }
