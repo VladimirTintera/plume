@@ -135,11 +135,26 @@ nevejde, má nad seznamem pole hledání (`MemberList`, testy `MemberListTest`).
   „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná
   v češtině i angličtině. Plurály proto berou číslo jako `%1$s`.
 
-- **Méně časté akce jsou za ⋮ v liště** (`ProfileMenu`): upravit, přidat členy, kopírovat odkaz
-  (veřejné jméno, jinak pozvánka — tu server vydá jen správci s právem zvát), sdílet kontakt,
-  zavolat, začít tajný chat, kontakty a zablokovat / odblokovat uživatele či bota. Dlaždice nesou
-  to, kvůli čemu se do profilu chodí; tohle se dělá jednou za čas. Zablokovat má potvrzení,
-  odblokovat ne.
+- **Méně časté akce jsou akce nad chatem** (`ChatActions`, `ChatActionsViewModel`): přidat
+  členy, kopírovat odkaz (veřejné jméno, jinak pozvánka — tu server vydá jen správci s právem
+  zvát), QR kód, sdílet kontakt, plocha, tajný chat, návrh fotky a data narození, kontakty
+  a zablokovat / odblokovat uživatele či bota. Dlaždice nesou to, kvůli čemu se do profilu chodí;
+  tohle se dělá jednou za čas. Zablokovat má potvrzení, odblokovat ne.
+  - **Nabízí je ⋮ konverzace i ⋮ profilu, jedna implementace.** Dřív byly jen v profilu, ačkoli
+    se týkají chatu, ne obrazovky profilu — a ztlumit bylo v konverzaci, blokovat v profilu, takže
+    člověk musel vědět, kde hledat. V konverzaci jen u celého chatu (ne ve vlákně, tématu ani
+    v Uložených), hovor tam v nabídce není (tlačítka v liště); zablokovat stojí u nahlášení.
+  - **Profil vedle konverzace s TÝMŽ celým chatem vlastní ⋮ nemá** (`menuInConversation`,
+    `standsOnOwnConversation` v `ChatsStack.kt`): dvě nabídky nad jedním chatem vedle sebe by se
+    zdvojovaly. Profil člena nad konverzací skupiny je jiný chat a nabídku si nechává, stejně jako
+    profil na telefonu nebo nad seznamem témat.
+  - **Vlastní malý ViewModel, ne `ChatProfileViewModel`**: ten načítá členy, média, dárky
+    a příběhy, což konverzace nepotřebuje. `ChatActionsViewModel` čte jen profil (TDLib ho má
+    v paměti) a po akci se obrazovka profilu obnoví sama z `profileUpdates` (`updateUser`
+    nese kontakt, `updateChatBlockList` blokování).
+  - **Ořez navrhované fotky leží přes celou obrazovku** (`ChatActionsHost`), proto ho nekreslí
+    nabídka v liště: lišta konverzace se mění (výběr, hledání) a ořez by s ní zmizel. Nabídka
+    i hostitel berou tutéž instanci ViewModelu přes klíč s id (`chatActionsViewModel`).
 - **Nahlásit, smazat chat / opustit skupinu nebo kanál a ukončit tajný chat jsou v ⋮
   konverzace** (`ConversationMenu`), ne v profilu. Týkají se konverzace, ne člověka: profil člena
   otevřený z jeho zprávy ve skupině nabízel smazat soukromý chat, který s ním uživatel ani nemá.

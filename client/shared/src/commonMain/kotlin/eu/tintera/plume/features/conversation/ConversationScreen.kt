@@ -730,6 +730,9 @@ fun ConversationScreen(
             index = sheets.previewAttachmentIndex,
             onIndexChange = { sheets.previewAttachmentIndex = it },
         )
+
+        // Ořez fotky a hlášky akcí nad chatem z ⋮ (návrh fotky, kontakt, tajný chat).
+        ConversationChatActionsHost(viewModel, navigation)
     }
 }
 

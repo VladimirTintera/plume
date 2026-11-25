@@ -19,6 +19,10 @@ import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.features.chats.ChatDeleteSheet
+import eu.tintera.plume.features.profile.ChatActionGroups
+import eu.tintera.plume.features.profile.ChatActions
+import eu.tintera.plume.features.profile.ChatActionsHost
+import eu.tintera.plume.features.profile.chatActionsViewModel
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_24dp
 import eu.tintera.plume.resources.chats_action_delete
@@ -59,7 +63,8 @@ import org.jetbrains.compose.resources.stringResource
  * ⋮ v hlavičce konverzace: všechno kromě hovoru (ten je v liště, `ConversationCallButtons`).
  *
  * Skupiny podle významu: přepnutí na jiný chat (otevře přepínač pod šipkou zpět), práce s obsahem chatu (hledat, přejít na datum, shrnout, Uložené po chatech, ztlumit),
- * nahlášení a nakonec nevratné akce v chybové barvě — ukončit tajný chat, smazat chat / opustit
+ * akce nad chatem ([ChatActions]: odkaz, QR kód, kontakt, plocha, tajný chat, návrhy — dřív jen
+ * v ⋮ profilu), nahlášení se zablokováním a nakonec nevratné akce v chybové barvě — ukončit tajný chat, smazat chat / opustit
  * skupinu nebo kanál. Nahlášení a smazání sem přešly z ⋮ profilu: týkají se konverzace, ne
  * člověka, a v profilu otevřeném z cizí zprávy ve skupině nedávaly smysl.
  *
@@ -84,6 +89,41 @@ internal fun ConversationMenu(
     onSwitchChat: (() -> Unit)?,
     /** „Přejít na datum": kalendář zpráv; `null` = konverzace bez kalendáře. */
     onOpenCalendar: (() -> Unit)?,
+    /** Akce nad chatem → Sdílet kontakt: výběr chatů, do kterých ho poslat. */
+    onShareContact: (userId: Long) -> Unit,
+    /** Akce nad chatem → Přidat členy / odběratele. */
+    onAddMembers: () -> Unit,
+) {
+    val info = state.info
+    val wholeChat = info != null && !state.narrowed && !info.isSavedMessages
+    // Akce nad chatem (odkaz, kontakt, blokování…) jen u celého chatu, jako ztlumení a smazání:
+    // ve vlákně nebo tématu hlavička ukazuje jeho kus, ne chat.
+    if (wholeChat) {
+        ChatActions(
+            viewModel = chatActionsViewModel(viewModel.chatId),
+            onShareContact = onShareContact,
+            onAddMembers = onAddMembers,
+            // Hovor je v liště vedle (`ConversationCallButtons`), v nabídce podruhé ne.
+            onCall = null,
+        ) { chatActions ->
+            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, chatActions)
+        }
+    } else {
+        ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, ChatActionGroups.Empty)
+    }
+}
+
+@Composable
+private fun ConversationMenuContent(
+    state: ConversationState,
+    viewModel: ConversationViewModel,
+    showsContent: Boolean,
+    onSummary: (() -> Unit)?,
+    onViewAsChats: (() -> Unit)?,
+    onViewAsTopics: (() -> Unit)?,
+    onSwitchChat: (() -> Unit)?,
+    onOpenCalendar: (() -> Unit)?,
+    chatActions: ChatActionGroups,
 ) {
     val info = state.info
     val wholeChat = info != null && !state.narrowed && !info.isSavedMessages
@@ -144,8 +184,10 @@ internal fun ConversationMenu(
                 )
             },
         ),
+        chatActions.chat,
         // Nahlášení se ptá na důvod (průvodce), proto „…". Jen u spamového action baru ho
-        // server vezme rovnou jako spam, a pak to popisek řekne.
+        // server vezme rovnou jako spam, a pak to popisek řekne. Zablokování k němu patří:
+        // obojí je obrana před tím druhým, ne práce s chatem.
         listOfNotNull(
             if (wholeChat && spam?.canReport == true) {
                 MenuAction(
@@ -156,7 +198,7 @@ internal fun ConversationMenu(
             } else {
                 null
             },
-        ),
+        ) + chatActions.block,
         listOfNotNull(
             clearRights?.let {
                 MenuAction(
@@ -239,6 +281,19 @@ internal fun ConversationMenu(
             onDismiss = { confirmDelete = false },
         )
     }
+}
+
+/**
+ * Ořez fotky a hlášky akcí nad chatem z ⋮ ([ChatActionsHost]). Ve vlastní funkci kvůli
+ * `ConversationScreen`, která je v dexu na hraně (CLAUDE.md, Gotchas).
+ */
+@Composable
+internal fun ConversationChatActionsHost(viewModel: ConversationViewModel, navigation: ConversationNavigation) {
+    ChatActionsHost(
+        viewModel = chatActionsViewModel(viewModel.chatId),
+        onMessage = viewModel::reportError,
+        onOpenChat = { chatId -> navigation.onOpenChat(ChatTarget(chatId)) },
+    )
 }
 
 /** Téma Uložených zpráv nebo vlákno přímých zpráv kanálu — mají vlastní historii i mazání. */

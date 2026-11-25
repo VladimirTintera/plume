@@ -76,8 +76,10 @@ data class ConversationNavigation(
     val onOpenScreen: (AppScreen) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
     val onSwitchInline: (SwitchInlinePick) -> Unit = {},
-    /** Pruh „Pozvat členy" nad čerstvou skupinou: výběr lidí. */
+    /** Pruh „Pozvat členy" nad čerstvou skupinou a ⋮ → Přidat členy: výběr lidí. */
     val onAddMembers: () -> Unit = {},
+    /** ⋮ → Sdílet kontakt: výběr chatů, do kterých kontakt člověka [userId] poslat. */
+    val onShareContact: (userId: Long) -> Unit = {},
     /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
     val onOpenJoinRequests: () -> Unit = {},
     /**

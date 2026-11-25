@@ -1222,6 +1222,7 @@ private fun shellEntryProvider(
                     onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane) },
                     onSwitchInline = { pick -> chatsStack.add(pick.toRoute(slot)) },
                     onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
+                    onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(slot, userId)) },
                     onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(slot, route.chatId)) },
                     // Uložené zprávy po chatech: volba se pamatuje a seznam témat nahradí konverzaci.
                     onViewAsChats = {
@@ -1405,6 +1406,7 @@ private fun shellEntryProvider(
                 onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = false) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId)) },
                 paneRoot = LocalPanesSideBySide.current && chatsStack.standsOnDetail(route),
+                menuInConversation = LocalPanesSideBySide.current && chatsStack.standsOnOwnConversation(route),
             )
         }
     }
@@ -1638,6 +1640,7 @@ private fun shellEntryProvider(
                     onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane = false) },
                     onSwitchInline = { pick -> chatsStack.add(pick.toRoute(slot)) },
                     onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
+                    onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(slot, userId)) },
                     onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(slot, route.chatId)) },
                     onViewAsTopics = { chatsStack.openArchiveForum(slot, route.chatId) },
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(slot, route.chatId)) },
@@ -1690,6 +1693,7 @@ private fun shellEntryProvider(
                 onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = true) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId, archive = true)) },
                 paneRoot = LocalPanesSideBySide.current && chatsStack.standsOnDetail(route),
+                menuInConversation = LocalPanesSideBySide.current && chatsStack.standsOnOwnConversation(route),
             )
         }
     }
