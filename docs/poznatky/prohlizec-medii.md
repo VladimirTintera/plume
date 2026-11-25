@@ -664,7 +664,7 @@ FFmpeg (`docs/poznatky/desktop.md`, „Video (FFmpeg)").
   žije s kompozicí bloku, takže odscrollovaný GIF dekodér vrátí. `LazyColumn` skládá i kousek za
   viewportem, takže pár GIFů hraje mimo obrazovku — proti sledování skutečné viditelnosti je to
   levnější a rozdíl je neznatelný.
-- **Ztlumený obsah NEŽÁDÁ o audio focus** (Android `handleAudioFocus = !muted`) a nepřepíná
+- **Ztlumený obsah NEŽÁDÁ o audio focus** (Android: `VideoAudioFocus` se při `muted` nevolá) a nepřepíná
   kategorii `AVAudioSession` (iOS). Ztlumený GIF nemá co ztišit hudbu, která uživateli hraje —
   a ExoPlayer si o fokus řekne i při nulové hlasitosti.
 - **Smyčku `AVPlayer` neumí sám.** Řeší ji pozorovatel `AVPlayerItemDidPlayToEndTimeNotification`,
@@ -1260,9 +1260,9 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Jas tahem** (`rememberScreenBrightness` v `core/ui`): svislý tah v LEVÉ půlce videa na celé
   obrazovce mění jas (nahoru jasněji, celý rozsah na 60 % výšky stránky), u horního okraje karty
   se ukáže pilulka se sluncem a úrovní. Levá i v RTL — je to zvyk přehrávačů (MX Player, VLC),
-  ne směr čtení. **V pravé půlce svislý tah dál zavírá**, jinak by z videa na celé obrazovce
-  nevedlo žádné gesto ven. Jen tam, kde fungují gesta přehrávače (ne zamčené, ne v PiP, ne po
-  chybě) a ne během zrychlení podržením.
+  ne směr čtení. **V pravé půlce je hlasitost** (viz „Hlasitost tahem"); zavírací tah zůstal
+  jen tam, kde gesto hlasitosti není (iOS, desktop). Jen tam, kde fungují gesta přehrávače (ne
+  zamčené, ne v PiP, ne po chybě) a ne během zrychlení podržením.
   - **Jas platí jen na celé obrazovce**: návrat do galerie, odlistování, PiP i zavření ho vrátí
     (jako YouTube). Drží ho podmíněné složení v `VideoPage` — s odchodem z kompozice se vrací.
   - **Android: `WindowManager.LayoutParams.screenBrightness`**, jen pro okno, bez `WRITE_SETTINGS`.
@@ -1277,6 +1277,49 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     v `dumpsys window windows`, dolů → `sbrt=0.356`, krátký tah v pravé půlce jas nemění (zavírací
     tah pod prahem), ťuknutí do galerie → `sbrt` z okna zmizí (jas podle systému). Jak tah sedí pod
     prstem a jestli první pohyb s adaptivním jasem skáče, se pozná jen na telefonu.
+- **Hlasitost tahem** (`rememberMediaVolume` v `core/ui`): svislý tah v PRAVÉ půlce videa na
+  celé obrazovce mění systémovou hlasitost médií — tutéž jako tlačítka na boku (MX Player, VLC),
+  ne hlasitost přehrávače, aby se tlačítka a gesto nepřetahovala o dvě čísla. Rozsah a směr jako
+  u jasu, pilulka s reproduktorem na tomtéž místě. Ztlumené video (tlačítko v liště) se zesílením
+  tahem ozve. Před každým tahem se hlasitost čte znovu (`sync`), mezi tahy ji mohla změnit tlačítka.
+  - **Zavírání tahem tím na celé obrazovce zmizelo** (obě půlky mají svoje gesto) — ven vede
+    šipka zpět v liště, systémové zpět a Esc. Zůstalo v galerii a tam, kde gesto hlasitosti není.
+  - **Android: `AudioManager.STREAM_MUSIC`** bez `FLAG_SHOW_UI` (ukazatel kreslíme sami), bez
+    oprávnění; u zařízení s pevnou hlasitostí (`isVolumeFixed`) gesto není. Do systému jde
+    úroveň zaokrouhlená na jeho kroky (emulátor 15), tah sám běží plynule.
+  - **iOS ne**: hlasitost systému z aplikace nastavit nejde (jen skrytým `MPVolumeView`), a hlasitost
+    přehrávače by se s tlačítky násobila. **Desktop ne** (gesto prstem nemá).
+  - **Ověřeno na emulátoru `Plume_Galerie_Fold`**: tah nahoru v pravé půlce → pilulka
+    s reproduktorem a `cmd media_session volume --stream 3 --get` z 5 na 13.
+- **Hrající video po návratu pokračuje samo** (`ON_START`): zhasnutý displej i odchod do jiné
+  aplikace ho pozastaví (`ON_STOP`), a hrálo-li, po rozsvícení a odemčení (nebo návratu) se pustí
+  znovu — jako Files od Google nebo YouTube. Pozastavené uživatelem zůstane stát. **Zavřené okénko
+  obrazu v obraze se nebere jako odchod**: okénko zmizí těsně před `ON_STOP`, proto se hlídá
+  i chvíle po něm (`PIP_DISMISS_WINDOW`, 2 s) — uživatel tím video zavřel. Ověřeno na Foldu:
+  `input keyevent 26` → fokus vrácen (video stojí), `keyevent 224` + `wm dismiss-keyguard` →
+  fokus zpátky a snímky jdou dál. **Zavření okénka PiP ověřené NENÍ.**
+- **Audio focus videa je přechodný a v pauze se vrací** (`VideoAudioFocus` v
+  `VideoPlayer.android.kt`), aby se hudba jiné aplikace po pauze videa sama rozjela (Files od
+  Google to tak dělá):
+  - **ExoPlayer (`handleAudioFocus`) bral u médií TRVALÝ fokus (`GAIN`) a držel ho i v pauze.**
+    Hudební aplikace dostala trvalou ztrátu, zastavila se a sama už nenavázala. Teď
+    `GAIN_TRANSIENT`, vrací se, jakmile video nehraje (`playWhenReady` / stav přehrávače —
+    pauzu po vytažení sluchátek dělá ExoPlayer uvnitř), a při uvolnění přehrávače.
+  - **Ztráta fokusu**: trvalá video pozastaví; přechodná (hovor) pozastaví a po vrácení fokusu
+    pokračuje — a žádost se přitom NEVRACÍ, jinak by o ní systém zapomněl. **„Žádost je v systému"
+    a „fokus máme" jsou dva stavy** (`held`, `owning`): s jedním příznakem si video po přechodné
+    ztrátě myslelo, že fokus má, a při dalším přehrání by hrálo přes hudbu (chytilo se na
+    emulátoru, YouTube Music si fokus vzal a Plume v zásobníku zůstal).
+  - **Fokus nedostaneme jen za hovoru** — `play()` pak video nepustí.
+  - **iOS**: pauza, konec a uvolnění relaci deaktivují s `NotifyOthersOnDeactivation`; hraje-li
+    v aplikaci jiný zvuk (hlasovka), systém deaktivaci odmítne. Jen přeložené.
+  - **Hudba v Plume (dock přehrávače) se tím NEŘÍDÍ**: video ji při spuštění dál zastaví
+    (`voicePlayer.stop()`), po pauze se sama nevrátí.
+  - **Ověřeno na Foldu** (`dumpsys audio`, „Audio Focus stack"): za přehrávání `GAIN_TRANSIENT`
+    od Plume, po pauze i zhasnutí pryč, po přehrání zpátky; tón v YouTube Music se spuštěním
+    videa zastavil. **Že se hudba po pauze rozjede, ověřené NENÍ**: YouTube Music místní soubor
+    hraje v náhledu, který se ztrátou fokusu zavře úplně. Rozhoduje hudební aplikace; ověřit
+    na telefonu se Spotify nebo YouTube Music.
 - **Ověřování na emulátoru, který jsem si nespustil sám, je nespolehlivé**: 2026-10-15 na
   `emulator-5594` ťukala zároveň jiná session (`uiautomator dump`, vynucené zastavení aplikace,
   otevřený cizí chat) a tahy určené prohlížeči skončily v seznamu chatů jako archivace. Při
@@ -1319,7 +1362,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Android: Media3 ExoPlayer do `TextureView`**, ne `PlayerView`. Ten kreslí do `SurfaceView`,
   samostatného okna, které se s posunem vrstvy nehýbe — video by při tahu na zavření stálo.
   Jen `media3-exoplayer` + `media3-ui` (kvůli `AspectRatioFrameLayout`): `media3-ui-compose`
-  táhne androidx Compose novější, než drží Compose Multiplatform. Audio focus řeší ExoPlayer.
+  táhne androidx Compose novější, než drží Compose Multiplatform. Audio focus drží přehrávač
+  sám (`VideoAudioFocus`, viz „Audio focus videa je přechodný").
 - **iOS: `AVPlayer` + `AVPlayerLayer` v UIKit view** (`UIKitView`, `interactionMode = null`, aby
   dotyky šly do Compose). Vrstva velikost s view nemění sama — nastavuje se v `layoutSubviews`
   bez implicitní animace. „Dohráno" AVPlayer stavem nehlásí, pozná se podle pozice u konce.
