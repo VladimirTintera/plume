@@ -33,16 +33,25 @@ class StagedAttachmentsTest {
     }
 
     @Test
-    fun documentReplacesVideos() {
+    fun souborSePridaKVideu() {
         val staged = stageAttachments(listOf(video(1)), listOf(document(1)))
-        assertEquals(listOf(document(1)), staged.attachments)
+        assertEquals(listOf(video(1), document(1)), staged.attachments)
     }
 
     @Test
-    fun otherKindReplaces() {
-        val staged = stageAttachments(listOf(photo(1), photo(2)), listOf(document(1)))
-        assertEquals(listOf(document(1)), staged.attachments)
+    fun fotkaVybranaPoSouboruJdeNahoru() {
+        // Nad polem je carousel nad řádky souborů a v tomtéž pořadí přílohy odejdou.
+        val staged = stageAttachments(listOf(document(1), document(2)), listOf(photo(1)))
+        assertEquals(listOf(photo(1), document(1), document(2)), staged.attachments)
         assertFalse(staged.overflow)
+    }
+
+    @Test
+    fun nadStropSeZahazujiNaposledyVybrane() {
+        val current = (1..MAX_ATTACHMENTS - 1).map(::document)
+        val staged = stageAttachments(current, listOf(photo(1), photo(2)))
+        assertEquals(listOf(photo(1)) + current, staged.attachments, "druhá fotka se nevešla")
+        assertTrue(staged.overflow)
     }
 
     @Test
@@ -88,9 +97,20 @@ class StagedAttachmentsTest {
     }
 
     @Test
-    fun mixedPickKeepsOnlyFirstKind() {
-        val staged = stageAttachments(emptyList(), listOf(document(1), photo(1), document(2)))
-        assertEquals(listOf(document(1), document(2)), staged.attachments)
+    fun smisenyVyberZustaneCelyMediaNapred() {
+        val staged = stageAttachments(emptyList(), listOf(document(1), video(1), document(2)))
+        assertEquals(listOf(video(1), document(1), document(2)), staged.attachments)
+        assertEquals(
+            listOf(listOf(video(1)), listOf(document(1), document(2))),
+            attachmentBatches(staged.attachments, separately = false),
+            "video vlastním albem, soubory svým",
+        )
+    }
+
+    @Test
+    fun skladbaVedleVideaZustavaSkladbou() {
+        val audio = OutgoingAttachment.Audio(path = "/a.mp3", durationSeconds = 1, title = null, performer = null, cover = null)
+        assertEquals(listOf(listOf(video(1)), listOf(audio)), attachmentBatches(listOf(video(1), audio), separately = false))
     }
 
     @Test

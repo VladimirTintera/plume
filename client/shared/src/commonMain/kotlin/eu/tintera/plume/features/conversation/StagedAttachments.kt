@@ -27,9 +27,14 @@ internal data class StagedAttachments(
 /**
  * Přidá nově vybrané přílohy k těm, které čekají nad vstupním polem.
  *
- * Pravidla alba: **fotky s videi a soubory se nemíchají** (Telegram skládá do alba dokumenty jen s dokumenty).
- * Výběr jiného druhu proto připravené přílohy **nahradí** — uživatel si právě vybral něco jiného.
- * Stejný druh se přidá na konec, nejvýš do [MAX_ATTACHMENTS]; co se nevejde, zahodí se a ohlásí.
+ * **Fotky s videi a soubory můžou čekat spolu**: nad polem jsou média v carouselu a pod nimi
+ * řádky souborů, odejdou jako dvě alba za sebou ([attachmentBatches] dělí podle druhu). Dřív
+ * výběr jiného druhu připravené přílohy nahradil, a MP4 vybrané sponkou „Soubor" spolu s PDF
+ * proto muselo jít jako soubor bez náhledu.
+ *
+ * **Média se řadí před soubory** (stabilně, v pořadí výběru): nahoře carousel, pod ním soubory,
+ * a v tomtéž pořadí i odejdou. Nejvýš [MAX_ATTACHMENTS]; co se nevejde, zahodí se z naposledy
+ * vybraných a ohlásí.
  */
 internal fun stageAttachments(
     current: List<OutgoingAttachment>,
@@ -37,22 +42,20 @@ internal fun stageAttachments(
 ): StagedAttachments {
     if (picked.isEmpty()) return StagedAttachments(current, overflow = false)
 
-    val sameKind = current.isNotEmpty() && current.first().isVisual == picked.first().isVisual
-    // Výběr sám může obsahovat obojí jen teoreticky (výběry jsou oddělené); bere se druh první.
-    val kind = picked.first().isVisual
-    val combined = (if (sameKind) current else emptyList()) + picked.filter { it.isVisual == kind }
-
+    val combined = current + picked
+    val kept = combined.take(MAX_ATTACHMENTS)
     return StagedAttachments(
-        attachments = combined.take(MAX_ATTACHMENTS),
+        attachments = kept.filter { it.isVisual } + kept.filterNot { it.isVisual },
         overflow = combined.size > MAX_ATTACHMENTS,
     )
 }
 
 /**
- * Fotky a videa jdou do jednoho alba spolu; soubory jen se soubory. Skladba patří k souborům —
- * vybírá se jako soubor a nad polem stojí v jeho řádcích.
+ * Fotka nebo video — nad polem v carouselu, ne v řádcích souborů. Skladba patří k souborům:
+ * vybírá se jako soubor a nad polem stojí v jejich řádcích. Fotka přepnutá na „Jako soubor"
+ * zůstává v carouselu se štítkem (odejde ale v albu souborů, viz [AlbumKind]).
  */
-private val OutgoingAttachment.isVisual: Boolean
+internal val OutgoingAttachment.isVisual: Boolean
     get() = this is OutgoingAttachment.Photo || this is OutgoingAttachment.Video
 
 /**

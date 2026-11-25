@@ -72,11 +72,7 @@ actual fun rememberAttachmentPicker(
     val picked by rememberUpdatedState(onPicked)
     val failed by rememberUpdatedState(onError)
 
-    fun prepare(
-        uris: List<Uri>,
-        finish: (List<OutgoingAttachment>) -> List<OutgoingAttachment> = { it },
-        block: (Context, Uri) -> OutgoingAttachment,
-    ) {
+    fun prepare(uris: List<Uri>, block: (Context, Uri) -> OutgoingAttachment) {
         if (uris.isEmpty()) return
         scope.launch {
             // Kopie a zmenšení fotek jsou práce na disku a procesoru — mimo hlavní vlákno, souběžně.
@@ -89,7 +85,7 @@ actual fun rememberAttachmentPicker(
                     Logger.withTag("Attachments").w(failure) { "Přílohu se nepodařilo připravit." }
                 }
             }
-            val prepared = finish(results.mapNotNull { it.getOrNull() })
+            val prepared = results.mapNotNull { it.getOrNull() }
             if (prepared.isNotEmpty()) picked(prepared)
             if (prepared.size < results.size) failed(UiText(Res.string.attachment_prepare_failed))
         }
@@ -97,9 +93,9 @@ actual fun rememberAttachmentPicker(
 
     val photoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = systemPickLimit()),
-    ) { uris -> prepare(uris, block = ::prepareVisual) }
+    ) { uris -> prepare(uris, ::prepareVisual) }
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        prepare(uris.take(PICK_LIMIT), ::videosOnlyWhenAll) { ctx, uri -> prepareFile(ctx, uri) }
+        prepare(uris.take(PICK_LIMIT)) { ctx, uri -> prepareFile(ctx, uri) }
     }
     val audioLauncher = rememberLauncherForActivityResult(OpenAudio()) { uri ->
         uri?.let { audio -> prepare(listOf(audio)) { ctx, u -> prepareFile(ctx, u) } }
@@ -525,9 +521,9 @@ internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Doc
  *
  * Video odtud nese jméno, pod kterým leží v souborech — výběr z galerie ho dává taky, jen tam
  * uživatel soubor nepojmenovává. Poslat ho jako soubor jde dál přes režim přílohy („Jako soubor").
- * Ze smíšeného výběru jdou videa po přípravě zase jako soubory ([videosOnlyWhenAll]); kopie je
- * beze změny, takže to jde i dodatečně. [videos] = `false` nechá video souborem rovnou: smíšené
- * sdílení ze systému odchází celé jako soubory (`ShareIntake`).
+ * Ze smíšeného výběru jde video jako video taky: nad polem čeká v carouselu nad řádky
+ * souborů a odejde vlastním albem (`stageAttachments`, `attachmentBatches`). [videos] = `false`
+ * nechá video souborem: smíšené sdílení ze systému odchází celé jako soubory (`ShareIntake`).
  */
 internal fun prepareFile(context: Context, uri: Uri, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(context, uri)

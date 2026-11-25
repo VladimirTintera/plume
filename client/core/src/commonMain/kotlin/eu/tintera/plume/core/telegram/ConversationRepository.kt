@@ -3273,11 +3273,13 @@ sealed interface ServiceOpen {
 /**
  * Přílohy tak, jak smějí odejít jedním albem. Skladby jdou do alba jen se skladbami a soubory
  * jen se soubory (TDLib: „Documents and audio files can be only grouped in an album with
- * messages of the same type"); smíšený výběr proto odejde celý jako soubory — tak ho uživatel
- * vybíral. Samotná skladba nebo samé skladby zůstávají skladbami.
+ * messages of the same type"); skladby mezi soubory proto odejdou jako soubory — tak je uživatel
+ * vybíral. Samotná skladba nebo samé skladby zůstávají skladbami, i vedle fotek a videí: ty
+ * odejdou vlastním albem (dělení podle druhu je ve `shared`, `attachmentBatches`).
  */
 fun sendableTogether(attachments: List<OutgoingAttachment>): List<OutgoingAttachment> {
-    val mixed = attachments.any { it is OutgoingAttachment.Audio } && attachments.any { it !is OutgoingAttachment.Audio }
+    val mixed = attachments.any { it is OutgoingAttachment.Audio } &&
+        attachments.any { it !is OutgoingAttachment.Audio && it.mode == AttachmentMode.AsFile }
     if (!mixed) return attachments
     return attachments.map { if (it is OutgoingAttachment.Audio) it.asDocument() else it }
 }

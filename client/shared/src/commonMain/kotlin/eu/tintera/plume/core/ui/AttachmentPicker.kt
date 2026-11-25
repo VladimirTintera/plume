@@ -104,21 +104,5 @@ fun isFileVideo(name: String, mimeType: String? = null): Boolean {
     return name.substringAfterLast('.', missingDelimiterValue = "").lowercase() in FILE_VIDEO_EXTENSIONS
 }
 
-/**
- * Výběr ze sponky „Soubor" po přípravě: videa zůstanou videi, **jen když jsou videa všechna**,
- * jinak odejdou jako soubory spolu se zbytkem (stejné pravidlo jako sdílení ze systému).
- *
- * Fotky a videa se do alba se soubory nesloží a připravené přílohy nad polem drží jen jeden druh
- * (`stageAttachments` ze smíšeného výběru nechá druh první položky) — z MP4 vybraného spolu
- * s PDF by se jinak jedno tiše ztratilo. Platí to i pro video, které se přečíst nepodařilo a zůstalo
- * souborem: ostatní videa z téhož výběru se k němu přidají jako soubory.
- */
-fun videosOnlyWhenAll(prepared: List<OutgoingAttachment>): List<OutgoingAttachment> =
-    if (prepared.all { it is OutgoingAttachment.Video }) {
-        prepared
-    } else {
-        prepared.map { if (it is OutgoingAttachment.Video) OutgoingAttachment.Document(path = it.path) else it }
-    }
-
 private val FILE_VIDEO_TYPES = setOf("video/mp4", "video/x-m4v", "video/quicktime")
 private val FILE_VIDEO_EXTENSIONS = setOf("mp4", "m4v", "mov")

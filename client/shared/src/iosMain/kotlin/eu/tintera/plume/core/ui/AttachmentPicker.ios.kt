@@ -122,11 +122,7 @@ private class IosAttachmentPicker(
     private val logger = Logger.withTag("Attachments")
 
     /** Připraví položky souběžně; `awaitAll` drží pořadí výběru. */
-    private fun <T> prepare(
-        items: List<T>,
-        finish: (List<OutgoingAttachment>) -> List<OutgoingAttachment> = { it },
-        block: suspend (T) -> OutgoingAttachment,
-    ) {
+    private fun <T> prepare(items: List<T>, block: suspend (T) -> OutgoingAttachment) {
         if (items.isEmpty()) return
         scope.launch {
             val results = items
@@ -135,7 +131,7 @@ private class IosAttachmentPicker(
             results.forEach { result ->
                 result.exceptionOrNull()?.let { failure -> logger.w(failure) { "Přílohu se nepodařilo připravit." } }
             }
-            val prepared = finish(results.mapNotNull { it.getOrNull() })
+            val prepared = results.mapNotNull { it.getOrNull() }
             if (prepared.isNotEmpty()) onPicked(prepared)
             if (prepared.size < results.size) onError(UiText(Res.string.attachment_prepare_failed))
         }
@@ -156,11 +152,7 @@ private class IosAttachmentPicker(
 
     private val documentDelegate = object : NSObject(), UIDocumentPickerDelegateProtocol {
         override fun documentPicker(controller: UIDocumentPickerViewController, didPickDocumentsAtURLs: List<*>) {
-            val urls = didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)
-            // Rozhoduje se PŘEDEM podle přípon: video se tu přebaluje do MP4, takže by soubor ze
-            // smíšeného výběru odešel změněný. Po přípravě se srovná jen video, které nešlo přečíst.
-            val videos = urls.all { isFileVideo(it.lastPathComponent.orEmpty()) }
-            prepare(urls, ::videosOnlyWhenAll) { prepareFile(it, videos) }
+            prepare(didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)) { prepareFile(it) }
         }
     }
 
@@ -468,8 +460,8 @@ internal fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
  * souboru), video z rodiny MP4 jako video ([isFileVideo], přebalené do MP4 se stejným jménem)
  * a všechno ostatní beze změny jako soubor. Typ se pozná podle přípony.
  *
- * [videos] = `false` nechá video souborem: ze smíšeného výběru ([videosOnlyWhenAll]) i ze
- * smíšeného sdílení ze systému odchází všechno jako soubory.
+ * Ze smíšeného výběru jde video jako video taky (nad polem v carouselu nad řádky souborů).
+ * [videos] = `false` nechá video souborem: smíšené sdílení ze systému odchází celé jako soubory.
  */
 internal suspend fun prepareFile(url: NSURL, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(url)

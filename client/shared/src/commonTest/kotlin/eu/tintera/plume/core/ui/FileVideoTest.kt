@@ -1,16 +1,10 @@
 package eu.tintera.plume.core.ui
 
-import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FileVideoTest {
-
-    private fun video(name: String) = OutgoingAttachment.Video(
-        path = "/outgoing/a/$name", width = 1920, height = 1080, durationSeconds = 5, thumbnail = null, streamable = true,
-    )
 
     @Test
     fun mp4RodinaJdeJakoVideo() {
@@ -38,23 +32,5 @@ class FileVideoTest {
         assertTrue(isFileVideo("Svatba.mp4", null))
         assertFalse(isFileVideo("smlouva.pdf", null))
         assertFalse(isFileVideo("bez-pripony", null))
-    }
-
-    @Test
-    fun sameVideaZustavajiVidei() {
-        val picked = listOf(video("a.mp4"), video("b.mov"))
-        assertEquals(picked, videosOnlyWhenAll(picked))
-    }
-
-    @Test
-    fun smisenyVyberJdeCelyJakoSoubory() {
-        val pdf = OutgoingAttachment.Document("/outgoing/b/smlouva.pdf")
-        val result = videosOnlyWhenAll(listOf(video("Svatba.mp4"), pdf))
-        assertEquals(listOf(OutgoingAttachment.Document("/outgoing/a/Svatba.mp4"), pdf), result, "pořadí i jméno zůstávají")
-    }
-
-    @Test
-    fun prazdnyVyberSeNemeni() {
-        assertEquals(emptyList(), videosOnlyWhenAll(emptyList()))
     }
 }

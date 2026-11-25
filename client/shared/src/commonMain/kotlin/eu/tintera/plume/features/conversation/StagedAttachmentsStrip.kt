@@ -75,7 +75,7 @@ import okio.Path.Companion.toPath
  * U jedné fotky/videa se zobrazí miniatura s možností otevření do fullscreenu a vedle ní
  * Material 3 Expressive karta pro volbu režimu odeslání (standard, spoiler, view-once, časovač, soubor).
  * U víc fotek jsou v M3 **multi-browse carouselu**, kde každá položka má tlačítko pro nastavení svého režimu.
- * Soubory jsou řádky s názvem.
+ * Soubory jsou řádky s názvem, pod fotkami a videi, když čekají spolu.
  *
  * Indexy v [onRemove] a [onSetMode] jsou indexy v [attachments].
  */
@@ -141,6 +141,14 @@ private fun AlbumGrouping(attachments: List<OutgoingAttachment>, separately: Boo
     }
 }
 
+/**
+ * Fotky a videa nahoře (jedna jako náhled s volbou režimu, víc v carouselu), soubory a skladby
+ * pod nimi v řádcích. Obojí může čekat zároveň — odejde jako dvě alba (`attachmentBatches`).
+ *
+ * Carousel i řádky dostávají jen svou část seznamu, ale [onRemove], [onOpen] a [onSetMode]
+ * volají s indexem v CELÉM seznamu [attachments]: tak s ním pracuje ViewModel i náhled přes celou
+ * obrazovku (`StagedAttachmentPreviewHost`).
+ */
 @Composable
 private fun StagedAttachmentsItems(
     attachments: List<OutgoingAttachment>,
@@ -151,49 +159,54 @@ private fun StagedAttachmentsItems(
     previewAttachmentIndex: Int?,
     modifier: Modifier = Modifier,
 ) {
-    if (attachments.first().let { it is OutgoingAttachment.Photo || it is OutgoingAttachment.Video }) {
-        if (attachments.size == 1) {
+    val mediaIndices = attachments.indices.filter { attachments[it].isVisual }
+    val fileIndices = attachments.indices.filterNot { attachments[it].isVisual }
+    Column(modifier) {
+        if (mediaIndices.size == 1) {
+            val index = mediaIndices.single()
             SinglePhotoPreview(
-                attachment = attachments.first(),
-                onRemove = { onRemove(0) },
-                onOpen = { onOpen(0) },
-                onSetMode = { onSetMode(0, it) },
+                attachment = attachments[index],
+                onRemove = { onRemove(index) },
+                onOpen = { onOpen(index) },
+                onSetMode = { onSetMode(index, it) },
                 selfDestructAllowed = selfDestructAllowed,
-                isPreviewOpen = previewAttachmentIndex == 0,
-                modifier = modifier,
+                isPreviewOpen = previewAttachmentIndex == index,
             )
-        } else {
+        } else if (mediaIndices.size > 1) {
             PhotoCarousel(
-                attachments = attachments,
-                onRemove = onRemove,
-                onOpen = onOpen,
-                onSetMode = onSetMode,
-                previewingIndex = previewAttachmentIndex,
-                modifier = modifier,
+                attachments = mediaIndices.map { attachments[it] },
+                onRemove = { onRemove(mediaIndices[it]) },
+                onOpen = { onOpen(mediaIndices[it]) },
+                onSetMode = { local, mode -> onSetMode(mediaIndices[local], mode) },
+                previewingIndex = mediaIndices.indexOf(previewAttachmentIndex).takeIf { it >= 0 },
+                modifier = Modifier,
             )
         }
-    } else {
-        Column(modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp)) {
+        if (fileIndices.isNotEmpty()) {
             // Jak doopravdy odejdou: skladba mezi soubory jde jako soubor, a řádek to má říct.
-            sendableTogether(attachments).forEachIndexed { index, attachment ->
-                val audio = attachment as? OutgoingAttachment.Audio
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painterResource(if (audio != null) Res.drawable.music_note_24dp else Res.drawable.description_24dp),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        // Skladba se představí jako v přehrávači; bez značek aspoň jménem souboru.
-                        text = audio?.title?.let { title -> listOfNotNull(title, audio.performer).joinToString(" – ") }
-                            ?: attachment.path.toPath().name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.MiddleEllipsis,
-                        modifier = Modifier.weight(1f).padding(start = 12.dp),
-                    )
-                    IconButton(onClick = { onRemove(index) }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.attachment_remove_file))
+            val sendable = sendableTogether(attachments)
+            Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp)) {
+                fileIndices.forEach { index ->
+                    val attachment = sendable[index]
+                    val audio = attachment as? OutgoingAttachment.Audio
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(if (audio != null) Res.drawable.music_note_24dp else Res.drawable.description_24dp),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            // Skladba se představí jako v přehrávači; bez značek aspoň jménem souboru.
+                            text = audio?.title?.let { title -> listOfNotNull(title, audio.performer).joinToString(" – ") }
+                                ?: attachment.path.toPath().name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.MiddleEllipsis,
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                        )
+                        IconButton(onClick = { onRemove(index) }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.attachment_remove_file))
+                        }
                     }
                 }
             }
