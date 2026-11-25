@@ -1513,6 +1513,12 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     začátku. Bez toho by video hrálo uprostřed bez vysvětlení.
   - **Bublina má proužek zhlédnutého** přes spodek náhledu (`WatchedBar`), bílý na tmavé dráze
     jako posuvník — leží na libovolném obrázku.
+  - **A totéž číslem v odznaku s délkou**: „0:23 / 1:02:08" místo samotné délky (u nestaženého
+    dál „· 367 MB"). U hodinového videa je proužek po minutě sledování pár pixelů a z něj se
+    nedá poznat, kde se skončilo. Pozici čte proužek i odznak z jednoho místa (`watchedPosition`
+    v `Attachments.kt`), tajný chat ji nemá. Formát „%1$s / %2$s" je řetězec v prostředcích, ne
+    literál, kdyby ho některý jazyk chtěl jinak. Ověřeno na Foldu: „✓ 0:23 / 1:02:08" po 23 s
+    sledování a návratu do konverzace.
   - **Mizející médium a tajný chat se nepamatují**: první se podruhé neotevře, po druhém nemá
     v zařízení zůstat stopa.
 - **Dvojí ťuknutí do levé / pravé půlky skočí o 10 s** (víc ťuknutí rychle za sebou se sčítá,
