@@ -1883,6 +1883,10 @@ private fun shellEntryProvider(
                 chatsStack.pop(route)
                 chatsStack.openTarget(slot, target, archive = route.archive)
             },
+            onOpenProfile = { chatId ->
+                chatsStack.pop(route)
+                chatsStack.add(if (route.archive) ArchiveChatProfileRoute(slot, chatId) else ChatProfileRoute(slot, chatId))
+            },
         )
     }
 

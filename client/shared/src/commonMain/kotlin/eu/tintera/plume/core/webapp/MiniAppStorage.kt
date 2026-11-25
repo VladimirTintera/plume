@@ -4,7 +4,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /**
  * Úložiště mini aplikací v zařízení (`DeviceStorage` z Bot API 9.0): klíč → text, zvlášť pro
@@ -28,6 +31,12 @@ interface MiniAppStorage {
     suspend fun locationAllowed(account: Long, bot: Long): Boolean?
 
     suspend fun setLocationAllowed(account: Long, bot: Long, allowed: Boolean)
+
+    /**
+     * Boti účtu, kteří se na polohu už ptali: id bota → smí ji znát. Živě, pro řádek v profilu
+     * bota a v Nastavení → Soukromí, kde jde souhlas odvolat (nebo znovu dát).
+     */
+    fun locationPermissions(account: Long): Flow<Map<Long, Boolean>>
 }
 
 class MiniAppStorageFull : IllegalStateException("Úložiště mini aplikace je plné")
@@ -67,6 +76,18 @@ class DataStoreMiniAppStorage(private val dataStore: DataStore<Preferences>) : M
 
     override suspend fun setLocationAllowed(account: Long, bot: Long, allowed: Boolean) {
         dataStore.edit { it[stringPreferencesKey("l:$account:$bot")] = allowed.toString() }
+    }
+
+    override fun locationPermissions(account: Long): Flow<Map<Long, Boolean>> {
+        val prefix = "l:$account:"
+        return dataStore.data.map { prefs ->
+            prefs.asMap().entries.mapNotNull { (key, value) ->
+                if (!key.name.startsWith(prefix)) return@mapNotNull null
+                val bot = key.name.removePrefix(prefix).toLongOrNull() ?: return@mapNotNull null
+                val allowed = (value as? String)?.toBooleanStrictOrNull() ?: return@mapNotNull null
+                bot to allowed
+            }.toMap()
+        }.distinctUntilChanged()
     }
 }
 

@@ -30,23 +30,12 @@ Teď je prázdné.
   (`docs/poznatky/ai-v-zarizeni.md`, „Runtime jako součást z Google Play"). **Do té doby jsou
   součásti dočasně „s instalací"** (+13,7 MB ke stažení na arm64): před produkcí vrátit
   v manifestech obou součástí `<dist:on-demand />` a teprve pak ověřit doinstalaci z Play.
-- **Mini aplikace: dialogy a odkazy jen po gestu uživatele.** `open_link`, `open_tg_link`,
-  popup, žádost o zápis, polohu a stažení přijdou kdykoli a v libovolném počtu: stránka může
-  ve smyčce otevírat odkazy, a dialog polohy může naskočit přesně pod opakované ťuknutí na
-  stránce (souhlas, který uživatel neviděl). Brát je jen pár sekund po dotyku ve WebView
-  a krátce po zobrazení dialogu ignorovat ťuknutí, jako oficiální klienti.
-- **Mini aplikace: souhlas s polohou nejde odvolat.** Uloží se navždy
-  (`MiniAppStorage.setLocationAllowed`), `web_app_open_location_settings` nic nedělá a v profilu
-  bota ani v Nastavení k tomu nic není. Chce řádek v profilu bota (a v Nastavení → Soukromí
-  seznam botů s polohou).
 - **Podpis balíčků desktopu** (Authenticode, Developer ID, nebo vlastní klíč mimo GitHub),
   který self-update ověří před instalací — SHA-256 i attestace vznikají uvnitř GitHubu
   (`docs/poznatky/release.md`, „Oprávnění workflow").
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
-- **Název aplikace u `api_id` je „MGram"** — tak se Plume ukazuje v seznamu zařízení
-  a v oznámeních Telegramu („Device: MGram, 0.3.75"). Přejmenovat na my.telegram.org (API
-  development tools); v kódu se nenastavuje (`docs/poznatky/nastaveni.md`, „Zařízení").
+- ~~**Název aplikace u `api_id` je „MGram"**~~ — hotovo, přejmenované na my.telegram.org.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
 - **Play Console: deklarace služeb v popředí a celoobrazovkových notifikací** (Obsah
@@ -282,8 +271,7 @@ soukromé jako archiv.
 
 - **Odkazy na čísla PR** v commitech a poznatcích (#650, #80–#87…) budou v novém repu mířit
   na jiné PR. Přepsat (třeba „PR 650 (archiv)"), nebo nechat jako historické.
-- **Název „MGram"** (jméno aplikace u `api_id` na my.telegram.org, viz výš) —
-  přejmenovat na Plume, nebo nechat.
+- ~~**Název „MGram"**~~ — přejmenované na my.telegram.org.
 
 ## Komunitní překlad
 

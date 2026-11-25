@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.webapp
 
 import eu.tintera.plume.core.settings.createSettingsDataStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okio.FileSystem
 import kotlin.random.Random
@@ -69,5 +70,19 @@ class MiniAppStorageTest {
         storage.setLocationAllowed(1, 10, true)
         assertEquals(true, storage.locationAllowed(1, 10))
         assertNull(storage.locationAllowed(2, 10))
+    }
+
+    @Test
+    fun seznamBotuSPolohouJenProUcet() = runBlocking {
+        val storage = storage()
+        storage.setLocationAllowed(1, 10, true)
+        storage.setLocationAllowed(1, 12, false)
+        // Jiný účet (a účet, jehož id je předponou jiného) se nemíchá; data úložiště taky ne.
+        storage.setLocationAllowed(11, 13, true)
+        storage.set(1, 14, "klic", "hodnota")
+        assertEquals(mapOf(10L to true, 12L to false), storage.locationPermissions(1).first())
+        // Odvolání = „nesmí", bot se příště zeptá znovu.
+        storage.setLocationAllowed(1, 10, false)
+        assertEquals(mapOf(10L to false, 12L to false), storage.locationPermissions(1).first())
     }
 }
