@@ -240,7 +240,10 @@ fun ChatPicker(
                     scrolledContainerColor = MaterialTheme.colorScheme.surface,
                 ),
                 scrollBehavior = scrollBehavior,
-                actions = { WindowControlsEndSpace() },
+                actions = {
+                    AccountBadgeAction()
+                    WindowControlsEndSpace()
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

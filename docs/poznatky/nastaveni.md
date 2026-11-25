@@ -340,12 +340,21 @@ a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom n
   Čipy stály mimo blok a četly se jako filtr; řádky mluví stejným jazykem jako „Přidat do
   složky" v nabídce nad chatem. Řádek je složený jako karta (`Row`, odsazení a mezera 16 dp),
   ne `ListItem`: ten má mezi ikonou a textem jinou mezeru a jméno nestálo pod jménem na kartě.
+- **Sekce a podstránky ukazují fotku účtu v liště, když seznam s kartou není vidět**
+  (`AccountBadgeAction` v `core/ui`, `LocalShowAccountBadge` podává `SettingsAccountScope`
+  všem položkám kromě kořene, jen s víc účty). Na telefonu a ve dvou panelech se sekcí
+  a podstránkou (seznam schovaný) by se jinak ztratilo, čí nastavení člověk mění. Rozhoduje
+  `LocalPaneNeighbours.listBeside`, který shell počítá i pro zásobník Nastavení: vedle seznamu
+  fotka není, karta to říká sama. Je ve `SettingsTopBar` (tím i `SettingsPage`), v `ChatPicker`
+  (Blokovaní, výběr k zablokování) a v úpravě vlastní sady samolepek. **Není to tlačítko**:
+  přepnutí uprostřed podstránky by ji zavřelo; jméno ukáže bublina po podržení („Účet: VT").
 - **Volby aplikace jsou stejné, ať je vybraný kterýkoli účet** (vzhled, jazyk, AI, zámek);
   ukazují se v Nastavení každého účtu. Označení „pro všechny účty" u řádků zatím není.
 - **Ověřeno na emulátoru Fold** (Android, anglicky; dva účty, režim Všechny účty): řádky účtů
   pod kartou, přepnutí karty i sekcí (Zařízení a Blokovaní ukazují data vybraného účtu), seznam
   chatů se nezměnil, menu účtu otevře Nastavení zase za výchozí účet, „Sign out <jméno>",
-  ve dvoupanelu zůstane otevřená sekce a seznam drží pozici. Neověřené: odhlášení účtu
+  ve dvoupanelu zůstane otevřená sekce a seznam drží pozici; fotka účtu v liště sekce na
+  složeném displeji, v obou lištách se schovaným seznamem a žádná vedle seznamu. Neověřené: odhlášení účtu
   z jeho Nastavení, odkaz `tg://settings/…` z chatu jiného účtu, desktop a iOS.
 
 ### Hledání v Nastavení (`SettingsSearch.kt`)

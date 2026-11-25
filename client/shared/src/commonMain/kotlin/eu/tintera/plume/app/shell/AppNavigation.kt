@@ -7,6 +7,7 @@ import eu.tintera.plume.core.accounts.AccountViewModels
 import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
+import eu.tintera.plume.core.ui.LocalShowAccountBadge
 import eu.tintera.plume.features.settings.LocalSettingsListScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
@@ -557,7 +558,11 @@ private fun SettingsAccountScope(slot: AccountSlot?, list: Boolean, content: @Co
     val account = slot?.let { wanted -> all.firstOrNull { it.slot == wanted } } ?: shell
     // Nad klíčem účtu: seznam [list] po ťuknutí na řádek účtu zůstane, kde byl (viz LocalSettingsListScroll).
     val listScroll = if (list) rememberRestoringScrollState() else null
-    CompositionLocalProvider(LocalSettingsListScroll provides listScroll) {
+    CompositionLocalProvider(
+        LocalSettingsListScroll provides listScroll,
+        // Sekce a podstránky ukážou v liště, čí jsou; seznam to má na kartě účtu.
+        LocalShowAccountBadge provides (!list && all.size > 1),
+    ) {
         if (account.slot == shell.slot) {
             content()
         } else {

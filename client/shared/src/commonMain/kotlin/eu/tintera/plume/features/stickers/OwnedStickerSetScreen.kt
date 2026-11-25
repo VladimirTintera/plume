@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stickers
 
+import eu.tintera.plume.core.ui.AccountBadgeAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -175,7 +176,10 @@ fun OwnedStickerSetScreen(
                         }
                     }
                 },
-                actions = { WindowControlsEndSpace() },
+                actions = {
+                    AccountBadgeAction()
+                    WindowControlsEndSpace()
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
