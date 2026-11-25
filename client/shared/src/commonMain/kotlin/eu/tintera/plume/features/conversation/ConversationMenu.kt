@@ -22,6 +22,7 @@ import eu.tintera.plume.features.chats.ChatDeleteSheet
 import eu.tintera.plume.features.profile.ChatActionGroups
 import eu.tintera.plume.features.profile.ChatActions
 import eu.tintera.plume.features.profile.ChatActionsHost
+import eu.tintera.plume.features.profile.ChatActionsViewModel
 import eu.tintera.plume.features.profile.chatActionsViewModel
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_24dp
@@ -93,6 +94,13 @@ internal fun ConversationMenu(
     onShareContact: (userId: Long) -> Unit,
     /** Akce nad chatem → Přidat členy / odběratele. */
     onAddMembers: () -> Unit,
+    /** Akce nad chatem → Upravit (úprava chatu). */
+    onEditChat: () -> Unit,
+    /**
+     * Akce nad chatem. Hotový zvenku, ne `chatActionsViewModel` tady: nabídka se vedle bočního
+     * panelu skládá v jeho kompozici (`PaneBand`) a dostala by jinou instanci.
+     */
+    chatActions: ChatActionsViewModel,
 ) {
     val info = state.info
     val wholeChat = info != null && !state.narrowed && !info.isSavedMessages
@@ -100,13 +108,15 @@ internal fun ConversationMenu(
     // ve vlákně nebo tématu hlavička ukazuje jeho kus, ne chat.
     if (wholeChat) {
         ChatActions(
-            viewModel = chatActionsViewModel(viewModel.chatId),
+            viewModel = chatActions,
             onShareContact = onShareContact,
             onAddMembers = onAddMembers,
+            // Vedle konverzace nemá profil vlastní lištu s tužkou — úprava je tady.
+            onEdit = onEditChat,
             // Hovor je v liště vedle (`ConversationCallButtons`), v nabídce podruhé ne.
             onCall = null,
-        ) { chatActions ->
-            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, chatActions)
+        ) { groups ->
+            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, groups)
         }
     } else {
         ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, ChatActionGroups.Empty)

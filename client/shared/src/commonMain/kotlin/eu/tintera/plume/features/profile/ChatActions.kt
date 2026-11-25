@@ -48,6 +48,7 @@ import eu.tintera.plume.resources.profile_block_body
 import eu.tintera.plume.resources.profile_block_bot_body
 import eu.tintera.plume.resources.profile_block_title
 import eu.tintera.plume.resources.profile_copy_link
+import eu.tintera.plume.resources.profile_edit
 import eu.tintera.plume.resources.profile_remove_contact
 import eu.tintera.plume.resources.profile_remove_contact_body
 import eu.tintera.plume.resources.profile_remove_contact_title
@@ -88,6 +89,11 @@ internal fun ChatActions(
     onAddMembers: () -> Unit,
     /** Hovor v nabídce; `null` = je jinde (tlačítka v liště konverzace), nebo hovory nejsou. */
     onCall: ((video: Boolean) -> Unit)?,
+    /**
+     * Úprava v nabídce (chatu, nebo kontaktu — jako tužka [ProfileEditButton]); `null` = úpravu
+     * nabízí tužka v liště profilu. Konverzace ji předává: vedle ní profil lištu nemá.
+     */
+    onEdit: (() -> Unit)? = null,
     content: @Composable (ChatActionGroups) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -110,11 +116,18 @@ internal fun ChatActions(
     val isPerson = profile.kind == ProfileKind.User && profile.userId != null
     // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
     val canShareContact = isPerson && !profile.phone.isNullOrBlank()
-    // Úpravu kontaktu nabízí tužka v liště profilu ([ProfileEditButton]); v nabídce je jen tehdy,
-    // když tužka patří úpravě chatu.
-    val editContactInMenu = profile.editRights.any
+    // Úprava je jedna položka jako tužka v liště profilu ([ProfileEditButton]): úprava chatu, když
+    // na ni je právo, jinak úprava kontaktu. Kontakt má vlastní položku, jen když úpravu bere chat.
+    val canEditChat = profile.editRights.any
+    val canEditContact = isPerson && profile.contact != null
 
     val chat = listOfNotNull(
+        when {
+            onEdit == null -> null
+            canEditChat -> MenuAction(stringResource(Res.string.profile_edit), Res.drawable.edit_24dp, onClick = onEdit)
+            canEditContact -> MenuAction(stringResource(Res.string.contact_edit), Res.drawable.edit_24dp, onClick = { editContact = true })
+            else -> null
+        },
         if (profile.canAddMembers) {
             MenuAction(
                 stringResource(if (profile.kind == ProfileKind.Channel) Res.string.add_subscribers_title else Res.string.add_members_title),
@@ -167,7 +180,7 @@ internal fun ChatActions(
         } else {
             null
         },
-        if (isPerson && profile.contact != null && editContactInMenu) {
+        if (canEditContact && canEditChat) {
             MenuAction(stringResource(Res.string.contact_edit), Res.drawable.edit_24dp, onClick = { editContact = true })
         } else {
             null

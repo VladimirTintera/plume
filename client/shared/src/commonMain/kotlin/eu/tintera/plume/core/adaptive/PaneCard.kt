@@ -13,6 +13,15 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -140,10 +149,21 @@ fun PaneCard(
     // Barvy plochy okna pro hlavičku nad kartou — tady jsou ještě barvy aplikace, ne chatu.
     val planeScheme = MaterialTheme.colorScheme
     val header = remember { PaneHeaderHost() }
-    val outside = card && headerOutside
+    // Pás hlavičky ([PaneBand]): boční panel vedle konverzace nese nad kartou její akce a svou
+    // hlavičku má v kartě. Jen karta zobrazené položky — odjíždějící by akce zdvojila.
+    val band = LocalPaneBand.current
+    val shown = entryKey != null && entryKey in LocalPaneResizeOwners.current
+    val bandActions = band?.actions.takeIf { extra && neighbours.extraCard && shown }
+    val detailCardTop = band?.detailCardTop
+    var ownTop by remember { mutableFloatStateOf(0f) }
+    val bandActive = bandActions != null && detailCardTop != null
+    val bandTop = if (bandActive) with(LocalDensity.current) { (detailCardTop - ownTop).coerceAtLeast(0f).toDp() } else 0.dp
+    val outside = card && headerOutside && !bandActive
+    // Karta s hlavičkou venku jde až pod spodní kraj okna — i když je její hlavička v pásu.
+    val flushBottom = card && headerOutside
     val spacing = if (card) PANE_SPACING else 0.dp
     // Hlavička nad kartou stojí v jedné řadě s pilulkou hledání: obě začínají u stavové lišty.
-    val topSpacing = if (outside) 0.dp else if (card) PANE_TOP_SPACING else 0.dp
+    val topSpacing = if (flushBottom) 0.dp else if (card) PANE_TOP_SPACING else 0.dp
     val startSpacing = if (card || detail && neighbours.listBeside) PANE_SPACING else 0.dp
     // Mezeru mezi konverzací a profilem dělá profil, ať je jedna.
     val endSpacing = if (detail && neighbours.extraBeside && neighbours.extraCard) 0.dp else spacing
@@ -151,7 +171,7 @@ fun PaneCard(
     val headerHeight = if (outside) header.height.toFloat() else 0f
     val cornerPx = with(density) { (if (card) CARD_CORNER else 0.dp).toPx() }
     // Karta s hlavičkou venku jde až pod spodní kraj okna — spodní rohy nejsou vidět.
-    val bottomCornerPx = if (outside) 0f else cornerPx
+    val bottomCornerPx = if (flushBottom) 0f else cornerPx
     val clipShape = remember(headerHeight, cornerPx, bottomCornerPx) { HeaderOutsideShape(headerHeight, cornerPx, bottomCornerPx, withHeader = true) }
     val surfaceShape = remember(headerHeight, cornerPx, bottomCornerPx) { HeaderOutsideShape(headerHeight, cornerPx, bottomCornerPx, withHeader = false) }
 
@@ -163,11 +183,32 @@ fun PaneCard(
                 // Shora a zdola zvlášť: karta s hlavičkou venku jde dolů až pod navigační lištu
                 // (jako v Google Zprávách) a inset si bere vstupní pole samo, jako na telefonu.
                 Box(Modifier.fillMaxSize().edge(top, WindowInsetsSides.Top)) {
-                    Box(Modifier.fillMaxSize().edge(if (card && !outside) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom)) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .edge(if (card && !flushBottom) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom)
+                            .then(if (extra && band != null) Modifier.onGloballyPositioned { ownTop = it.boundsInWindow().top } else Modifier),
+                    ) {
+                        // Pás nad kartou bočního panelu: akce konverzace u pravého okraje okna.
+                        // Je tu pořád (s nulovou výškou), ať se struktura se změnou scény nemění.
+                        Box(Modifier.padding(start = startSpacing, end = endSpacing).fillMaxWidth().height(bandTop)) {
+                            if (bandActions != null) {
+                                CompositionLocalProvider(LocalWindowControlsClearance provides clearance) {
+                                    PaneBandRow(planeScheme, bandActions, Modifier.align(Alignment.BottomEnd))
+                                }
+                            }
+                        }
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .padding(start = startSpacing, end = endSpacing, top = topSpacing, bottom = if (outside) 0.dp else spacing)
+                                .padding(start = startSpacing, end = endSpacing, top = topSpacing + bandTop, bottom = if (flushBottom) 0.dp else spacing)
+                                .then(
+                                    if (detail && band != null) {
+                                        Modifier.onGloballyPositioned { band.detailCardTop = it.boundsInWindow().top + header.height }
+                                    } else {
+                                        Modifier
+                                    },
+                                )
                                 .clip(clipShape)
                                 .then(if (sideBySide && ownSurface) Modifier.background(MaterialTheme.colorScheme.surface, surfaceShape) else Modifier),
                         ) {
@@ -182,9 +223,8 @@ fun PaneCard(
                             // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
                             // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
                             // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
-                            val owned = entryKey != null && entryKey in LocalPaneResizeOwners.current
                             val resize = when {
-                                !owned -> null
+                                !shown -> null
                                 extra -> LocalProfilePaneResize.current
                                 sideBySide && role == PaneRole.List -> LocalListPaneResize.current
                                 else -> null
@@ -201,6 +241,31 @@ fun PaneCard(
         }
     }
 }
+
+/**
+ * Řádek akcí v pásu: výška lišty (64 dp) nad mezerou ke kartě, jako hlavička konverzace vedle,
+ * v barvách plochy okna (barva chatu končí u karty) a s místem pro tlačítka okna na konci.
+ */
+@Composable
+private fun PaneBandRow(planeScheme: ColorScheme, actions: @Composable () -> Unit, modifier: Modifier) {
+    MaterialExpressiveTheme(colorScheme = planeScheme) {
+        CompositionLocalProvider(LocalContentColor provides planeScheme.onSurface) {
+            Row(
+                modifier.padding(bottom = PANE_HEADER_GAP, end = BAND_END_PADDING).height(BAND_ROW_HEIGHT),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                actions()
+                WindowControlsEndSpace()
+            }
+        }
+    }
+}
+
+/** Výška lišty M3 (`TopAppBar`), jako hlavička konverzace v pásu. */
+private val BAND_ROW_HEIGHT: Dp = 64.dp
+
+/** Konec lišty M3 (`TopAppBarHorizontalPadding`): akce v pásu sedí jako v liště. */
+private val BAND_END_PADDING: Dp = 4.dp
 
 /** Co panel udělá s insetem na jednom boku. */
 private enum class PaneEdgeInsets {

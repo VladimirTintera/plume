@@ -1,3 +1,3 @@
 type: feat
-cs: Akce nad chatem (kontakt, odkaz, QR kód, blokování) jsou i v nabídce konverzace
-en: Chat actions (contact, link, QR code, block) are now in the conversation menu too
+cs: Konverzace a profil vedle ní mají jednu lištu, akce nad chatem jsou v nabídce konverzace
+en: A chat and the profile beside it share one bar, and chat actions are in the chat menu

@@ -80,6 +80,8 @@ data class ConversationNavigation(
     val onAddMembers: () -> Unit = {},
     /** ⋮ → Sdílet kontakt: výběr chatů, do kterých kontakt člověka [userId] poslat. */
     val onShareContact: (userId: Long) -> Unit = {},
+    /** ⋮ → Upravit: úprava chatu (vedle konverzace nemá profil vlastní lištu s tužkou). */
+    val onEditChat: () -> Unit = {},
     /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
     val onOpenJoinRequests: () -> Unit = {},
     /**

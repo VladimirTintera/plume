@@ -92,6 +92,7 @@ private fun BubbleContent(accounts: Accounts, slot: AccountSlot, chatId: Long, o
                         onSwitchInline = { onOpenInApp(route.chatId) },
                         onAddMembers = { onOpenInApp(route.chatId) },
                         onShareContact = { onOpenInApp(route.chatId) },
+                        onEditChat = { onOpenInApp(route.chatId) },
                         onOpenJoinRequests = { onOpenInApp(route.chatId) },
                     ),
                 )

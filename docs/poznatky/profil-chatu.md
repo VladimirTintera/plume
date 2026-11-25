@@ -144,10 +144,12 @@ nevejde, má nad seznamem pole hledání (`MemberList`, testy `MemberListTest`).
     se týkají chatu, ne obrazovky profilu — a ztlumit bylo v konverzaci, blokovat v profilu, takže
     člověk musel vědět, kde hledat. V konverzaci jen u celého chatu (ne ve vlákně, tématu ani
     v Uložených), hovor tam v nabídce není (tlačítka v liště); zablokovat stojí u nahlášení.
-  - **Profil vedle konverzace s TÝMŽ celým chatem vlastní ⋮ nemá** (`menuInConversation`,
-    `standsOnOwnConversation` v `ChatsStack.kt`): dvě nabídky nad jedním chatem vedle sebe by se
-    zdvojovaly. Profil člena nad konverzací skupiny je jiný chat a nabídku si nechává, stejně jako
-    profil na telefonu nebo nad seznamem témat.
+  - **Profil vedle konverzace s TÝMŽ celým chatem nemá lištu vůbec** (`besideOwnConversation`,
+    `standsOnOwnConversation` v `ChatsStack.kt`): jméno je v hlavičce konverzace, akce jsou v pásu
+    nad profilem (viz „Konverzace a boční panel mají jeden pás hlavičky" v `navigace.md`)
+    a Upravit (chat, jinak kontakt) je v ⋮ konverzace jako první akce nad chatem. Profil člena nad
+    konverzací skupiny je jiný chat a lištu s tužkou a ⋮ si nechává, stejně jako profil na telefonu
+    nebo nad seznamem témat.
   - **Vlastní malý ViewModel, ne `ChatProfileViewModel`**: ten načítá členy, média, dárky
     a příběhy, což konverzace nepotřebuje. `ChatActionsViewModel` čte jen profil (TDLib ho má
     v paměti) a po akci se obrazovka profilu obnoví sama z `profileUpdates` (`updateUser`

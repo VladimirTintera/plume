@@ -71,6 +71,8 @@ import eu.tintera.plume.resources.profile_open
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.publishToPaneBand
+import eu.tintera.plume.features.profile.chatActionsViewModel
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
@@ -109,6 +111,39 @@ internal fun ConversationTopBar(
         )
         return
     }
+    // ViewModel akcí nad chatem bere konverzace sama: v pásu se akce skládají v kompozici
+    // bočního panelu a `koinViewModel` by tam vrátil jinou instanci než hostiteli ořezu fotky.
+    val chatActions = chatActionsViewModel(viewModel.chatId)
+    val actions: @Composable () -> Unit = {
+        // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
+        ConversationCallButtons(state.info, state.callRequest, viewModel::consumeCallRequest)
+        // Panel s profilem vedle konverzace (jen se zavřeným panelem; zkratka oběma směry).
+        ProfilePaneButton(
+            hasProfile = state.info?.isSavedMessages == false && state.threadRootId == null,
+            onToggleProfile = navigation.onOpenProfile,
+        )
+        // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
+        // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
+        ConversationMenu(
+            state = state,
+            viewModel = viewModel,
+            showsContent = !showsIntroPage(state) && !chatHidden,
+            onSummary = onSummary,
+            // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
+            onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
+            // Skupina s tématy otevřená jako zprávy: zpátky na seznam témat, jen z celé skupiny.
+            onViewAsTopics = navigation.onViewAsTopics?.takeIf { state.info?.isForum == true && !state.narrowed },
+            onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
+            onOpenCalendar = navigation.onOpenCalendar?.let { open -> { open(viewModel.calendarAnchor()) } },
+            onShareContact = navigation.onShareContact,
+            onAddMembers = navigation.onAddMembers,
+            onEditChat = navigation.onEditChat,
+            chatActions = chatActions,
+        )
+    }
+    // Vedle bočního panelu kreslí akce pás nad ním, u pravého okraje okna (`PaneBand`): stojí tak
+    // na stejném místě s panelem i bez něj.
+    val inBand = publishToPaneBand(actions)
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
         title = {
@@ -331,29 +366,7 @@ internal fun ConversationTopBar(
             }
         },
         actions = {
-            // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
-            ConversationCallButtons(state.info, state.callRequest, viewModel::consumeCallRequest)
-            // Panel s profilem vedle konverzace (jen se zavřeným panelem; zkratka oběma směry).
-            ProfilePaneButton(
-                hasProfile = state.info?.isSavedMessages == false && state.threadRootId == null,
-                onToggleProfile = navigation.onOpenProfile,
-            )
-            // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
-            // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
-            ConversationMenu(
-                state = state,
-                viewModel = viewModel,
-                showsContent = !showsIntroPage(state) && !chatHidden,
-                onSummary = onSummary,
-                // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
-                onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
-                // Skupina s tématy otevřená jako zprávy: zpátky na seznam témat, jen z celé skupiny.
-                onViewAsTopics = navigation.onViewAsTopics?.takeIf { state.info?.isForum == true && !state.narrowed },
-                onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
-                onOpenCalendar = navigation.onOpenCalendar?.let { open -> { open(viewModel.calendarAnchor()) } },
-                onShareContact = navigation.onShareContact,
-                onAddMembers = navigation.onAddMembers,
-            )
+            if (!inBand) actions()
             WindowControlsEndSpace()
         },
     )

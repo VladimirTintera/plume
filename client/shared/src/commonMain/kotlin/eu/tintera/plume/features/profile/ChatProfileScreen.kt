@@ -302,11 +302,11 @@ fun ChatProfileScreen(
      */
     paneRoot: Boolean = false,
     /**
-     * Profil stojí vedle konverzace s týmž chatem: akce nad chatem (odkaz, kontakt, blokování…)
-     * nabízí její ⋮ ([ChatActions]) a profil vlastní ⋮ nemá — dvě nabídky nad jedním chatem vedle
-     * sebe by se jen zdvojovaly.
+     * Profil stojí vedle konverzace s týmž chatem: lištu nemá vůbec. Jméno chatu je v hlavičce
+     * konverzace a její akce nad bočním panelem (`PaneBand`), akce nad chatem i úprava jsou v jejím
+     * ⋮ ([ChatActions]) — druhá lišta by jen opakovala totéž o kousek vedle.
      */
-    menuInConversation: Boolean = false,
+    besideOwnConversation: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -428,6 +428,7 @@ fun ChatProfileScreen(
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
+                if (!besideOwnConversation) {
                 PaneHeader {
                     TopAppBar(
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
@@ -454,20 +455,19 @@ fun ChatProfileScreen(
                         actions = {
                             state.profile?.let { profile ->
                                 ProfileEditButton(profile = profile, onEdit = onEdit, onEditContact = { editContact = true })
-                                if (!menuInConversation) {
-                                    ChatActions(
-                                        viewModel = actions,
-                                        onShareContact = onShareContact,
-                                        onAddMembers = onAddMembers,
-                                        // Profil člena jde otevřít z jeho zprávy ve skupině, bez
-                                        // konverzace s ním — hovor je proto i v nabídce.
-                                        onCall = rememberStartCall(profile.userId),
-                                    ) { groups -> ProfileMenuButton(groups) }
-                                }
+                                ChatActions(
+                                    viewModel = actions,
+                                    onShareContact = onShareContact,
+                                    onAddMembers = onAddMembers,
+                                    // Profil člena jde otevřít z jeho zprávy ve skupině, bez
+                                    // konverzace s ním — hovor je proto i v nabídce.
+                                    onCall = rememberStartCall(profile.userId),
+                                ) { groups -> ProfileMenuButton(groups) }
                             }
                             WindowControlsEndSpace()
                         },
                     )
+                }
                 }
             },
         ) { scaffoldPadding ->
@@ -637,7 +637,8 @@ fun ChatProfileScreen(
 
                 // Pod hlavičkou nad kartou by fotka narazila na horní hranu karty: dřív ji odsazovala
                 // lišta, teď začíná obsah přímo na kartě.
-                val contentTop = padding.calculateTopPadding() + if (paneHeaderOutside()) 16.dp else 0.dp
+                // Bez lišty (vedle vlastní konverzace) začíná fotka u horní hrany karty — odstup jako pod hlavičkou venku.
+                val contentTop = padding.calculateTopPadding() + if (paneHeaderOutside() || besideOwnConversation) 16.dp else 0.dp
                 val tabs = state.tabs
                 if (tabs.isEmpty()) {
                     // Chat bez sdíleného obsahu a bez seznamu členů: žádné záložky, jen údaje.
@@ -1794,7 +1795,7 @@ private fun ProfileEditButton(profile: ChatProfile, onEdit: () -> Unit, onEditCo
  *
  * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
  * profilu chodí; tohle se dělá jednou za čas. Vedle konverzace s týmž chatem je tytéž akce
- * nabízí její ⋮ a tohle se neukazuje (`menuInConversation`).
+ * nabízí její ⋮ a profil lištu nemá (`besideOwnConversation`).
  */
 @Composable
 private fun ProfileMenuButton(groups: ChatActionGroups) {
