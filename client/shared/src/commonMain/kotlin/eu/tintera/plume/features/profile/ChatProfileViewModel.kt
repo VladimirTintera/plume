@@ -1,27 +1,16 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.accounts.AccountSlot
-import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.CollectibleInfo
 import eu.tintera.plume.core.telegram.CollectibleItem
 import eu.tintera.plume.core.telegram.StoryAlbum
 import kotlinx.coroutines.flow.distinctUntilChanged
 import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.StoryRepository
-import eu.tintera.plume.resources.birthdate_suggest_failed
-import eu.tintera.plume.resources.birthdate_suggest_sent
-import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.core.location.mapsUrl
 import eu.tintera.plume.core.telegram.ProfileGift
 import eu.tintera.plume.core.telegram.GiftCollection
-import eu.tintera.plume.resources.edit_profile_not_photo
-import eu.tintera.plume.resources.photo_suggest_failed
-import eu.tintera.plume.resources.photo_suggest_sent
-import eu.tintera.plume.core.telegram.OutgoingAttachment
-import eu.tintera.plume.core.ui.CropRegion
-import eu.tintera.plume.core.ui.VideoCropControl
-import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.SharedMediaPositions
 import eu.tintera.plume.core.telegram.mergeCalendarDays
@@ -42,18 +31,7 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
 import eu.tintera.plume.core.audio.QueueTrack
-import eu.tintera.plume.resources.contact_add_failed
-import eu.tintera.plume.resources.contact_photo_failed
-import eu.tintera.plume.resources.contact_photo_removed
-import eu.tintera.plume.resources.contact_photo_set
-import eu.tintera.plume.resources.contact_save_failed
-import eu.tintera.plume.resources.contact_saved
-import eu.tintera.plume.resources.contact_remove_failed
-import eu.tintera.plume.resources.contact_removed
-import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.profile_action_failed
-import eu.tintera.plume.resources.profile_link_copied
-import eu.tintera.plume.core.ui.TextClipboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -82,7 +60,6 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.waitUiText
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.secret_chat_start_failed
 import eu.tintera.plume.resources.profile_failed
 import eu.tintera.plume.resources.profile_mute_failed
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -131,7 +108,6 @@ class ChatProfileViewModel(
     private val urlOpener: UrlOpener,
     private val notificationSettings: NotificationSettingsRepository,
     private val notificationPermission: NotificationPermission,
-    private val clipboard: TextClipboard,
     private val voicePlayer: VoicePlayer,
     private val musicQueue: MusicQueue,
     /** Záložky zpráv tohoto chatu; bez nich se řádek „Záložky" neukazuje. */
@@ -140,21 +116,9 @@ class ChatProfileViewModel(
     private val chatColors: ChatColors? = null,
     /** Profil otevřený z kontaktního odkazu: „Přidat do kontaktů" jako hlavní akce. */
     contactOffers: ContactOffers? = null,
-    /** Ořez navrhované profilovky; bez něj se „Navrhnout fotku" nenabízí. */
-    private val photoCrop: ProfilePhotoCrop? = null,
     /** Příběhy: lem kolem avataru a záložka „Příběhy"; bez nich obojí chybí. */
     private val stories: StoryRepository? = null,
-    /** „Přidat na plochu" v nabídce ⋮; bez něj (a mimo Android) se nenabízí. */
-    private val shareTargets: ShareTargets? = null,
 ) : ViewModel() {
-
-    /** Jde chat připnout na plochu (Android s launcherem, který to dovolí). */
-    val canAddToHomeScreen: Boolean get() = shareTargets?.canPinToHomeScreen == true
-
-    /** Požádá launcher o zástupce chatu; potvrzení je dialog launcheru. */
-    fun addToHomeScreen() {
-        shareTargets?.pinToHomeScreen(chatId)
-    }
 
     /** Barva, kterou uživatel konverzaci dal; `null` = barvy aplikace. */
     val chatColor: StateFlow<ThemeColor?> = (chatColors?.colors ?: flowOf(emptyMap()))
@@ -712,173 +676,8 @@ class ChatProfileViewModel(
         notificationPermission.openConversationSettings(slot, chatId, title, prefs.scope.channel, prefs.soundId)
     }
 
-    /** Odkaz na chat (veřejné jméno, jinak pozvánka) do schránky. */
-    fun copyLink() {
-        val link = _state.value.profile?.link ?: return
-        viewModelScope.launch {
-            clipboard.copy(link)
-            if (!clipboard.confirmsCopy) _state.update { it.copy(error = UiText(Res.string.profile_link_copied)) }
-        }
-    }
-
-    /**
-     * Stav se po úspěchu přepíše hned lokálně, aby přepínač nečekal; potvrzení dorazí i updatem
-     * (`profileUpdates`, plné info uživatele nese blokování).
-     *
-     * Blokování vede přes [ChatRepository], ne přes profil: je to tatáž akce jako v nabídce nad
-     * chatem v seznamu a dvě cesty k `setMessageSenderBlockList` by se dřív nebo později rozešly.
-     */
-    /** „Navrhnout profilovou fotku" je k dispozici (je čím ořezat). */
-    val canSuggestPhoto: Boolean get() = photoCrop != null
-
-    /** Obrázek navrhované fotky v ořezu; `null` = ořez zavřený. */
-    val suggestCropping: String? get() = photoCrop?.image
-
-    val suggestCroppingVideo: VideoCropControl? get() = photoCrop?.video
-
-    /** K čemu je otevřený ořez: návrh fotky člověku, nebo vlastní fotka kontaktu. */
-    private var cropForPersonalPhoto = false
-
-    /** Z výběru příloh: první fotka nebo video jde do ořezu, jako u vlastní profilovky. */
-    fun suggestPhotoFrom(attachments: List<OutgoingAttachment>) {
-        cropForPersonalPhoto = false
-        openCrop(attachments)
-    }
-
-    /** Vlastní fotka kontaktu: stejný výběr a ořez jako návrh, jen se nikomu neposílá. */
-    fun personalPhotoFrom(attachments: List<OutgoingAttachment>) {
-        cropForPersonalPhoto = true
-        openCrop(attachments)
-    }
-
-    private fun openCrop(attachments: List<OutgoingAttachment>) {
-        val crop = photoCrop ?: return
-        viewModelScope.launch {
-            runCatching { crop.open(attachments) }
-                .onSuccess { opened -> if (!opened) reportError(UiText(Res.string.edit_profile_not_photo)) }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.photo_suggest_failed)) } }
-        }
-    }
-
-    fun cancelSuggestCrop() {
-        photoCrop?.cancel()
-    }
-
-    /** Potvrzený ořez: podle toho, k čemu se otevřel, návrh fotky, nebo vlastní fotka kontaktu. */
-    fun confirmCrop(region: CropRegion) =
-        if (cropForPersonalPhoto) setPersonalPhoto(region) else suggestCroppedPhoto(region)
-
-    private fun setPersonalPhoto(region: CropRegion) {
-        val crop = photoCrop ?: return
-        val userId = _state.value.profile?.userId ?: return
-        viewModelScope.launch {
-            runCatching { crop.crop(region) }
-                .mapCatching { prepared -> prepared?.let { profiles.setPersonalPhoto(userId, it.file).getOrThrow() } }
-                .onSuccess {
-                    _state.update { it.copy(error = UiText(Res.string.contact_photo_set)) }
-                    refreshProfile()
-                }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.contact_photo_failed)) } }
-        }
-    }
-
-    /** Odebere vlastní fotku kontaktu; vrátí se ta, kterou si nastavil sám. */
-    fun removePersonalPhoto() {
-        val userId = _state.value.profile?.userId ?: return
-        viewModelScope.launch {
-            profiles.setPersonalPhoto(userId, null)
-                .onSuccess {
-                    _state.update { it.copy(error = UiText(Res.string.contact_photo_removed)) }
-                    refreshProfile()
-                }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.contact_photo_failed)) } }
-        }
-    }
-
-    /**
-     * Uloží jméno a poznámku kontaktu. Poznámka se posílá jen změněná: nezměněná si tak nechá
-     * formátování, které jí dal jiný klient (pole tady upravuje holý text).
-     */
-    fun saveContact(firstName: String, lastName: String, note: String) {
-        val profile = _state.value.profile ?: return
-        val userId = profile.userId ?: return
-        val contact = profile.contact ?: return
-        viewModelScope.launch {
-            profiles.editContact(
-                userId = userId,
-                firstName = firstName.trim(),
-                lastName = lastName.trim(),
-                note = note.trim().takeIf { it != contact.note },
-            )
-                .onSuccess {
-                    _state.update { it.copy(error = UiText(Res.string.contact_saved)) }
-                    refreshProfile()
-                }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.contact_save_failed)) } }
-        }
-    }
-
-    /** Ořízne a pošle návrh; přijde mu jako zpráva s fotkou a „Nastavit". */
-    private fun suggestCroppedPhoto(region: CropRegion) {
-        val crop = photoCrop ?: return
-        val userId = _state.value.profile?.userId ?: return
-        viewModelScope.launch {
-            runCatching { crop.crop(region) }
-                .mapCatching { prepared -> prepared?.let { profiles.suggestPhoto(userId, it.file).getOrThrow() } }
-                .onSuccess { _state.update { it.copy(error = UiText(Res.string.photo_suggest_sent)) } }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.photo_suggest_failed)) } }
-        }
-    }
-
     fun reportError(text: UiText) {
         _state.update { it.copy(error = text) }
-    }
-
-    /** Navrhne člověku datum narození; přijde mu jako zpráva s „Nastavit". */
-    fun suggestBirthdate(birthdate: Birthdate) {
-        val userId = _state.value.profile?.userId ?: return
-        viewModelScope.launch {
-            profiles.suggestBirthdate(userId, birthdate)
-                .onSuccess { _state.update { it.copy(error = UiText(Res.string.birthdate_suggest_sent)) } }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.birthdate_suggest_failed)) } }
-        }
-    }
-
-    fun setBlocked(blocked: Boolean) {
-        val profile = _state.value.profile ?: return
-        // Koho blokovat, si repository zjistí z chatu; tady jen hlídáme, že tenhle chat někoho má.
-        profile.userId ?: return
-        viewModelScope.launch {
-            chats.setBlocked(chatId, blocked)
-                .onSuccess { _state.update { it.copy(profile = it.profile?.copy(isBlocked = blocked)) } }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
-        }
-    }
-
-    /**
-     * Přidá uživatele do kontaktů, nebo ho z nich odebere. Stav se po úspěchu přepíše lokálně
-     * jako u blokování. Přidání bere jméno z účtu (tatáž cesta jako pruh nad konverzací),
-     * odebrání jde přes [ChatRepository.removeContact].
-     */
-    fun setContact(contact: Boolean) {
-        val profile = _state.value.profile ?: return
-        val userId = profile.userId ?: return
-        viewModelScope.launch {
-            val result = if (contact) chats.addToContacts(chatId) else chats.removeContact(userId)
-            result
-                .onSuccess {
-                    _state.update {
-                        it.copy(
-                            profile = it.profile?.copy(isContact = contact),
-                            error = UiText(if (contact) Res.string.spam_bar_contact_added else Res.string.contact_removed),
-                        )
-                    }
-                }
-                .onFailure { failure ->
-                    val fallback = if (contact) Res.string.contact_add_failed else Res.string.contact_remove_failed
-                    _state.update { it.copy(error = failure.reported(fallback)) }
-                }
-        }
     }
 
     /** Propojený chat z řádku v Informacích — diskusní skupina kanálu, nebo kanál skupiny. */
@@ -896,19 +695,6 @@ class ChatProfileViewModel(
     fun openPersonalChannel() {
         val channel = _state.value.profile?.personalChannel ?: return
         _state.update { it.copy(openChat = channel.chatId) }
-    }
-
-    /**
-     * Nový tajný chat s člověkem z profilu. Založí se hned a otevře; protějšek ho dostane, až
-     * bude online — do té doby konverzace říká, že se čeká.
-     */
-    fun startSecretChat() {
-        val userId = _state.value.profile?.userId ?: return
-        viewModelScope.launch {
-            chats.createSecretChat(userId)
-                .onSuccess { target -> _state.update { it.copy(openChat = target) } }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.secret_chat_start_failed)) } }
-        }
     }
 
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */

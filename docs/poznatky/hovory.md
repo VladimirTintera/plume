@@ -427,8 +427,9 @@ zpátky, stejně jako tehdy.
 - **Dřív bylo jedno sluchátko s nabídkou Zavolat / Videohovor** vedle Shrnout a Hledat. Hovor
   tak byl o ťuknutí dál a videohovor schovaný; uživatel ho hledal v ⋮ profilu. Teď jsou to dvě
   přímé akce a Hledat / Shrnout šly do ⋮.
-- **Hovor zůstává i v ⋮ profilu.** Profil člena jde otevřít z jeho zprávy ve skupině
-  (`onOpenUserProfile`), bez konverzace s ním — odtud by jinak zavolat nešlo.
+- **Hovor zůstává i v ⋮ profilu, který stojí sám.** Profil člena jde otevřít z jeho zprávy ve
+  skupině (`onOpenUserProfile`), bez konverzace s ním — odtud by jinak zavolat nešlo. V ⋮
+  konverzace (akce nad chatem, `ChatActions`) hovor není: má tlačítka v liště vedle.
 
 - **Komu jde zavolat, říká `ChatInfo.callUserId`**: protějšek soukromého nebo tajného chatu
   (v tajném se id chatu s id uživatele neshoduje), který je člověk (`UserTypeRegular`, ne bot,

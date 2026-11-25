@@ -68,6 +68,7 @@ import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.features.settings.OwnProfileMusicViewModel
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.features.profile.ChatProfileViewModel
+import eu.tintera.plume.features.profile.ChatActionsViewModel
 import eu.tintera.plume.features.profile.BookmarksViewModel
 import eu.tintera.plume.features.chats.DraftsViewModel
 import eu.tintera.plume.features.profile.ChatAutosaveViewModel
@@ -707,14 +708,23 @@ fun appAccountModule() = module {
             urlOpener = get(),
             notificationSettings = get(),
             notificationPermission = get(),
-            clipboard = get(),
             voicePlayer = get(),
             musicQueue = get(),
             bookmarks = get(),
             chatColors = get(),
             contactOffers = get(),
-            photoCrop = get(),
             stories = get(),
+        )
+    }
+
+    // Akce nad chatem: ⋮ konverzace i profilu (viz ChatActions).
+    viewModel { parameters ->
+        ChatActionsViewModel(
+            chatId = parameters.get(),
+            profiles = get(),
+            chats = get(),
+            clipboard = get(),
+            photoCrop = get(),
             shareTargets = get(),
         )
     }

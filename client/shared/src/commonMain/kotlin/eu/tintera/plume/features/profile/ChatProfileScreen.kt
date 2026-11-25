@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import eu.tintera.plume.core.adaptive.paneHeaderOutside
 import androidx.compose.material3.TopAppBarDefaults
 import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
@@ -7,8 +10,6 @@ import eu.tintera.plume.core.adaptive.PaneHeader
 import eu.tintera.plume.core.adaptive.paneScaffoldColor
 import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
-import eu.tintera.plume.resources.add_to_home_screen_24dp
-import eu.tintera.plume.resources.chat_add_to_home_screen
 import eu.tintera.plume.core.telegram.CollectibleItem
 import eu.tintera.plume.core.telegram.isCollectiblePhone
 import eu.tintera.plume.resources.profile_stories_open
@@ -17,13 +18,8 @@ import eu.tintera.plume.resources.history_toggle_off_24dp
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.storyRing
 import eu.tintera.plume.core.ui.StoryRingState
-import eu.tintera.plume.resources.cake_24dp
-import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.MediumButton
-import eu.tintera.plume.resources.birthdate_suggest_confirm
-import eu.tintera.plume.resources.birthdate_suggest
-import eu.tintera.plume.features.settings.BirthdatePickerDialog
 import eu.tintera.plume.resources.profile_tab_voice
 import eu.tintera.plume.resources.mic_24dp
 import androidx.compose.ui.semantics.heading
@@ -40,9 +36,6 @@ import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.profile_personal_channel
 import eu.tintera.plume.resources.profile_personal_channel_subscribers
 import eu.tintera.plume.core.telegram.Birthdate
-import eu.tintera.plume.resources.add_photo_alternate_24dp
-import eu.tintera.plume.resources.photo_suggest
-import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.birthdate_age
@@ -54,18 +47,11 @@ import kotlinx.datetime.toLocalDateTime
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
-import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.profile_bookmarks_count
 import eu.tintera.plume.resources.profile_bookmarks
-import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.contact_add
 import eu.tintera.plume.resources.contact_edit
 import eu.tintera.plume.resources.contact_note
-import eu.tintera.plume.resources.person_remove_24dp
-import eu.tintera.plume.resources.profile_remove_contact
-import eu.tintera.plume.resources.profile_remove_contact_body
-import eu.tintera.plume.resources.profile_remove_contact_title
-import eu.tintera.plume.resources.profile_share_contact
 import eu.tintera.plume.resources.profile_tab_music
 import eu.tintera.plume.resources.profile_search_files
 import eu.tintera.plume.resources.profile_search_links
@@ -83,25 +69,11 @@ import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import androidx.compose.ui.platform.LocalHapticFeedback
-import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.toggle
-import eu.tintera.plume.resources.common_delete
-import eu.tintera.plume.resources.chats_leave_body
-import eu.tintera.plume.resources.chats_leave_title
-import eu.tintera.plume.resources.chats_delete_body
-import eu.tintera.plume.resources.chats_delete_title
-import eu.tintera.plume.resources.chats_action_leave
-import eu.tintera.plume.resources.profile_block_bot_body
-import eu.tintera.plume.resources.profile_block_body
-import eu.tintera.plume.resources.profile_block_title
-import eu.tintera.plume.resources.profile_unblock
-import eu.tintera.plume.resources.profile_block
-import eu.tintera.plume.resources.profile_copy_link
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.profile_edit
-import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.more_vert_24dp
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
@@ -145,7 +117,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
@@ -154,7 +125,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -189,9 +159,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.resources.description_filled_24dp
@@ -241,21 +209,13 @@ import eu.tintera.plume.resources.profile_tab_gifts
 import eu.tintera.plume.resources.redeem_24dp
 import eu.tintera.plume.resources.secret_chat_key_title
 import eu.tintera.plume.resources.secret_chat_key_compare
-import eu.tintera.plume.resources.lock_24dp
-import eu.tintera.plume.resources.secret_chat_start
-import eu.tintera.plume.resources.call_start
-import eu.tintera.plume.resources.call_24dp
-import eu.tintera.plume.resources.call_start_video
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.features.calls.rememberStartCall
-import eu.tintera.plume.features.calls.rememberVideoCallsSupported
 import eu.tintera.plume.resources.chat_color_default
 import eu.tintera.plume.resources.chat_color_title
 import androidx.compose.foundation.shape.CircleShape
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.features.settings.label
-import eu.tintera.plume.resources.add_members_title
-import eu.tintera.plume.resources.add_subscribers_title
 import eu.tintera.plume.resources.person_add_24dp
 import eu.tintera.plume.resources.profile_open_app
 import eu.tintera.plume.resources.apps_24dp
@@ -286,9 +246,6 @@ import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.auto_delete_title
 import eu.tintera.plume.resources.auto_delete_off
 import org.jetbrains.compose.resources.DrawableResource
-import eu.tintera.plume.core.ui.LinkQrSheet
-import eu.tintera.plume.resources.link_qr_code
-import eu.tintera.plume.resources.qr_code_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -344,9 +301,16 @@ fun ChatProfileScreen(
      * (úprava, práva člena) šipku zpět mají — vedou zpátky v panelu.
      */
     paneRoot: Boolean = false,
+    /**
+     * Profil stojí vedle konverzace s týmž chatem: lištu nemá vůbec. Jméno chatu je v hlavičce
+     * konverzace a její akce nad bočním panelem (`PaneBand`), akce nad chatem i úprava jsou v jejím
+     * ⋮ ([ChatActions]) — druhá lišta by jen opakovala totéž o kousek vedle.
+     */
+    besideOwnConversation: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val actions = chatActionsViewModel(viewModel.chatId)
     val bookmarks by viewModel.chatBookmarks.collectAsStateWithLifecycle()
     val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
     var showChatColor by rememberSaveable { mutableStateOf(false) }
@@ -441,17 +405,16 @@ fun ChatProfileScreen(
     val scrollState = rememberRestoringScrollState()
     var titleBottom by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val titleInBar by remember { derivedStateOf { scrollState.value > titleBottom } }
-    val photoPicker = rememberAttachmentPicker(onPicked = viewModel::suggestPhotoFrom, onError = viewModel::reportError)
-    val personalPhotoPicker = rememberAttachmentPicker(onPicked = viewModel::personalPhotoFrom, onError = viewModel::reportError)
+    val personalPhotoPicker = rememberAttachmentPicker(onPicked = actions::personalPhotoFrom, onError = actions::reportError)
     var editContact by rememberSaveable { mutableStateOf(false) }
     val contact = state.profile?.contact
     if (editContact && contact != null) {
         EditContactSheet(
             contact = contact,
             name = contact.firstName,
-            onSave = viewModel::saveContact,
-            onSetPhoto = if (viewModel.canSuggestPhoto) personalPhotoPicker::pickMedia else null,
-            onRemovePhoto = viewModel::removePersonalPhoto,
+            onSave = actions::saveContact,
+            onSetPhoto = if (actions.canCropPhoto) personalPhotoPicker::pickMedia else null,
+            onRemovePhoto = actions::removePersonalPhoto,
             onDismiss = { editContact = false },
         )
     }
@@ -465,6 +428,7 @@ fun ChatProfileScreen(
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
+                if (!besideOwnConversation) {
                 PaneHeader {
                     TopAppBar(
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
@@ -491,25 +455,19 @@ fun ChatProfileScreen(
                         actions = {
                             state.profile?.let { profile ->
                                 ProfileEditButton(profile = profile, onEdit = onEdit, onEditContact = { editContact = true })
-                                ProfileMenu(
-                                    profile = profile,
-                                    onCopyLink = viewModel::copyLink,
-                                    onEdit = onEdit,
-                                    onShareContact = { profile.userId?.let(onShareContact) },
+                                ChatActions(
+                                    viewModel = actions,
+                                    onShareContact = onShareContact,
                                     onAddMembers = onAddMembers,
-                                    onSetBlocked = viewModel::setBlocked,
-                                    onSetContact = viewModel::setContact,
-                                    onStartSecretChat = viewModel::startSecretChat,
-                                    onSuggestBirthdate = viewModel::suggestBirthdate,
-                                    onSuggestPhoto = if (viewModel.canSuggestPhoto) photoPicker::pickMedia else null,
-                                    onEditContact = { editContact = true },
+                                    // Profil člena jde otevřít z jeho zprávy ve skupině, bez
+                                    // konverzace s ním — hovor je proto i v nabídce.
                                     onCall = rememberStartCall(profile.userId),
-                                    onAddToHomeScreen = viewModel::addToHomeScreen.takeIf { viewModel.canAddToHomeScreen },
-                                )
+                                ) { groups -> ProfileMenuButton(groups) }
                             }
                             WindowControlsEndSpace()
                         },
                     )
+                }
                 }
             },
         ) { scaffoldPadding ->
@@ -538,7 +496,7 @@ fun ChatProfileScreen(
                             onOpenStories = { onOpenStories(emptyList(), 0) },
                         )
                         if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
-                            AddContactButton(onClick = { viewModel.setContact(true) })
+                            AddContactButton(onClick = { actions.setContact(true) })
                         }
                         ProfileActions(
                             muted = state.muted,
@@ -679,7 +637,8 @@ fun ChatProfileScreen(
 
                 // Pod hlavičkou nad kartou by fotka narazila na horní hranu karty: dřív ji odsazovala
                 // lišta, teď začíná obsah přímo na kartě.
-                val contentTop = padding.calculateTopPadding() + if (paneHeaderOutside()) 16.dp else 0.dp
+                // Bez lišty (vedle vlastní konverzace) začíná fotka u horní hrany karty — odstup jako pod hlavičkou venku.
+                val contentTop = padding.calculateTopPadding() + if (paneHeaderOutside() || besideOwnConversation) 16.dp else 0.dp
                 val tabs = state.tabs
                 if (tabs.isEmpty()) {
                     // Chat bez sdíleného obsahu a bez seznamu členů: žádné záložky, jen údaje.
@@ -707,12 +666,7 @@ fun ChatProfileScreen(
                 }
             }
         }
-        PhotoCropOverlay(
-            path = viewModel.suggestCropping,
-            onCancel = viewModel::cancelSuggestCrop,
-            onConfirm = viewModel::confirmCrop,
-            video = viewModel.suggestCroppingVideo,
-        )
+        ChatActionsHost(viewModel = actions, onMessage = viewModel::reportError, onOpenChat = onOpenChat)
     }
 }
 
@@ -1836,212 +1790,22 @@ private fun ProfileEditButton(profile: ChatProfile, onEdit: () -> Unit, onEditCo
 }
 
 /**
- * Méně častá akce nad člověkem nebo chatem za ⋮: odkaz, kontakt, hovor, tajný chat,
- * blokování.
+ * ⋮ profilu, který stojí sám (telefon, profil člena bez konverzace s ním): akce nad chatem
+ * ([ChatActions]) — odkaz, kontakt, hovor, tajný chat, blokování.
  *
  * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
- * profilu chodí; tohle se dělá jednou za čas. Nabídka (`ExpressiveMenu`) tu nevadí — past
- * s odstupem od okraje (viz „Vzhled konverzace") je jen u spodku obrazovky. Zablokování má
- * potvrzení s konkrétním následkem.
- *
- * Nahlášení, smazání / odchod a ukončení tajného chatu jsou v ⋮ konverzace (`ConversationMenu`):
- * týkají se konverzace, ne člověka. Hovor zůstává i tady — profil člena jde otevřít z jeho
- * zprávy ve skupině, bez konverzace s ním.
+ * profilu chodí; tohle se dělá jednou za čas. Vedle konverzace s týmž chatem je tytéž akce
+ * nabízí její ⋮ a profil lištu nemá (`besideOwnConversation`).
  */
 @Composable
-private fun ProfileMenu(
-    profile: ChatProfile,
-    onCopyLink: () -> Unit,
-    onEdit: () -> Unit,
-    onShareContact: () -> Unit,
-    onAddMembers: () -> Unit,
-    onSetBlocked: (Boolean) -> Unit,
-    onSetContact: (Boolean) -> Unit,
-    onStartSecretChat: () -> Unit,
-    /** Navrhnout člověku datum narození (`suggestUserBirthdate`). */
-    onSuggestBirthdate: (Birthdate) -> Unit,
-    /** Navrhnout člověku profilovou fotku: výběr fotky, pak ořez (`null` = nejde). */
-    onSuggestPhoto: (() -> Unit)?,
-    /** Upravit kontakt: jméno, poznámka, vlastní fotka. Nabízí se jen u kontaktu. */
-    onEditContact: () -> Unit,
-    /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
-    onCall: ((video: Boolean) -> Unit)?,
-    /** Zástupce chatu na ploše (`null` = platforma nebo launcher to neumí). */
-    onAddToHomeScreen: (() -> Unit)?,
-) {
-    val videoCalls = rememberVideoCallsSupported()
+private fun ProfileMenuButton(groups: ChatActionGroups) {
+    if (groups.isEmpty) return
     var expanded by remember { mutableStateOf(false) }
-    var confirmBlock by rememberSaveable { mutableStateOf(false) }
-    var confirmRemoveContact by rememberSaveable { mutableStateOf(false) }
-    var pickBirthdate by rememberSaveable { mutableStateOf(false) }
-    var showQr by rememberSaveable { mutableStateOf(false) }
-    val canBlock = profile.userId != null
-    // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
-    val canEdit = profile.editRights.any
-    // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
-    val canShareContact = profile.kind == ProfileKind.User && profile.userId != null && !profile.phone.isNullOrBlank()
-    // Do kontaktů jde člověk, ne bot a ne vlastní účet (ten je `SavedMessages`).
-    val canManageContact = profile.kind == ProfileKind.User && profile.userId != null
-    // Tajný chat jde začít s člověkem (ne s botem, ne se sebou — to je `SavedMessages`), a to
-    // i z profilu jiného tajného chatu: každý je vázaný na jedno zařízení.
-    val canStartSecret = profile.kind == ProfileKind.User && profile.userId != null
-    // Úprava (chatu, nebo kontaktu) je tlačítko v liště vedle ([ProfileEditButton]), v nabídce
-    // podruhé není — kontakt zůstává v nabídce jen tehdy, když tlačítko patří úpravě chatu.
-    val editContactInMenu = canEdit
-    if (
-        profile.link == null && !canBlock && !canShareContact &&
-        !profile.canAddMembers && !canManageContact && !canStartSecret && onAddToHomeScreen == null
-    ) {
-        return
-    }
-
     Box {
         IconButton(onClick = { expanded = true }, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
         }
-        ExpressiveMenu(
-            expanded = expanded,
-            onDismiss = { expanded = false },
-            groups = listOf(
-                listOfNotNull(
-                    if (profile.canAddMembers) {
-                        MenuAction(
-                            stringResource(
-                                if (profile.kind == ProfileKind.Channel) Res.string.add_subscribers_title else Res.string.add_members_title,
-                            ),
-                            Res.drawable.person_add_24dp,
-                            onClick = onAddMembers,
-                        )
-                    } else {
-                        null
-                    },
-                    profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
-                    // QR kód a sdílení odkazu: kdo stojí vedle, naskenuje; komu se posílá, dostane odkaz.
-                    profile.link?.let { MenuAction(stringResource(Res.string.link_qr_code), Res.drawable.qr_code_24dp, onClick = { showQr = true }) },
-                    if (canShareContact) {
-                        MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
-                    } else {
-                        null
-                    },
-                    onAddToHomeScreen?.let {
-                        MenuAction(stringResource(Res.string.chat_add_to_home_screen), Res.drawable.add_to_home_screen_24dp, onClick = it)
-                    },
-                    if (canStartSecret && onCall != null) {
-                        MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = { onCall(false) })
-                    } else {
-                        null
-                    },
-                    if (canStartSecret && onCall != null && videoCalls) {
-                        MenuAction(stringResource(Res.string.call_start_video), Res.drawable.videocam_24dp, onClick = { onCall(true) })
-                    } else {
-                        null
-                    },
-                    if (canStartSecret) {
-                        MenuAction(stringResource(Res.string.secret_chat_start), Res.drawable.lock_24dp, onClick = onStartSecretChat)
-                    } else {
-                        null
-                    },
-                    // Návrh fotky dostane jen člověk; vlastní fotka je v úpravě profilu.
-                    if (canStartSecret && onSuggestPhoto != null) {
-                        MenuAction(stringResource(Res.string.photo_suggest), Res.drawable.add_photo_alternate_24dp, onClick = onSuggestPhoto)
-                    } else {
-                        null
-                    },
-                    // Návrh data narození dostane jen člověk; vlastní datum je v úpravě profilu.
-                    if (canStartSecret && profile.birthdate == null) {
-                        MenuAction(stringResource(Res.string.birthdate_suggest), Res.drawable.cake_24dp, onClick = { pickBirthdate = true })
-                    } else {
-                        null
-                    },
-                    if (canManageContact && profile.contact != null && editContactInMenu) {
-                        MenuAction(stringResource(Res.string.contact_edit), Res.drawable.edit_24dp, onClick = onEditContact)
-                    } else {
-                        null
-                    },
-                    if (canManageContact) {
-                        if (profile.isContact) {
-                            // Odebrání smaže jméno uložené v kontaktech na všech zařízeních — s potvrzením.
-                            MenuAction(
-                                stringResource(Res.string.profile_remove_contact),
-                                Res.drawable.person_remove_24dp,
-                                onClick = { confirmRemoveContact = true },
-                            )
-                        } else {
-                            MenuAction(stringResource(Res.string.contact_add), Res.drawable.person_add_24dp, onClick = { onSetContact(true) })
-                        }
-                    } else {
-                        null
-                    },
-                    if (canBlock) {
-                        MenuAction(
-                            stringResource(if (profile.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
-                            Res.drawable.block_24dp,
-                            // Odblokovat je vratné a nic neodřízne — bez potvrzení.
-                            onClick = { if (profile.isBlocked) onSetBlocked(false) else confirmBlock = true },
-                        )
-                    } else {
-                        null
-                    },
-                ),
-            ),
-        )
-    }
-
-    if (confirmBlock) {
-        ConfirmDialog(
-            title = stringResource(Res.string.profile_block_title, profile.title),
-            text = stringResource(if (profile.kind == ProfileKind.Bot) Res.string.profile_block_bot_body else Res.string.profile_block_body),
-            confirmLabel = stringResource(Res.string.profile_block),
-            onConfirm = {
-                confirmBlock = false
-                onSetBlocked(true)
-            },
-            onDismiss = { confirmBlock = false },
-            icon = Res.drawable.block_24dp,
-            destructive = true,
-        )
-    }
-    val qrLink = profile.link
-    if (showQr && qrLink != null) {
-        LinkQrSheet(
-            link = qrLink,
-            title = profile.title,
-            onDismiss = { showQr = false },
-            avatar = {
-                Avatar(
-                    chatId = profile.chatId,
-                    title = profile.title,
-                    avatarFileId = profile.photoThumbnailFileId ?: profile.photoFileId,
-                    size = QR_AVATAR_SIZE,
-                    shape = profile.kind.chatKind().avatarShape(),
-                )
-            },
-        )
-    }
-    if (pickBirthdate) {
-        BirthdatePickerDialog(
-            initial = null,
-            onConfirm = { picked ->
-                pickBirthdate = false
-                picked?.let(onSuggestBirthdate)
-            },
-            onDismiss = { pickBirthdate = false },
-            confirmLabel = Res.string.birthdate_suggest_confirm,
-        )
-    }
-    if (confirmRemoveContact) {
-        ConfirmDialog(
-            title = stringResource(Res.string.profile_remove_contact_title, profile.title),
-            text = stringResource(Res.string.profile_remove_contact_body),
-            confirmLabel = stringResource(Res.string.profile_remove_contact),
-            onConfirm = {
-                confirmRemoveContact = false
-                onSetContact(false)
-            },
-            onDismiss = { confirmRemoveContact = false },
-            icon = Res.drawable.person_remove_24dp,
-            destructive = true,
-        )
+        ExpressiveMenu(expanded = expanded, onDismiss = { expanded = false }, groups = listOf(groups.chat, groups.block))
     }
 }
 
@@ -2060,11 +1824,9 @@ private val HEADER_RING_WIDTH = 3.dp
 private val HEADER_RING_READ_WIDTH = 2.dp
 
 /** Tvar avataru podle druhu profilu — týž jako v seznamu chatů a hlavičce konverzace. */
-private fun ProfileKind.chatKind(): ChatKind = when (this) {
+internal fun ProfileKind.chatKind(): ChatKind = when (this) {
     ProfileKind.Group -> ChatKind.Group
     ProfileKind.Channel -> ChatKind.Channel
     ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
 }
 
-/** Fotka nad QR kódem: jako u „Můj QR kód". */
-private val QR_AVATAR_SIZE = 72.dp

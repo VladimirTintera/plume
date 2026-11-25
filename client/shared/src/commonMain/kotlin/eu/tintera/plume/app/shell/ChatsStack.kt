@@ -430,6 +430,23 @@ internal fun List<NavKey>.standsOnDetail(route: NavKey): Boolean {
     return index > 0 && this[index - 1].profileRoute() != null
 }
 
+/**
+ * Stojí profil [route] přímo nad konverzací s CELÝM týmž chatem (ne vlákno, téma ani seznam
+ * témat)? Pak akce nad chatem nabízí ⋮ té konverzace a profil vlastní nemá (`ChatActions`).
+ * Profil člena nad konverzací skupiny je jiný chat — ten si nabídku nechává.
+ */
+internal fun List<NavKey>.standsOnOwnConversation(route: NavKey): Boolean {
+    val index = lastIndexOf(route)
+    if (index <= 0) return false
+    return when (val below = this[index - 1]) {
+        is ConversationRoute -> below.threadId == null && below.topicId == null && below.savedTopicId == null &&
+            below.directTopicId == null && below.profileRoute() == route
+        is ArchiveConversationRoute -> below.threadId == null && below.topicId == null &&
+            below.directTopicId == null && below.profileRoute() == route
+        else -> false
+    }
+}
+
 /** Profil chatu, který stojí v detailu; `null` = obrazovka bez profilu. */
 private fun NavKey.profileRoute(): NavKey? = when (this) {
     is ConversationRoute -> ChatProfileRoute(slot, chatId)

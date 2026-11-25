@@ -144,6 +144,8 @@ import eu.tintera.plume.core.adaptive.shownExtras
 import eu.tintera.plume.core.adaptive.LocalProfilePaneResize
 import eu.tintera.plume.core.adaptive.LocalListPaneResize
 import eu.tintera.plume.core.adaptive.LocalPaneResizeOwners
+import eu.tintera.plume.core.adaptive.LocalPaneBand
+import eu.tintera.plume.core.adaptive.rememberPaneBand
 import eu.tintera.plume.core.adaptive.PaneHandleOverlay
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.ListPaneToggle
@@ -723,6 +725,7 @@ private fun ShellContent(
                     background = if (wide) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
                 )
             }
+            val paneBand = rememberPaneBand()
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -740,6 +743,8 @@ private fun ShellContent(
                     LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
                     LocalListPaneResize provides listResizeShown,
                     LocalPaneResizeOwners provides paneResizeOwners,
+                    // Jeden pás hlavičky přes konverzaci a boční panel (akce konverzace nad panelem).
+                    LocalPaneBand provides paneBand,
                     // Volba z hledání v Nastavení, na kterou se sekce doscrolluje.
                     LocalHighlightTarget provides navigation.settingsHighlight,
                 ) {
@@ -1222,6 +1227,8 @@ private fun shellEntryProvider(
                     onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane) },
                     onSwitchInline = { pick -> chatsStack.add(pick.toRoute(slot)) },
                     onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
+                    onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(slot, userId)) },
+                    onEditChat = { chatsStack.addOnce(EditChatRoute(slot, route.chatId)) },
                     onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(slot, route.chatId)) },
                     // Uložené zprávy po chatech: volba se pamatuje a seznam témat nahradí konverzaci.
                     onViewAsChats = {
@@ -1405,6 +1412,7 @@ private fun shellEntryProvider(
                 onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = false) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId)) },
                 paneRoot = LocalPanesSideBySide.current && chatsStack.standsOnDetail(route),
+                besideOwnConversation = LocalPanesSideBySide.current && chatsStack.standsOnOwnConversation(route),
             )
         }
     }
@@ -1638,6 +1646,8 @@ private fun shellEntryProvider(
                     onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane = false) },
                     onSwitchInline = { pick -> chatsStack.add(pick.toRoute(slot)) },
                     onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
+                    onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(slot, userId)) },
+                    onEditChat = { chatsStack.addOnce(ArchiveEditChatRoute(slot, route.chatId)) },
                     onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(slot, route.chatId)) },
                     onViewAsTopics = { chatsStack.openArchiveForum(slot, route.chatId) },
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(slot, route.chatId)) },
@@ -1690,6 +1700,7 @@ private fun shellEntryProvider(
                 onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = true) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId, archive = true)) },
                 paneRoot = LocalPanesSideBySide.current && chatsStack.standsOnDetail(route),
+                besideOwnConversation = LocalPanesSideBySide.current && chatsStack.standsOnOwnConversation(route),
             )
         }
     }
