@@ -4,6 +4,7 @@ import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.core.ui.LocalAutoDownload
 import eu.tintera.plume.core.ui.resolve
@@ -90,6 +91,7 @@ import eu.tintera.plume.core.ui.rememberFileState
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.resources.check_circle_filled_24dp
 import eu.tintera.plume.resources.media_video_downloaded
+import eu.tintera.plume.resources.media_video_watched_of
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.content_expired_photo
 import eu.tintera.plume.resources.content_expired_video
@@ -830,8 +832,16 @@ internal fun VideoThumbnail(
                     }
                     // Nestažené: kolik dat stažení stojí, jako u souboru.
                     val size = if (download != null && !downloaded && video.sizeBytes > 0) fileSizeText(video.sizeBytes) else null
+                    // Rozkoukané: kam až se dosledovalo, před délkou — číslem k proužku dole.
+                    val watched = watchedPosition(video)?.let { position ->
+                        stringResource(
+                            Res.string.media_video_watched_of,
+                            formatDuration((position.positionMs / 1000).toInt()),
+                            formatDuration(video.durationSeconds),
+                        )
+                    }
                     Text(
-                        text = listOfNotNull(formatDuration(video.durationSeconds), size).joinToString(" · "),
+                        text = listOfNotNull(watched ?: formatDuration(video.durationSeconds), size).joinToString(" · "),
                         style = MaterialTheme.typography.labelSmall.tabularNumbers(),
                     )
                 }
@@ -841,16 +851,27 @@ internal fun VideoThumbnail(
 }
 
 /**
+ * Kam až uživatel video dokoukal ([VideoPositions], klíč je soubor); `null` = nepamatuje se
+ * (krátké, dokoukané, nestažené odeslané, tajný chat). Čte proužek dole i odznak s časem.
+ */
+@Composable
+private fun watchedPosition(video: MessageMedia.Video): VideoPosition? {
+    val key = video.fileKey ?: return null
+    if (video.isSecret) return null
+    val positions = koinInject<VideoPositions>()
+    val all by positions.all.collectAsState()
+    return remember(all, key) { all.firstOrNull { it.key == key } }
+}
+
+/**
  * Proužek přes spodek náhledu: kam až uživatel video dokoukal ([VideoPositions]), jako na
  * YouTube. Bílý na tmavé dráze jako posuvník v přehrávači — leží na libovolném obrázku a barva
  * z motivu by na něm nebyla čitelná. Jen u videí s pamatovanou pozicí, ostatní ho nemají vůbec.
+ * Číslem totéž říká odznak s časem („12:34 / 1:02:08").
  */
 @Composable
 private fun WatchedBar(video: MessageMedia.Video, modifier: Modifier = Modifier) {
-    val key = video.fileKey ?: return
-    val positions = koinInject<VideoPositions>()
-    val all by positions.all.collectAsState()
-    val fraction = remember(all, key) { all.firstOrNull { it.key == key }?.fraction } ?: return
+    val fraction = watchedPosition(video)?.fraction ?: return
     Box(
         modifier
             .fillMaxWidth()

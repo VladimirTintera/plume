@@ -509,6 +509,7 @@
     <string name="media_video_download">Download video</string>
     <string name="media_video_download_cancel">Cancel download</string>
     <string name="media_video_downloaded">Downloaded</string>
+    <string name="media_video_watched_of">%1$s / %2$s</string>
     <string name="media_video_playback_failed">Couldn't play the video. Try again.</string>
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
