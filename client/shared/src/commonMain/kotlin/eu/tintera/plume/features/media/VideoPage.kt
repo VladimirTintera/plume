@@ -69,6 +69,12 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.layout.width
 import eu.tintera.plume.core.ui.ScreenBrightness
 import eu.tintera.plume.core.ui.rememberScreenBrightness
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
+import org.jetbrains.compose.resources.DrawableResource
+import eu.tintera.plume.resources.media_volume
+import eu.tintera.plume.core.ui.MediaVolume
+import eu.tintera.plume.core.ui.rememberMediaVolume
 import eu.tintera.plume.resources.light_mode_24dp
 import eu.tintera.plume.resources.media_brightness
 import androidx.compose.foundation.layout.WindowInsets
@@ -724,10 +730,36 @@ internal fun VideoPage(
     val inPip = pip?.active == true
     // Desktop: video odešlo do vlastního okénka, prohlížeč se zavře a dá se psát dál.
     LaunchedEffect(inPip) { if (inPip && pip?.leavesViewer == true) currentDismiss?.invoke() }
-    // Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
+    /*
+     * Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
+     * Po návratu (zapnutý displej, zpátky z jiné aplikace) se HRAJÍCÍ video pustí samo, jako ve
+     * Files od Google nebo na YouTube — pozastavené uživatelem zůstane stát. Zavřené okénko
+     * obrazu v obraze ne: uživatel tím video zavřel, a okénko zmizí těsně před `ON_STOP`, takže se
+     * hlídá i chvíle po něm ([PIP_DISMISS_WINDOW]).
+     */
+    var resumeOnStart by remember { mutableStateOf(false) }
+    var leftPipAt by remember { mutableStateOf<TimeSource.Monotonic.ValueTimeMark?>(null) }
+    var wasInPip by remember { mutableStateOf(false) }
+    LaunchedEffect(inPip) {
+        if (inPip) {
+            wasInPip = true
+        } else if (wasInPip) {
+            wasInPip = false
+            leftPipAt = TimeSource.Monotonic.markNow()
+        }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        val pipJustClosed = inPip || leftPipAt?.let { it.elapsedNow() < PIP_DISMISS_WINDOW } == true
+        resumeOnStart = active && playing && !pipJustClosed
         player.pause()
         saveProgress()
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        if (resumeOnStart && active && loaded) {
+            player.play()
+            playing = true
+        }
+        resumeOnStart = false
     }
 
     // Hrající video nenechá displej zhasnout, ani v okénku obrazu v obraze.
@@ -841,6 +873,22 @@ internal fun VideoPage(
      */
     val brightness = if (fullscreen != null && active && loaded && !inPip) rememberScreenBrightness() else null
     val currentBrightness by rememberUpdatedState(brightness)
+    /*
+     * Hlasitost tahem v PRAVÉ půlce (zase jako MX Player a VLC): systémová hlasitost médií, táž
+     * jako tlačítky na boku. Zavírat tahem pak video na celé obrazovce nejde (obě půlky mají
+     * svoje), ven vede šipka v liště a zpět. Ztlumené video se zesílením tahem ozve.
+     */
+    val volume = if (fullscreen != null && active && loaded && !inPip) rememberMediaVolume() else null
+    val currentVolume by rememberUpdatedState(volume)
+    val currentMute by rememberUpdatedState(mute)
+    var volumeShown by remember { mutableStateOf(false) }
+    var volumeRun by remember { mutableIntStateOf(0) }
+    LaunchedEffect(volumeRun) {
+        if (volumeRun > 0) {
+            delay(SEEK_HINT_MS)
+            volumeShown = false
+        }
+    }
     val currentPlayerGestures by rememberUpdatedState(playerGestures)
     val currentBoosting by rememberUpdatedState(boosting)
     // Ukazatel jasu: během tahu a chvíli po něm.
@@ -888,8 +936,9 @@ internal fun VideoPage(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (down.type == PointerType.Mouse && currentDraggable) return@awaitEachGesture
                     var vertical: Boolean? = null
-                    // Svislý tah v levé půlce videa na celé obrazovce: jas místo zavírání.
+                    // Svislý tah v levé půlce videa na celé obrazovce: jas, v pravé hlasitost.
                     var dimming: ScreenBrightness? = null
+                    var turning: MediaVolume? = null
                     var travel = Offset.Zero
                     do {
                         val event = awaitPointerEvent()
@@ -899,19 +948,28 @@ internal fun VideoPage(
                             travel += delta
                             if (travel.getDistance() > viewConfiguration.touchSlop) {
                                 val upright = !currentLocked && abs(travel.y) > abs(travel.x) && event.changes.size == 1
-                                dimming = currentBrightness?.takeIf {
-                                    upright && currentPlayerGestures && !currentBoosting && down.position.x < size.width / 2
-                                }
-                                vertical = upright && (dimming != null || currentDismiss != null)
+                                val gesture = upright && currentPlayerGestures && !currentBoosting
+                                val left = down.position.x < size.width / 2
+                                dimming = currentBrightness?.takeIf { gesture && left }
+                                turning = currentVolume?.takeIf { gesture && !left }?.also { it.sync() }
+                                vertical = upright && (dimming != null || turning != null || currentDismiss != null)
                             }
                         }
                         if (vertical == true) {
                             val target = dimming
+                            val loudness = turning
                             if (target != null) {
                                 // Celý rozsah jasu na [BRIGHTNESS_DRAG_SPAN] výšky; nahoru = jasněji.
                                 target.set(target.level - delta.y / (size.height * BRIGHTNESS_DRAG_SPAN))
                                 brightnessShown = true
                                 brightnessRun++
+                            } else if (loudness != null) {
+                                // Tentýž rozsah jako u jasu; nahoru = hlasitěji.
+                                loudness.set(loudness.level - delta.y / (size.height * BRIGHTNESS_DRAG_SPAN))
+                                val muteControl = currentMute
+                                if (loudness.level > 0f && muteControl?.muted == true) muteControl.onToggle?.invoke()
+                                volumeShown = true
+                                volumeRun++
                             } else {
                                 scope.launch { dismissDrag.snapTo(dismissDrag.value + delta.y) }
                             }
@@ -919,7 +977,7 @@ internal fun VideoPage(
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (vertical == true && dimming == null) {
+                    if (vertical == true && dimming == null && turning == null) {
                         val dismiss = currentDismiss
                         if (dismiss != null && abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
                             dismiss()
@@ -1028,7 +1086,30 @@ internal fun VideoPage(
                     // Úroveň drží i během mizení, kdy už jas může být vrácený.
                     var lastLevel by remember { mutableFloatStateOf(0f) }
                     brightness?.let { lastLevel = it.level }
-                    BrightnessPill(level = { lastLevel })
+                    LevelPill(
+                        icon = Res.drawable.light_mode_24dp,
+                        description = stringResource(Res.string.media_brightness),
+                        level = { lastLevel },
+                    )
+                }
+
+                // Hlasitost tahem: na stejném místě jako jas, oba naráz nejdou.
+                AnimatedVisibility(
+                    visible = volumeShown && volume != null,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(statusBarArea().union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
+                        .padding(top = 24.dp),
+                ) {
+                    var lastLevel by remember { mutableFloatStateOf(0f) }
+                    volume?.let { lastLevel = it.level }
+                    LevelPill(
+                        icon = if (lastLevel > 0f) Res.drawable.volume_up_24dp else Res.drawable.volume_off_24dp,
+                        description = stringResource(Res.string.media_volume),
+                        level = { lastLevel },
+                    )
                 }
 
                 // Posuvník leží u spodního okraje stránky s přechodem do tmava — na světlém záběru
@@ -1672,7 +1753,7 @@ private fun BoxScope.VideoTopControls(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BrightnessPill(level: () -> Float) {
+private fun LevelPill(icon: DrawableResource, description: String, level: () -> Float) {
     Row(
         Modifier
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f), CircleCornerShape)
@@ -1681,8 +1762,8 @@ private fun BrightnessPill(level: () -> Float) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            painterResource(Res.drawable.light_mode_24dp),
-            contentDescription = stringResource(Res.string.media_brightness),
+            painterResource(icon),
+            contentDescription = description,
             tint = Color.White,
             modifier = Modifier.size(20.dp),
         )
@@ -1712,6 +1793,9 @@ private fun VideoHintPill(text: String) {
 private val CircleCornerShape = androidx.compose.foundation.shape.CircleShape
 
 private const val POSITION_TICK_MS = 200L
+
+/** Jak dlouho po zavření okénka obrazu v obraze se `ON_STOP` bere jako jeho zavření, ne odchod. */
+private val PIP_DISMISS_WINDOW = 2.seconds
 private const val PROGRESS_SAVE_MS = 10_000L
 private const val RESUME_HINT_MS = 6_000L
 private const val SEEK_STEP_MS = 10_000L

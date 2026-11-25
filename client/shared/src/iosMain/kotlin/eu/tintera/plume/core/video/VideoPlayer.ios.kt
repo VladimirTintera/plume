@@ -14,6 +14,7 @@ import kotlinx.cinterop.useContents
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.setActive
+import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
 import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
@@ -136,6 +137,8 @@ actual class VideoPlayer {
                 player.play()
             } else {
                 reachedEnd = true
+                // Dohrané video hudbu pustí zpátky stejně jako pauza.
+                releaseSession()
             }
         }
     }
@@ -147,6 +150,7 @@ actual class VideoPlayer {
         stream?.release()
         stream = null
         player.pause()
+        releaseSession()
     }
 
     actual fun play() {
@@ -174,7 +178,21 @@ actual class VideoPlayer {
         if (speed != 1f) player.rate = speed
     }
 
-    actual fun pause() = player.pause()
+    actual fun pause() {
+        player.pause()
+        releaseSession()
+    }
+
+    /**
+     * Vrátí zvukovou relaci a dá vědět ostatním (`NotifyOthersOnDeactivation`): hudba, kterou
+     * video přerušilo (Hudba, Spotify), se pustí zpátky — jako na Androidu po vrácení fokusu.
+     * Ztlumený obsah relaci nepřepínal, tak ji ani nevrací. Hraje-li v aplikaci jiný zvuk
+     * (hlasovka), systém deaktivaci odmítne a nic se nestane.
+     */
+    private fun releaseSession() {
+        if (muted) return
+        AVAudioSession.sharedInstance().setActive(false, withOptions = AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation, error = null)
+    }
 
     actual fun seekTo(positionMs: Long) {
         reachedEnd = false

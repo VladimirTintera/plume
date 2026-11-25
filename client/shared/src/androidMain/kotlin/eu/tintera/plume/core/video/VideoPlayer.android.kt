@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.video
 
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.graphics.Color
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
@@ -31,23 +33,26 @@ import java.io.RandomAccessFile
 import java.io.File
 
 /**
- * Android: Media3 ExoPlayer. Audio focus řeší sám (`handleAudioFocus`) — video ztlumí hudbu
- * a zastaví se při hovoru.
+ * Android: Media3 ExoPlayer, audio focus si drží sám ([VideoAudioFocus]) — video hudbu jiné
+ * aplikace pozastaví jen na dobu přehrávání a po pauze ji pustí zpátky.
  */
-actual class VideoPlayer(internal val exo: ExoPlayer) {
+actual class VideoPlayer(internal val exo: ExoPlayer, audioManager: AudioManager?) {
+
+    private val focus = audioManager?.let { VideoAudioFocus(it, exo) }
+
+    /** Ztlumený obsah (GIF, tichá smyčka) o fokus nežádá vůbec, viz [load]. */
+    private var muted = false
 
     actual fun load(path: String, loop: Boolean, muted: Boolean) {
         exo.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         exo.volume = if (muted) 0f else 1f
         /*
-         * Ztlumený obsah o AUDIO FOCUS NEŽÁDÁ.
-         *
-         * `handleAudioFocus = true` je správně pro video se zvukem, jenže ExoPlayer si o fokus
-         * řekne i při nulové hlasitosti — a když ho nedostane, přehrávání POTLAČÍ: `isPlaying`
-         * zůstane `false` a pozice stojí na nule, přestože je soubor načtený a délka známá.
-         * Přesně tak se GIF v bublině nehýbal. Ztlumený GIF navíc nemá co ztišit hudbu uživatele.
+         * Ztlumený obsah o AUDIO FOCUS NEŽÁDÁ ([play]). Dokud fokus řešil ExoPlayer, řekl si o něj
+         * i při nulové hlasitosti — a když ho nedostal, přehrávání POTLAČIL: `isPlaying` zůstal
+         * `false` a pozice stála na nule. Přesně tak se GIF v bublině nehýbal. Ztlumený GIF navíc
+         * nemá co ztišit hudbu uživatele.
          */
-        exo.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ !muted)
+        this.muted = muted
         /*
          * Vytažená sluchátka video POZASTAVÍ (`ACTION_AUDIO_BECOMING_NOISY`), jinak by hrálo dál
          * nahlas z reproduktoru. Ztlumený obsah ne: GIF v bublině by se po vytažení sluchátek
@@ -68,7 +73,7 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
     actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) {
         exo.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         exo.volume = if (muted) 0f else 1f
-        exo.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ !muted)
+        this.muted = muted
         exo.setHandleAudioBecomingNoisy(!muted)
         val factory = DataSource.Factory { PartialFileDataSource(source) }
         exo.setMediaSource(
@@ -83,10 +88,18 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
         // otevře znovu (u streamu z aktuální cesty) a pokračuje z místa, kde chyba nastala.
         if (isFailed) exo.prepare()
         if (exo.playbackState == Player.STATE_ENDED) exo.seekTo(0)
+        // Fokus nedostaneme jen za hovoru; pak video nepustit, ozvalo by se přes telefonát.
+        if (!muted && focus?.request() == false) return
         exo.play()
     }
 
     actual fun pause() = exo.pause()
+
+    /** Uvolní přehrávač i fokus (odchod z kompozice). */
+    internal fun release() {
+        focus?.release()
+        exo.release()
+    }
 
     actual fun seekTo(positionMs: Long) = exo.seekTo(positionMs)
 
@@ -125,12 +138,113 @@ actual fun rememberVideoPlayer(): VideoPlayer {
     val player = remember {
         VideoPlayer(
             ExoPlayer.Builder(context.applicationContext)
-                .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
+                // Fokus drží [VideoAudioFocus], ne ExoPlayer — ten si říká o trvalý a drží ho i v pauze.
+                .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ false)
                 .build(),
+            context.getSystemService(AudioManager::class.java),
         )
     }
-    DisposableEffect(player) { onDispose { player.exo.release() } }
+    DisposableEffect(player) { onDispose { player.release() } }
     return player
+}
+
+/**
+ * Audio focus videa: na dobu přehrávání, ne natrvalo.
+ *
+ * - **`GAIN_TRANSIENT`, ne `GAIN`.** ExoPlayer (`handleAudioFocus`) si u médií bere trvalý fokus
+ *   a drží ho i v pauze: hudební aplikace (Spotify, YouTube Music) dostala trvalou ztrátu, zastavila
+ *   se a sama se už nerozjela. S přechodným fokusem hudbu jen pozastaví a po jeho vrácení ji pustí
+ *   zpátky — jako přehrávač ve Files od Google.
+ * - **Fokus se vrací, jakmile video nehraje** (pauza, konec, zhasnutý displej, chyba): hlídá se
+ *   `playWhenReady` a stav přehrávače, ne jednotlivá místa, odkud se pauzuje (sluchátka pauzují
+ *   uvnitř ExoPlayeru).
+ * - **O fokus přijdeme hovorem nebo jinou aplikací**: video se pozastaví, a byla-li ztráta jen
+ *   přechodná (hovor), po vrácení fokusu pokračuje. Při tom se fokus NEVRACÍ — jinak by o něm
+ *   systém zapomněl a po hovoru by nepřišel zpátky.
+ * - **Ztišení pod navigací dělá systém sám** (od API 26, `setWillPauseWhenDucked(false)`).
+ */
+private class VideoAudioFocus(private val audio: AudioManager, private val exo: ExoPlayer) {
+    /** Žádost je v systému (je co vracet), i když fokus zrovna drží někdo jiný. */
+    private var held = false
+
+    /** Fokus máme teď my. Po přechodné ztrátě je žádost dál v systému, ale fokus ne. */
+    private var owning = false
+    private var pausedByLoss = false
+
+    private val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+        .setAudioAttributes(
+            android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MOVIE)
+                .build(),
+        )
+        .setWillPauseWhenDucked(false)
+        .setOnAudioFocusChangeListener { change ->
+            when (change) {
+                AudioManager.AUDIOFOCUS_LOSS -> {
+                    owning = false
+                    pausedByLoss = false
+                    exo.pause()
+                }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    owning = false
+                    if (exo.playWhenReady) {
+                        pausedByLoss = true
+                        exo.pause()
+                    }
+                }
+                AudioManager.AUDIOFOCUS_GAIN -> {
+                    owning = true
+                    if (pausedByLoss) {
+                        pausedByLoss = false
+                        exo.play()
+                    }
+                }
+            }
+        }
+        .build()
+
+    private val listener = object : Player.Listener {
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = abandonIfIdle()
+
+        override fun onPlaybackStateChanged(playbackState: Int) = abandonIfIdle()
+    }
+
+    init {
+        exo.addListener(listener)
+    }
+
+    /** `false`, když fokus systém nedal (hovor). */
+    fun request(): Boolean {
+        pausedByLoss = false
+        // Jen „žádost je v systému" nestačí: po přechodné ztrátě by video hrálo přes hudbu,
+        // která fokus mezitím drží. Opakovaná žádost téhož `AudioFocusRequest` je v pořádku.
+        if (owning) return true
+        val granted = audio.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        held = held || granted
+        owning = granted
+        return granted
+    }
+
+    fun release() {
+        exo.removeListener(listener)
+        pausedByLoss = false
+        abandon()
+    }
+
+    private fun abandonIfIdle() {
+        // Pauza kvůli přechodné ztrátě fokus drží, jinak by po hovoru nepřišel zpátky.
+        if (pausedByLoss) return
+        val playing = exo.playWhenReady && exo.playbackState != Player.STATE_ENDED && exo.playbackState != Player.STATE_IDLE
+        if (!playing) abandon()
+    }
+
+    private fun abandon() {
+        owning = false
+        if (!held) return
+        held = false
+        audio.abandonAudioFocusRequest(request)
+    }
 }
 
 /**

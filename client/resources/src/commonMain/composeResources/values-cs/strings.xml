@@ -596,6 +596,7 @@
     <string name="media_seek_forward">+%1$d s</string>
     <string name="media_speed_boost">Rychlost 2×</string>
     <string name="media_brightness">Jas</string>
+    <string name="media_volume">Hlasitost</string>
     <string name="media_quality_lines">%1$dp</string>
     <string name="media_quality_description">Kvalita videa: %1$s</string>
     <string name="media_quality_auto">Automaticky</string>
