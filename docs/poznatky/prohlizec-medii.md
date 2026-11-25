@@ -1063,6 +1063,15 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   - **Video poslané jako soubor** (desktop tak posílá každé video) se v prohlížeči otevírá přes
     `asViewerMedia` a nese mime typ dokumentu, takže MP4 se streamuje taky.
   - **Příběhy a animovaná profilovka mime typ nenesou** (prázdný) a nestreamují se — jsou krátké.
+  - **Ověřeno** na testovacím MP4 (4 min, 348 MB, `ffmpeg` bez `+faststart`, tedy `moov` na
+    konci, a s ním varianta s `+faststart`; každá s připojeným boxem `free` s náhodnými bajty).
+    Emulátor `Plume_Galerie_Fold` (Android 17): zpráva bez příznaku, lokální kopie smazaná →
+    stahování skočilo na `moov` (offset 364 919 757), pak na začátek a video hrálo za ~3 s se
+    staženými jednotkami MB. Návrat k celému souboru sondou (`PartialFileDataSource.open` vždy
+    hodil `IOException`): v logu jednou „stream se nerozběhl", náhled s průběhem stahování místo
+    chyby, po stažení hraje z hotového souboru. Ladicí desktop: totéž MP4 poslané jako soubor,
+    stahování skočilo na `moov` a hrálo do 3 s. **iOS ověřený NENÍ** (jen přeložený kód je
+    společný).
 - **Odesílání z Androidu posílá `supportsStreaming` podle stavby souboru**
   (`indexBeforeData` v `AttachmentPicker.android.kt`, `mp4IndexBeforeData` v `core/video`,
   testy `VideoStreamingTest`): projdou se hlavičky boxů nejvyšší úrovně (8 nebo 16 bajtů na
@@ -1070,6 +1079,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   `false`. Video z foťáku má `moov` na konci (data se píšou za záznamu, index až po něm), takže
   příznak nedostane — a stejně se streamuje díky bodu výš. Soubor se nepřebaluje: přesunout
   index na začátek znamená přepsat celý soubor (na iOS to dělá `AVAssetExportSession`).
+  Ověřeno na emulátoru: z `moov` na konci odešlo `supportsStreaming=false`, z `+faststart`
+  `true` (přečteno ze zprávy, kterou vrátil server).
 - **Čekání na data blokuje vlákno ExoPlayeru, a tak to má být** — je to jeho vlastní vlákno pro
   načítání. Po 30 s bez nových dat se čtení vzdá: stahování mohlo spadnout a věčné čekání by
   vypadalo jako zamrzlý přehrávač.
