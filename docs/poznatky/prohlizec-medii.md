@@ -335,7 +335,8 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
   (`canSave`) a nestojí nad ním text z fotky ani popis — tam Ctrl+C patří jejich výběru.
   Klávesa se bere podle kódu, ne znaku (na azbuce je na ní „с"). Viz `docs/poznatky/desktop.md`,
   „Kopírování příloh do schránky a cesta ven".
-- **Esc zavírá prohlížeč** jako Zpět — prohlížeč klávesu nespotřebuje a na desktopu ji převede
+- **Esc zavírá prohlížeč** jako Zpět (z celé obrazovky videa nejdřív vrátí do galerie, viz
+  „Horní lišta jako u YouTube") — prohlížeč klávesu nespotřebuje a na desktopu ji převede
   Compose (`BackNavigationEventInput`), na Androidu `MainActivity`.
 - **Fokus si prohlížeč bere hned** (`focusRequester` + `focusable` na kořeni): v Compose dostane
   klávesu jen zaostřený prvek a jeho předci; bez fokusu by šipky nedošly nikam. **A bere si ho
@@ -360,7 +361,7 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
   (hrající video na celé obrazovce, zamčené, okno přes celou obrazovku), doleva zpět i v RTL;
   jinak listují. Povely jdou stránce jako `Flow<VideoCommand>` a bere si je jen vybraná stránka
   na celé obrazovce, stejně jako kroky přiblížení.
-- **Celá obrazovka okna (desktop)**: tlačítko vedle zámku v horním rohu videa, F a dvojklik
+- **Celá obrazovka okna (desktop)**: tlačítko vlevo od zámku v pravém horním rohu videa, F a dvojklik
   (myší se dvojklikem neposouvá, skok o 10 s zůstává prstu na telefonu). Patří prohlížeči
   (`windowFullscreenOn`), platí i pro další video. **Esc ji ukončí dřív, než zavře prohlížeč**
   (`NavigationBackHandler`), návrat do galerie a zavření prohlížeče okno vrátí. Okno samo
@@ -1387,12 +1388,13 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     lištu přes hostitele controlleru (`prefersStatusBarHidden`); ukazatel plochy NE —
     `prefersHomeIndicatorAutoHidden` je v kategorii UIKit a Kotlin/Native ji přepsat nedovolí
     („overrides nothing").
-  - **Zámek proti dotykům** (zámek vlevo nahoře): tah nezavírá, ťuknutí nepřepíná, ovládání
+  - **Zámek proti dotykům** (zámek vpravo nahoře, poslední z akcí): tah nezavírá, ťuknutí nepřepíná, ovládání
     se neukáže a listování je vypnuté i u pozastaveného videa. Ťuknutí kamkoli
     vytáhne vyplněný zámek, kterým se odemyká; po zamčení se na chvíli ukáže sám. **Zpět
     za zamčení nezavírá**, jen ukáže zámek — tah od okraje je ten nejčastější nechtěný dotyk.
     Jde to přes `NavigationBackHandler` zapnutý jen za zamčení; `BackHandler` by zabil predictive
-    back i odemčenému prohlížeči.
+    back i odemčenému prohlížeči. Handler stránky vyhrává nad handlerem prohlížeče (zpět do
+    galerie), protože je zaregistrovaný později — ověřeno na Foldu: zamčené video zpět neopustí.
   - **Ruční otočení** (vedle zámku): do té druhé orientace, než v jaké okno právě je, i se
     systémovým automatickým otáčením vypnutým (`SENSOR_LANDSCAPE` / `PORTRAIT`). Platí jen na
     celé obrazovce a pro další videa taky; návrat do galerie orientaci pustí. Požadavky jsou
@@ -1404,8 +1406,25 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     přes `supportedInterfaceOrientationsFor` v delegátu aplikace.
   - **Dole místo není**, proto zámek a otočení leží nahoře: s dalšími dvěma tlačítky by
     posuvníku na telefonu na výšku zbyl palec.
+  - **Horní lišta jako u YouTube nebo Fotek Google** (`VideoTopControls`): vlevo šipka zpět
+    a titulek (odesílatel, čas, „N z M" — tentýž `ViewerTitle` jako v liště galerie), vpravo
+    akce: otočení, celá obrazovka okna (desktop) a zámek. Dřív byl vlevo jen zámek a otočení
+    a cesta ven nebyla vidět: lišta galerie se na celé obrazovce schová a ven vedlo jen ťuknutí
+    na obraz, systémové zpět rovnou zavřelo celý prohlížeč. **Zamčené video ukáže jen zámek na
+    TÉMŽE místě vpravo** (zpět ani titulek za zamčení nejsou). Lišta bere insety na obou
+    stranách — naležato bývá výřez vlevo a navigační lišta vpravo. **Mizející médium** má vlastní
+    lištu s odpočtem, horní ovládání videa tam není vůbec (`VideoFullscreen.header = null`).
+  - **Zpět (i Esc) jde z celé obrazovky o krok zpátky**: okno přes celou obrazovku → okno, celá
+    obrazovka → galerie, galerie → zavřít (jeden `NavigationBackHandler` v `MediaViewerScreen`).
+    Šipka v liště dělá totéž. Mizející médium galerii nemá, tam zpět zavírá rovnou. Daň: z celé
+    obrazovky už gesto zpět neukazuje náhled zavření prohlížeče (predictive back), jen krok
+    do galerie.
+  - **Ověřeno na emulátoru `Plume_Galerie_Fold`** (vnější displej, na výšku i naležato): šipka
+    i systémové zpět do galerie, druhé zpět zavře, zámek vpravo a zpět za zamčení nic nezavře.
+    **Na ladicím desktopu (macOS)**: rozložení pod semafory okna, Esc celá obrazovka → galerie
+    → zavřít. Windows (tlačítka okna vpravo nahoře) a iOS neověřené.
   - **Ovládání leží u okrajů STRÁNKY, ne na kartě s videem** (slot `chrome` v `MediaPageLayout`):
-    posuvník u spodního, zámek a otočení u horního okraje obrazovky, jako VLC, YouTube nebo Fotky
+    posuvník u spodního, zpět, titulek a akce u horního okraje obrazovky, jako VLC, YouTube nebo Fotky
     Google. Dokud bylo v kartě, viselo u videa na výšku nebo čtvercového přes obraz uprostřed
     displeje, zatímco černé pruhy nad a pod ním zůstaly prázdné. Na kartě zůstalo jen to, co patří
     k obrazu: tlačítko přehrát, průběh rozběhu, hlášky uprostřed a skok o 10 s. Pilulky zrychlení
