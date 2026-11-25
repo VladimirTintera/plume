@@ -158,6 +158,9 @@ class CallService : Service(), KoinComponent {
             .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUpIntent()))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
+            // Live Update (Android 16): hovor nahoře v liště a jako čip s časem ve stavové liště.
+            // `CallStyle` je jeden ze stylů, které systém povýšit smí.
+            .setRequestPromotedOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)

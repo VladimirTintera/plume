@@ -2059,9 +2059,10 @@ Nic z toho zatím nikdo nezačal. Velikost: S = malé, M = střední, L = velké
   - ~~Jméno v hovoru, šipka zpět v bráně, zavření konverzace po zamčení~~ — hotovo.
   - **Odhlášení jiného účtu zahodí zámek aplikace** a nový PIN zamčené chaty otevře — zvážit
     vlastní záznam pro zamčené chaty, nebo zámek po účtech.
-- **Live Updates na Androidu 16** (S–M). Notifikace s `ProgressStyle` (povýšená průběžná)
-  pro odesílání velkých souborů, stahování, sdílení živé polohy a probíhající hovor — místo
-  dnešních obyčejných notifikací služby v popředí. V kódu zatím `ProgressStyle` není.
+- ~~**Live Updates na Androidu 16**~~ — hovor, videochat a sdílení polohy (s odpočtem
+  a průběhem) jsou povýšené (`docs/poznatky/notifikace.md`, „Live Updates"). Zbývá:
+  **ověřit na telefonu s Androidem 16** (na emulátoru nešla spustit poloha ani hovor)
+  a **průběh stahování modelu AI** — notifikaci staví knihovna ai-engine, takže PR tam.
 - **Desktop: chat v samostatném okně** (M). Pro víc monitorů. Druhé okno už v `application {}`
   stojí (`IncomingCallWindow`); otevřená konverzace by potřebovala vlastní zásobník navigace
   a ViewModel s klíčem chatu. Pozor na insety a bubliny z kořene kompozice

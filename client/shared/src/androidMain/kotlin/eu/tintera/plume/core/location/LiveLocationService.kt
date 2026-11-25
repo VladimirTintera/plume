@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.location
 
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.annotation.SuppressLint
@@ -83,14 +85,20 @@ class LiveLocationService : Service(), KoinComponent {
     override fun onCreate() {
         super.onCreate()
         scope.launch {
-            repository.active.collect { active ->
+            repository.active.collectLatest { active ->
                 if (active.isEmpty()) {
                     logger.i { "Žádná živá poloha, služba končí." }
                     stop()
-                } else {
+                    return@collectLatest
+                }
+                // Průběh sdílení (Live Update) se posouvá sám jen v odpočtu; pruh se obnovuje
+                // po minutách. Sdílení „dokud nevypnu" průběh nemá a obnovovat není co.
+                do {
                     val updated = notification(active)
                     runCatching { getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, updated) }
-                }
+                    val finite = liveShareSpan(active) != null
+                    if (finite) delay(PROGRESS_REFRESH_MS)
+                } while (finite)
             }
         }
         // Někdo se dívá: TDLib chce polohu hned, ne až po intervalu.
@@ -164,6 +172,11 @@ class LiveLocationService : Service(), KoinComponent {
         scope.launch { repository.update(fix) }
     }
 
+    /**
+     * Notifikace sdílení. Na Androidu 16 Live Update: nahoře v liště a na zamykací obrazovce,
+     * ve stavové liště čip s odpočtem do konce sdílení ([liveShareSpan]) — kdo sdílí polohu,
+     * má to vidět, i když notifikace sjede pod jiné. S koncem sdílení i pruh, kolik ho uběhlo.
+     */
     private suspend fun notification(active: List<ActiveLiveLocation>) =
         NotificationCompat.Builder(this, ensureChannel())
             .setSmallIcon(R.drawable.ic_notification)
@@ -178,6 +191,17 @@ class LiveLocationService : Service(), KoinComponent {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openChat(active.firstOrNull()?.chatId))
             .addAction(0, getString(Res.string.live_location_notification_stop), stopIntent())
+            .setRequestPromotedOngoing(true)
+            .apply {
+                val span = liveShareSpan(active) ?: return@apply
+                // Odpočet do konce sdílení počítá systém sám (i v čipu), bez obnovování.
+                setWhen(span.endSeconds * 1000).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
+                setStyle(
+                    NotificationCompat.ProgressStyle()
+                        .setProgressSegments(listOf(NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX)))
+                        .setProgress(span.progress(System.currentTimeMillis() / 1000, PROGRESS_MAX)),
+                )
+            }
             .build()
 
     private suspend fun ensureChannel(): String {
@@ -225,6 +249,12 @@ class LiveLocationService : Service(), KoinComponent {
     private companion object {
         const val ACTION_STOP = "eu.tintera.plume.action.LIVE_LOCATION_STOP"
         const val NOTIFICATION_ID = 7301
+
+        /** Dílků pruhu průběhu; jemnější dělení by pruh po minutách stejně neposouval. */
+        const val PROGRESS_MAX = 1000
+
+        /** Jak často posunout pruh průběhu sdílení (odpočet běží v systému sám). */
+        const val PROGRESS_REFRESH_MS = 60_000L
 
         /** Jak často si o polohu říkat; posílá se jen to, co projde [shouldSendLiveFix]. */
         const val UPDATE_INTERVAL_MS = 5_000L
