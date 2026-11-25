@@ -93,7 +93,7 @@ class ShareIntake(
             val results = limited
                 .map { uri ->
                     async(AttachmentPrepareDispatcher) {
-                        runCatching { if (visual) prepareVisual(context, uri) else prepareFile(context, uri) }
+                        runCatching { if (visual) prepareVisual(context, uri) else prepareFile(context, uri, videos = false) }
                     }
                 }
                 .awaitAll()

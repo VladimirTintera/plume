@@ -74,6 +74,20 @@ class StagedAttachmentsTest {
     }
 
     @Test
+    fun fotkaPrepnutaNaSouborJdeVlastnimAlbem() {
+        // TDLib soubor s fotkami do jednoho alba nesloží; pořadí výběru zůstává.
+        val asFile = photo(2).copy(mode = AttachmentMode.AsFile)
+        val batches = attachmentBatches(listOf(photo(1), asFile, photo(3), video(1)), separately = false)
+        assertEquals(listOf(listOf(photo(1)), listOf(asFile), listOf(photo(3), video(1))), batches)
+    }
+
+    @Test
+    fun usekyStejnehoDruhuSeDeliPoDeseti() {
+        val batches = attachmentBatches((1..12).map(::photo) + document(1), separately = false)
+        assertEquals(listOf(10, 2, 1), batches.map { it.size })
+    }
+
+    @Test
     fun mixedPickKeepsOnlyFirstKind() {
         val staged = stageAttachments(emptyList(), listOf(document(1), photo(1), document(2)))
         assertEquals(listOf(document(1), document(2)), staged.attachments)

@@ -173,6 +173,29 @@ album. Bublina ukazuje průběh nahrávání.
   a HEIC se tím zároveň převede na JPEG.
 - **Soubor jde beze změny s `disableContentTypeDetection = true`** — uživatel posílal „soubor",
   TDLib by jinak z videa udělal přehrávatelnou zprávu.
+- **Video vybrané sponkou „Soubor" odejde jako video, se jménem ze souborů** (`isFileVideo`,
+  `prepareFile`). Dřív šlo jako soubor bez náhledu, a jméno souboru (třeba „Svatba 2025.mp4")
+  zase nešlo ovlivnit z galerie, kde ho uživatel nevidí. Telegram jméno u videa nezahazuje:
+  TDLib ho vezme z cesty nahrávaného souboru a pošle s videem (`Video.fileName`); v bublině se
+  neukazuje, příjemce ho dostane při uložení. Kdo chce soubor, přepne přílohu na „Jako soubor".
+  - **Jen rodina MP4** (MP4, M4V, MOV podle typu od systému, bez něj podle přípony). MKV, AVI
+    nebo WebM zůstávají soubory: nic se nepřekódovává a jako video by se jinde nemusely přehrát.
+  - **Video jen tehdy, když jsou ve výběru videa všechna** (`videosOnlyWhenAll`, stejné pravidlo
+    jako sdílení ze systému). Připravené přílohy drží jen jeden druh a `stageAttachments` ze
+    smíšeného výběru nechá druh první položky — MP4 vybrané s PDF by jedno z nich tiše zahodilo.
+    Android to srovná po přípravě (kopie je beze změny), iOS předem podle přípon, protože video
+    přebaluje a soubor by odešel změněný.
+  - **Video, které nejde přečíst** (nulové rozměry, výjimka), odejde jako soubor.
+  - **iOS přebaluje i MP4** (do podadresáře `mp4/`, ať jméno zůstane). Dřív `exportMp4` u souboru,
+    který už `.mp4` měl, nic neudělal a vrátil ho — a `supportsStreaming` šel `true`, i když index
+    mohl ležet na konci. Z galerie to nevadilo (tam chodí `.mov`), soubory z „Souborů" ano.
+  - **Desktop zůstává u souboru** — rozměry a délku by musel přečíst dekodér, který nemá.
+  - **Z galerie původní jméno NEPŘIJDE**: Android Photo Picker hlásí jako `DISPLAY_NAME` jen
+    číslo (video poslané z galerie dorazilo botovi jako `2143.mp4`). Kdo chce jméno, musí
+    přes „Soubor".
+  - **Ověřeno na emulátoru (Android 16)** v chatu s Notifikátorem: `Svatba 2025.mp4` ze
+    Stažených nad polem s náhledem jako video, bot dostal `video` s `file_name` „Svatba
+    2025.mp4"; výběr MP4 s XML zůstal nad polem jako dva soubory. iOS jen přeložené.
 - **Hudba vybraná jako soubor odejde jako skladba** (`OutgoingAttachment.Audio`,
   `InputMessageAudio`): v konverzaci s přehrávačem, názvem a interpretem. Údaje čte platforma ze
   značek souboru — Android `MediaMetadataRetriever` (podle typu obsahu `audio/*`), iOS
@@ -261,6 +284,11 @@ jedno album („Odejde jako 2 alba", „Odejde jako 12 zpráv").
 - **Skladby mezi soubory se převádějí za celý výběr**, ne po albech (`sendableTogether` před
   dělením): jinak by z jednoho výběru odešlo album souborů a vedle něj album skladeb podle
   toho, kam dělení padlo.
+- **Výběr se dělí i podle druhu** — na po sobě jdoucí úseky fotek a videí, souborů a skladeb
+  (`AlbumKind`), každý úsek do svých alb. Smíšený seznam nad polem vznikne přepnutím jedné
+  položky na „Jako soubor" (`setAttachmentMode` mění jedinou přílohu) a TDLib by takové album
+  odmítl („Documents and audio files can be only grouped in an album with messages of the same
+  type"). Pořadí zpráv zůstává pořadím výběru.
 - **Volba „jednotlivě" platí pro to, co právě čeká nad polem**; odesláním se vrací na album
   a přečká odchod z chatu s přílohami (`StagedAttachmentsEntry.separately`).
 - **Příprava běží nejvýš po čtyřech** (`AttachmentPrepareDispatcher`). Se stropem 10 stačilo

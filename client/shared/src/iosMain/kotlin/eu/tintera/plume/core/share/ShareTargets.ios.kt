@@ -321,7 +321,7 @@ class IosShareInbox(
     }
 
     private suspend fun prepare(path: String, kind: String, visual: Boolean): OutgoingAttachment = when {
-        !visual -> prepareFile(NSURL.fileURLWithPath(path))
+        !visual -> prepareFile(NSURL.fileURLWithPath(path), videos = false)
         kind == KIND_VIDEO -> prepareVideoAt(path)
         else -> preparePhotoData(NSData.dataWithContentsOfFile(path) ?: error("Obrázek nejde načíst."))
     }

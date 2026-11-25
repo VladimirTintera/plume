@@ -122,7 +122,11 @@ private class IosAttachmentPicker(
     private val logger = Logger.withTag("Attachments")
 
     /** Připraví položky souběžně; `awaitAll` drží pořadí výběru. */
-    private fun <T> prepare(items: List<T>, block: suspend (T) -> OutgoingAttachment) {
+    private fun <T> prepare(
+        items: List<T>,
+        finish: (List<OutgoingAttachment>) -> List<OutgoingAttachment> = { it },
+        block: suspend (T) -> OutgoingAttachment,
+    ) {
         if (items.isEmpty()) return
         scope.launch {
             val results = items
@@ -131,7 +135,7 @@ private class IosAttachmentPicker(
             results.forEach { result ->
                 result.exceptionOrNull()?.let { failure -> logger.w(failure) { "Přílohu se nepodařilo připravit." } }
             }
-            val prepared = results.mapNotNull { it.getOrNull() }
+            val prepared = finish(results.mapNotNull { it.getOrNull() })
             if (prepared.isNotEmpty()) onPicked(prepared)
             if (prepared.size < results.size) onError(UiText(Res.string.attachment_prepare_failed))
         }
@@ -152,7 +156,11 @@ private class IosAttachmentPicker(
 
     private val documentDelegate = object : NSObject(), UIDocumentPickerDelegateProtocol {
         override fun documentPicker(controller: UIDocumentPickerViewController, didPickDocumentsAtURLs: List<*>) {
-            prepare(didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)) { prepareFile(it) }
+            val urls = didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)
+            // Rozhoduje se PŘEDEM podle přípon: video se tu přebaluje do MP4, takže by soubor ze
+            // smíšeného výběru odešel změněný. Po přípravě se srovná jen video, které nešlo přečíst.
+            val videos = urls.all { isFileVideo(it.lastPathComponent.orEmpty()) }
+            prepare(urls, ::videosOnlyWhenAll) { prepareFile(it, videos) }
         }
     }
 
@@ -385,13 +393,25 @@ internal suspend fun prepareVideoAt(original: String): OutgoingAttachment.Video 
     )
 }
 
-/** Přebalí video do MP4 bez překódování; `null`, když to nejde (kodek, který MP4 nenese). */
+/**
+ * Přebalí video do MP4 bez překódování; `null`, když to nejde (kodek, který MP4 nenese).
+ *
+ * **I MP4 se přebaluje** (do podadresáře, aby zůstalo jméno): jinak by soubor ze sponky „Soubor"
+ * odešel s příznakem streamování, i když má index na konci — přebalení ho dá na začátek.
+ */
 @OptIn(ExperimentalForeignApi::class)
 private suspend fun exportMp4(source: String): String? {
     val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(source), options = null)
     val session = AVAssetExportSession(asset = asset, presetName = AVAssetExportPresetPassthrough)
-    val target = directoryOf(source) + "/" + (source.substringAfterLast('/').substringBeforeLast('.') + ".mp4")
-    if (target == source) return source
+    val name = source.substringAfterLast('/').substringBeforeLast('.') + ".mp4"
+    val sameName = directoryOf(source) + "/" + name
+    val target = if (sameName != source) {
+        sameName
+    } else {
+        val directory = directoryOf(source) + "/mp4"
+        NSFileManager.defaultManager.createDirectoryAtPath(directory, withIntermediateDirectories = true, attributes = null, error = null)
+        "$directory/$name"
+    }
     session.outputURL = NSURL.fileURLWithPath(target)
     session.outputFileType = AVFileTypeMPEG4
     session.shouldOptimizeForNetworkUse = true
@@ -445,15 +465,22 @@ internal fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
 
 /**
  * Soubor ze sponky „Soubor": hudba odejde jako skladba (název, interpret a obal ze značek
- * souboru), všechno ostatní beze změny jako soubor. Typ se pozná podle přípony.
+ * souboru), video z rodiny MP4 jako video ([isFileVideo], přebalené do MP4 se stejným jménem)
+ * a všechno ostatní beze změny jako soubor. Typ se pozná podle přípony.
+ *
+ * [videos] = `false` nechá video souborem: ze smíšeného výběru ([videosOnlyWhenAll]) i ze
+ * smíšeného sdílení ze systému odchází všechno jako soubory.
  */
-internal fun prepareFile(url: NSURL): OutgoingAttachment {
+internal suspend fun prepareFile(url: NSURL, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(url)
     val extension = document.path.substringAfterLast('.', missingDelimiterValue = "")
     val audio = UTType.typeWithFilenameExtension(extension)?.conformsToType(UTTypeAudio) == true
-    if (!audio) return document
-    // Soubor, který se jako skladba přečíst nedá, odejde aspoň jako soubor.
-    return runCatching { audioAt(document.path) }.getOrNull() ?: document
+    // Soubor, který se jako skladba nebo video přečíst nedá, odejde aspoň jako soubor.
+    if (audio) return runCatching { audioAt(document.path) }.getOrNull() ?: document
+    if (!videos || !isFileVideo(document.path.substringAfterLast('/'))) return document
+    // Přebalení původní kopii smaže; bez videa ve stopě se proto vrací cesta, kde soubor skončil.
+    val video = runCatching { prepareVideoAt(document.path) }.getOrNull() ?: return document
+    return video.takeIf { it.width > 0 && it.height > 0 } ?: OutgoingAttachment.Document(path = video.path)
 }
 
 /** Název, interpret, délka a obal alba (JPEG do [VIDEO_THUMBNAIL_EDGE]) ze značek skladby. */

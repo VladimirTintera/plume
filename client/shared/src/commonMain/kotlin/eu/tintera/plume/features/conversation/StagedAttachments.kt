@@ -130,10 +130,31 @@ internal fun allowedByContent(
  * Skladby mezi soubory se na soubory převedou za CELÝ výběr ([sendableTogether]), ne po albech:
  * jinak by z jednoho výběru odešlo album souborů a vedle něj album skladeb, podle toho, kam
  * dělení zrovna padlo.
+ *
+ * **Fotky a videa se soubory do jednoho alba nejdou** (TDLib: „Documents and audio files can be
+ * only grouped in an album with messages of the same type"). Výběr se proto dělí na po sobě
+ * jdoucí úseky téhož druhu ([AlbumKind]) a album vzniká z každého zvlášť; pořadí zpráv zůstává
+ * pořadím výběru. Smíšený výběr vzniká snadno: video ze sponky „Soubor" vedle PDF, fotka z galerie
+ * přidaná k souboru, nebo jedna fotka přepnutá na „Jako soubor".
  */
 internal fun attachmentBatches(attachments: List<OutgoingAttachment>, separately: Boolean): List<List<OutgoingAttachment>> {
     val sendable = sendableTogether(attachments)
-    return if (separately) sendable.map(::listOf) else sendable.chunked(ALBUM_LIMIT)
+    if (separately) return sendable.map(::listOf)
+    val runs = mutableListOf<MutableList<OutgoingAttachment>>()
+    sendable.forEach { attachment ->
+        val run = runs.lastOrNull()?.takeIf { it.first().albumKind() == attachment.albumKind() }
+        if (run != null) run += attachment else runs += mutableListOf(attachment)
+    }
+    return runs.flatMap { it.chunked(ALBUM_LIMIT) }
+}
+
+/** Co smí být spolu v jednom albu: fotky s videi, soubory se soubory, skladby se skladbami. */
+private enum class AlbumKind { Media, Documents, Audio }
+
+private fun OutgoingAttachment.albumKind(): AlbumKind = when {
+    this is OutgoingAttachment.Audio -> AlbumKind.Audio
+    goesAsDocument() -> AlbumKind.Documents
+    else -> AlbumKind.Media
 }
 
 /** Kolik příloh z výběru odešlo a proč se zbytek nepovedl (`null` = odešlo všechno). */

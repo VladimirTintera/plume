@@ -72,7 +72,11 @@ actual fun rememberAttachmentPicker(
     val picked by rememberUpdatedState(onPicked)
     val failed by rememberUpdatedState(onError)
 
-    fun prepare(uris: List<Uri>, block: (Context, Uri) -> OutgoingAttachment) {
+    fun prepare(
+        uris: List<Uri>,
+        finish: (List<OutgoingAttachment>) -> List<OutgoingAttachment> = { it },
+        block: (Context, Uri) -> OutgoingAttachment,
+    ) {
         if (uris.isEmpty()) return
         scope.launch {
             // Kopie a zmenšení fotek jsou práce na disku a procesoru — mimo hlavní vlákno, souběžně.
@@ -85,7 +89,7 @@ actual fun rememberAttachmentPicker(
                     Logger.withTag("Attachments").w(failure) { "Přílohu se nepodařilo připravit." }
                 }
             }
-            val prepared = results.mapNotNull { it.getOrNull() }
+            val prepared = finish(results.mapNotNull { it.getOrNull() })
             if (prepared.isNotEmpty()) picked(prepared)
             if (prepared.size < results.size) failed(UiText(Res.string.attachment_prepare_failed))
         }
@@ -93,12 +97,12 @@ actual fun rememberAttachmentPicker(
 
     val photoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = systemPickLimit()),
-    ) { uris -> prepare(uris, ::prepareVisual) }
+    ) { uris -> prepare(uris, block = ::prepareVisual) }
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        prepare(uris.take(PICK_LIMIT), ::prepareFile)
+        prepare(uris.take(PICK_LIMIT), ::videosOnlyWhenAll) { ctx, uri -> prepareFile(ctx, uri) }
     }
     val audioLauncher = rememberLauncherForActivityResult(OpenAudio()) { uri ->
-        uri?.let { prepare(listOf(it), ::prepareFile) }
+        uri?.let { audio -> prepare(listOf(audio)) { ctx, u -> prepareFile(ctx, u) } }
     }
 
     /*
@@ -247,7 +251,11 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
         copyBounded(input, target)
     }
+    return videoAt(target)
+}
 
+/** Video, které už leží v `outgoing` ([target]): rozměry, délka, náhled a příznak streamování. */
+private fun videoAt(target: File): OutgoingAttachment.Video {
     val video = videoMetadata(target)
     return OutgoingAttachment.Video(
         path = target.absolutePath,
@@ -512,13 +520,27 @@ internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Doc
 
 /**
  * Soubor ze sponky „Soubor": hudba odejde jako skladba (s názvem, interpretem a obalem ze
- * souboru), všechno ostatní beze změny jako soubor. Rozhoduje typ obsahu od systému.
+ * souboru), video z rodiny MP4 jako video ([isFileVideo]) a všechno ostatní beze změny jako
+ * soubor. Rozhoduje typ obsahu od systému.
+ *
+ * Video odtud nese jméno, pod kterým leží v souborech — výběr z galerie ho dává taky, jen tam
+ * uživatel soubor nepojmenovává. Poslat ho jako soubor jde dál přes režim přílohy („Jako soubor").
+ * Ze smíšeného výběru jdou videa po přípravě zase jako soubory ([videosOnlyWhenAll]); kopie je
+ * beze změny, takže to jde i dodatečně. [videos] = `false` nechá video souborem rovnou: smíšené
+ * sdílení ze systému odchází celé jako soubory (`ShareIntake`).
  */
-internal fun prepareFile(context: Context, uri: Uri): OutgoingAttachment {
+internal fun prepareFile(context: Context, uri: Uri, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(context, uri)
-    if (context.contentResolver.getType(uri)?.startsWith("audio/") != true) return document
-    // Soubor, který se jako skladba přečíst nedá, odejde aspoň jako soubor.
-    return runCatching { audioMetadata(File(document.path)) }.getOrNull() ?: document
+    val type = context.contentResolver.getType(uri)
+    val file = File(document.path)
+    // Soubor, který se jako skladba nebo video přečíst nedá, odejde aspoň jako soubor.
+    return when {
+        type?.startsWith("audio/") == true -> runCatching { audioMetadata(file) }.getOrNull() ?: document
+        videos && isFileVideo(file.name, type) -> runCatching { videoAt(file) }.getOrNull()
+            ?.takeIf { it.width > 0 && it.height > 0 }
+            ?: document
+        else -> document
+    }
 }
 
 /** Název, interpret, délka a obal alba (JPEG do 320 px vedle souboru) ze značek skladby. */
