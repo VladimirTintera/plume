@@ -914,6 +914,40 @@ nahlas, odpověď se nadiktuje. Aplikace k tomu dává jen deklaraci
   nastavení → Formáty zařízení → Android Auto) a prochází kontrolou kvality pro auta. Bez toho
   se aplikace z Play v autě neukáže, i když deklaraci má.
 
+### Live Updates (Android 16)
+
+Povýšené průběžné notifikace: nahoře v liště, rozbalené na zamykací obrazovce a jako čip ve
+stavové liště. Povyšuje systém, aplikace jen žádá (`setRequestPromotedOngoing(true)`).
+
+- **Povýšené jsou tři**: probíhající hovor (`CallService`) a videochat (`VideoChatService`),
+  obojí `CallStyle` (čip ukáže čas hovoru z `setWhen` a chronometru), a sdílení živé polohy
+  (`LiveLocationService`).
+- **Systém povýší jen notifikaci, která splní podmínky**: průběžná (`setOngoing`), s titulkem,
+  bez barevného pozadí (`setColorized`) a vlastního vzhledu, v kanálu s důležitostí aspoň
+  výchozí, a styl jen žádný / `BigText` / `CallStyle` / `ProgressStyle` — **`MediaStyle` ne**,
+  proto hudba na pozadí povýšená není. Splní-li je, dostane `FLAG_PROMOTED_ONGOING`; jinak
+  zůstane obyčejná a nic se nehlásí (`NotificationCompat.hasPromotableCharacteristics` řekne
+  proč ne).
+- **Oprávnění `POST_PROMOTED_NOTIFICATIONS`** je běžné (bez dotazu) a v manifestu vstupního
+  bodu. Uživatel povýšení vypne u aplikace v systému
+  (`NotificationManagerCompat.canPostPromotedNotifications`); aplikace se pak nemusí chovat
+  jinak, notifikace jen zůstane obyčejná.
+- **Poloha: odpočet do konce sdílení a pruh průběhu** (`liveShareSpan`, testy
+  `LiveShareSpanTest`). Odpočet je chronometr s `setChronometerCountDown(true)` a `setWhen`
+  na konec — běží v systému (i v čipu) bez obnovování notifikace. Pruh (`ProgressStyle`
+  s jedním segmentem) se posouvá jen obnovením, služba ho proto obnovuje po minutách. Konec
+  je konec sdílení, které skončí POSLEDNÍ (notifikace i „Zastavit" mluví o všech); sdílení
+  „dokud nevypnu" konec nemá, a tak ani odpočet a pruh — jen povýšení.
+- **Model AI se stahuje přes knihovnu ai-engine** (`ModelDownloadWorker` dodává jen texty),
+  takže jeho průběh jako Live Update je PR v ai-engine. Soubory z Telegramu vlastní
+  notifikaci průběhu nemají.
+- **Videochat zamčené skupiny** (`docs/poznatky/zamcene-chaty.md`) se v notifikaci jmenuje
+  „Zamčený chat", jako zprávy a hovory z ní.
+- **Neověřeno na zařízení.** Emulátor s Androidem 16 (API 36.0) nedal výběru polohy polohu
+  (`adb emu geo fix` ani testovací poskytovatelé), takže sdílení nešlo spustit, a hovor na
+  emulátoru není s kým. Ověřit na telefonu s Androidem 16: `adb shell dumpsys notification
+  --noredact` ukáže u notifikace `flags=…PROMOTED_ONGOING…`, a čip ve stavové liště.
+
 ### Víc účtů
 
 Celé rozhodnutí je v `docs/navrh-vice-uctu.md` („Notifikace", kroky 1 a 6 fáze 1). Co se tu dá

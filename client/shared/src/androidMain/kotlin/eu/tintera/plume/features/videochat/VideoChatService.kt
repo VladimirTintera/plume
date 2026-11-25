@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.videochat
 
+import eu.tintera.plume.resources.locked_chat_notification_title
+import eu.tintera.plume.core.telegram.ChatRepository
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
@@ -113,12 +115,17 @@ class VideoChatService : Service(), KoinComponent {
 
     private suspend fun notification(running: AccountVideoChat): Notification {
         val chat = running.chat
-        val person = Person.Builder().setName(chat.title).setImportant(true).build()
+        // Videochat zamčené skupiny (`LockedChats`) notifikace nejmenuje, jako zprávy a hovory z ní.
+        val locked = chat.chatId in runCatching { running.account.get<ChatRepository>().lockedChatIds.value }.getOrDefault(emptySet())
+        val title = if (locked) getString(Res.string.locked_chat_notification_title) else chat.title
+        val person = Person.Builder().setName(title).setImportant(true).build()
         return NotificationCompat.Builder(this, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, leaveIntent()))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
+            // Live Update (Android 16), jako hovor ve dvou.
+            .setRequestPromotedOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)

@@ -44,6 +44,10 @@
          z popředí, takže oprávnění k poloze NA POZADÍ potřeba není. Play typ chce vysvětlit
          v deklaraci služeb v popředí, jako mediaPlayback a dataSync. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Live Updates (Android 16): hovor, videochat a sdílení polohy jako povýšené průběžné
+         notifikace — nahoře v liště, na zamykací obrazovce a jako čip ve stavové liště. Běžné
+         oprávnění bez dotazu; uživatel je může vypnout u aplikace v systému. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <!-- Uložení fotky a videa do galerie. Od Androidu 10 zapisuje MediaStore bez oprávnění. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
