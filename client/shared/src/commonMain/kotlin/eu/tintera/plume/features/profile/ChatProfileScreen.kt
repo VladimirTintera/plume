@@ -221,6 +221,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatProfile
 import eu.tintera.plume.core.telegram.ProfileKind
+import eu.tintera.plume.core.ui.WithTooltip
+import androidx.compose.material3.TooltipAnchorPosition
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.groupItemShape
@@ -488,6 +490,7 @@ fun ChatProfileScreen(
                         },
                         actions = {
                             state.profile?.let { profile ->
+                                ProfileEditButton(profile = profile, onEdit = onEdit, onEditContact = { editContact = true })
                                 ProfileMenu(
                                     profile = profile,
                                     onCopyLink = viewModel::copyLink,
@@ -1812,7 +1815,28 @@ private val HEADER_AVATAR_SIZE = 112.dp
 private val CHAT_COLOR_DOT = 24.dp
 
 /**
- * Méně častá akce nad člověkem nebo chatem za ⋮: úprava, odkaz, kontakt, hovor, tajný chat,
+ * Úprava jako tlačítko v liště profilu, ne položka v ⋮: je to hlavní akce profilu a lišta vedle
+ * konverzace jinak nesla jen ⋮ a vypadala prázdná. Úprava chatu (název, popis, práva —
+ * `editRights`), u kontaktu bez ní úprava kontaktu (jméno, poznámka, vlastní fotka). Kdo nemůže
+ * ani jedno, tlačítko nemá.
+ */
+@Composable
+private fun ProfileEditButton(profile: ChatProfile, onEdit: () -> Unit, onEditContact: () -> Unit) {
+    val (label, onClick) = when {
+        profile.editRights.any -> Res.string.profile_edit to onEdit
+        profile.kind == ProfileKind.User && profile.userId != null && profile.contact != null -> Res.string.contact_edit to onEditContact
+        else -> return
+    }
+    val text = stringResource(label)
+    WithTooltip(label = text, position = TooltipAnchorPosition.Below) {
+        IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
+            Icon(painterResource(Res.drawable.edit_24dp), contentDescription = text)
+        }
+    }
+}
+
+/**
+ * Méně častá akce nad člověkem nebo chatem za ⋮: odkaz, kontakt, hovor, tajný chat,
  * blokování.
  *
  * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
@@ -1861,8 +1885,11 @@ private fun ProfileMenu(
     // Tajný chat jde začít s člověkem (ne s botem, ne se sebou — to je `SavedMessages`), a to
     // i z profilu jiného tajného chatu: každý je vázaný na jedno zařízení.
     val canStartSecret = profile.kind == ProfileKind.User && profile.userId != null
+    // Úprava (chatu, nebo kontaktu) je tlačítko v liště vedle ([ProfileEditButton]), v nabídce
+    // podruhé není — kontakt zůstává v nabídce jen tehdy, když tlačítko patří úpravě chatu.
+    val editContactInMenu = canEdit
     if (
-        profile.link == null && !canBlock && !canEdit && !canShareContact &&
+        profile.link == null && !canBlock && !canShareContact &&
         !profile.canAddMembers && !canManageContact && !canStartSecret && onAddToHomeScreen == null
     ) {
         return
@@ -1877,11 +1904,6 @@ private fun ProfileMenu(
             onDismiss = { expanded = false },
             groups = listOf(
                 listOfNotNull(
-                    if (canEdit) {
-                        MenuAction(stringResource(Res.string.profile_edit), Res.drawable.edit_24dp, onClick = onEdit)
-                    } else {
-                        null
-                    },
                     if (profile.canAddMembers) {
                         MenuAction(
                             stringResource(
@@ -1931,7 +1953,7 @@ private fun ProfileMenu(
                     } else {
                         null
                     },
-                    if (canManageContact && profile.contact != null) {
+                    if (canManageContact && profile.contact != null && editContactInMenu) {
                         MenuAction(stringResource(Res.string.contact_edit), Res.drawable.edit_24dp, onClick = onEditContact)
                     } else {
                         null

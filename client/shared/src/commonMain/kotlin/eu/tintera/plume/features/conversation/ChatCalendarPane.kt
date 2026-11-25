@@ -91,6 +91,10 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -138,7 +142,6 @@ import eu.tintera.plume.core.telegram.CalendarMonth
 import eu.tintera.plume.core.telegram.SharedMediaKind
 import eu.tintera.plume.core.telegram.calendarMonth
 import eu.tintera.plume.core.telegram.monthsBetween
-import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.monthTitle
 import eu.tintera.plume.core.ui.name
@@ -236,7 +239,7 @@ internal fun ChatCalendarPane(
 private fun calendarBase(): Color = MaterialTheme.colorScheme.surface
 
 /** Obsah kalendáře — hlavička, čipy, hledání, měsíce nebo roční přehled. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ColumnScope.ChatCalendarContent(
     state: ChatCalendarState,
@@ -268,35 +271,38 @@ private fun ColumnScope.ChatCalendarContent(
     // Měsíc, na který se má seznam po výběru v ročním přehledu posunout; seznam si ho odebere.
     val scrollTarget = remember { mutableStateOf<YearMonth?>(null) }
 
-    // Horních 8 dp patří hlavičce: s hlavičkou nad kartou je to součást její výšky, kterou karta ořezává.
+    // Táž lišta jako u profilu a konverzace vedle (`TopAppBar`, 64 dp): hlavičky panelů tvoří nad
+    // kartami jeden pás a vlastní řádek s nadpisem sheetu (dřív) měl jiné písmo i odsazení nadpisu.
+    // Insety si bere sloupec kolem (`ChatCalendarPane`), lišta žádné.
     PaneHeader {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi.
-            WindowControlsSpace()
-            // Vedle konverzace je kalendář boční panel: zavírá ho přepínač v její hlavičce
-            // (`ProfilePaneButton`), vlastní ✕ nemá. Na telefonu je to obrazovka se šipkou zpět.
-            if (closeIsBack) {
-                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+        TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
+            windowInsets = WindowInsets(0),
+            title = { Text(stringResource(Res.string.chat_calendar_title), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            navigationIcon = {
+                // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi.
+                WindowControlsSpace {
+                    // Vedle konverzace je kalendář boční panel: zavírá ho přepínač v její hlavičce
+                    // (`ProfilePaneButton`), vlastní ✕ nemá. Na telefonu je to obrazovka se šipkou zpět.
+                    if (closeIsBack) {
+                        IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
+                    }
                 }
-            }
-            SheetTitle(
-                stringResource(Res.string.chat_calendar_title),
-                modifier = Modifier.weight(1f).then(if (closeIsBack) Modifier else Modifier.padding(start = 12.dp)),
-            )
-            // Roky na jedné obrazovce: kdy se psalo víc a kdy míň, a skok do vzdáleného měsíce.
-            IconToggleButton(checked = yearView, onCheckedChange = { yearView = it }, shapes = IconButtonDefaults.toggleableShapes()) {
-                Icon(painterResource(Res.drawable.apps_24dp), contentDescription = stringResource(Res.string.chat_calendar_year_view))
-            }
-            // Na rok zpátky se roluje dlouho; konkrétní den jde zadat rovnou.
-            IconButton(onClick = { pickingDate = true }, shapes = IconButtonDefaults.shapes()) {
-                Icon(painterResource(Res.drawable.edit_calendar_24dp), contentDescription = stringResource(Res.string.conversation_jump_to_date))
-            }
-            WindowControlsEndSpace()
-        }
+            },
+            actions = {
+                // Roky na jedné obrazovce: kdy se psalo víc a kdy míň, a skok do vzdáleného měsíce.
+                IconToggleButton(checked = yearView, onCheckedChange = { yearView = it }, shapes = IconButtonDefaults.toggleableShapes()) {
+                    Icon(painterResource(Res.drawable.apps_24dp), contentDescription = stringResource(Res.string.chat_calendar_year_view))
+                }
+                // Na rok zpátky se roluje dlouho; konkrétní den jde zadat rovnou.
+                IconButton(onClick = { pickingDate = true }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.edit_calendar_24dp), contentDescription = stringResource(Res.string.conversation_jump_to_date))
+                }
+                WindowControlsEndSpace()
+            },
+        )
     }
     Column(
         Modifier
