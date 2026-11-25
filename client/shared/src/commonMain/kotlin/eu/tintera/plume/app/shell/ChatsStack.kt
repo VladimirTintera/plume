@@ -289,6 +289,9 @@ internal fun MutableList<NavKey>.openCommentThread(slot: AccountSlot, chatId: Lo
     add(ConversationRoute(slot, chatId, threadId = threadId))
 }
 
+private fun NavKey.isCommentThread(): Boolean =
+    (this as? ConversationRoute)?.threadId != null || (this as? ArchiveConversationRoute)?.threadId != null
+
 private fun conversation(slot: AccountSlot, archive: Boolean, chatId: Long, messageId: Long? = null, threadId: Long? = null, topicId: Int? = null): NavKey =
     if (archive) {
         ArchiveConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId)
@@ -350,7 +353,10 @@ internal fun MutableList<NavKey>.toggleProfile(owner: NavKey, profile: NavKey, s
  * otevřené zmínkami jedna z druhé i profil — a zůstane seznam s prázdným panelem: konverzace se
  * zavírá, ne prochází zpátky. Systémové zpět a Esc dál jdou po jedné položce.
  *
- * Téma nad seznamem témat se vrací do toho seznamu: je to jeho rodič, ne historie.
+ * Téma nad seznamem témat se vrací do toho seznamu: je to jeho rodič, ne historie. Stejně
+ * vlákno komentářů nad konverzací — otevřelo se čipem pod příspěvkem kanálu, takže zpět vede
+ * do kanálu, ne až do seznamu. Vlákno přímo na seznamu (z přehledu konceptů) se zavře jako
+ * každá jiná konverzace.
  */
 internal fun MutableList<NavKey>.closeConversation(route: NavKey, list: NavKey, sideBySide: Boolean): Boolean {
     val index = lastIndexOf(route)
@@ -359,6 +365,7 @@ internal fun MutableList<NavKey>.closeConversation(route: NavKey, list: NavKey, 
     val keep = when {
         parent is ForumTopicsRoute || parent is ArchiveForumTopicsRoute || parent is SavedTopicsRoute ||
             parent is DirectTopicsRoute || parent is ArchiveDirectTopicsRoute -> index
+        route.isCommentThread() && (parent is ConversationRoute || parent is ArchiveConversationRoute) -> index
         else -> subList(0, index).lastIndexOf(list).takeIf { it >= 0 }?.plus(1) ?: return pop(route)
     }
     while (size > keep) removeAt(lastIndex)
