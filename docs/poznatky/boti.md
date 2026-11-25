@@ -616,6 +616,43 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
   **Skutečná připravená zpráva a tlačítko ověřené NEJSOU** — vyrobí je jen bot přes Bot API
   (`savePreparedInlineMessage`, `savePreparedKeyboardButton`) a na to je potřeba token.
 
+### Gesto uživatele a brzda dialogů
+
+Stránka dřív mohla posílat odkazy, popupy a žádosti kdykoli a v libovolném počtu: ve smyčce
+otevírat prohlížeč, nebo podstrčit dialog polohy přesně pod opakované ťuknutí (souhlas, který
+uživatel neviděl). Pravidla jsou převzatá z oficiálního klienta pro Android
+(`BotWebViewContainer`: `lastClickMs`, `dialogSequentialOpenTimes`); `WebAppGuards.kt`, testy
+`WebAppGuardsTest`.
+
+- **Gesto = stisk ve WebView, hlavní nebo druhé tlačítko, tlačítko popupu** (`userGesture`).
+  Stisk hlásí `pointerInput` s průchodem `Initial` na ploše kolem WebView — vidí ho dřív než
+  `AndroidView` a nic nespotřebuje. Platformní posluchač dotyků ani změna `WebAppWebView`
+  potřeba nebyla; ověřeno na Androidu, na iOS (`UIKitView`) jen přeložené.
+- **Po gestu jen jednou a nejvýš 10 s** (`WebAppGestureGate.consume`): `web_app_open_link`,
+  `web_app_open_tg_link`, odchod hlavního rámce na jiný web (`navigationLeftApp` — přesměrování
+  ve smyčce by jinak otevíralo prohlížeč dokola), stažení, sdílení připravené zprávy, zástupce na
+  ploše, nastavení polohy a **dialog polohy** (u bota, který polohu smí, se poloha vydá i bez
+  gesta, jako u oficiálního klienta). Bez gesta odpověď „odmítnuto" tam, kde stránka čeká
+  (`file_download_requested` cancelled, `prepared_message_failed` USER_DECLINED,
+  `home_screen_failed`, `location_requested` bez polohy); odkazy odpověď nemají.
+- **Popup a žádost o zápis gesto NECHTĚJÍ** (ani u oficiálního klienta): mini aplikace je
+  běžně posílají hned po načtení. Hlídá je brzda: dokud visí jiný dialog, nový se odmítne;
+  třetí znovuotevření do 150 ms od zavření předchozího spustí pauzu 3 s
+  (`WebAppDialogThrottle`). Platí pro popup, zápis, polohu i stažení.
+- **Odmítnutý dialog dostane odpověď vždycky, v pauze až po ní.** `telegram-web-app.js` drží
+  příznak otevřeného popupu, dokud nepřijde `popup_closed` — bez odpovědi by poctivá stránka
+  další popup už nikdy neotevřela. Okamžitá odpověď by ale smyčku roztočila naprázdno.
+- **Tlačítka dialogu od stránky prvních 500 ms nereagují** (`rememberArmed` ve
+  `WebAppScreen`; popup všechna, u ostatních potvrzení). Odmítnutí (vedle, zpět) platí hned.
+  Tlačítko nezešedne, ťuknutí se jen zahodí — šedivění by dialog rozblikalo. Oficiální klient
+  na Androidu tohle nemá; je to obrana proti „ťukej co nejrychleji".
+- **Ověřeno na emulátoru** (Plume_Barvy, Notifikátor s `web_app` na `https://example.com/`,
+  CDP a `TelegramWebviewProxy.postEvent`): odkaz bez dotyku nic, po `input tap` dva odkazy za
+  sebou → otevřel se jen první; poloha bez dotyku → `available:false` bez dialogu, s dotykem
+  dialog; `open_location_settings` otevřel profil s řádkem; popup, který se po zavření sám
+  otevírá, se po třetím zavření 3 s neukázal a `popup_closed` přišlo po pauze. **Neověřeno**
+  časování 500 ms rukou (`input tap` má na emulátoru nevyzpytatelnou prodlevu) a iOS.
+
 ### Úložiště, poloha, celá plocha a zástupce na ploše
 
 - **`DeviceStorage`** (`web_app_device_storage_*`, `MiniAppStorage` v `core/webapp`): klíč → text
@@ -645,8 +682,14 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
 - **Poloha** (`web_app_check_location` / `request_location`): bot ji dostane jen se souhlasem;
   poprvé (a po odmítnutí znovu) se ptá dialog a odpověď se pamatuje pro účet a bota. Poloha je
   přesná (`rememberDeviceLocation(precise = true)`), systémové oprávnění se žádá až teď.
-  Výška, kurz a rychlost se nevedou (`null`). Nastavení polohy pro boty (`open_location_settings`)
-  Plume nemá.
+  Výška, kurz a rychlost se nevedou (`null`).
+  - **Souhlas jde odvolat** (`MiniAppLocation.kt`, `MiniAppStorage.locationPermissions`): přepínač
+    „Poloha pro mini aplikaci" v Informacích profilu bota a blok „Poloha pro mini aplikace"
+    v Nastavení → Soukromí se všemi boty, kteří se ptali. Dřív se souhlas uložil navždy.
+    Řádek je jen u bota, který se už ptal — přepínač „nesmí" u bota, který polohu nikdy
+    nechtěl, by mátl. Vypnutí = „nesmí", příští žádost se zeptá znovu (jako po odmítnutí).
+  - **`web_app_open_location_settings` otevře profil bota** (po gestu), mini aplikace se zavře.
+    Oficiální klient dělá totéž (profil srolovaný k řádku polohy).
 - **Celá plocha** (`requestFullscreen` / `exitFullscreen`): hlavička aplikace zmizí, zpět /
   zavřít je tónové tlačítko přes stránku a `content_safe_area` hlásí nahoře 56 dp, ať ho
   stránka nechá volné. Pod stavovou lištu stránka nezajíždí (`statusBarsPadding`), proto

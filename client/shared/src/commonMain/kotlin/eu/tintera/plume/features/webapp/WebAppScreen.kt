@@ -70,7 +70,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.key
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
@@ -125,6 +130,8 @@ fun WebAppScreen(
     viewModel: WebAppViewModel,
     onClose: () -> Unit,
     onOpenChat: (ChatTarget) -> Unit,
+    /** Profil bota (nastavení polohy pro něj); mini aplikace se tím zavře. */
+    onOpenProfile: (chatId: Long) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val theme = webAppTheme(MaterialTheme.colorScheme)
@@ -135,6 +142,7 @@ fun WebAppScreen(
     val currentHeight by rememberUpdatedState(heightDp)
     val currentClose by rememberUpdatedState(onClose)
     val currentOpenChat by rememberUpdatedState(onOpenChat)
+    val currentOpenProfile by rememberUpdatedState(onOpenProfile)
     // Poloha pro bota: přesná, o oprávnění se žádá až teď (souhlas s botem už padl ve VM).
     val location = rememberDeviceLocation(precise = true)
     val shortcuts = rememberHomeScreenShortcuts()
@@ -154,6 +162,7 @@ fun WebAppScreen(
                 }
                 WebAppEffect.Close -> currentClose()
                 is WebAppEffect.OpenChat -> currentOpenChat(effect.target)
+                is WebAppEffect.OpenProfile -> currentOpenProfile(effect.chatId)
                 WebAppEffect.RequestLocation -> location.request { point -> viewModel.locationResult(point?.latitude, point?.longitude) }
                 is WebAppEffect.HomeScreen -> {
                     val status = if (effect.add) {
@@ -239,7 +248,16 @@ fun WebAppScreen(
                     .background(background)
                     // Bez hlavičky by stránka zajela pod stavovou lištu; okraje hlásíme nulové.
                     .then(if (state.fullscreen) Modifier.statusBarsPadding() else Modifier)
-                    .onSizeChanged { size -> heightDp = with(density) { size.height.toDp().value.toInt() } },
+                    .onSizeChanged { size -> heightDp = with(density) { size.height.toDp().value.toInt() } }
+                    // Každý stisk ve stránce je gesto uživatele (odkazy a dialogy jen po něm).
+                    // Průchod Initial vidí stisk dřív než WebView a nic nespotřebuje.
+                    .pointerInput(viewModel) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                if (awaitPointerEvent(PointerEventPass.Initial).type == PointerEventType.Press) viewModel.userGesture()
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 state.url?.let { address ->
@@ -318,34 +336,37 @@ fun WebAppScreen(
         )
     }
     state.popup?.let { popup ->
-        WebAppPopupDialog(popup, onClose = viewModel::popupClosed)
+        key(popup) { WebAppPopupDialog(popup, onClose = viewModel::popupClosed) }
     }
     if (state.locationConsent) {
+        val armed = rememberArmed()
         ConfirmDialog(
             title = stringResource(Res.string.webapp_location_title, botName),
             text = stringResource(Res.string.webapp_location_text),
             confirmLabel = stringResource(Res.string.webapp_location_allow),
-            onConfirm = { viewModel.answerLocationConsent(true) },
+            onConfirm = { if (armed()) viewModel.answerLocationConsent(true) },
             onDismiss = { viewModel.answerLocationConsent(false) },
             icon = Res.drawable.location_on_24dp,
         )
     }
     if (state.writeAccessDialog) {
+        val armed = rememberArmed()
         ConfirmDialog(
             title = stringResource(Res.string.webapp_write_access_title, botName),
             text = stringResource(Res.string.webapp_write_access_text),
             confirmLabel = stringResource(Res.string.webapp_write_access_allow),
-            onConfirm = viewModel::allowWriteAccess,
+            onConfirm = { if (armed()) viewModel.allowWriteAccess() },
             onDismiss = viewModel::declineWriteAccess,
             icon = Res.drawable.chat_24dp,
         )
     }
     state.download?.let { download ->
+        val armed = rememberArmed()
         ConfirmDialog(
             title = stringResource(Res.string.webapp_download_title),
             text = stringResource(Res.string.webapp_download_text, botName, download.fileName, download.host),
             confirmLabel = stringResource(Res.string.webapp_download_confirm),
-            onConfirm = viewModel::confirmDownload,
+            onConfirm = { if (armed()) viewModel.confirmDownload() },
             onDismiss = viewModel::dismissDownload,
             icon = Res.drawable.download_24dp,
         )
@@ -360,6 +381,21 @@ fun WebAppScreen(
             icon = Res.drawable.close_24dp,
         )
     }
+}
+
+/**
+ * Smí už tlačítko dialogu od stránky reagovat? Prvních [DIALOG_ARM_DELAY] po ukázání ne: dialog
+ * mohla stránka podstrčit pod opakované ťuknutí. Odmítnutí (ťuknutí vedle, zpět) platí hned —
+ * to ničemu neublíží. Ťuknutí v té době se zahodí, tlačítko nezešedne: dialog by jinak blikl.
+ */
+@Composable
+private fun rememberArmed(): () -> Boolean {
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(DIALOG_ARM_DELAY)
+        armed = true
+    }
+    return { armed }
 }
 
 /**
@@ -515,13 +551,15 @@ private val BUTTON_GAP = 8.dp
 @Composable
 private fun WebAppPopupDialog(popup: WebAppPopup, onClose: (String?) -> Unit) {
     val buttons = popup.buttons.ifEmpty { listOf(WebAppPopupButton("", "close", "")) }.take(3)
+    // Všechna tlačítka popupu jsou od bota („OK" může cokoli potvrdit), proto všechna až po chvilce.
+    val armed = rememberArmed()
     AlertDialog(
         onDismissRequest = { onClose(null) },
         title = popup.title.takeIf { it.isNotBlank() }?.let { { Text(it) } },
         text = { Text(popup.message) },
         confirmButton = {
             buttons.forEach { button ->
-                TextButton(onClick = { onClose(button.id) }, shapes = ButtonDefaults.shapes()) {
+                TextButton(onClick = { if (armed()) onClose(button.id) }, shapes = ButtonDefaults.shapes()) {
                     Text(
                         button.text.ifBlank {
                             when (button.type) {

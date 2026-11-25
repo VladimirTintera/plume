@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.groupRowBackground
+import eu.tintera.plume.features.webapp.BotLocationRow
+import eu.tintera.plume.features.webapp.rememberBotLocation
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
@@ -1507,6 +1510,8 @@ private fun ProfileInfo(
     /** Sběratelská jména nebo číslo z Fragmentu — ťuknutí na řádek ukáže, kdy a za kolik se koupily. */
     onOpenCollectible: (List<CollectibleItem>) -> Unit,
 ) {
+    // Poloha pro mini aplikaci bota: řádek jen u bota, který se na ni už ptal.
+    val botLocation = profile.userId?.takeIf { profile.kind == ProfileKind.Bot }?.let { rememberBotLocation(it) }
     val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
             val collectibles = profile.usernames.filter { it in profile.collectibleUsernames }.map { CollectibleItem.Username(it) }
@@ -1690,6 +1695,10 @@ private fun ProfileInfo(
         }
         // Ukládání do galerie je nastavení účtu pro tenhle chat — vedle upozornění. Ťuknutí
         // výjimku založí, upraví nebo odebere (v Úložišti jde jen upravit a odebrat).
+        // Souhlas s polohou je nastavení účtu pro tohohle bota — mezi nastaveními, tady se dá odvolat.
+        botLocation?.let { location ->
+            add { shape -> BotLocationRow(location, Modifier.groupRowBackground(shape)) }
+        }
         autosave?.let { current ->
             add { shape ->
                 SettingRow(title = chatAutosaveLabel(), value = chatAutosaveText(current), shape = shape, onClick = onOpenAutosave)

@@ -23,6 +23,7 @@ import eu.tintera.plume.resources.webapp_load_failed
 import eu.tintera.plume.resources.webapp_not_found
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +37,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.webview.webAppProfileName
 import eu.tintera.plume.core.webview.webOrigin
 import eu.tintera.plume.core.navigation.isTelegramLink
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 data class WebAppState(
     /** Jméno bota do hlavičky; `null`, dokud se nenačte. */
@@ -96,6 +99,8 @@ sealed interface WebAppEffect {
     data class Haptic(val kind: WebAppHaptic) : WebAppEffect
     data object Close : WebAppEffect
     data class OpenChat(val target: ChatTarget) : WebAppEffect
+    /** Profil bota s řádkem polohy (`web_app_open_location_settings`). */
+    data class OpenProfile(val chatId: Long) : WebAppEffect
     /** Zjistit polohu zařízení a vrátit ji do [WebAppViewModel.locationResult]. */
     data object RequestLocation : WebAppEffect
     /** Zástupce na ploše: zjistit stav ([add] `false`), nebo přidat — výsledek do [WebAppViewModel.homeScreenResult]. */
@@ -118,6 +123,9 @@ sealed interface WebAppEffect {
  *   a chat se otevře; ostatní druhy odkazů jdou do prohlížeče.
  * - **Po odeslání zprávy se zavře** (`updateWebAppMessageSent` s naším `launchId`) — bot
  *   odpověděl na dotaz mini aplikace a ta je hotová; TDLib zavření přikazuje.
+ * - **Odkazy, stažení, sdílení, zástupce a dialog polohy jen po gestu** ([WebAppGestureGate]),
+ *   dialogy od stránky brzdí [WebAppDialogThrottle] — jinak by je stránka mohla otevírat ve
+ *   smyčce nebo podstrčit pod ťuknutí.
  * - **Strážní bot** ([guardQueryId]) schvaluje vstup do chatu. Jakmile rozhodne, mini aplikace
  *   se zavře sama (TDLib to u `updateChatJoinResult` přikazuje); co dál (otevřít chat, hláška),
  *   řeší ten, kdo vstup začal — ví, odkud uživatel přišel.
@@ -144,6 +152,7 @@ class WebAppViewModel(
     private val storage: MiniAppStorage,
     /** `SecureStorage` mini aplikací; `null` = platforma trezor nedodá, odpovídá se `UNSUPPORTED`. */
     private val secureStorage: MiniAppSecureStorage? = null,
+    timeSource: TimeSource = TimeSource.Monotonic,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("WebApp")
@@ -157,6 +166,8 @@ class WebAppViewModel(
     private var launchId: Long? = null
     private var theme: WebAppTheme? = null
     private var started = false
+    private val gestures = WebAppGestureGate(timeSource)
+    private val dialogs = WebAppDialogThrottle(timeSource)
 
     private val nameLoaded = viewModelScope.launch { _state.update { it.copy(title = repository.botName(botUserId)) } }
 
@@ -255,6 +266,9 @@ class WebAppViewModel(
 
     fun pageLoaded() = _state.update { it.copy(loading = false) }
 
+    /** Uživatel se dotkl stránky; hlásí obrazovka při každém stisku ve WebView. */
+    fun userGesture() = gestures.gesture()
+
     fun onEvent(type: String, data: String?) {
         when (val event = parseWebAppEvent(type, data)) {
             WebAppEvent.Ready -> _state.update { it.copy(loading = false) }
@@ -272,15 +286,15 @@ class WebAppViewModel(
             }
             is WebAppEvent.BackButton -> _state.update { it.copy(backVisible = event.visible) }
             is WebAppEvent.ClosingConfirmation -> _state.update { it.copy(confirmClose = event.needed) }
-            is WebAppEvent.OpenLink -> openExternal(event.url)
-            is WebAppEvent.OpenTelegramLink -> openTelegramLink(event.url)
+            is WebAppEvent.OpenLink -> afterGesture("web_app_open_link") { openExternal(event.url) }
+            is WebAppEvent.OpenTelegramLink -> afterGesture("web_app_open_tg_link") { openTelegramLink(event.url) }
             is WebAppEvent.SendData -> sendData(event.data)
             is WebAppEvent.Haptic -> effect(WebAppEffect.Haptic(event.kind))
             is WebAppEvent.HeaderColor -> _state.update {
                 it.copy(headerColor = event.color ?: theme?.let { current -> themeColor(current, event.key) })
             }
             is WebAppEvent.BackgroundColor -> _state.update { it.copy(backgroundColor = event.color) }
-            is WebAppEvent.Popup -> _state.update { it.copy(popup = event.popup) }
+            is WebAppEvent.Popup -> showDialog(WebAppEvents.popupClosed(null)) { _state.update { it.copy(popup = event.popup) } }
             is WebAppEvent.CustomMethod -> viewModelScope.launch {
                 repository.customRequest(botUserId, event.method, event.parameters)
                     .onSuccess { result -> post(WebAppEvents.customMethodInvoked(event.requestId, result, null)) }
@@ -291,14 +305,23 @@ class WebAppViewModel(
             is WebAppEvent.ReadClipboard -> post(WebAppEvents.clipboardTextReceived(event.requestId))
             WebAppEvent.RequestPhone -> post(WebAppEvents.phoneRequested())
             WebAppEvent.RequestWriteAccess -> requestWriteAccess()
-            is WebAppEvent.SharePreparedMessage -> sharePreparedMessage(event.id)
+            is WebAppEvent.SharePreparedMessage -> afterGesture(
+                "web_app_send_prepared_message",
+                refused = { post(WebAppEvents.preparedMessageFailed(WebAppErrors.USER_DECLINED)) },
+            ) { sharePreparedMessage(event.id) }
             is WebAppEvent.RequestChat -> requestChat(event.requestId)
-            is WebAppEvent.DownloadFile -> requestDownload(event.url, event.fileName)
+            is WebAppEvent.DownloadFile -> afterGesture(
+                "web_app_request_file_download",
+                refused = { post(WebAppEvents.fileDownloadRequested(downloading = false)) },
+            ) { requestDownload(event.url, event.fileName) }
             is WebAppEvent.OpenInvoice -> post(WebAppEvents.invoiceClosed(event.slug))
             WebAppEvent.RequestFullscreen -> setFullscreen(true)
             WebAppEvent.ExitFullscreen -> setFullscreen(false)
             WebAppEvent.CheckHomeScreen -> homeScreen(add = false)
-            WebAppEvent.AddToHomeScreen -> homeScreen(add = true)
+            WebAppEvent.AddToHomeScreen -> afterGesture(
+                "web_app_add_to_home_screen",
+                refused = { post(WebAppEvents.homeScreenFailed(WebAppErrors.UNKNOWN_ERROR)) },
+            ) { homeScreen(add = true) }
             is WebAppEvent.DeviceStorageSave -> deviceStorage(event.requestId) { account ->
                 storage.set(account, botUserId, event.key, event.value)
                 WebAppEvents.deviceStorageSaved(event.requestId)
@@ -326,9 +349,50 @@ class WebAppViewModel(
                 post(WebAppEvents.secureStorageFailed(event.requestId, WebAppErrors.RESTORE_UNAVAILABLE))
             WebAppEvent.CheckLocation -> checkLocation()
             WebAppEvent.RequestLocation -> requestLocation()
-            // Vlastní nastavení polohy pro boty Plume nemá; souhlas se mění u dalšího dotazu.
-            WebAppEvent.OpenLocationSettings -> logger.i { "Mini aplikace chce nastavení polohy, Plume ho nemá." }
+            // Souhlas s polohou se mění v profilu bota (a v Nastavení → Soukromí); mini aplikace
+            // tam pošle jako oficiální klient.
+            WebAppEvent.OpenLocationSettings -> afterGesture("web_app_open_location_settings") {
+                effect(WebAppEffect.OpenProfile(botUserId))
+            }
             is WebAppEvent.Unknown -> logger.i { "Mini aplikace poslala neznámou událost ${event.type}." }
+        }
+    }
+
+    /**
+     * Akce, kterou stránka smí vyvolat jen po gestu uživatele ([WebAppGestureGate]); bez něj
+     * [refused] — odpověď, na kterou stránka čeká, nebo nic (odkazy odpověď nemají).
+     */
+    private inline fun afterGesture(event: String, refused: () -> Unit = {}, action: () -> Unit) {
+        if (gestures.consume()) {
+            action()
+        } else {
+            logger.i { "Mini aplikace poslala $event bez gesta uživatele, odmítnuto." }
+            refused()
+        }
+    }
+
+    private fun dialogOpen(): Boolean = with(_state.value) {
+        consent || popup != null || writeAccessDialog || locationConsent || download != null ||
+            closeDialog || share != null || chatRequest != null
+    }
+
+    /**
+     * Ukáže dialog, o který žádá stránka, nebo ho odmítne odpovědí [declined]: hned, když už
+     * nějaký visí, a po pauze brzdy ([WebAppDialogThrottle]), když je otevírá ve smyčce. Odpověď
+     * přijde vždycky — knihovna Telegramu by jinak další popup nepustila —, jen v pauze
+     * zpožděná, ať se smyčka neroztočí naprázdno.
+     */
+    private fun showDialog(declined: WebAppOutgoing, show: () -> Unit) {
+        if (dialogOpen()) return post(declined)
+        val wait = dialogs.wait()
+        if (wait == Duration.ZERO) {
+            show()
+        } else {
+            logger.i { "Mini aplikace otevírá dialogy ve smyčce, další až za $wait." }
+            viewModelScope.launch {
+                delay(wait)
+                post(declined)
+            }
         }
     }
 
@@ -405,12 +469,21 @@ class WebAppViewModel(
     private fun requestLocation() {
         viewModelScope.launch {
             val allowed = chats.savedMessagesChatId.value?.let { storage.locationAllowed(it, botUserId) }
-            if (allowed == true) effect(WebAppEffect.RequestLocation) else _state.update { it.copy(locationConsent = true) }
+            when {
+                allowed == true -> effect(WebAppEffect.RequestLocation)
+                // Dialog jen po gestu: jinak by mohl naskočit pod ťuknutí, které mířilo jinam.
+                !gestures.consume() -> {
+                    logger.i { "Mini aplikace chtěla polohu bez gesta uživatele, odmítnuto." }
+                    post(WebAppEvents.locationRequested(null, null))
+                }
+                else -> showDialog(WebAppEvents.locationRequested(null, null)) { _state.update { it.copy(locationConsent = true) } }
+            }
         }
     }
 
     fun answerLocationConsent(allow: Boolean) {
         _state.update { it.copy(locationConsent = false) }
+        dialogs.closed()
         viewModelScope.launch {
             chats.savedMessagesChatId.value?.let { storage.setLocationAllowed(it, botUserId, allow) }
             if (allow) effect(WebAppEffect.RequestLocation) else post(WebAppEvents.locationRequested(null, null))
@@ -458,12 +531,18 @@ class WebAppViewModel(
 
     fun pressMainButton() {
         val button = _state.value.mainButton
-        if (button.visible && button.active && !button.progress) post(WebAppEvents.mainButtonPressed())
+        if (button.visible && button.active && !button.progress) {
+            gestures.gesture()
+            post(WebAppEvents.mainButtonPressed())
+        }
     }
 
     fun pressSecondaryButton() {
         val button = _state.value.secondaryButton
-        if (button.visible && button.active && !button.progress) post(WebAppEvents.secondaryButtonPressed())
+        if (button.visible && button.active && !button.progress) {
+            gestures.gesture()
+            post(WebAppEvents.secondaryButtonPressed())
+        }
     }
 
     /** Šipka v hlavičce i systémové zpět: napřed „zpět" mini aplikace, pak zavření. */
@@ -486,6 +565,9 @@ class WebAppViewModel(
     /** Popup zavřený tlačítkem [buttonId], nebo bez volby (`null`). */
     fun popupClosed(buttonId: String?) {
         _state.update { it.copy(popup = null) }
+        dialogs.closed()
+        // Tlačítko popupu je gesto (jako u oficiálního klienta): „Otevřít" v popupu smí otevřít odkaz.
+        if (buttonId != null) gestures.gesture()
         post(WebAppEvents.popupClosed(buttonId))
     }
 
@@ -495,18 +577,18 @@ class WebAppViewModel(
      * a uživatel by jinak potvrzoval pořád dokola.
      */
     private fun requestWriteAccess() {
-        if (_state.value.writeAccessDialog) return
         viewModelScope.launch {
             if (repository.canBotWrite(botUserId)) {
                 post(WebAppEvents.writeAccessRequested(allowed = true))
             } else {
-                _state.update { it.copy(writeAccessDialog = true) }
+                showDialog(WebAppEvents.writeAccessRequested(allowed = false)) { _state.update { it.copy(writeAccessDialog = true) } }
             }
         }
     }
 
     fun allowWriteAccess() {
         _state.update { it.copy(writeAccessDialog = false) }
+        dialogs.closed()
         viewModelScope.launch {
             val allowed = repository.allowBotToWrite(botUserId).isSuccess
             post(WebAppEvents.writeAccessRequested(allowed))
@@ -515,6 +597,7 @@ class WebAppViewModel(
 
     fun declineWriteAccess() {
         _state.update { it.copy(writeAccessDialog = false) }
+        dialogs.closed()
         post(WebAppEvents.writeAccessRequested(allowed = false))
     }
 
@@ -531,7 +614,11 @@ class WebAppViewModel(
         }
         viewModelScope.launch {
             repository.checkDownload(botUserId, fileName, url)
-                .onSuccess { clean -> _state.update { it.copy(download = WebAppDownload(url, clean, host)) } }
+                .onSuccess { clean ->
+                    showDialog(WebAppEvents.fileDownloadRequested(downloading = false)) {
+                        _state.update { it.copy(download = WebAppDownload(url, clean, host)) }
+                    }
+                }
                 .onFailure { post(WebAppEvents.fileDownloadRequested(downloading = false)) }
         }
     }
@@ -539,11 +626,13 @@ class WebAppViewModel(
     fun confirmDownload() {
         val download = _state.value.download ?: return
         _state.update { it.copy(download = null) }
+        dialogs.closed()
         post(WebAppEvents.fileDownloadRequested(downloader.download(download.url, download.fileName)))
     }
 
     fun dismissDownload() {
         _state.update { it.copy(download = null) }
+        dialogs.closed()
         post(WebAppEvents.fileDownloadRequested(downloading = false))
     }
 
@@ -594,9 +683,10 @@ class WebAppViewModel(
     /**
      * Hlavní rámec chtěl odejít z originu mini aplikace (obyčejný odkaz na stránce). Do WebView
      * se cizí web nepustí — dostal by most mini aplikace —, otevře se v prohlížeči jako
-     * `web_app_open_link`.
+     * `web_app_open_link` — a stejně jen po gestu, jinak by stránka přesměrováním ve smyčce
+     * otevírala prohlížeč pořád dokola. Obyčejný odkaz na stránce gesto má (ťuknutí na něj).
      */
-    fun navigationLeftApp(url: String) = openExternal(url)
+    fun navigationLeftApp(url: String) = afterGesture("navigation") { openExternal(url) }
 
     private fun openExternal(url: String) {
         // Odkaz na Telegram přes `web_app_open_link` by se prohlížečem vrátil do Plume

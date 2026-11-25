@@ -2860,8 +2860,12 @@
     <string name="webapp_close_confirm_title">Zavřít mini aplikaci?</string>
     <string name="webapp_close_confirm_text">Neuložené změny se můžou ztratit.</string>
     <string name="webapp_location_title">Sdílet polohu s %1$s?</string>
-    <string name="webapp_location_text">Mini aplikace dostane současnou polohu tohoto zařízení. Plume si odpověď pro tohoto bota zapamatuje.</string>
+    <string name="webapp_location_text">Mini aplikace dostane současnou polohu tohoto zařízení. Plume si odpověď pro tohoto bota zapamatuje; změnit ji jde v profilu bota.</string>
     <string name="webapp_location_allow">Sdílet</string>
+    <string name="webapp_location_row">Poloha pro mini aplikaci</string>
+    <string name="webapp_location_row_on">Bot smí znát polohu tohoto zařízení</string>
+    <string name="webapp_location_row_off">Bot se na polohu napřed zeptá</string>
+    <string name="settings_mini_app_location">Poloha pro mini aplikace</string>
     <string name="webapp_write_access_title">Dovolit %1$s psát ti?</string>
     <string name="webapp_write_access_text">Mini aplikace žádá, aby ti bot mohl posílat zprávy. Zarazit to jde kdykoli zablokováním bota.</string>
     <string name="webapp_write_access_allow">Dovolit</string>

@@ -1018,8 +1018,9 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
   `setTdlibParameters` šlo natvrdo „0.1.0", takže v seznamu zařízení i v oznámení Telegramu
   o změně hesla stálo „MGram 0.1.0" u Play verze 0.3.75 — z jiného zařízení nešlo poznat, co
   na tom telefonu běží. Server si novou verzi vezme při dalším spuštění.
-- **Jméno aplikace u relace („MGram") NENÍ z kódu.** Je to název aplikace u `api_id` na
-  my.telegram.org; TDLib ho nikde nenastavuje. Změní se jen tam.
+- **Jméno aplikace u relace NENÍ z kódu.** Je to název aplikace u `api_id` na
+  my.telegram.org; TDLib ho nikde nenastavuje. Změní se jen tam (dřív tam stálo „MGram",
+  v listopadu 2026 přejmenované).
 
 ## „Co je nového" v aplikaci (`core/changelog`)
 

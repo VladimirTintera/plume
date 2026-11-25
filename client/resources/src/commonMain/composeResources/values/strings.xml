@@ -2786,8 +2786,12 @@
     <string name="webapp_close_confirm_title">Close the mini app?</string>
     <string name="webapp_close_confirm_text">Unsaved changes may be lost.</string>
     <string name="webapp_location_title">Share your location with %1$s?</string>
-    <string name="webapp_location_text">The mini app will get the current location of this device. Plume remembers your answer for this bot.</string>
+    <string name="webapp_location_text">The mini app will get the current location of this device. Plume remembers your answer for this bot; you can change it in the bot's profile.</string>
     <string name="webapp_location_allow">Share</string>
+    <string name="webapp_location_row">Location for the mini app</string>
+    <string name="webapp_location_row_on">The bot can get this device's location</string>
+    <string name="webapp_location_row_off">The bot will ask before getting the location</string>
+    <string name="settings_mini_app_location">Location for mini apps</string>
     <string name="webapp_write_access_title">Allow %1$s to message you?</string>
     <string name="webapp_write_access_text">The mini app asks to let the bot send you messages. You can stop it anytime by blocking the bot.</string>
     <string name="webapp_write_access_allow">Allow</string>

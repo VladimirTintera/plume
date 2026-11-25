@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.features.webapp.MiniAppLocationGroup
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -141,6 +142,8 @@ internal fun PrivacySettings(
         DiscreetReadingRow()
         StripTrackingParametersRow()
     }
+    // Souhlasy s polohou pro mini aplikace; blok chybí, dokud se žádný bot nezeptal.
+    MiniAppLocationGroup()
     TitledGroup(Res.string.settings_security) {
         TwoStepRow(twoStep, onOpenTwoStep)
         LoginEmailRow(twoStep, onOpenLoginEmail)
