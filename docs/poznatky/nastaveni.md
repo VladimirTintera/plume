@@ -355,8 +355,11 @@ a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom n
   pod kartou, přepnutí karty i sekcí (Zařízení a Blokovaní ukazují data vybraného účtu), seznam
   chatů se nezměnil, menu účtu otevře Nastavení zase za výchozí účet, „Sign out <jméno>",
   ve dvoupanelu zůstane otevřená sekce a seznam drží pozici; fotka účtu v liště sekce na
-  složeném displeji, jen v liště podstránky se schovaným seznamem a žádná vedle seznamu. Neověřené: odhlášení účtu
-  z jeho Nastavení, odkaz `tg://settings/…` z chatu jiného účtu, desktop a iOS.
+  složeném displeji, jen v liště podstránky se schovaným seznamem a žádná vedle seznamu.
+  Odkaz `tg://settings/devices` od Notifikátoru v chatu primárního účtu (výchozí byl druhý účet)
+  otevřel Zařízení primárního účtu s jeho fotkou v liště, seznam Nastavení za něj a výchozí
+  účet v `accounts.json` zůstal beze změny. Neověřené: odhlášení účtu z jeho Nastavení, desktop
+  a iOS.
 
 ### Hledání v Nastavení (`SettingsSearch.kt`)
 
