@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.core.adaptive.isWindowHeightCompact
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
+import eu.tintera.plume.core.ui.AccountBadgeAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
@@ -95,6 +96,7 @@ internal fun SettingsTopBar(
             navigationIcon = { WindowControlsSpace(navigationIcon = navigationIcon) },
             actions = {
                 actions()
+                AccountBadgeAction()
                 WindowControlsEndSpace()
             },
             colors = colors,
@@ -106,6 +108,7 @@ internal fun SettingsTopBar(
             navigationIcon = { WindowControlsSpace(navigationIcon = navigationIcon) },
             actions = {
                 actions()
+                AccountBadgeAction()
                 WindowControlsEndSpace()
             },
             colors = colors,

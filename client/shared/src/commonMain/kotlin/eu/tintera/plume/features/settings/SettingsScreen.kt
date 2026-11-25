@@ -10,13 +10,13 @@ import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,9 +50,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.features.chats.AccountEntry
+import eu.tintera.plume.features.chats.rememberAccountSwitcher
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
+import eu.tintera.plume.resources.settings_sign_out_account
+import eu.tintera.plume.resources.settings_sign_out_account_title
 import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.navigation3.runtime.NavKey
-import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.core.ui.groupRow
@@ -129,8 +144,17 @@ fun SettingsScreen(
     searchResetKey: Int = 0,
     /** QR kód na kartě účtu — sheet je navigační destinace (`MyQrCodeRoute`), otevírá ho shell. */
     onMyQrCode: () -> Unit = {},
+    /** Nastavení jiného přihlášeného účtu (řádky účtů pod kartou účtu, jen s víc účty). */
+    onSelectAccount: (AccountSlot) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
+    // Účet obrazovky je účet Nastavení (`SettingsAccountScope` v shellu), ne nutně výchozí.
+    val accounts = rememberAccountSwitcher().accounts
+    val currentSlot = LocalAccount.current.slot
+    // S víc účty říká tlačítko i dialog, KOHO odhlašují: holé „Odhlásit se" by se snadno
+    // ťuklo v Nastavení účtu, o kterém si uživatel myslel, že je ten druhý.
+    val accountName = viewModel.account.collectAsStateWithLifecycle().value?.displayName
+        ?.takeIf { accounts.size > 1 && it.isNotBlank() }
     val scrollBehavior = settingsScrollBehavior()
     val aiAvailable by viewModel.aiAvailable.collectAsStateWithLifecycle()
     val sections = SettingsSection.entries.filter { section ->
@@ -156,6 +180,7 @@ fun SettingsScreen(
     val results = remember(query, index) { searchSettings(query, index) }
     if (confirmLogOut) {
         LogOutDialog(
+            accountName = accountName,
             onConfirm = {
                 confirmLogOut = false
                 viewModel.logOut()
@@ -174,7 +199,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .settingsContentPadding(padding)
-                .verticalScroll(rememberRestoringScrollState())
+                .verticalScroll(LocalSettingsListScroll.current ?: rememberRestoringScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(BLOCK_SPACING),
         ) {
@@ -204,7 +229,18 @@ fun SettingsScreen(
                 return@Column
             }
 
-            AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile, onMyQrCode = onMyQrCode)
+            // Karta a účty pod ní jsou jeden blok („čí Nastavení to jsou").
+            val multipleAccounts = accounts.size > 1
+            Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
+                AccountCard(
+                    viewModel = viewModel,
+                    selected = accountSelected,
+                    onClick = onEditProfile,
+                    onMyQrCode = onMyQrCode,
+                    last = !multipleAccounts,
+                )
+                if (multipleAccounts) AccountRows(accounts = accounts, selected = currentSlot, onSelect = onSelectAccount)
+            }
 
             // Sekce jsou jeden blok se společným zaoblením, stejný jazyk jako seznam chatů.
             Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
@@ -240,7 +276,15 @@ fun SettingsScreen(
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                 ),
             ) {
-                Text(stringResource(Res.string.settings_sign_out))
+                Text(
+                    if (accountName != null) {
+                        stringResource(Res.string.settings_sign_out_account, accountName)
+                    } else {
+                        stringResource(Res.string.settings_sign_out)
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -259,20 +303,34 @@ fun SettingsScreen(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick: () -> Unit, onMyQrCode: () -> Unit) {
+private fun AccountCard(
+    viewModel: SettingsViewModel,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onMyQrCode: () -> Unit,
+    /** Karta je posledním řádkem bloku; s víc účty pod ní následují řádky účtů ([AccountRows]). */
+    last: Boolean,
+) {
     val account by viewModel.account.collectAsStateWithLifecycle()
 
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val secondary = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-    val shape = RoundedCornerShape(GROUP_CORNER)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = animatedGroupItemShape(first = true, last = last, selected = selected, pressed = pressed)
     Card(
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .clickable(onClickLabel = stringResource(Res.string.settings_edit_profile), onClick = onClick),
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(),
+                onClickLabel = stringResource(Res.string.settings_edit_profile),
+                onClick = onClick,
+            ),
     ) {
         Row(
             Modifier.padding(16.dp),
@@ -312,6 +370,74 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
                 FilledTonalIconButton(onClick = onMyQrCode, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.qr_code_24dp), contentDescription = stringResource(Res.string.my_qr_title))
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Čí Nastavení to jsou, s víc účty: řádek za každý přihlášený účet hned pod kartou účtu, v témže
+ * bloku (karta nahoře, účty jako její podpoložky). Vybraný je účet karty. Výběr přepne celé
+ * Nastavení na ten účet, výchozí účet (a tím seznam chatů) nechá být.
+ *
+ * - **Podpoložky karty, ne čipy.** Stejný jazyk jako „Přidat do složky" v nabídce nad chatem:
+ *   odsazené řádky pod nadpisem s ovládacím prvkem vpravo. Čipy pod kartou stály mimo blok
+ *   a vypadaly jako filtr, ne jako volba účtu.
+ * - **Fotka pod fotkou karty, jméno pod jménem.** Fotka 32 dp leží uprostřed sloupce velké fotky
+ *   karty ([ACCOUNT_AVATAR_SIZE]), takže jméno začíná tam, kde jméno na kartě.
+ * - **Přepínač výběru (radio), ne fajfka.** Vybírá se právě jeden; výběr nese tvar prvku,
+ *   ne jen barva, a čtečka ho čte z role řádku (`selectable`, `selectableGroup`).
+ * - Fotka jiného účtu se stahuje jeho klientem, proto `AccountScope` kolem ní (jako v menu účtu).
+ */
+@Composable
+private fun AccountRows(accounts: List<AccountEntry>, selected: AccountSlot, onSelect: (AccountSlot) -> Unit) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
+    ) {
+        accounts.forEachIndexed { index, entry ->
+            val slot = entry.account.slot
+            val isSelected = slot == selected
+            val interaction = remember { MutableInteractionSource() }
+            val pressed by interaction.collectIsPressedAsState()
+            val shape = animatedGroupItemShape(first = false, last = index == accounts.lastIndex, selected = false, pressed = pressed)
+            // Složený jako karta (odsazení i mezera 16 dp), ne `ListItem`: ten má mezi ikonou
+            // a textem jinou mezeru a jméno by nestálo pod jménem na kartě.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.groupRow)
+                    .selectable(
+                        selected = isSelected,
+                        interactionSource = interaction,
+                        indication = ripple(),
+                        role = Role.RadioButton,
+                        onClick = { onSelect(slot) },
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Box(Modifier.width(ACCOUNT_AVATAR_SIZE), contentAlignment = Alignment.Center) {
+                    AccountScope(entry.account) {
+                        Avatar(
+                            chatId = entry.info?.id ?: 0L,
+                            title = entry.title,
+                            avatarFileId = entry.info?.photoFileId,
+                            size = ACCOUNT_ROW_AVATAR_SIZE,
+                        )
+                    }
+                }
+                Text(
+                    entry.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                RadioButton(selected = isSelected, onClick = null)
             }
         }
     }
@@ -369,11 +495,17 @@ internal fun SettingsListRow(
  */
 @Composable
 private fun LogOutDialog(
+    /** Jméno odhlašovaného účtu, když je přihlášených víc; jinak `null`. */
+    accountName: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ConfirmDialog(
-        title = stringResource(Res.string.settings_sign_out_title),
+        title = if (accountName != null) {
+            stringResource(Res.string.settings_sign_out_account_title, accountName)
+        } else {
+            stringResource(Res.string.settings_sign_out_title)
+        },
         text = stringResource(Res.string.settings_sign_out_body),
         confirmLabel = stringResource(Res.string.settings_sign_out_confirm),
         onConfirm = onConfirm,
@@ -428,7 +560,21 @@ internal val SettingsSection.summary: StringResource
         SettingsSection.About -> Res.string.settings_section_about_summary
     }
 
+/**
+ * Rolování seznamu Nastavení, které přežije přepnutí účtu (řádky účtů pod kartou). Podává ho shell nad
+ * obalem účtu (`SettingsAccountScope`), protože obsah pod ním se s jiným účtem skládá znovu.
+ *
+ * Kdyby si stav rolování držel seznam sám, po ťuknutí na účet by odskočil: buď na začátek, nebo
+ * (ověřeno na emulátoru) na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě —
+ * `SaveableStateHolder` položky ji drží pod klíčem účtu i po zavření Nastavení. Řádky účtů, na které
+ * se právě ťuklo, by tak zmizely z dohledu.
+ */
+internal val LocalSettingsListScroll = staticCompositionLocalOf<ScrollState?> { null }
+
 private val BLOCK_SPACING = 16.dp
 
 /** Fotka účtu na kartě: zhruba výška tří řádků textu vedle ní, takže karta kvůli ní nepovyroste. */
 private val ACCOUNT_AVATAR_SIZE = 56.dp
+
+/** Fotka v řádku účtu pod kartou: velikost ikony seznamu by byla na fotku malá, 40 dp by řádek zvedlo. */
+private val ACCOUNT_ROW_AVATAR_SIZE = 32.dp

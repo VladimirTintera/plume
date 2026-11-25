@@ -297,6 +297,70 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   název stojí hned vedle. „Co je nového" má megafon, ne raketu: raketou se uvnitř sekce značí
   novinka u jedné poznámky.
 
+### Nastavení jiného účtu (víc účtů)
+
+S víc přihlášenými účty jsou pod kartou účtu řádky se všemi účty (`AccountRows`
+v `SettingsScreen`): karta a řádky jsou jeden blok, řádek má malou fotku pod fotkou karty, jméno
+pod jménem karty a vpravo přepínač výběru (radio); vybraný je účet karty. Ťuknutí přepne CELÉ
+Nastavení na ten účet (`AppNavigation.selectSettingsAccount`). Dřív Nastavení patřila vždycky výchozímu účtu
+a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom nebyla ani zmínka.
+
+- **Výchozí účet se nemění.** `accounts.setDefault` by přes `DefaultAccountScope` složil celý
+  shell znovu (Nastavení by se zavřela) a seznam chatů by v režimu Všechny účty přešel na jeden
+  účet. Účet Nastavení je proto vlastní stav navigace (`AppNavigation.settingsAccount`, `null`
+  = výchozí), který přežije zabití procesu (`SettingsAccountSaver`, id slotu).
+- **Routy Nastavení slot nenesou; účet dává obal celého zásobníku** (`inSettingsAccount`,
+  `SettingsAccountScope` v `AppNavigation.kt`): každá položka zásobníku Nastavení se skládá
+  v `AccountScope` vybraného účtu. Slot v ~20 routách by znamenal přepsat i index hledání
+  v Nastavení, odkazy `tg://settings/…` a testy — a sekce jsou smíšené (Chaty: složky a rychlá
+  reakce účtu vedle velikosti písma aplikace), takže by se stejně skládaly celé v jednom účtu.
+  Routy s účtem (`ChatFolderEditRoute`, `MediaRoute` z úpravy profilu) dál skládá
+  `inRouteAccount` svým slotem a otevírají se se slotem z `LocalAccount`, tedy účtu Nastavení.
+- **Účet se čte až v kompozici položky, ne při její stavbě**: `rememberDecoratedNavEntries`
+  si položky pamatuje podle klíčů, takže obsah musí na změnu účtu reagovat sám.
+- **Jiný účet než shellu má vlastní úložiště ViewModelů** (`AccountViewModels` uvnitř položky)
+  a obsah se se změnou složí od začátku (`key(slot)`). `koinViewModel()` bez klíče by jinak
+  našel ViewModel předchozího účtu i s jeho repository — stejná past jako u přepnutí výchozího
+  účtu (CLAUDE.md, „ViewModel na detailu MUSÍ mít klíč").
+- **Po přepnutí zůstane jen otevřený detail** (sekce nebo úprava profilu, `keepSettingsDetail`,
+  testy `SettingsAccountStackTest`); podstránky, sheet a routy s účtem nad ním patřily
+  předchozímu účtu.
+- **Menu účtu otevírá Nastavení výchozího účtu**, ne naposledy vybraného (`openSettings()`
+  stav vynuluje): menu slibuje Nastavení účtu, jehož fotku ukazuje. Odkaz z chatu
+  (`openScreen`), složky a proxy ze seznamu chatů předávají svůj slot.
+- **Odhlášení říká koho** („Odhlásit VT2", i v titulku dialogu), jen s víc účty. Odhlásí účet
+  Nastavení; shell pak (efekt nad `accounts.all`) přepne Nastavení na účet shellu, a když to byl
+  výchozí účet, složí se jako dřív celý shell znovu.
+- **Rolování seznamu leží NAD klíčem účtu** (`LocalSettingsListScroll`, podává ho
+  `SettingsAccountScope` jen kořeni Nastavení). S rolováním uvnitř seznamu seznam po ťuknutí
+  na účet odskočil na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě:
+  `SaveableStateHolder` položky drží uložený stav větve `key(slot)` i po zavření Nastavení
+  a nová kompozice téže větve si ho vezme. Účty pod kartou tak zmizely z dohledu (zjištěno na emulátoru).
+- **Účty jsou podpoložky karty, ne čipy** (první verze měla `FilterChip` s fotkou pod kartou).
+  Čipy stály mimo blok a četly se jako filtr; řádky mluví stejným jazykem jako „Přidat do
+  složky" v nabídce nad chatem. Řádek je složený jako karta (`Row`, odsazení a mezera 16 dp),
+  ne `ListItem`: ten má mezi ikonou a textem jinou mezeru a jméno nestálo pod jménem na kartě.
+- **Sekce a podstránky ukazují fotku účtu v liště, když seznam s kartou není vidět**
+  (`AccountBadgeAction` v `core/ui`, `LocalShowAccountBadge` podává `SettingsAccountScope`
+  všem položkám kromě kořene, jen s víc účty). Na telefonu a ve dvou panelech se sekcí
+  a podstránkou (seznam schovaný) by se jinak ztratilo, čí nastavení člověk mění. Rozhoduje
+  `LocalPaneNeighbours.listBeside`, který shell počítá i pro zásobník Nastavení: vedle seznamu
+  fotka není, karta to říká sama. Z panelů vedle sebe ji má jen PRAVÝ (podstránka, role
+  `Extra`; sekce ne, když je podstránka vedle) — ve dvou sousedních lištách byla zbytečně dvakrát. Je ve `SettingsTopBar` (tím i `SettingsPage`), v `ChatPicker`
+  (Blokovaní, výběr k zablokování) a v úpravě vlastní sady samolepek. **Není to tlačítko**:
+  přepnutí uprostřed podstránky by ji zavřelo; jméno ukáže bublina po podržení („Účet: VT").
+- **Volby aplikace jsou stejné, ať je vybraný kterýkoli účet** (vzhled, jazyk, AI, zámek);
+  ukazují se v Nastavení každého účtu. Označení „pro všechny účty" u řádků zatím není.
+- **Ověřeno na emulátoru Fold** (Android, anglicky; dva účty, režim Všechny účty): řádky účtů
+  pod kartou, přepnutí karty i sekcí (Zařízení a Blokovaní ukazují data vybraného účtu), seznam
+  chatů se nezměnil, menu účtu otevře Nastavení zase za výchozí účet, „Sign out <jméno>",
+  ve dvoupanelu zůstane otevřená sekce a seznam drží pozici; fotka účtu v liště sekce na
+  složeném displeji, jen v liště podstránky se schovaným seznamem a žádná vedle seznamu.
+  Odkaz `tg://settings/devices` od Notifikátoru v chatu primárního účtu (výchozí byl druhý účet)
+  otevřel Zařízení primárního účtu s jeho fotkou v liště, seznam Nastavení za něj a výchozí
+  účet v `accounts.json` zůstal beze změny. Neověřené: odhlášení účtu z jeho Nastavení, desktop
+  a iOS.
+
 ### Hledání v Nastavení (`SettingsSearch.kt`)
 
 Pilulka nahoře v seznamu sekcí (`SearchPill`, tentýž prvek jako všude jinde). S dotazem jsou
