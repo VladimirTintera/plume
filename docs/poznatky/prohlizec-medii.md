@@ -1521,6 +1521,32 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     sledování a návratu do konverzace.
   - **Mizející médium a tajný chat se nepamatují**: první se podruhé neotevře, po druhém nemá
     v zařízení zůstat stopa.
+  - **Rozkoukaná videa** (menu účtu, `ContinueWatchingRoute`, `features/watching`, třída účtu
+    `ContinueWatching` v `core/video`): videa ze zpráv, která uživatel nedokoukal, nejnověji
+    sledovaná nahoře. Řádek: náhled s proužkem, chat a odesílatel, „0:42 / 1:02:08". Ťuknutí
+    otevře `MediaRoute` — prohlížeč pokračuje sám z pamatované pozice. Odebrání (✕ nebo podržení)
+    jen zapomene pozici (`VideoPositions.remove`, zmizí i proužek v bublině), s „Vrátit"
+    (`restore` na původní místo; novější zápis téhož souboru vyhrává). Podržení nabídne i
+    „Zobrazit v chatu".
+    - **Z id souboru zprávu dohledat nejde** (TDLib na to dotaz nemá), proto pozice nově nese
+      zdroj (`VideoPosition.source`: účet, chat, zpráva). Zapisuje ho jen prohlížeč nad zprávou
+      chatu (`MediaRoute.showsChatMessages`, stejná podmínka jako „Zobrazit v chatu") — příběh,
+      reklama, anketa ani článek se zprávou otevřít znovu nedají. Zápis bez zdroje ten starý
+      nechá (`withPosition`). **Záznamy z doby před seznamem zdroj nemají** a v seznamu nejsou,
+      dokud se video nepustí znovu; proužek a čas v bublině jim zůstávají.
+    - **Účet je id uživatele (Uložené zprávy), ne slot** — jako u záložek: slot se po odhlášení
+      přidělí dalšímu účtu. Seznam je proto za účet (`ContinueWatchingRoute(slot)`), ne společný
+      v režimu Všechny účty, a **zamčené chaty v něm nejsou** (`AccountSettings.lockedChats`).
+    - **Položka v menu jen tehdy, když nějaká jsou** (jako koncepty a záložky); počet čte
+      `ChatListScreen` přímo z `ContinueWatching`, ne přes `ChatsViewModel`.
+    - **Zpráva se načte jednou a pamatuje se** (`ContinueWatchingViewModel`): pozice se za
+      přehrávání zapisuje každých 10 s a seznam by jinak pokaždé četl všechny zprávy znovu.
+      Smazaná zpráva (nebo bez videa) se tiše nevykreslí, pozice zůstane, než ji vytlačí novější.
+      Uložené zprávy mají název „Uložené zprávy", ne jméno účtu.
+    - **Ověřeno na emulátoru `Plume_Galerie_Fold`**: po 20 s sledování položka v menu
+      (`video_positions` nese `source`), řádek „Saved Messages · You · 0:42 / 1:02:08",
+      ťuknutí → „Resuming from 0:42", ✕ → prázdný stav a snackbar, Undo → řádek zpátky
+      (s novější pozicí). Víc účtů a iOS neověřené.
 - **Dvojí ťuknutí do levé / pravé půlky skočí o 10 s** (víc ťuknutí rychle za sebou se sčítá,
   u okraje se ukáže „−20 s"), **podržení pustí video 2×**, dokud prst leží (pilulka „Rychlost 2×"
   nahoře, uložená rychlost se po puštění vrátí). Jen u hrajícího videa na celé obrazovce

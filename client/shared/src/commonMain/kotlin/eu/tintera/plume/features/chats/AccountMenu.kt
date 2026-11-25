@@ -56,6 +56,8 @@ import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.download_24dp
 import eu.tintera.plume.resources.downloads_title
+import eu.tintera.plume.resources.continue_watching_title
+import eu.tintera.plume.resources.resume_24dp
 import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.calls_title
 import eu.tintera.plume.resources.archive_24dp
@@ -108,6 +110,8 @@ internal fun AccountMenu(
     /** Historie hovorů; `null` = bez položky (platforma bez hovorů). */
     onCalls: (() -> Unit)?,
     onDownloads: () -> Unit,
+    /** Rozkoukaná videa; `null` = žádná nejsou a položka chybí (jako koncepty a záložky). */
+    onContinueWatching: (() -> Unit)?,
     onMyStories: () -> Unit,
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
     draftCount: Int,
@@ -256,6 +260,7 @@ internal fun AccountMenu(
                     onLockedChats?.let { MenuAction(stringResource(Res.string.locked_chats_title), Res.drawable.lock_24dp, onClick = it) },
                     onCalls?.let { MenuAction(stringResource(Res.string.calls_title), Res.drawable.call_24dp, onClick = it) },
                     MenuAction(stringResource(Res.string.downloads_title), Res.drawable.download_24dp, onClick = onDownloads),
+                    onContinueWatching?.let { MenuAction(stringResource(Res.string.continue_watching_title), Res.drawable.resume_24dp, onClick = it) },
                     MenuAction(stringResource(Res.string.my_stories_title), Res.drawable.history_toggle_off_24dp, onClick = onMyStories),
                     // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
                     // si žádalo pozornost jako nepřečtené.

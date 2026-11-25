@@ -58,6 +58,7 @@ import eu.tintera.plume.core.drafts.CommentDraftTracking
 import eu.tintera.plume.core.drafts.CommentDrafts
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.video.VideoPositions
+import eu.tintera.plume.core.video.ContinueWatching
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
@@ -126,6 +127,7 @@ import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.links.ExternalLinkViewModel
 import eu.tintera.plume.features.calls.CallsViewModel
 import eu.tintera.plume.features.downloads.DownloadsViewModel
+import eu.tintera.plume.features.watching.ContinueWatchingViewModel
 import eu.tintera.plume.features.downloads.PendingDownloadRemovals
 import eu.tintera.plume.features.stories.MyStoriesViewModel
 import eu.tintera.plume.features.settings.MyQrCodeViewModel
@@ -360,6 +362,7 @@ fun appAccountModule() = module {
     single { MessageContexts(ai = get(), settings = get(), appScope = get(named(APP_SCOPE)), load = get()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get(), locked = get<AccountSettings>().lockedChats) }
+    single { ContinueWatching(positions = get(), chats = get(), locked = get<AccountSettings>().lockedChats) }
     single { CommentDrafts(settings = get(), chats = get(), threads = get()) }
     // Smazání chatu s „Vrátit" doběhne i po zavření archivu, proto ve scope aplikace.
     single { PendingChatDeletes(repository = get(), scope = get(named(APP_SCOPE))) }
@@ -916,6 +919,7 @@ fun appAccountModule() = module {
         )
     }
     viewModelOf(::MyStoriesViewModel)
+    viewModelOf(::ContinueWatchingViewModel)
     viewModel { parameters ->
         StickerComposerViewModel(
             sourcePath = parameters.get(),
