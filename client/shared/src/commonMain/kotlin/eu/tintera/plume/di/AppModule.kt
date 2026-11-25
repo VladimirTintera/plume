@@ -59,6 +59,9 @@ import eu.tintera.plume.core.drafts.CommentDrafts
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.core.video.ContinueWatching
+import eu.tintera.plume.core.settings.sync.BotCloudStore
+import eu.tintera.plume.core.settings.sync.CloudSync
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
@@ -373,6 +376,17 @@ fun appAccountModule() = module {
     single { ConversationReplyRequests() }
     single { SponsoredLinkRequests() }
     single { InlineQueryRequests() }
+    // Nastavení, rozkoukaná videa a záložky mezi zařízeními přes úložiště @PlumeSyncBot.
+    single {
+        CloudSync(
+            settings = get(),
+            account = get(),
+            store = BotCloudStore(webApps = get(), chats = get()),
+            accountId = get<ChatRepository>().savedMessagesChatId,
+            authStage = get<TelegramSession>().authStage,
+            scope = get(named(APP_SCOPE)),
+        )
+    }
     single {
         AutoDownloadSync(
             settings = get(),

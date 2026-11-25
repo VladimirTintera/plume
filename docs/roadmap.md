@@ -2185,11 +2185,10 @@ Odhlásit se dole v seznamu sekcí, ne v úpravě profilu; Proxy do Úložiště
     `docs/poznatky/nastaveni.md`, „Jazyk aplikace").
   - **iOS ověřit na simulátoru** — Safari v aplikaci, otevření systémového Nastavení z řádku
     jazyka, dvojité ťuknutí.
-- **Synchronizace nastavení mezi zařízeními** (barva motivu, velikost písma zpráv, rychlost
-  hlasovek…) přes CloudStorage mini aplikací (`sendWebAppCustomRequest`). Sonda ověřila, že to
-  jde bez otevřené mini aplikace i u bota bez ní. Zbývá založit bota v BotFatheru (uživatel),
-  podívat se do oficiálního klienta, jestli se bot nikde neukáže, a postavit to.
-  Podrobnosti v `docs/poznatky/nastaveni.md`, „Synchronizace nastavení mezi zařízeními".
+- ~~**Synchronizace nastavení mezi zařízeními**~~ — hotovo přes úložiště `@PlumeSyncBot`
+  (barvy chatů, písmo a přehrávání, rozkoukaná videa, záložky; `docs/poznatky/nastaveni.md`, „Synchronizace
+  nastavení mezi zařízeními"). Zbývá podívat se do oficiálního klienta, jestli se bot nikde
+  neukáže, a ověřit na iOS.
 - ~~**Diskrétní čtení a psaní (Ghost Mode).**~~ — hotovo (Nastavení → Obecné → Soukromí;
   `docs/poznatky/nastaveni.md`, „Diskrétní čtení"), ~~i poslech hlasovek~~. Mizející média
   vědomě ne. Původní zadání: V Nastavení → Soukromí volba pro potlačení

@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.settings.sync.CloudSync
 import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.connectivity.AppForeground
@@ -66,4 +67,7 @@ private fun startAccount(account: AccountSession) {
     // Automatické stahování ze serveru po přihlášení. Od startu, protože přihlášení
     // (a odhlášení, po kterém se má příště stáhnout) se nesmí propásnout.
     account.get<AutoDownloadSync>().start()
+
+    // Synchronizace přes úložiště bota: po každém přihlášení i startu, pak při změnách.
+    account.get<CloudSync>().start()
 }

@@ -14,6 +14,14 @@ import kotlinx.coroutines.flow.StateFlow
 interface AccountSettings {
 
     /**
+     * Stav synchronizovaných dat při poslední synchronizaci přes úložiště bota (JSON, viz
+     * `CloudSync`) — základ trojcestného slučování. `null` = ještě nikdy.
+     */
+    suspend fun cloudSyncBase(): String? = null
+
+    suspend fun setCloudSyncBase(value: String) = Unit
+
+    /**
      * Kde stojí automatické stahování vůči serveru Telegramu u tohoto účtu. `null` = ještě nikdy:
      * čerstvě přidaný účet, nebo aktualizace z verze, která nesynchronizovala. Čeká na načtení
      * souboru. Úrovně samotné jsou nastavení zařízení ([AppSettings.autoDownload]).

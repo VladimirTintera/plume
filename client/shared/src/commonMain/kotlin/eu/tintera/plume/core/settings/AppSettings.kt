@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.settings
 
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.drafts.CommentDraftThread
@@ -185,6 +188,16 @@ interface AppSettings {
     suspend fun loadedAutoDownload(): AutoDownloadSettings
 
     /** Záložky zpráv všech účtů; filtruje a spravuje je [eu.tintera.plume.core.bookmarks.MessageBookmarks]. */
+    /**
+     * Hodnoty voleb, které se synchronizují přes účet (vzhled a přehrávání, viz
+     * [eu.tintera.plume.core.settings.sync.CloudSync]): název klíče → hodnota. Chybí-li klíč,
+     * platí výchozí hodnota. `null`, dokud se soubor nenačte.
+     */
+    val syncedPreferences: StateFlow<Map<String, JsonPrimitive>?> get() = MutableStateFlow(null)
+
+    /** Zapíše volby ze synchronizace; `null` u klíče = smazat (výchozí hodnota). Neznámé klíče přeskočí. */
+    suspend fun applySyncedPreferences(values: Map<String, JsonPrimitive?>) = Unit
+
     val messageBookmarks: StateFlow<List<MessageBookmark>>
 
     /** Uloží záložky. Neblokuje. */
@@ -746,6 +759,19 @@ class DataStoreAppSettings(
         }
     }
 
+    override val syncedPreferences: StateFlow<Map<String, JsonPrimitive>?> = loadedValue { preferences ->
+        SYNCED_KEYS.mapNotNull { key -> key.read(preferences)?.let { key.name to it } }.toMap()
+    }
+
+    override suspend fun applySyncedPreferences(values: Map<String, JsonPrimitive?>) {
+        edit { preferences ->
+            values.forEach { (name, value) ->
+                val key = SYNCED_KEYS.firstOrNull { it.name == name } ?: return@forEach
+                if (value == null) key.remove(preferences) else key.write(preferences, value)
+            }
+        }
+    }
+
     override val messageBookmarks: StateFlow<List<MessageBookmark>> = value(emptyList()) { preferences ->
         // Poškozený nebo cizí zápis nesmí shodit aplikaci; záložky se pak prostě nenačtou.
         preferences[MESSAGE_BOOKMARKS]?.let { stored ->
@@ -1257,6 +1283,13 @@ class DataStoreAppSettings(
         private val lockedChatsKey = stringPreferencesKey(slot.secretName("locked_chats"))
         private val keyboardsKey = stringPreferencesKey(slot.secretName("used_one_time_keyboards"))
         private val storageCleanupKey = longPreferencesKey(slot.secretName("last_storage_cleanup"))
+        private val cloudSyncBaseKey = stringPreferencesKey(slot.secretName("cloud_sync_base"))
+
+        override suspend fun cloudSyncBase(): String? = preferences.filterNotNull().first()[cloudSyncBaseKey]
+
+        override suspend fun setCloudSyncBase(value: String) {
+            edit { preferences -> preferences[cloudSyncBaseKey] = value }
+        }
 
         override suspend fun autoDownloadSync(): SettingsSync? {
             val stored = preferences.filterNotNull().first()[autoDownloadSyncKey] ?: return null
@@ -1349,6 +1382,30 @@ class DataStoreAppSettings(
     private fun String.decodeEmojis(): List<String> = split(EMOJI_SEPARATOR).filter { it.isNotEmpty() }
 
     private companion object {
+        /**
+         * Volby synchronizované přes účet ([syncedPreferences]). Názvy skupin vede
+         * `CloudSyncGroups` v balíčku `sync`; test hlídá, že každý název odsud jde zapsat.
+         * Vědomě ne: motiv a barva aplikace (desktop vždy tmavý, telefon podle tapety — volba
+         * zařízení), barvy z tapety, kotvy panelů a vše vázané na zařízení.
+         */
+        val SYNCED_KEYS: List<SyncedKey> by lazy {
+            listOf(
+                SyncedKey.Flag(CHAT_ROW_GAPS),
+                SyncedKey.Number(MESSAGE_TEXT_SIZE),
+                SyncedKey.Number(CHAT_PREVIEW_LINES_KEY),
+                SyncedKey.Number(STICKER_SIZE),
+                SyncedKey.Text(VOICE_SPEED),
+                SyncedKey.Text(VIDEO_SPEED),
+                SyncedKey.Flag(SKIP_SILENCE),
+                SyncedKey.Flag(DOUBLE_TAP_REACTION),
+                SyncedKey.Flag(OPEN_LINKS_IN_APP),
+                SyncedKey.Flag(STRIP_TRACKING_PARAMETERS),
+                SyncedKey.Text(CHAT_SWIPE_RIGHT),
+                SyncedKey.Text(CHAT_SWIPE_LEFT),
+                SyncedKey.Text(SEEN_GESTURE_HINTS),
+            )
+        }
+
         val EXPRESSION_MODE = stringPreferencesKey("expression_mode")
         val RECORD_MODE = stringPreferencesKey("record_mode")
         val RECENT_EMOJIS = stringPreferencesKey("recent_emojis")
@@ -1433,3 +1490,42 @@ const val SETTINGS_FILE_NAME = "app_settings.preferences_pb"
 
 /** Seznamy uložené jako JSON (záložky, odložené chaty); neznámá pole z novější verze se přeskočí. */
 private val storedListJson = Json { ignoreUnknownKeys = true }
+
+/** Klíč DataStore, který se synchronizuje: čtení a zápis přes JSON podle typu. */
+private sealed class SyncedKey(val name: String) {
+    abstract fun read(preferences: Preferences): JsonPrimitive?
+
+    abstract fun write(preferences: MutablePreferences, value: JsonPrimitive)
+
+    abstract fun remove(preferences: MutablePreferences)
+
+    class Text(private val key: Preferences.Key<String>) : SyncedKey(key.name) {
+        override fun read(preferences: Preferences) = preferences[key]?.let(::JsonPrimitive)
+        override fun write(preferences: MutablePreferences, value: JsonPrimitive) {
+            if (value.isString) preferences[key] = value.content
+        }
+        override fun remove(preferences: MutablePreferences) {
+            preferences.remove(key)
+        }
+    }
+
+    class Number(private val key: Preferences.Key<Int>) : SyncedKey(key.name) {
+        override fun read(preferences: Preferences) = preferences[key]?.let(::JsonPrimitive)
+        override fun write(preferences: MutablePreferences, value: JsonPrimitive) {
+            value.intOrNull?.let { preferences[key] = it }
+        }
+        override fun remove(preferences: MutablePreferences) {
+            preferences.remove(key)
+        }
+    }
+
+    class Flag(private val key: Preferences.Key<Boolean>) : SyncedKey(key.name) {
+        override fun read(preferences: Preferences) = preferences[key]?.let(::JsonPrimitive)
+        override fun write(preferences: MutablePreferences, value: JsonPrimitive) {
+            value.booleanOrNull?.let { preferences[key] = it }
+        }
+        override fun remove(preferences: MutablePreferences) {
+            preferences.remove(key)
+        }
+    }
+}

@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.serialization.Serializable
 
 /**
- * Barva, kterou si uživatel dal ke konverzaci. Jen v tomhle zařízení a jen pro něj — Telegram
+ * Barva, kterou si uživatel dal ke konverzaci. Jen pro něj (mezi jeho zařízeními ji nese
+ * synchronizace přes úložiště bota, `CloudSync`) — Telegram
  * o ní neví (téma chatu `setChatTheme` by se vnutilo i druhé straně). [accountId] drží barvy
  * od sebe mezi účty.
  *

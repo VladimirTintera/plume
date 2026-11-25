@@ -348,7 +348,7 @@
     <string name="theme_color_pink">Pink</string>
     <string name="theme_color_purple">Purple</string>
     <string name="chat_color_title">Chat color</string>
-    <string name="chat_color_explanation">Only you see it, and only on this device. It helps you recognize the chat at a glance.</string>
+    <string name="chat_color_explanation">Only you see it, on all your devices with Plume. It helps you recognize the chat at a glance.</string>
     <string name="chat_color_default">App default</string>
     <string name="settings_messages">Messages</string>
     <string name="settings_message_text_size">Text size</string>
