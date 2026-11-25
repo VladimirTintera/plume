@@ -1688,6 +1688,17 @@ v aplikaci systému (`viewerUnsupportedFormats`), kamera pro kolečka je `null` 
 - **Výběr příloh je AWT `FileDialog`** (na macOS nativní panel). Soubor se nekopíruje — na
   rozdíl od mobilů tu žádný dočasný adresář výběru není. Fotka (co přečte ImageIO) jde jako
   fotka, ostatní včetně videa jako soubor.
+- **Modální `FileDialog` se otevírá přes `showLater`** (`core/ui/FileDialogs.kt`), nikdy
+  `isVisible = true` přímo z kódu Compose. Volání blokuje a spustí vnořenou smyčku událostí,
+  která dál kreslí snímky; běželo-li v korutině na `FlushCoroutineDispatcher` (tak „Uložit
+  jako…" v prohlížeči: `scope.launch` → `prepareSaveAs` → dialog), vyprázdnil snímek tentýž
+  dispatcher znovu uprostřed jeho běhu. Aplikace pak spadla řadou výjimek, žádná z nich
+  v našem kódu: `CoroutinesInternalError` s `ClassCastException` (`CompletedContinuation` →
+  `DispatchedContinuation`, `ChannelSegment` → `Boolean` v `GlobalSnapshotManager`, `Symbol`
+  → `PreparedMedia`) a nakonec `ConcurrentModificationException` ve
+  `FlushCoroutineDispatcher`. Poznat to jde podle `Dialog.setVisible` uprostřed zásobníku
+  mezi dvěma `FlushCoroutineDispatcher.flush`. `EventQueue.invokeLater` dialog odloží za
+  konec vyprázdnění. Totéž platí pro každý jiný modální dialog AWT/Swing.
 - **Vložení ze schránky a přetažení souborů** mají vlastní oddíl výš.
 - **`Desktop.browse`/`open` na Linuxu bez GNOME knihoven nefungují**, náhradou je `xdg-open`.
 - **Titulek okna na Linuxu se motivem neřídí** (`WindowTitleBarAppearance` tam nedělá nic).

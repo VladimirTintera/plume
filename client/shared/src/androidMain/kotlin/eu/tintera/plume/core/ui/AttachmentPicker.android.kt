@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.files.outgoingVideoName
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
@@ -55,6 +56,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 
 /**
  * Android: Photo Picker (`PickMultipleVisualMedia`) na fotky a videa, `OpenMultipleDocuments` na soubory.
@@ -208,6 +210,9 @@ private fun cameraUri(context: Context, file: File): Uri =
 /** Podadresář cache, kam zapisuje fotoaparát; sedí s `res/xml/documents.xml` v aplikaci. */
 private const val CAMERA_DIRECTORY = "camera"
 
+/** Jméno videa, o kterém poskytovatel nic neřekl; [outgoingVideoName] ho nahradí datem natočení. */
+private const val FALLBACK_VIDEO_NAME = "video.mp4"
+
 /**
  * Výběr jedné skladby. S filtrem na zvukové typy ukazuje systémový výběr v úvodních „Nedávných"
  * prázdno (ověřeno na emulátoru, Android 16) a ke skladbám by se muselo bočním menu; otevře se
@@ -242,7 +247,7 @@ internal fun prepareVisual(context: Context, uri: Uri): OutgoingAttachment =
  * u MP4 z foťáku bývá index na konci, video z jiné aplikace ho mívá na začátku.
  */
 private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
-    val name = displayName(context, uri) ?: "video.mp4"
+    val name = displayName(context, uri) ?: FALLBACK_VIDEO_NAME
     val target = outgoingFile(context, name)
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
         copyBounded(input, target)
@@ -253,14 +258,28 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
 /** Video, které už leží v `outgoing` ([target]): rozměry, délka, náhled a příznak streamování. */
 private fun videoAt(target: File): OutgoingAttachment.Video {
     val video = videoMetadata(target)
+    val named = renamedByRecordingDate(target, displayName = name.takeIf { it != FALLBACK_VIDEO_NAME }, video.recordedAt)
     return OutgoingAttachment.Video(
-        path = target.absolutePath,
+        path = named.absolutePath,
         width = video.width,
         height = video.height,
         durationSeconds = video.durationSeconds,
         thumbnail = video.thumbnail,
-        streamable = indexBeforeData(target),
+        streamable = indexBeforeData(named),
     )
+}
+
+/**
+ * Přejmenuje kopii, když jméno od poskytovatele nic neříká (Google Fotky hlásí číslo položky,
+ * `2143.mp4`), na datum natočení (`VID_20261125_192900.mp4`), viz [outgoingVideoName]. Jméno
+ * je až po přečtení hlavičky, proto se kopie přejmenuje, ne pojmenuje rovnou. Nepovede-li se
+ * to, odejde video pod jménem, které přišlo.
+ */
+private fun renamedByRecordingDate(target: File, displayName: String?, recordedAt: String?): File {
+    val name = outgoingVideoName(displayName, recordedAt, TimeZone.currentSystemDefault())
+    if (name == target.name) return target
+    val renamed = File(target.parentFile, name.replace('/', '_').replace('\\', '_'))
+    return if (target.renameTo(renamed)) renamed else target
 }
 
 /**
@@ -340,7 +359,14 @@ private fun pixelAspect(target: File): Float {
 private const val SAR_WIDTH = "sar-width"
 private const val SAR_HEIGHT = "sar-height"
 
-internal class VideoMetadata(val width: Int, val height: Int, val durationSeconds: Int, val thumbnail: OutgoingThumbnail?)
+internal class VideoMetadata(
+    val width: Int,
+    val height: Int,
+    val durationSeconds: Int,
+    val thumbnail: OutgoingThumbnail?,
+    /** Datum natočení z hlavičky (`METADATA_KEY_DATE`, `20261125T182900.000Z`), viz [outgoingVideoName]. */
+    val recordedAt: String? = null,
+)
 
 /** Rozměry (po otočení), délka a první snímek jako JPEG náhled vedle souboru. */
 internal fun videoMetadata(target: File): VideoMetadata {
@@ -379,6 +405,7 @@ internal fun videoMetadata(target: File): VideoMetadata {
             height = if (rotated) rawWidth else rawHeight,
             durationSeconds = ((durationMs + 500) / 1000).toInt(),
             thumbnail = thumbnail,
+            recordedAt = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE),
         )
     } finally {
         retriever.release()
