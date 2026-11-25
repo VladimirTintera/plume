@@ -25,8 +25,13 @@ import kotlinx.coroutines.launch
  * dočasné a patří přijímající aktivitě; až uživatel vybere chat, mohlo by už neplatit. Kopíruje
  * se v rozsahu aplikace ([scope]), ne aktivity — zavření aktivity nesmí kopii přerušit.
  *
- * **Fotky a videa jdou jako média, jen když jsou médii všechny.** Telegram fotky se soubory do
- * jednoho alba nesloží; smíšené sdílení proto odejde celé jako soubory, ať se nic neztratí.
+ * **Každý soubor se připraví jako při výběru sponkou**: fotka a video jako médium, MP4 bez typu
+ * od poskytovatele podle přípony jako video, ostatní jako soubor. Smíšené sdílení čeká nad polem
+ * jako smíšený výběr (média nahoře, soubory pod nimi) a odejde dvěma alby — dřív odcházelo celé
+ * jako soubory, protože připravené přílohy držely jen jeden druh.
+ *
+ * **Výjimkou je export chatu** (`.txt` s médii): ten jde celý beze změny, protože import páruje
+ * přílohy se zprávami podle JMEN souborů a zmenšená fotka by se jmenovala `photo.jpg`.
  */
 class ShareIntake(
     private val context: Context,
@@ -93,7 +98,13 @@ class ShareIntake(
             val results = limited
                 .map { uri ->
                     async(AttachmentPrepareDispatcher) {
-                        runCatching { if (visual) prepareVisual(context, uri) else prepareFile(context, uri) }
+                        runCatching {
+                            when {
+                                exportLike -> prepareFile(context, uri, videos = false)
+                                isVisual(typeOf(uri) ?: declared) -> prepareVisual(context, uri)
+                                else -> prepareFile(context, uri)
+                            }
+                        }
                     }
                 }
                 .awaitAll()

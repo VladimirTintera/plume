@@ -87,3 +87,22 @@ val AttachmentPrepareDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedPar
 
 /** Podadresář cache pro připravené přílohy. */
 const val OUTGOING_DIRECTORY = "outgoing"
+
+/**
+ * Odejde soubor ze sponky „Soubor" jako video (s náhledem a přehrávačem), ne jako obecný soubor?
+ * Jen kontejnery z rodiny MP4 (MP4, M4V, QuickTime MOV): ty přehraje každý klient Telegramu
+ * a přehrávač na Androidu je umí streamovat. MKV, AVI nebo WebM zůstanou souborem — jako video by
+ * se jinde nemusely přehrát vůbec a nic se nepřekódovává.
+ *
+ * Rozhoduje typ od systému, a když ho poskytovatel nezná (`application/octet-stream`), přípona.
+ * Jméno souboru zůstane, jak bylo: TDLib ho pošle s videem (`Video.fileName`) a příjemce ho
+ * dostane při uložení.
+ */
+fun isFileVideo(name: String, mimeType: String? = null): Boolean {
+    val type = mimeType?.lowercase()?.substringBefore(';')?.trim()
+    if (type != null && type.startsWith("video/")) return type in FILE_VIDEO_TYPES
+    return name.substringAfterLast('.', missingDelimiterValue = "").lowercase() in FILE_VIDEO_EXTENSIONS
+}
+
+private val FILE_VIDEO_TYPES = setOf("video/mp4", "video/x-m4v", "video/quicktime")
+private val FILE_VIDEO_EXTENSIONS = setOf("mp4", "m4v", "mov")

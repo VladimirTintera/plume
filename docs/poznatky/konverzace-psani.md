@@ -150,9 +150,22 @@ album. Bublina ukazuje průběh nahrávání.
   Při úpravě zprávy se schovají a odeslání úpravy je nepošle.
 - **Album = `sendMessageAlbum`** (2–10), jedna příloha jde přes `sendMessage`. **Popisek patří první
   položce** — tak ho Telegram u alba ukazuje. Entity popisku se dohledávají jako u textu.
-- **Fotky s videi a soubory se nemíchají** (TDLib skládá dokumenty do alba jen s dokumenty). Výběr jiného
-  druhu připravené přílohy **nahradí**, stejný druh se přidá; nad strop se ořízne a ohlásí
-  (`stageAttachments`, testy v `StagedAttachmentsTest`).
+- **Fotky s videi a soubory čekají nad polem spolu**: nahoře náhled nebo carousel médií, pod ním
+  řádky souborů (`StagedAttachmentsItems`). TDLib je do jednoho alba nesloží, takže odejdou jako
+  dvě alba za sebou (dělení podle druhu, viz „Víc než deset příloh"). Nově vybrané se přidají,
+  **média se řadí před soubory** (stabilně), aby pořadí nahoře a dole bylo i pořadím odeslání;
+  nad strop se zahodí naposledy vybrané a ohlásí (`stageAttachments`, `StagedAttachmentsTest`).
+  - **Dřív výběr jiného druhu připravené přílohy NAHRADIL** a ze smíšeného výběru zůstal jen druh
+    první položky. S videem ze sponky „Soubor" by to znamenalo, že MP4 vybrané spolu s PDF
+    musí jít jako soubor bez náhledu, jinak by jedno z nich zmizelo.
+  - **Carousel a řádky dostávají jen svou část seznamu, ale indexy v callbackách jsou indexy
+    v CELÉM seznamu** — s nimi pracuje ViewModel i náhled přes celou obrazovku.
+  - **Fotka přepnutá na „Jako soubor" zůstává v carouselu** (se štítkem Soubor), odejde ale
+    v albu souborů.
+  - **Ověřeno na emulátoru (Android 16)** v chatu s Notifikátorem: MP4 a XML jedním výběrem
+    ze „Souboru" → nahoře video s náhledem, pod ním řádek `u.xml`, věta „Odejde jako 2 alba";
+    bot dostal `video` „Svatba 2025.mp4" a za ním `document` „u.xml". Křížek u videa odebral
+    video a soubor zůstal.
 - **Připravuje se souběžně, pořadí drží `awaitAll`.** Selhání jednoho souboru ostatní nezahodí.
   iOS PHPicker má `selection = Ordered`, aby album odešlo v pořadí ťuknutí.
 - **TDLib u příloh koncept sám NEMAŽE** (`clearDraft` je jen u textu), takže se po odeslání maže
@@ -173,6 +186,43 @@ album. Bublina ukazuje průběh nahrávání.
   a HEIC se tím zároveň převede na JPEG.
 - **Soubor jde beze změny s `disableContentTypeDetection = true`** — uživatel posílal „soubor",
   TDLib by jinak z videa udělal přehrávatelnou zprávu.
+- **Soubor, který je obrázek nebo video, má náhled** (`OutgoingAttachment.Document.thumbnail`,
+  JPEG do 320 px vedle kopie; Android `withPreview` přes `decodeScaled` / `videoMetadata`, iOS
+  přes `UIImage` / `AVAssetImageGenerator`). Nad polem ho kreslí řádek souboru místo ikony
+  (40 dp, `ShapeDefaults.Small`; ikona má tutéž šířku, ať jména začínají pod sebou) a **odejde
+  se souborem** (`InputDocument.thumbnail`), takže ho příjemce vidí v bublině — dřív se posílal
+  `null` a soubor měl u příjemce ikonu, i když šlo o fotku. Totéž platí pro video přepnuté na
+  „Jako soubor" (náhled už má) a pro skladbu jako soubor (obal alba, `Audio.asDocument`).
+  - **Náhled se nesmí jmenovat jako soubor sám**: kopie leží ve vlastní složce a náhled vedle ní
+    jako `thumbnail.jpg`, takže soubor téhož jména dostane náhled `preview.jpg`.
+  - **Fotka přepnutá na „Jako soubor" náhled neposílá** — je to připravená fotka do 2560 px
+    a vlastní náhled pro ni nikdo nevyrábí.
+  - **Desktop náhled nedělá** — soubor neposílá kopií z cache, ale z původního místa, a náhled
+    by se musel zapisovat jinam.
+  - **Ověřeno na emulátoru (Android 16)** v chatu s Notifikátorem: `plan.png` přes „Soubor" →
+    řádek nad polem s miniaturou, bot dostal `document` s `thumbnail` 144 × 320 a bublina v Plume
+    ukázala velký snímek nad jménem souboru. Video jako soubor a skladba s obalem jen testy,
+    iOS jen přeložené.
+- **Video vybrané sponkou „Soubor" odejde jako video, se jménem ze souborů** (`isFileVideo`,
+  `prepareFile`). Dřív šlo jako soubor bez náhledu, a jméno souboru (třeba „Svatba 2025.mp4")
+  zase nešlo ovlivnit z galerie, kde ho uživatel nevidí. Telegram jméno u videa nezahazuje:
+  TDLib ho vezme z cesty nahrávaného souboru a pošle s videem (`Video.fileName`); v bublině se
+  neukazuje, příjemce ho dostane při uložení. Kdo chce soubor, přepne přílohu na „Jako soubor".
+  - **Jen rodina MP4** (MP4, M4V, MOV podle typu od systému, bez něj podle přípony). MKV, AVI
+    nebo WebM zůstávají soubory: nic se nepřekódovává a jako video by se jinde nemusely přehrát.
+  - **I ze smíšeného výběru jde video jako video** — nad polem v carouselu nad řádky souborů.
+    Totéž platí pro sdílení ze systému; výjimkou je jen export chatu (`docs/poznatky/sdileni.md`).
+  - **Video, které nejde přečíst** (nulové rozměry, výjimka), odejde jako soubor.
+  - **iOS přebaluje i MP4** (do podadresáře `mp4/`, ať jméno zůstane). Dřív `exportMp4` u souboru,
+    který už `.mp4` měl, nic neudělal a vrátil ho — a `supportsStreaming` šel `true`, i když index
+    mohl ležet na konci. Z galerie to nevadilo (tam chodí `.mov`), soubory z „Souborů" ano.
+  - **Desktop zůstává u souboru** — rozměry a délku by musel přečíst dekodér, který nemá.
+  - **Z galerie skutečné jméno často nepřijde** — Google Fotky hlásí číslo položky (`2143.mp4`)
+    a Plume ho nahradí datem natočení (viz „Jméno odesílaného videa"). Přesně to jméno, které
+    soubor má, nese jen „Soubor"; tam se nepřejmenovává, číselné ani jiné.
+  - **Ověřeno na emulátoru (Android 16)** v chatu s Notifikátorem: `Svatba 2025.mp4` ze
+    Stažených nad polem s náhledem jako video, bot dostal `video` s `file_name` „Svatba
+    2025.mp4". iOS jen přeložené.
 - **Hudba vybraná jako soubor odejde jako skladba** (`OutgoingAttachment.Audio`,
   `InputMessageAudio`): v konverzaci s přehrávačem, názvem a interpretem. Údaje čte platforma ze
   značek souboru — Android `MediaMetadataRetriever` (podle typu obsahu `audio/*`), iOS
@@ -181,7 +231,7 @@ album. Bublina ukazuje průběh nahrávání.
   MP3 neumí). Totéž platí pro hudbu sdílenou z jiných aplikací.
   - **Skladba patří ke SOUBORŮM**, ne k fotkám: vybírá se sponkou „Soubor" a přidává se k nim.
     Jenže do alba ji TDLib pustí jen se skladbami („Documents and audio files can be only grouped
-    in an album with messages of the same type"), takže **smíšený výběr odejde celý jako soubory**
+    in an album with messages of the same type"), takže **skladby mezi soubory odejdou jako soubory**
     (`sendableTogether`) — a řádek nad polem to ukazuje stejně (ikona souboru místo noty).
   - **Chat bez práva na hudbu (`canSendAudios`) dostane skladbu jako soubor**, smí-li soubory
     (`allowedByContent`). `ContentAccess.audios` proto přibyl; dřív tam hudba nebyla, protože se
@@ -284,6 +334,13 @@ jedno album („Odejde jako 2 alba", „Odejde jako 12 zpráv").
 - **Skladby mezi soubory se převádějí za celý výběr**, ne po albech (`sendableTogether` před
   dělením): jinak by z jednoho výběru odešlo album souborů a vedle něj album skladeb podle
   toho, kam dělení padlo.
+- **Výběr se dělí i podle druhu** — na po sobě jdoucí úseky fotek a videí, souborů a skladeb
+  (`AlbumKind`), každý úsek do svých alb. Smíšený seznam nad polem je běžný (média se soubory)
+  a vznikne i přepnutím jedné položky na „Jako soubor" (`setAttachmentMode` mění jedinou
+  přílohu); TDLib by takové album odmítl („Documents and audio files can be only grouped in an
+  album with messages of the same type"). Pořadí zpráv zůstává pořadím nad polem.
+- **Skladba vedle fotek a videí zůstává skladbou** (`sendableTogether` převádí na soubory jen
+  skladby mezi SOUBORY): média odejdou vlastním albem, takže se se skladbou nepotkají.
 - **Volba „jednotlivě" platí pro to, co právě čeká nad polem**; odesláním se vrací na album
   a přečká odchod z chatu s přílohami (`StagedAttachmentsEntry.separately`).
 - **Příprava běží nejvýš po čtyřech** (`AttachmentPrepareDispatcher`). Se stropem 10 stačilo

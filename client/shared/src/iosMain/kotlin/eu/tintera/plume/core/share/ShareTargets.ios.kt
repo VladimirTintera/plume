@@ -307,10 +307,11 @@ class IosShareInbox(
         chatOpenRequests.request(AccountSlot.Primary, manifest.chatId)
         if (moved.isEmpty()) return
 
-        // Fotky a videa jako média, jen když jsou médii všechny — stejné pravidlo jako Android.
-        val visual = moved.all { (_, kind) -> kind == KIND_IMAGE || kind == KIND_VIDEO }
+        // Každý soubor jako při výběru sponkou; jen export chatu (`.txt` s médii) beze změny,
+        // import páruje přílohy podle jmen souborů — stejné pravidlo jako Android (`ShareIntake`).
+        val export = moved.size > 1 && moved.any { (path, _) -> path.endsWith(".txt", ignoreCase = true) }
         val results = moved
-            .map { (path, kind) -> scope.async(AttachmentPrepareDispatcher) { runCatching { prepare(path, kind, visual) } } }
+            .map { (path, kind) -> scope.async(AttachmentPrepareDispatcher) { runCatching { prepare(path, kind, export) } } }
             .awaitAll()
         results.forEach { result -> result.exceptionOrNull()?.let { logger.w(it) { "Sdílený soubor se nepodařilo připravit." } } }
         requests.prepared(
@@ -320,10 +321,11 @@ class IosShareInbox(
         )
     }
 
-    private suspend fun prepare(path: String, kind: String, visual: Boolean): OutgoingAttachment = when {
-        !visual -> prepareFile(NSURL.fileURLWithPath(path))
+    private suspend fun prepare(path: String, kind: String, export: Boolean): OutgoingAttachment = when {
+        export -> prepareFile(NSURL.fileURLWithPath(path), videos = false)
         kind == KIND_VIDEO -> prepareVideoAt(path)
-        else -> preparePhotoData(NSData.dataWithContentsOfFile(path) ?: error("Obrázek nejde načíst."))
+        kind == KIND_IMAGE -> preparePhotoData(NSData.dataWithContentsOfFile(path) ?: error("Obrázek nejde načíst."))
+        else -> prepareFile(NSURL.fileURLWithPath(path))
     }
 
     private companion object {

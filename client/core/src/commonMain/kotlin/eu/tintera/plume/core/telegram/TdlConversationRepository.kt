@@ -1789,10 +1789,20 @@ class TdlConversationRepository(
     private fun OutgoingAttachment.toInputContent(caption: FormattedText?): InputMessageContent {
         val file = InputFileLocal(path = path)
         if (mode == AttachmentMode.AsFile || this is OutgoingAttachment.Document) {
+            // Náhled, který už je připravený (video, obal skladby, obrázek jako soubor), jde se
+            // souborem: příjemce pak v bublině vidí snímek místo ikony. Fotka jako soubor ho nemá.
+            val preview = when (this) {
+                is OutgoingAttachment.Document -> thumbnail
+                is OutgoingAttachment.Video -> thumbnail
+                is OutgoingAttachment.Audio -> cover
+                is OutgoingAttachment.Photo -> null
+            }
             return InputMessageDocument(
                 document = InputDocument(
                     document = file,
-                    thumbnail = null,
+                    thumbnail = preview?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
                     // Soubor zůstane souborem: bez toho by TDLib z odeslaného videa nebo hudby
                     // udělal přehrávatelnou zprávu, a uživatel posílal výslovně „soubor".
                     disableContentTypeDetection = true,
@@ -1840,7 +1850,9 @@ class TdlConversationRepository(
             is OutgoingAttachment.Document -> InputMessageDocument(
                 document = InputDocument(
                     document = file,
-                    thumbnail = null,
+                    thumbnail = thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
                     // Soubor zůstane souborem: bez toho by TDLib z odeslaného videa nebo hudby
                     // udělal přehrávatelnou zprávu, a uživatel posílal výslovně „soubor".
                     disableContentTypeDetection = true,

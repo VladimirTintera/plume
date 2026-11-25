@@ -97,10 +97,10 @@ actual fun rememberAttachmentPicker(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = systemPickLimit()),
     ) { uris -> prepare(uris, ::prepareVisual) }
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        prepare(uris.take(PICK_LIMIT), ::prepareFile)
+        prepare(uris.take(PICK_LIMIT)) { ctx, uri -> prepareFile(ctx, uri) }
     }
     val audioLauncher = rememberLauncherForActivityResult(OpenAudio()) { uri ->
-        uri?.let { prepare(listOf(it), ::prepareFile) }
+        uri?.let { audio -> prepare(listOf(audio)) { ctx, u -> prepareFile(ctx, u) } }
     }
 
     /*
@@ -252,9 +252,20 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
         copyBounded(input, target)
     }
+    return videoAt(target) { recordedAt ->
+        renamedByRecordingDate(target, displayName = name.takeIf { it != FALLBACK_VIDEO_NAME }, recordedAt)
+    }
+}
 
+/**
+ * Video, které už leží v `outgoing` ([target]): rozměry, délka, náhled a příznak streamování.
+ * [rename] dostane datum natočení z hlavičky a vrátí soubor, pod kterým video odejde — galerie
+ * tak číselné jméno nahradí datem ([renamedByRecordingDate]). Soubor ze sponky „Soubor" si
+ * jméno nechává: vybral ho uživatel i se jménem.
+ */
+private fun videoAt(target: File, rename: (recordedAt: String?) -> File = { target }): OutgoingAttachment.Video {
     val video = videoMetadata(target)
-    val named = renamedByRecordingDate(target, displayName = name.takeIf { it != FALLBACK_VIDEO_NAME }, video.recordedAt)
+    val named = rename(video.recordedAt)
     return OutgoingAttachment.Video(
         path = named.absolutePath,
         width = video.width,
@@ -391,7 +402,7 @@ internal fun videoMetadata(target: File): VideoMetadata {
                 (frame.height * scale).roundToInt().coerceAtLeast(1),
                 true,
             )
-            val file = File(target.parentFile, "thumbnail.jpg")
+            val file = File(target.parentFile, THUMBNAIL_NAME)
             file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
             OutgoingThumbnail(path = file.absolutePath, width = scaled.width, height = scaled.height)
         }.getOrNull()
@@ -482,11 +493,11 @@ private fun Bitmap.opaque(): Bitmap {
     return flattened
 }
 
-private fun decodeScaled(context: Context, uri: Uri): Bitmap {
+private fun decodeScaled(context: Context, uri: Uri, maxEdge: Int = PHOTO_MAX_EDGE): Bitmap {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
         return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-            val (width, height) = fitInto(info.size.width, info.size.height)
+            val (width, height) = fitInto(info.size.width, info.size.height, maxEdge)
             decoder.setTargetSize(width, height)
             // Softwarová bitmapa: hardwarová se nedá zkomprimovat do JPEG.
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
@@ -498,7 +509,7 @@ private fun decodeScaled(context: Context, uri: Uri): Bitmap {
     resolver.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, bounds) }
     // Nejbližší mocnina dvou nad cílem: načte se menší bitmapa a doškáluje se přesně níž.
     var sample = 1
-    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= PHOTO_MAX_EDGE) sample *= 2
+    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxEdge) sample *= 2
     val decoded = resolver.openInputStream(uri).use {
         BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
     } ?: error("Obrázek nejde dekódovat.")
@@ -511,7 +522,7 @@ private fun decodeScaled(context: Context, uri: Uri): Bitmap {
             else -> 0f
         }
     }
-    val (width, height) = fitInto(decoded.width, decoded.height)
+    val (width, height) = fitInto(decoded.width, decoded.height, maxEdge)
     val matrix = Matrix().apply {
         postScale(width.toFloat() / decoded.width, height.toFloat() / decoded.height)
         postRotate(rotation)
@@ -519,11 +530,11 @@ private fun decodeScaled(context: Context, uri: Uri): Bitmap {
     return Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
 }
 
-/** Rozměry zmenšené tak, aby delší strana nepřesáhla [PHOTO_MAX_EDGE]. Menší fotka se nezvětšuje. */
-private fun fitInto(width: Int, height: Int): Pair<Int, Int> {
+/** Rozměry zmenšené tak, aby delší strana nepřesáhla [maxEdge]. Menší fotka se nezvětšuje. */
+private fun fitInto(width: Int, height: Int, maxEdge: Int = PHOTO_MAX_EDGE): Pair<Int, Int> {
     val longest = max(width, height)
-    if (longest <= PHOTO_MAX_EDGE) return width to height
-    val scale = PHOTO_MAX_EDGE.toFloat() / longest
+    if (longest <= maxEdge) return width to height
+    val scale = maxEdge.toFloat() / longest
     return (width * scale).roundToInt() to (height * scale).roundToInt()
 }
 
@@ -539,14 +550,54 @@ internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Doc
 
 /**
  * Soubor ze sponky „Soubor": hudba odejde jako skladba (s názvem, interpretem a obalem ze
- * souboru), všechno ostatní beze změny jako soubor. Rozhoduje typ obsahu od systému.
+ * souboru), video z rodiny MP4 jako video ([isFileVideo]) a všechno ostatní beze změny jako
+ * soubor. Rozhoduje typ obsahu od systému.
+ *
+ * Video odtud nese jméno, pod kterým leží v souborech — výběr z galerie ho dává taky, jen tam
+ * uživatel soubor nepojmenovává. Poslat ho jako soubor jde dál přes režim přílohy („Jako soubor").
+ * Ze smíšeného výběru jde video jako video taky: nad polem čeká v carouselu nad řádky
+ * souborů a odejde vlastním albem (`stageAttachments`, `attachmentBatches`). [videos] = `false`
+ * nechá video souborem beze změny: export chatu ze sdílení (`ShareIntake`).
  */
-internal fun prepareFile(context: Context, uri: Uri): OutgoingAttachment {
+internal fun prepareFile(context: Context, uri: Uri, videos: Boolean = true): OutgoingAttachment {
     val document = prepareDocument(context, uri)
-    if (context.contentResolver.getType(uri)?.startsWith("audio/") != true) return document
-    // Soubor, který se jako skladba přečíst nedá, odejde aspoň jako soubor.
-    return runCatching { audioMetadata(File(document.path)) }.getOrNull() ?: document
+    val type = context.contentResolver.getType(uri)
+    val file = File(document.path)
+    // Soubor, který se jako skladba nebo video přečíst nedá, odejde aspoň jako soubor.
+    return when {
+        type?.startsWith("audio/") == true -> runCatching { audioMetadata(file) }.getOrNull() ?: document
+        videos && isFileVideo(file.name, type) -> runCatching { videoAt(file) }.getOrNull()
+            ?.takeIf { it.width > 0 && it.height > 0 }
+            ?: document.withPreview(context, type)
+        else -> document.withPreview(context, type)
+    }
 }
+
+/**
+ * Soubor, který je obrázek nebo video, dostane náhled (JPEG do [VIDEO_THUMBNAIL_EDGE] vedle
+ * kopie): nad polem ho kreslí řádek souboru a odejde se souborem, takže ho příjemce vidí
+ * v bublině místo ikony. Co náhled nemá nebo ho nejde vyrobit, zůstane bez něj.
+ */
+private fun OutgoingAttachment.Document.withPreview(context: Context, type: String?): OutgoingAttachment.Document {
+    val file = File(path)
+    val preview = runCatching {
+        when {
+            type == null -> null
+            type.startsWith("video/") -> videoMetadata(file).thumbnail
+            type.startsWith("image/") && type != "image/svg+xml" -> {
+                val bitmap = decodeScaled(context, Uri.fromFile(file), VIDEO_THUMBNAIL_EDGE).opaque()
+                // Soubor sám se může jmenovat „thumbnail.jpg"; náhled ho nesmí přepsat.
+                val target = File(file.parentFile, if (file.name == THUMBNAIL_NAME) "preview.jpg" else THUMBNAIL_NAME)
+                target.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
+                OutgoingThumbnail(path = target.absolutePath, width = bitmap.width, height = bitmap.height)
+            }
+            else -> null
+        }
+    }.onFailure { Logger.withTag("Attachments").w(it) { "Náhled souboru nejde vyrobit." } }.getOrNull()
+    return if (preview != null) copy(thumbnail = preview) else this
+}
+
+private const val THUMBNAIL_NAME = "thumbnail.jpg"
 
 /** Název, interpret, délka a obal alba (JPEG do 320 px vedle souboru) ze značek skladby. */
 private fun audioMetadata(target: File): OutgoingAttachment.Audio {

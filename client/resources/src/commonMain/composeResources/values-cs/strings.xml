@@ -1840,6 +1840,7 @@
     <string name="reactions_recent_clear_failed">Nedávné reakce se nepodařilo vymazat.</string>
     <string name="attachment_remove_file">Odebrat soubor</string>
     <string name="attachment_remove_photo">Odebrat fotku</string>
+    <string name="attachment_remove_video">Odebrat video</string>
     <string name="emoji_search">Hledat emoji</string>
     <string name="custom_emoji_add_sets">Přidat sady emoji</string>
     <string name="custom_emoji_trending_failed">Sady emoji se nepodařilo načíst.</string>

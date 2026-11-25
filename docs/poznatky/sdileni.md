@@ -21,8 +21,22 @@ k souborům se píše popisek a uživatel vidí, co odejde.
 - **Požadavek je STAV** (`ShareRequests`), jako `ChatOpenRequests`: sdílet jde i do aplikace,
   která neběží nebo visí na přihlášení. Čip se ukáže hned, soubory dobíhají
   (`attachments == null` = „Připravuji soubory…") a konverzace si obsah vyzvedne, až je hotový.
-- **Fotky a videa jdou jako média, jen když jsou médii všechny.** Telegram fotky se soubory do
-  alba nesloží; smíšené sdílení (fotka + PDF) odejde celé jako soubory, ať se nic neztratí.
+- **Každý sdílený soubor se připraví jako při výběru sponkou** (`ShareIntake`, iOS
+  `ShareTargets`): fotka a video jako médium, MP4 z rodiny „Soubor" jako video, ostatní jako
+  soubor. Smíšené sdílení (fotka + PDF) čeká v konverzaci nad polem jako smíšený výběr — média
+  nahoře, soubory pod nimi — a odejde dvěma alby.
+  - **Dřív šlo smíšené sdílení celé jako soubory**, protože připravené přílohy držely jen jeden
+    druh a Telegram fotky se soubory do alba nesloží. Od té doby nad polem čekají oba druhy
+    a alba se dělí podle druhu (`docs/poznatky/konverzace-psani.md`, „Posílání příloh a alb").
+  - **Export chatu (`.txt` s médii) jde dál celý beze změny** (`prepareFile(videos = false)`).
+    Import páruje přílohy se zprávami podle JMEN souborů: zmenšená fotka by se jmenovala
+    `photo.jpg` a video přebalené na iOS by dostalo příponu `.mp4`.
+  - **Obrazovka „Komu: …" (Direct Share s potvrzením) zůstává jen pro samá média** (`visual`):
+    smíšené sdílení přes zkratku chatu otevře rovnou konverzaci jako dřív.
+  - **Ověřeno na emulátoru (Android 16)**: v aplikaci Soubory vybrané `Svatba 2025.mp4`
+    a `smlouva.pdf` → Sdílet → zkratka Uložených zpráv otevřela konverzaci s videem
+    (náhled) nahoře a řádkem PDF pod ním, „Odejde jako 2 alba". Export chatu po změně
+    neověřený (`adb` víc souborů sdílet neumí); iOS jen přeložené.
 - **Sdílený text rozepsaný koncept DOPLNÍ, nepřepíše**, a vkládá se až po obnovení konceptu
   z TDLib (`draftRestored`) — koncept jde jen do prázdného pole, takže sdílení před ním by ho
   vytlačilo.

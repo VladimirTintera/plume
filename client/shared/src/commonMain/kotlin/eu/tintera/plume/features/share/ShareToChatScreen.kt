@@ -134,6 +134,7 @@ import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_mode_title
 import eu.tintera.plume.resources.attachment_remove_photo
+import eu.tintera.plume.resources.attachment_remove_video
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.conversation_send
@@ -693,7 +694,7 @@ private fun SharedPhoto(
                 ) {
                     Icon(
                         painterResource(Res.drawable.close_24dp),
-                        contentDescription = stringResource(Res.string.attachment_remove_photo),
+                        contentDescription = stringResource(if (isVideo) Res.string.attachment_remove_video else Res.string.attachment_remove_photo),
                         modifier = Modifier.size(20.dp),
                     )
                 }

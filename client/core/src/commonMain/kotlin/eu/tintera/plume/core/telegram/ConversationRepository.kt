@@ -1371,8 +1371,12 @@ sealed interface OutgoingAttachment {
         override val mode: AttachmentMode = AttachmentMode.Standard,
     ) : OutgoingAttachment
 
-    /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */
-    data class Document(override val path: String) : OutgoingAttachment {
+    /**
+     * Cokoli jako soubor, beze změny. Název souboru se bere z cesty. [thumbnail] je náhled (JPEG
+     * do 320 px) u obrázku, videa nebo skladby s obalem: kreslí se v řádku nad polem a odejde
+     * se souborem, takže ho příjemce uvidí v bublině místo ikony.
+     */
+    data class Document(override val path: String, val thumbnail: OutgoingThumbnail? = null) : OutgoingAttachment {
         override val mode: AttachmentMode get() = AttachmentMode.AsFile
     }
 
@@ -1393,7 +1397,7 @@ sealed interface OutgoingAttachment {
         override val mode: AttachmentMode get() = AttachmentMode.Standard
 
         /** Tentýž soubor jako obecný soubor — tam, kde skladba nesmí (právo chatu, album se soubory). */
-        fun asDocument(): Document = Document(path)
+        fun asDocument(): Document = Document(path, thumbnail = cover)
     }
 }
 
@@ -3273,11 +3277,13 @@ sealed interface ServiceOpen {
 /**
  * Přílohy tak, jak smějí odejít jedním albem. Skladby jdou do alba jen se skladbami a soubory
  * jen se soubory (TDLib: „Documents and audio files can be only grouped in an album with
- * messages of the same type"); smíšený výběr proto odejde celý jako soubory — tak ho uživatel
- * vybíral. Samotná skladba nebo samé skladby zůstávají skladbami.
+ * messages of the same type"); skladby mezi soubory proto odejdou jako soubory — tak je uživatel
+ * vybíral. Samotná skladba nebo samé skladby zůstávají skladbami, i vedle fotek a videí: ty
+ * odejdou vlastním albem (dělení podle druhu je ve `shared`, `attachmentBatches`).
  */
 fun sendableTogether(attachments: List<OutgoingAttachment>): List<OutgoingAttachment> {
-    val mixed = attachments.any { it is OutgoingAttachment.Audio } && attachments.any { it !is OutgoingAttachment.Audio }
+    val mixed = attachments.any { it is OutgoingAttachment.Audio } &&
+        attachments.any { it !is OutgoingAttachment.Audio && it.mode == AttachmentMode.AsFile }
     if (!mixed) return attachments
     return attachments.map { if (it is OutgoingAttachment.Audio) it.asDocument() else it }
 }

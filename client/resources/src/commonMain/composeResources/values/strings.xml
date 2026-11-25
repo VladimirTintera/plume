@@ -1787,6 +1787,7 @@
     <string name="reactions_recent_clear_failed">Couldn’t clear recent reactions.</string>
     <string name="attachment_remove_file">Remove the file</string>
     <string name="attachment_remove_photo">Remove the photo</string>
+    <string name="attachment_remove_video">Remove the video</string>
     <string name="emoji_search">Search emoji</string>
     <string name="custom_emoji_add_sets">Add emoji sets</string>
     <string name="custom_emoji_trending_failed">Emoji sets could not be loaded.</string>
