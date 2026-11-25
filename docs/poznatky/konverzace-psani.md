@@ -243,6 +243,29 @@ album. Bublina ukazuje průběh nahrávání.
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
 
+### Jméno odesílaného videa
+
+TDLib bere jméno videa z cesty nahrávaného souboru a příjemce ho uvidí při uložení a sdílení
+(`MessageMedia.Video.fileName`). Plume proto kopii pojmenuje podle `OpenableColumns.DISPLAY_NAME`
+od poskytovatele (`prepareVideo`).
+
+- **Google Fotky původní jméno neprozradí.** Video sdílené z Fotek hlásí jako `DISPLAY_NAME`
+  číslo položky v `MediaStore` (`2143.mp4`, totéž číslo je zabalené v URI poskytovatele
+  `com.google.android.apps.photos.contentprovider`). Viděl to uživatel na telefonu po sdílení
+  z Fotek do Plume a dál z prohlížeče; skutečné jméno (`PXL_….mp4`) by šlo dohledat jen dotazem
+  do `MediaStore`, tedy s oprávněním `READ_MEDIA_VIDEO`, které Play pouští jen aplikacím
+  s galerií jako hlavní funkcí — kvůli jménu souboru ne. Cloudové položky místní jméno nemají vůbec.
+- **Číselné nebo chybějící jméno se nahradí datem natočení** (`outgoingVideoName` v
+  `core/files`, testy `OutgoingVideoNameTest`): `METADATA_KEY_DATE` z hlavičky
+  (`20261125T182900.000Z`, UTC) převedené na místní čas, `VID_20261125_192900.mp4`, stejně jako
+  video z kamery ve sponce. Kopie se po přečtení hlavičky přejmenuje (`renamedByRecordingDate`);
+  když to nejde, odejde pod jménem, které přišlo.
+- **Video bez data** nese počátek epochy QuickTime (`19040101T000000.000Z`), nulu nebo nic;
+  rok před 1971 se bere jako „datum neznámé" a jméno zůstane, jak přišlo.
+- **Jméno, které něco říká, zůstává** — i s číslicemi uvnitř (`dovolena 2026.mov`). Systémový
+  výběr fotek (vestavěná galerie i obrazovka) jméno na zařízení ověřené nemá.
+- **Jen Android.** Výběr na iOS a desktopu jméno nemění.
+
 ### Víc než deset příloh a „Poslat jednotlivě"
 
 Nad polem jde připravit až 100 příloh (`MAX_ATTACHMENTS` = `PICK_LIMIT`); album v Telegramu
