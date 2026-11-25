@@ -115,6 +115,24 @@ nakreslí naše scéna. Výhody C (scéna má oblast chatu celou pod sebou) bez 
 - **Výměna obsahu sloupce** (profil → úprava → pozvánky) `AnimatedContent` s klíčem položky,
   stejně jako dnešní výměna obsahu v `AnimatedPane`.
 
+### Co dnes dělá knihovna a scéna musí převzít
+
+Ze zdrojů `adaptive-navigation3` a z naší direktivy (`PaneDirective.kt`):
+
+- **Pant skládačky.** Direktiva nese `excludedBounds` z `windowPosture` (pant) a scaffold panely
+  kolem nich rozvrhne, aby hranice ležela na pantu a nic přes něj nevedlo. Vlastní scéna musí
+  v pozici kniha (napůl otevřený Fold, svislý pant) dát hranici seznam | oblast chatu, případně
+  konverzace | boční sloupec, na pant sama. Pozice stolek (vodorovný pant) se dnes řeší zvlášť
+  (`rememberTabletopHinge`) a zůstane.
+- **Počet panelů podle plochy obsahu**, ne okna (`contentPaneScaffoldDirective`), a práh tří
+  panelů (`THREE_PANE_MIN_WIDTH`) — pro scénu práh, od kdy se boční sloupec vejde vedle
+  konverzace, jinak boční položka konverzaci nahradí jako na telefonu.
+- **Žádný automatický fokus** při změně panelu (`shouldAutoFocusCurrentDestination = false`):
+  scaffold jinak po otevření konverzace dal fokus vstupnímu poli a vyjela klávesnice. Vlastní
+  scéna fokus nepřesouvá vůbec — jen to nesmí znovu zavést.
+- **`AnimatedPane`**: příjezd a odjezd panelu a výměna obsahu. Nahradí `AnimatedVisibility`
+  / `AnimatedContent` se specy z `AppMotion` (pravidlo `verifyMotionSpecs` platí i tady).
+
 ### Gesto zpět
 
 Knihovní scéna (`ThreePaneScaffoldScene.content`, `adaptive-navigation3` 1.3.0-beta02, přečteno
@@ -187,7 +205,8 @@ je vypnutý — návrat ke knihovně je jeden řádek):
 5. **Barva chatu**: lišta v barvách plochy okna (`LocalPanePlaneScheme`), karty v barvě chatu;
    zachycený kontext lištu nepřebarví.
 6. **Desktop**: tlačítka okna (Mac vlevo, Windows vpravo), táhla, zkratka ⌥⌘I.
-7. **Registry `ConversationScreen`** (Gotchas v `CLAUDE.md`) po přesunu lišty ven porovnat.
+7. **Pant**: Fold v pozici kniha — hranice panelů na pantu, nic přes něj.
+8. **Registry `ConversationScreen`** (Gotchas v `CLAUDE.md`) po přesunu lišty ven porovnat.
 
 ## Postup
 
