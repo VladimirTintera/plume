@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.adaptive.paneHeaderOutside
 import eu.tintera.plume.core.adaptive.PaneHeader
+import eu.tintera.plume.core.adaptive.PaneBandActions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -300,6 +301,8 @@ private fun ColumnScope.ChatCalendarContent(
                 IconButton(onClick = { pickingDate = true }, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.edit_calendar_24dp), contentDescription = stringResource(Res.string.conversation_jump_to_date))
                 }
+                // Vedle konverzace jsou za nimi akce konverzace: hlavička je s ní v jednom pásu.
+                PaneBandActions()
                 WindowControlsEndSpace()
             },
         )

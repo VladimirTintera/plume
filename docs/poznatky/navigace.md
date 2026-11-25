@@ -250,7 +250,8 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   - **Kořen panelu proto nemá šipku zpět ani ✕** (`paneRoot` u profilu, `standsOnDetail`, testy
     `StandsOnDetailTest`; kalendář zpráv taky). Profil nad jiným profilem (člen z profilu
     skupiny) šipku zpět má — vrací v rámci panelu — a stejně tak profil nad čímkoli, co není
-    konverzace ani seznam témat, aby bez přepínače vedle nezůstal bez cesty ven.
+    konverzace ani seznam témat, aby bez přepínače vedle nezůstal bez cesty ven. **V pásu vedle
+    konverzace šipku nemá nic** (`inPaneBand`, viz „Konverzace a boční panel mají jeden pás").
   - **Otevřít jde jen u chatu s profilem, zavřít vždycky**: kalendář stojí i vedle Uložených
     zpráv a profil chatu se přepnutím přenese i vedle vlákna komentářů.
   - **Zkratka Ctrl+Shift+I, na macOS ⌥⌘I** (inspektor ve Finderu) dělá totéž co přepínač. Ne
@@ -339,36 +340,49 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     - **Obsah pod hlavičkou potřebuje vlastní horní odstup**: dřív ho dělala lišta nad ním.
       Fotka profilu (16 dp) a čipy kalendáře (12 dp) jinak narážely na hranu karty; seznamy
       podstránek si 8 dp nad prvním blokem přidávají samy.
-    - **Konverzace a boční panel mají jeden pás hlavičky** (`PaneBand` v `core/adaptive`). Vlevo
-      je konverzace (šipka, avatar, název přes celou šířku jejího panelu), její akce (hovor,
-      přepínač panelu, ⋮) jsou nad kartou bočního panelu u pravého okraje okna. Kreslí je
-      `PaneCard` bočního panelu, konverzace je tam pošle (`publishToPaneBand`) a ve své liště
-      vynechá.
+    - **Konverzace a boční panel mají jeden pás hlavičky** (`PaneBand` v `core/adaptive`): jedna
+      řada „← konverzace | nadpis panelu · akce panelu · akce konverzace". Vlevo je konverzace
+      (šipka, avatar, název přes celou šířku jejího panelu). Boční panel má hlavičku NAD kartou
+      v téže řadě a na konec svých akcí přidá akce konverzace (hovor, přepínač panelu, ⋮):
+      konverzace je pošle (`publishToPaneBand`), ve své liště je vynechá a lišta panelu je
+      vykreslí přes `PaneBandActions()`.
       - **Proč akce u okraje okna:** se zavřeným panelem tam stojí taky (konverzace je poslední
         panel), takže s otevřeným panelem zůstanou na místě. Dřív uskočily doprostřed okna, i to
         tlačítko, kterým se panel právě otevřel. Dvě lišty vedle sebe navíc opakovaly jméno chatu
         a profil měl druhé ⋮ nad týmž chatem.
-      - **Boční panel do pásu nepíše, jeho ovládání je v kartě**: s pásem je hlavička obrazovky
-        panelu uvnitř karty (`LocalPaneHeaderOutside` = `false`), ne nad ní — šipka zpět
-        a nadpis podstránky, přepínač roku v kalendáři, ⋮ profilu člena. V panelu širokém
-        360 dp by se vedle čtyř akcí chatu nevešly a nadpis mimo svou kartu by přestal říkat,
-        ke které kartě patří.
-      - **Kořen profilu vedle vlastní konverzace lištu nemá vůbec** (`besideOwnConversation`):
-        jméno je v hlavičce konverzace, akce nad chatem i Upravit jsou v jejím ⋮ (`ChatActions`).
-        Profil člena nad konverzací skupiny je jiný chat a lištu (v kartě) si nechává.
+      - **Boční panel NEMÁ druhou lištu v kartě.** Dřív pás nesl jen akce konverzace a lišta panelu
+        (nadpis podstránky, Uložit, přepínač roku v kalendáři) ležela v kartě pod ním — úprava
+        kanálu, kalendář i podstránky profilu tak měly dvě horní lišty pod sebou a uživatel to
+        hlásil jako chybu. Teď je hlavička panelu nad kartou (`LocalPaneHeaderOutside` = `true`
+        i v pásu) a v úzkém panelu se nadpis zkrátí (výpustka); šířku panelu jde táhlem zvětšit.
+      - **Boční panel v pásu nemá šipku zpět** (`inPaneBand()`), ani podstránka nad profilem
+        (úprava, pozvánky) nebo profil člena: je to boční panel a zavírá ho přepínač panelu.
+        Zpátky v panelu jde dál gestem / Esc. Mimo pás (telefon, panel bez konverzace) šipka zůstává.
+      - **Každá lišta, kterou může mít boční panel v Chatech, musí volat `PaneBandActions()`**
+        před `WindowControlsEndSpace()`: lišta profilu, kalendáře a `ProfileSubpageTopBar`.
+        Kontrola to nehlídá — panel s vlastní lištou bez nich by akce konverzace (přepínač
+        panelu, ⋮) schoval.
+      - **Kořen profilu vedle vlastní konverzace má lištu jen s akcemi konverzace**
+        (`besideOwnConversation`): jméno je v hlavičce konverzace, akce nad chatem i Upravit jsou
+        v jejím ⋮ (`ChatActions`). Profil člena nad konverzací skupiny je jiný chat a v liště má
+        jméno a svoje ⋮ vedle akcí konverzace.
       - **Akce se skládají v kompozici bočního panelu**, takže co v nich bere ViewModel, dostane
         ho hotový od konverzace: `koinViewModel` uvnitř by sáhl do úložiště ViewModelů panelu
         a vrátil jinou instanci (ořez navrhované fotky by se pak neukázal).
-      - **Karta panelu začíná ve výšce karty konverzace**, změřené v okně
-        (`PaneBand.detailCardTop`), ne pevným číslem: hlavička konverzace nese podle platformy
-        místo pro tlačítka okna nebo stavovou lištu. Kreslí jen karta zobrazené položky
-        (`LocalPaneResizeOwners`), odjíždějící panel by akce zdvojil i s jejich efekty
-        (zkratka přepínače panelu by se přepnula dvakrát).
+      - **Hlavička panelu sahá až k horní hraně karty konverzace**, změřené v okně
+        (`PaneBand.detailCardTop`, `LocalPaneHeaderMinHeight`), ne pevným číslem: hlavička
+        konverzace nese podle platformy místo pro tlačítka okna nebo stavovou lištu. Lišta sedí
+        dole, v řadě s hlavičkou konverzace. Akce předává jen karta zobrazené položky
+        (`LocalPaneResizeOwners`), odjíždějící panel by je zdvojil i s jejich efekty (zkratka
+        přepínače panelu by se přepnula dvakrát).
       - **`verifyWindowControls` čte TEXT volání lišty**: sdílená lambda s `WindowControlsSpace`
         předaná do `navigationIcon` neprojde, místa pro tlačítka okna musí stát přímo v argumentech
-        každého `…TopAppBar(`. Pás dává `WindowControlsEndSpace` za akce sám.
+        každého `…TopAppBar(`.
       - **Podstránky profilu mají vedle konverzace malý `TopAppBar` s podtitulkem**, na jednom
         panelu dál střední flexibilní bar (přes 100 dp by kartu natáhl zbytečně dolů).
+      - Ověřeno na desktopu (macOS, tmavý motiv, vlastní kanál): profil, úprava kanálu (i posun
+        obsahu pod lištou), pozvánky s podtitulkem, kalendář a zavření panelu přepínačem. Fold,
+        Windows a profil člena neověřené.
     - Ověřeno na emulátoru Fold: světlý i tmavý motiv a přechod mezi nimi, hledání v chatu,
       barva chatu, placeholder, profil a kalendář vedle konverzace (i v barvě chatu), šest cyklů
       složit/rozložit bez pádu s konverzací i s profilem; složený telefon beze změny. Podstránky
