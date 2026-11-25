@@ -41,8 +41,7 @@ internal class StreamingReader(val source: StreamingSource) {
             val range = source.downloaded()
             if (offset in range) return minOf(range.last + 1, end) - offset
             // Stahuje se k nám, jen ještě nedorazilo (úsek končí těsně před [offset]): čekat.
-            val headingHere = !range.isEmpty() && range.first <= offset && offset <= range.last + 1
-            if (!headingHere && sinceRequest >= REREQUEST_MS) {
+            if (!downloadHeadsTo(range, offset) && sinceRequest >= REREQUEST_MS) {
                 source.requestFrom(offset)
                 sinceRequest = 0
             }

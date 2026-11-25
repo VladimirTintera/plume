@@ -64,3 +64,16 @@ private fun ByteArray.uint32(at: Int): Long =
 
 private fun ByteArray.uint64(at: Int): Long =
     (0 until 8).fold(0L) { value, i -> (value shl 8) or (this[at + i].toLong() and 0xFF) }
+
+/**
+ * Míří stahování na [offset]? Tedy: stažený úsek [downloaded] ho obsahuje, nebo končí těsně
+ * před ním — TDLib stahuje souvisle od začátku úseku, takže data dorazí sama a přesouvat
+ * stahování ([StreamingSource.requestFrom]) není třeba.
+ *
+ * **Bez téhle podmínky se stahování „přesouvalo" desítkykrát za vteřinu.** Přehrávač čte
+ * rychleji, než data chodí, takže čtení pořád dohání konec staženého úseku; Android tam pokaždé
+ * zavolal `downloadFile` s offsetem, kam se stejně stahovalo (v logu řádky „Stahování souboru …
+ * se přesouvá na …" po desítkách KB). Desktop a iOS podmínku měly odjakživa.
+ */
+fun downloadHeadsTo(downloaded: LongRange, offset: Long): Boolean =
+    !downloaded.isEmpty() && downloaded.first <= offset && offset <= downloaded.last + 1

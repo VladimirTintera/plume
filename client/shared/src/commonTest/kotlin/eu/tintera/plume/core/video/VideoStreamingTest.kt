@@ -77,4 +77,17 @@ class VideoStreamingTest {
         // Příznak od odesílatele platí dál, ať je kontejner jakýkoli.
         assertTrue(streamOriginalVideo(supportsStreaming = true, mimeType = "video/x-matroska"))
     }
+
+    @Test
+    fun stahovaniMiriKCteni() {
+        val range = 1_000L..1_999L
+        // Uvnitř úseku i těsně za jeho koncem: data dorazí sama, nic se nepřesouvá.
+        assertTrue(downloadHeadsTo(range, 1_500))
+        assertTrue(downloadHeadsTo(range, 2_000))
+        // Před úsekem a dál za ním TDLib nestahuje — tam se stahování přesunout musí.
+        assertFalse(downloadHeadsTo(range, 999))
+        assertFalse(downloadHeadsTo(range, 2_001))
+        // Nic stažené: nic nemíří nikam.
+        assertFalse(downloadHeadsTo(LongRange.EMPTY, 0))
+    }
 }
