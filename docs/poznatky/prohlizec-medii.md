@@ -207,8 +207,9 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   nic neřekne. Soubor si nechává jméno, které mu dal odesílatel.
 - **Video si jméno od odesílatele nechává taky, když nějaké má** (`MessageMedia.Video.fileName`,
   společný výběr `originalFileName` v prohlížeči). Jméno nastavuje TDLib podle cesty
-  nahrávaného souboru: Plume kopíruje vybrané video do `cache/outgoing/<uuid>/` pod původním
-  `DISPLAY_NAME`, takže `PXL_20261125_….mp4` dojde příjemci i s názvem. Doménový model ho
+  nahrávaného souboru: Plume kopíruje vybrané video do `cache/outgoing/<uuid>/` pod jménem od
+  poskytovatele (`DISPLAY_NAME`), a když je to jen číslo, pod datem natočení (viz „Jméno
+  odesílaného videa" v `konverzace-psani.md`). Doménový model ho
   dřív nenesl, prohlížeč dával jméno jen souboru a video ze sdílení, „Uložit jako" i tahu ven
   vyšlo vždycky jako `Plume_…`, přestože ho server znal (automatické ukládání do galerie čte
   `video.fileName` přímo z TDLib a jméno mělo). Video bez jména (natočené v aplikaci,
