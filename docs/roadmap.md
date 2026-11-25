@@ -1671,11 +1671,13 @@ seznam". Zbývá:
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení
    s modelem) a hovor. Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe se tam
    nevejde.
-5. **Horní lišta patří scéně, ne obrazovce.** Konverzace a boční panel mají mít jednu lištu,
-   do které obrazovky jen dodají obsah; dnes si ji kreslí každá sama a shell řadu skládá
-   dodatečně (druhá lišta v kartě úpravy kanálu a kalendáře, VladimirTintera/plume#67).
-   Rozbor, varianty a postup v [navrh-horni-lista.md](navrh-horni-lista.md); první krok je
-   prototyp na konverzaci s profilem.
+5. **Seznam | oblast chatu: vlastní scéna Chatů s jednou lištou.** Boční panel (profil,
+   úprava, kalendář) je podčást konverzace, ne třetí panel: Chaty mají být dvoupanelové a oblast
+   chatu jedna scéna nad plochým zásobníkem, která kreslí konverzaci, boční sloupec a jednu
+   lištu nad nimi; obrazovky lištu jen popíšou. Nahradí knihovní třípanel i obcházky kolem něj
+   (odjezd panelu, zakrytý profil, pás hlavičky z VladimirTintera/plume#67). Rozbor, varianty
+   a postup v [navrh-scena-chatu.md](navrh-scena-chatu.md); první krok je prototyp za
+   přepínačem (gesto zpět, Fold).
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna
