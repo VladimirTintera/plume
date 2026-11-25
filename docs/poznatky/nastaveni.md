@@ -330,8 +330,18 @@ a změnit ho šlo jen v menu účtu nad seznamem chatů — v Nastavení o tom n
 - **Odhlášení říká koho** („Odhlásit VT2", i v titulku dialogu), jen s víc účty. Odhlásí účet
   Nastavení; shell pak (efekt nad `accounts.all`) přepne Nastavení na účet shellu, a když to byl
   výchozí účet, složí se jako dřív celý shell znovu.
+- **Rolování seznamu leží NAD klíčem účtu** (`LocalSettingsListScroll`, podává ho
+  `SettingsAccountScope` jen kořeni Nastavení). S rolováním uvnitř seznamu seznam po ťuknutí
+  na čip odskočil na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě:
+  `SaveableStateHolder` položky drží uložený stav větve `key(slot)` i po zavření Nastavení
+  a nová kompozice téže větve si ho vezme. Čipy tak zmizely z dohledu (zjištěno na emulátoru).
 - **Volby aplikace jsou stejné, ať je vybraný kterýkoli účet** (vzhled, jazyk, AI, zámek);
   ukazují se v Nastavení každého účtu. Označení „pro všechny účty" u řádků zatím není.
+- **Ověřeno na emulátoru Fold** (Android, anglicky; dva účty, režim Všechny účty): čipy pod
+  kartou, přepnutí karty i sekcí (Zařízení a Blokovaní ukazují data vybraného účtu), seznam
+  chatů se nezměnil, menu účtu otevře Nastavení zase za výchozí účet, „Sign out <jméno>",
+  ve dvoupanelu zůstane otevřená sekce a seznam drží pozici. Neověřené: odhlášení účtu
+  z jeho Nastavení, odkaz `tg://settings/…` z chatu jiného účtu, desktop a iOS.
 
 ### Hledání v Nastavení (`SettingsSearch.kt`)
 

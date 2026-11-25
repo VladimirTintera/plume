@@ -5,6 +5,9 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountViewModels
 import eu.tintera.plume.core.accounts.LocalAccount
+import androidx.compose.runtime.CompositionLocalProvider
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
+import eu.tintera.plume.features.settings.LocalSettingsListScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.accounts.Accounts
@@ -531,7 +534,9 @@ internal fun ((NavKey) -> NavEntry<NavKey>).inRouteAccount(accounts: Accounts): 
  */
 internal fun ((NavKey) -> NavEntry<NavKey>).inSettingsAccount(navigation: AppNavigation): (NavKey) -> NavEntry<NavKey> = { key ->
     val entry = this(key)
-    NavEntry(key, entry.contentKey, entry.metadata) { SettingsAccountScope(navigation.settingsAccount) { entry.Content() } }
+    NavEntry(key, entry.contentKey, entry.metadata) {
+        SettingsAccountScope(navigation.settingsAccount, list = key == SettingsRoute) { entry.Content() }
+    }
 }
 
 /**
@@ -546,13 +551,17 @@ internal fun ((NavKey) -> NavEntry<NavKey>).inSettingsAccount(navigation: AppNav
  * účtu i s jeho repository.
  */
 @Composable
-private fun SettingsAccountScope(slot: AccountSlot?, content: @Composable () -> Unit) {
+private fun SettingsAccountScope(slot: AccountSlot?, list: Boolean, content: @Composable () -> Unit) {
     val shell = LocalAccount.current
     val all by koinInject<Accounts>().all.collectAsStateWithLifecycle()
     val account = slot?.let { wanted -> all.firstOrNull { it.slot == wanted } } ?: shell
-    if (account.slot == shell.slot) {
-        content()
-    } else {
-        key(account.slot) { AccountScope(account) { AccountViewModels(account.slot, content) } }
+    // Nad klíčem účtu: seznam [list] po ťuknutí na čip účtu zůstane, kde byl (viz LocalSettingsListScroll).
+    val listScroll = if (list) rememberRestoringScrollState() else null
+    CompositionLocalProvider(LocalSettingsListScroll provides listScroll) {
+        if (account.slot == shell.slot) {
+            content()
+        } else {
+            key(account.slot) { AccountScope(account) { AccountViewModels(account.slot, content) } }
+        }
     }
 }

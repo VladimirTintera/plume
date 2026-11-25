@@ -33,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -199,7 +201,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .settingsContentPadding(padding)
-                .verticalScroll(rememberRestoringScrollState())
+                .verticalScroll(LocalSettingsListScroll.current ?: rememberRestoringScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(BLOCK_SPACING),
         ) {
@@ -512,6 +514,17 @@ internal val SettingsSection.summary: StringResource
         SettingsSection.WhatsNew -> Res.string.settings_section_whats_new_summary
         SettingsSection.About -> Res.string.settings_section_about_summary
     }
+
+/**
+ * Rolování seznamu Nastavení, které přežije přepnutí účtu (čipy pod kartou). Podává ho shell nad
+ * obalem účtu (`SettingsAccountScope`), protože obsah pod ním se s jiným účtem skládá znovu.
+ *
+ * Kdyby si stav rolování držel seznam sám, po ťuknutí na čip by odskočil: buď na začátek, nebo
+ * (ověřeno na emulátoru) na pozici, kde seznam toho účtu uživatel nechal při minulé návštěvě —
+ * `SaveableStateHolder` položky ji drží pod klíčem účtu i po zavření Nastavení. Čipy, na které
+ * se právě ťuklo, by tak zmizely z dohledu.
+ */
+internal val LocalSettingsListScroll = staticCompositionLocalOf<ScrollState?> { null }
 
 private val BLOCK_SPACING = 16.dp
 
