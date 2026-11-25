@@ -4773,4 +4773,21 @@
         <item quantity="one">Delete the call from history?</item>
         <item quantity="other">Delete %1$d calls from history?</item>
     </plurals>
+    <string name="locked_chat_notification_title">Locked chat</string>
+    <string name="locked_chat_notification_text">New message</string>
+    <string name="locked_chat_caller">Call from a locked chat</string>
+    <string name="locked_chats_title">Locked chats</string>
+    <string name="locked_chats_unlock_title">Unlock locked chats</string>
+    <string name="locked_chats_biometrics_prompt">Unlock locked chats</string>
+    <string name="locked_chats_need_app_lock_title">App lock is off</string>
+    <string name="locked_chats_need_app_lock">Locked chats open with the App lock PIN. Turn it on in Settings → Privacy → App lock.</string>
+    <string name="locked_chats_lock_now">Lock now</string>
+    <string name="locked_chats_empty_title">No locked chats</string>
+    <string name="locked_chats_empty">Lock a chat from its ⋮ menu. It disappears from the chat list, search and notifications on this device.</string>
+    <string name="locked_chats_unlock_chat">Unlock chat</string>
+    <string name="chat_lock">Lock chat</string>
+    <string name="chat_unlock">Unlock chat</string>
+    <string name="chat_lock_title">Lock this chat?</string>
+    <string name="chat_lock_text">On this device it disappears from the chat list, search and widget, and notifications only say “New message”. You’ll find it in the account menu → Locked chats, behind your App lock PIN.</string>
+    <string name="chat_lock_needs_app_lock">Locked chats open with the App lock PIN. Turn on App lock first in Settings → Privacy → App lock.</string>
 </resources>

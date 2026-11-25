@@ -208,7 +208,7 @@ private fun VerifyCurrentPinContent(
  * vyhrazené, ať puntíky neposkočí).
  */
 @Composable
-private fun PinStep(
+internal fun PinStep(
     title: String,
     errorText: String?,
     filledCount: Int,

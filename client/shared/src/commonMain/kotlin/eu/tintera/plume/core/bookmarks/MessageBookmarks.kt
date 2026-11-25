@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.bookmarks
 
+import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatRepository
 import kotlinx.coroutines.flow.Flow
@@ -32,11 +33,20 @@ data class MessageBookmark(
  * Účet je id Uložených zpráv ([ChatRepository.savedMessagesChatId]) — Uložené zprávy jsou chat
  * s vlastním účtem a jeho id je id účtu. Dokud není přihlášeno, záložky žádné nejsou.
  */
-class MessageBookmarks(private val settings: AppSettings, private val chats: ChatRepository) {
+class MessageBookmarks(
+    private val settings: AppSettings,
+    private val chats: ChatRepository,
+    /** Zamčené chaty: jejich záložky přehled neukáže (otisk nese text zprávy). `null` = čte se. */
+    locked: Flow<Set<Long>?> = flowOf(emptySet()),
+) {
 
-    /** Záložky přihlášeného účtu, nejnověji přidané první. */
-    val all: Flow<List<MessageBookmark>> = combine(settings.messageBookmarks, chats.savedMessagesChatId) { list, account ->
-        if (account == null) emptyList() else list.filter { it.accountId == account }.sortedByDescending { it.savedAt }
+    /** Záložky přihlášeného účtu, nejnověji přidané první; bez zamčených chatů. */
+    val all: Flow<List<MessageBookmark>> = combine(settings.messageBookmarks, chats.savedMessagesChatId, locked) { list, account, hidden ->
+        if (account == null || hidden == null) {
+            emptyList()
+        } else {
+            list.filter { it.accountId == account && it.chatId !in hidden }.sortedByDescending { it.savedAt }
+        }
     }
 
     fun isBookmarked(chatId: Long, messageId: Long): Boolean {

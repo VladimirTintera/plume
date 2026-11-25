@@ -2049,11 +2049,17 @@ Nic z toho zatím nikdo nezačal. Velikost: S = malé, M = střední, L = velké
   (HTML / JSON s médii ve složce), nebo Markdown (kopírování výběru do Markdownu už je).
   **Chat s ochranou obsahu (`hasProtectedContent`) se exportovat nesmí**, stejně jako se
   z něj nesmí kopírovat.
-- **Zamčené a skryté chaty** (M). Zámek aplikace je celý nebo nic. Zámek jednoho chatu jen
-  v tomhle zařízení: chat zmizí ze seznamu (najde se hledáním s PINem / biometrií),
-  notifikace řekne jen „Nová zpráva“, widget, Direct Share a bubliny ho vynechají. Oficiální
-  Telegram to nemá (WhatsApp ano). Navazuje na `docs/poznatky/zamek-aplikace.md`; co zámek
-  nechrání, musí platit i tady.
+- ~~**Zamčené a skryté chaty**~~ — hotovo (`docs/poznatky/zamcene-chaty.md`). Zbývá:
+  - **iOS: začernit alert z APNs** v rozšíření notifikací (`NotificationService.swift`) —
+    chce sadu zamčených zrcadlenou do App Group. Až budou notifikace na iOS živé.
+  - **Hodinky** sadu neznají a zamčené chaty ukazují; poslat ji z telefonu (Data Layer), nebo
+    na hodinkách zamčené neukazovat vůbec.
+  - **Jméno v obrazovce hovoru a v kanálu notifikací jednoho chatu** (vlastní nastavení
+    upozornění) — zamčení je nemění.
+  - **Brána nemá šipku zpět** (jen systémové gesto) a po zamčení otevřené konverzace ukáže
+    číselník místo toho, aby ji zavřela.
+  - **Odhlášení jiného účtu zahodí zámek aplikace** a nový PIN zamčené chaty otevře — zvážit
+    vlastní záznam pro zamčené chaty, nebo zámek po účtech.
 - **Live Updates na Androidu 16** (S–M). Notifikace s `ProgressStyle` (povýšená průběžná)
   pro odesílání velkých souborů, stahování, sdílení živé polohy a probíhající hovor — místo
   dnešních obyčejných notifikací služby v popředí. V kódu zatím `ProgressStyle` není.

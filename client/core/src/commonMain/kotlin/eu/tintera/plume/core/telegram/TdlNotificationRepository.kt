@@ -9,6 +9,9 @@ import dev.g000sha256.tdl.dto.MessagePinMessage
 import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.saved_messages
+import eu.tintera.plume.resources.locked_chat_caller
+import eu.tintera.plume.resources.locked_chat_notification_text
+import eu.tintera.plume.resources.locked_chat_notification_title
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import co.touchlab.kermit.Logger
@@ -46,6 +49,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -64,7 +72,12 @@ import kotlin.time.Duration.Companion.seconds
 class TdlNotificationRepository(
     private val holder: TelegramClientHolder,
     scope: CoroutineScope,
+    /** Chaty zamčené v tomhle zařízení (`LockedChats`): jejich notifikace jdou začerněné. */
+    locked: Flow<Set<Long>> = flowOf(emptySet()),
 ) : NotificationRepository {
+
+    /** `null`, dokud aplikace sadu nenačte — notifikace na ni počká (push budí studený proces). */
+    private val lockedIds: StateFlow<Set<Long>?> = locked.stateIn(scope, SharingStarted.Eagerly, null)
 
     private val logger = Logger.withTag("Notifications")
 
@@ -121,12 +134,13 @@ class TdlNotificationRepository(
         // Po odhlášení nesmí na liště zůstat zprávy účtu, který už v aplikaci není.
         holder.replaced.map { NotificationUpdate.Cleared },
         messageNotifications(),
+        newlyLocked(),
     )
         // `emit` v `transform` se vrátí až ve chvíli, kdy odběratel (presenter) update zpracoval —
         // mezi nimi už žádný buffer není. Teprve tady je notifikace opravdu na liště.
         .transform { update ->
             emit(update)
-            if (update !is NotificationUpdate.Cleared) inFlight.update { it - 1 }
+            if (update !is NotificationUpdate.Cleared && update !is NotificationUpdate.ChatLocked) inFlight.update { it - 1 }
         }
 
     private fun messageNotifications(): Flow<NotificationUpdate> = flow {
@@ -139,6 +153,15 @@ class TdlNotificationRepository(
             } finally {
                 inFlight.update { it - 1 }
             }
+        }
+    }
+
+    /** Chaty, které se zamkly od spuštění: jejich dosavadní notifikace musí z lišty pryč. */
+    private fun newlyLocked(): Flow<NotificationUpdate> = flow {
+        var previous: Set<Long>? = null
+        lockedIds.filterNotNull().collect { ids ->
+            previous?.let { before -> (ids - before).forEach { emit(NotificationUpdate.ChatLocked(it)) } }
+            previous = ids
         }
     }
 
@@ -167,8 +190,10 @@ class TdlNotificationRepository(
         if (added.isEmpty()) return
 
         // Hovory mají vlastní skupinu (`NotificationGroupTypeCalls`) a vlastní podobu notifikace.
+        val isLocked = update.chatId in lockedIds.filterNotNull().first()
+
         if (update.type is NotificationGroupTypeCalls) {
-            val chat = client.getChat(update.chatId).toResult().getOrNull()
+            val chat = if (isLocked) null else client.getChat(update.chatId).toResult().getOrNull()
             added.mapNotNull { it.type as? NotificationTypeNewCall }.forEach { type ->
                 emitTracked(
                     NotificationUpdate.Call(
@@ -176,13 +201,41 @@ class TdlNotificationRepository(
                             groupId = update.notificationGroupId,
                             callId = type.callId,
                             chatId = update.chatId,
-                            callerName = chat?.title.orEmpty(),
+                            callerName = if (isLocked) getString(Res.string.locked_chat_caller) else chat?.title.orEmpty(),
                             avatarPath = downloadedPath(chat?.photo?.small),
                             isVideo = calls.value[type.callId]?.isVideo == true,
                         ),
                     ),
                 )
             }
+            return
+        }
+
+        // Zamčený chat: notifikace bez jména, textu, fotek i akcí — jen „Nová zpráva".
+        if (isLocked) {
+            val title = getString(Res.string.locked_chat_notification_title)
+            val text = getString(Res.string.locked_chat_notification_text)
+            val notifications = added.mapNotNull { notification ->
+                val content = notification.content() ?: return@mapNotNull null
+                ChatNotification(
+                    groupId = update.notificationGroupId,
+                    notificationId = notification.id,
+                    messageId = content.messageId,
+                    chatId = update.chatId,
+                    chatTitle = title,
+                    senderName = null,
+                    text = text,
+                    isSilent = notification.isSilent,
+                    timestamp = notification.date,
+                    avatarPath = null,
+                    chatAvatarPath = null,
+                    canReply = false,
+                    canMute = false,
+                    sound = soundOf(update.notificationSoundId),
+                    isLocked = true,
+                )
+            }
+            if (notifications.isNotEmpty()) emitTracked(NotificationUpdate.Added(notifications))
             return
         }
 

@@ -555,6 +555,11 @@ class DataStoreAppSettings(
         .map { it?.let(read) ?: default }
         .stateIn(scope, SharingStarted.Eagerly, default)
 
+    /** Jako [value], ale `null`, dokud se soubor nenačte — kde výchozí hodnota nesmí nic prozradit. */
+    private fun <T : Any> loadedValue(read: (Preferences) -> T): StateFlow<T?> = preferences
+        .map { it?.let(read) }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
     /**
      * Zápis, až je soubor načtený (viz dokumentace třídy). Po prvním načtení odběr sleduje keš
      * DataStore, a ta změnu nepropásne.
@@ -1249,6 +1254,7 @@ class DataStoreAppSettings(
         private val autoDownloadSyncKey = stringPreferencesKey(slot.secretName("auto_download_sync"))
         private val contactSyncKey = booleanPreferencesKey(slot.secretName("contact_sync_enabled"))
         private val webAppBotsKey = stringPreferencesKey(slot.secretName("confirmed_web_app_bots"))
+        private val lockedChatsKey = stringPreferencesKey(slot.secretName("locked_chats"))
         private val keyboardsKey = stringPreferencesKey(slot.secretName("used_one_time_keyboards"))
         private val storageCleanupKey = longPreferencesKey(slot.secretName("last_storage_cleanup"))
 
@@ -1281,6 +1287,20 @@ class DataStoreAppSettings(
                 edit { preferences ->
                     val current = preferences[webAppBotsKey]?.split(' ')?.filter { it.isNotBlank() }.orEmpty()
                     preferences[webAppBotsKey] = (current + botUserId.toString()).distinct().joinToString(" ")
+                }
+            }
+        }
+
+        override val lockedChats: StateFlow<Set<Long>?> = loadedValue { preferences ->
+            preferences[lockedChatsKey]?.split(' ')?.mapNotNullTo(HashSet()) { it.toLongOrNull() }.orEmpty()
+        }
+
+        override fun setChatLocked(chatId: Long, locked: Boolean) {
+            scope.launch {
+                edit { preferences ->
+                    val current = preferences[lockedChatsKey]?.split(' ')?.mapNotNull { it.toLongOrNull() }.orEmpty()
+                    val next = if (locked) (current + chatId).distinct() else current - chatId
+                    if (next.isEmpty()) preferences.remove(lockedChatsKey) else preferences[lockedChatsKey] = next.joinToString(" ")
                 }
             }
         }

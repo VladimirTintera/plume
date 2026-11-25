@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.FileDownload
@@ -17,7 +19,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 
 /** Seznam stahování nad TDLib — viz [DownloadsRepository]. */
-class TdlDownloadsRepository(private val holder: TelegramClientHolder) : DownloadsRepository {
+class TdlDownloadsRepository(
+    private val holder: TelegramClientHolder,
+    /** Chaty zamčené v tomhle zařízení (`LockedChats`): jejich soubory seznam stahování vynechá. */
+    private val locked: Flow<Set<Long>> = flowOf(emptySet()),
+) : DownloadsRepository {
 
     private val logger = Logger.withTag("Downloads")
     private val client: TdlClient get() = holder.client
@@ -44,8 +50,10 @@ class TdlDownloadsRepository(private val holder: TelegramClientHolder) : Downloa
         ).toResult().getOrThrow()
         val fallbackName = getString(Res.string.content_file)
         val titles = mutableMapOf<Long, String>()
+        val hidden = locked.first()
         DownloadsPage(
-            items = found.files.filterNotNull().map { download ->
+            // Počty v hlavičce zůstávají od TDLib: soubor sám neprozradí, odkud je.
+            items = found.files.filterNotNull().filter { it.message.chatId !in hidden }.map { download ->
                 val chatId = download.message.chatId
                 val title = titles.getOrPut(chatId) { client.getChat(chatId = chatId).toResult().getOrNull()?.title.orEmpty() }
                 download.toItem(title, fallbackName)

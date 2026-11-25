@@ -702,6 +702,10 @@ data object MyQrCodeRoute : SheetRoute
 @Serializable
 data class DraftsRoute(override val slot: AccountSlot) : AccountRoute, SheetRoute
 
+/** Zamčené chaty účtu (menu účtu → Zamčené chaty), za PINem zámku aplikace. */
+@Serializable
+data class LockedChatsRoute(override val slot: AccountSlot) : AccountRoute
+
 /** Záložky zpráv: [chatId] `null` = ze všech chatů (menu účtu), jinak jednoho chatu (profil; [archive] = profil z větve archivu). */
 @Serializable
 data class BookmarksRoute(override val slot: AccountSlot, val chatId: Long? = null, val archive: Boolean = false) : AccountRoute, SheetRoute
@@ -797,6 +801,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(MyQrCodeRoute::class, MyQrCodeRoute.serializer())
             subclass(DraftsRoute::class, DraftsRoute.serializer())
+            subclass(LockedChatsRoute::class, LockedChatsRoute.serializer())
             subclass(BookmarksRoute::class, BookmarksRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
             subclass(ChatSearchRoute::class, ChatSearchRoute.serializer())

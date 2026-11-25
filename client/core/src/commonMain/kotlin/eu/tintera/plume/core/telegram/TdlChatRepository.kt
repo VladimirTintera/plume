@@ -204,6 +204,8 @@ class TdlChatRepository(
     private val holder: TelegramClientHolder,
     private val session: TelegramSession,
     private val scope: CoroutineScope,
+    /** Chaty zamčené v tomhle zařízení (`LockedChats`); bez aplikace (hodinky) žádné. */
+    private val locked: Flow<Set<Long>> = flowOf(emptySet()),
 ) : ChatRepository {
 
     private val logger = Logger.withTag("Chats")
@@ -226,6 +228,23 @@ class TdlChatRepository(
 
     /** Pozice chatu ve složkách. Chat mimo všechny složky tu nemá záznam. */
     private val positions = mutableMapOf<Long, Map<ChatFolder, FolderPosition>>()
+
+    /**
+     * Zamčené chaty ([locked]). Mimo [ChatFolder.Locked] se nikde neukazují: [publish] je vynechá
+     * ze složek, [summariesFor] z hledání a výběrů a [publishUnread] je odečte z počtů
+     * nepřečtených, které posílá TDLib za celé složky. Pod [mutex] jako [known].
+     */
+    private var hidden: Set<Long> = emptySet()
+
+    /**
+     * Přišla už sada zamčených? Do té doby se seznamy ani počty nevydají (zůstanou „načítá se"):
+     * s prázdnou sadou by se zamčené chaty po startu na chvíli ukázaly. Nastavení se načte
+     * dřív, než TDLib pošle první chaty, takže se na to v praxi nečeká.
+     */
+    private var hiddenLoaded = false
+
+    /** Totéž co [hidden] pro toky nad [all] (koncepty): [all] se změnou zámku nezmění. */
+    private val hiddenIds = MutableStateFlow<Set<Long>>(emptySet())
     private val mutex = Mutex()
 
     /**
@@ -255,10 +274,10 @@ class TdlChatRepository(
     /** Všechny známé chaty — pro [typing] a [drafts], kterým na složce nezáleží. */
     private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
 
-    override val drafts: Flow<List<ChatSummary>> = all
-        .map { chats ->
+    override val drafts: Flow<List<ChatSummary>> = combine(all, hiddenIds) { chats, locked ->
             chats.values
-                .filter { it.draft != null }
+                // [all] zamčené nese (potřebuje je konverzace), přehled konceptů ne.
+                .filter { it.draft != null && it.id !in locked }
                 .sortedByDescending { it.draft?.timestamp ?: 0 }
         }
         .distinctUntilChanged()
@@ -304,11 +323,21 @@ class TdlChatRepository(
 
     override val unreadMessages: StateFlow<Int?> = _unreadMessages.asStateFlow()
 
+    /**
+     * Počty, jak je posílá TDLib za celé složky — i se zamčenými chaty. Veřejné hodnoty výš jsou
+     * z nich odečtené ([publishUnread]); jinak by odznak prozradil zprávu v zamčeném chatu.
+     */
+    private var rawMainUnread = ArchiveUnread()
+    private var rawArchiveUnread = ArchiveUnread()
+    private var rawFolderUnread = emptyMap<Int, ArchiveUnread>()
+    private var rawUnreadMessages: Int? = null
+
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> {
         val list = listFor(folder)
         // Seznam složky, kterou už repository zná z pozic, se publikuje hned — jinak by do
         // prvního updatu ukazoval načítání, i když chaty v paměti jsou.
-        if (folder is ChatFolder.Custom) scope.launch { publish() }
+        // Zamčené chaty se skládají jen ze známých chatů, TDLib je sám neposílá.
+        if (folder is ChatFolder.Custom || folder == ChatFolder.Locked) scope.launch { publish() }
         return list.asStateFlow()
     }
 
@@ -374,6 +403,22 @@ class TdlChatRepository(
         // a seznam zůstane prázdný, i když data v databázi jsou. Stejný důvod jako u auth automatu.
         logger.d { "Repository startuje — odběry se registrují." }
         collectUpdates()
+
+        // Zamčené chaty: změna sady přestaví seznamy i počty. Zamčený chat, který repository ještě
+        // nezná (archiv, který nikdo neotevřel), se dočte — bez něj by se nedal odečíst z počtů
+        // nepřečtených a seznam zamčených by byl neúplný.
+        scope.launch {
+            locked.distinctUntilChanged().collect { ids ->
+                val unknown = mutex.withLock {
+                    hidden = ids
+                    hiddenLoaded = true
+                    ids.filterNot { it in known }
+                }
+                hiddenIds.value = ids
+                if (unknown.isNotEmpty() && me.value != null) summariesFor(unknown.toLongArray(), includeLocked = true)
+                publish()
+            }
+        }
 
         // Chaty se dají číst až po přihlášení; předtím TDLib odpoví chybou.
         scope.launch {
@@ -692,19 +737,25 @@ class TdlChatRepository(
         scope.launch {
             holder.updates { unreadChatCountUpdates }.collect { update ->
                 val unread = ArchiveUnread(chats = update.unreadCount, unmutedChats = update.unreadUnmutedCount)
-                when (val list = update.chatList) {
-                    is ChatListMain -> _mainUnread.value = unread
-                    is ChatListArchive -> _archiveUnread.value = unread
-                    is ChatListFolder -> _folderUnread.update { it + (list.chatFolderId to unread) }
-                    else -> Unit
+                mutex.withLock {
+                    when (val list = update.chatList) {
+                        is ChatListMain -> rawMainUnread = unread
+                        is ChatListArchive -> rawArchiveUnread = unread
+                        is ChatListFolder -> rawFolderUnread = rawFolderUnread + (list.chatFolderId to unread)
+                        else -> Unit
+                    }
                 }
+                publishUnread()
             }
         }
 
         // Nepřečtené zprávy hlavního seznamu pro odznak na ikoně; stejná podmínka jako výš.
         scope.launch {
             holder.updates { unreadMessageCountUpdates }.collect { update ->
-                if (update.chatList is ChatListMain) _unreadMessages.value = update.unreadUnmutedCount
+                if (update.chatList is ChatListMain) {
+                    mutex.withLock { rawUnreadMessages = update.unreadUnmutedCount }
+                    publishUnread()
+                }
             }
         }
 
@@ -754,16 +805,20 @@ class TdlChatRepository(
         return copy(presence = status.toPresence())
     }
 
-    override suspend fun readAll(folder: ChatFolder): Result<Unit> =
-        client.readChatList(chatList = folder.toChatList()).toResult().map { }
+    override suspend fun readAll(folder: ChatFolder): Result<Unit> {
+        val list = folder.toChatList() ?: return Result.failure(UnsupportedOperationException("Složka $folder není seznam TDLib."))
+        return client.readChatList(chatList = list).toResult().map { }
+    }
 
-    override suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit> =
-        client.toggleChatIsPinned(chatList = folder.toChatList(), chatId = chatId, isPinned = pinned)
-            .toResult()
-            .map { }
+    override suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit> {
+        val list = folder.toChatList() ?: return Result.failure(UnsupportedOperationException("Složka $folder není seznam TDLib."))
+        return client.toggleChatIsPinned(chatList = list, chatId = chatId, isPinned = pinned).toResult().map { }
+    }
 
-    override suspend fun setPinnedOrder(folder: ChatFolder, chatIds: List<Long>): Result<Unit> =
-        client.setPinnedChats(chatList = folder.toChatList(), chatIds = chatIds.toLongArray()).toResult().map { }
+    override suspend fun setPinnedOrder(folder: ChatFolder, chatIds: List<Long>): Result<Unit> {
+        val list = folder.toChatList() ?: return Result.failure(UnsupportedOperationException("Složka $folder není seznam TDLib."))
+        return client.setPinnedChats(chatList = list, chatIds = chatIds.toLongArray()).toResult().map { }
+    }
 
     /**
      * `addChatToList` chat do cílové složky PŘESUNE: hlavní seznam a archiv se vylučují, takže
@@ -772,7 +827,7 @@ class TdlChatRepository(
     override suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit> =
         client.addChatToList(
             chatId = chatId,
-            chatList = (if (archived) ChatFolder.Archive else ChatFolder.Main).toChatList(),
+            chatList = if (archived) ChatListArchive() else ChatListMain(),
         )
             .toResult()
             .map { }
@@ -1374,7 +1429,8 @@ class TdlChatRepository(
             summaries.sortedBy { it.title.lowercase() }
         }
 
-    override suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = summariesFor(chatIds.toLongArray())
+    // Na konkrétní chaty se ptá konverzace, profil a hovor — tam zamčený chat patří.
+    override suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = summariesFor(chatIds.toLongArray(), includeLocked = true)
 
     override suspend fun openSavedMessages(): Result<Long> {
         val userId = me.value ?: session.me().getOrNull()?.id
@@ -1878,7 +1934,12 @@ class TdlChatRepository(
      * které TDLib ohlásil); chybějící se dočtou a uloží. Složka se doplní podle pozice, aby
      * výsledek hledání věděl, že je chat v archivu.
      */
-    private suspend fun summariesFor(ids: LongArray): List<ChatSummary> = ids.toList().mapNotNull { id ->
+    /**
+     * Chaty podle id pro hledání, výběry, historii hovorů a podobné SEZNAMY: zamčené se vynechají
+     * ([includeLocked] jen tam, kde se ptá na konkrétní chat, viz [summaries]).
+     */
+    private suspend fun summariesFor(ids: LongArray, includeLocked: Boolean = false): List<ChatSummary> = ids.toList().mapNotNull { id ->
+        if (!includeLocked && mutex.withLock { id in hidden }) return@mapNotNull null
         val cached = mutex.withLock { known[id]?.let { it to positions[id] } }
         if (cached != null) {
             val (chat, folders) = cached
@@ -1907,10 +1968,12 @@ class TdlChatRepository(
 
     override suspend fun loadMore(folder: ChatFolder) {
         if (folder in exhausted) return
+        // Zamčené chaty TDLib jako seznam nevede; skládá je [publish] ze známých chatů.
+        val chatList = folder.toChatList() ?: return
 
         // `loadChats` vrací Ok, ne data — jen řekne TDLib, ať dotáhne další kus ze serveru.
         // Chyba 404 znamená „už není co načítat", což není selhání, ale konec seznamu.
-        when (val result = client.loadChats(chatList = folder.toChatList(), limit = PAGE_SIZE)) {
+        when (val result = client.loadChats(chatList = chatList, limit = PAGE_SIZE)) {
             is TdlResult.Failure -> {
                 if (result.code == NOT_FOUND) {
                     exhausted += folder
@@ -1941,10 +2004,11 @@ class TdlChatRepository(
      * pak drží seznam živý, tenhle průchod ho jen spolehlivě nastartuje.
      */
     private suspend fun syncFromLocalDatabase(folder: ChatFolder) {
+        val chatList = folder.toChatList() ?: return
         // Počítá se jen složka, ne všechny známé chaty — těch je (i mimo složky) víc.
         val limit = mutex.withLock { countIn(folder) } + PAGE_SIZE
 
-        val chatIds = when (val result = client.getChats(chatList = folder.toChatList(), limit = limit)) {
+        val chatIds = when (val result = client.getChats(chatList = chatList, limit = limit)) {
             is TdlResult.Failure -> {
                 logger.e { "getChats($folder) selhalo: ${result.code} ${result.message}" }
                 return
@@ -2130,6 +2194,10 @@ class TdlChatRepository(
             synced.clear()
             activityTimers.values.forEach { it.cancel() }
             activityTimers.clear()
+            rawMainUnread = ArchiveUnread()
+            rawArchiveUnread = ArchiveUnread()
+            rawFolderUnread = emptyMap()
+            rawUnreadMessages = null
         }
         me.value = null
         premium.value = false
@@ -2153,8 +2221,10 @@ class TdlChatRepository(
         val folders = lists.value.keys
         val (snapshot, byFolder, ready) = mutex.withLock {
             val byFolder = folders.associateWith { folder ->
+                if (folder == ChatFolder.Locked) return@associateWith lockedList()
                 known.values
                     .mapNotNull { chat ->
+                        if (chat.id in hidden) return@mapNotNull null
                         val chatPositions = positions[chat.id]
                         chatPositions?.get(folder)?.let { position ->
                             chat.copy(
@@ -2168,17 +2238,77 @@ class TdlChatRepository(
                     }
                     .sortedByDescending { it.order }
             }
-            Triple(known.toMap(), byFolder, folders.filter { it in synced || byFolder.getValue(it).isNotEmpty() })
+            Triple(
+                known.toMap(),
+                byFolder,
+                folders.filter { it == ChatFolder.Locked || it in synced || byFolder.getValue(it).isNotEmpty() },
+            )
         }
 
         all.value = snapshot
+        if (!mutex.withLock { hiddenLoaded }) return
         ready.forEach { folder ->
             listFor(folder).value = ChatListState.Ready(
                 chats = byFolder.getValue(folder),
-                canLoadMore = folder !in exhausted,
+                canLoadMore = folder != ChatFolder.Locked && folder !in exhausted,
             )
         }
+        publishUnread()
     }
+
+    /**
+     * Zamčené chaty pro [ChatFolder.Locked]: z hlavního seznamu podle jeho pořadí, pak
+     * z archivu. Chat mimo obě složky (opuštěný, smazaný) se neukazuje. Volá se pod [mutex].
+     */
+    private fun lockedList(): List<ChatSummary> = hidden.mapNotNull { id ->
+        val chat = known[id] ?: return@mapNotNull null
+        val chatPositions = positions[id].orEmpty()
+        val position = chatPositions[ChatFolder.Main] ?: chatPositions[ChatFolder.Archive] ?: return@mapNotNull null
+        chat.copy(
+            order = position.order,
+            isPinned = false,
+            folder = ChatFolder.Locked,
+            isArchived = ChatFolder.Archive in chatPositions,
+            sponsor = null,
+        )
+    }.sortedWith(compareBy<ChatSummary> { it.isArchived }.thenByDescending { it.order })
+
+    /**
+     * Veřejné počty nepřečtených = počty od TDLib bez zamčených chatů. TDLib je posílá za celé
+     * složky, takže se odečte, čím k nim zamčený chat přispívá: nepřečtený chat (i označený
+     * jako nepřečtený), nepřečtený neztlumený a jeho neztlumené zprávy v hlavním seznamu.
+     */
+    private suspend fun publishUnread() {
+        val (main, archive, folders, messages) = mutex.withLock {
+            if (!hiddenLoaded) return
+            val unread = hidden.mapNotNull { id -> known[id]?.takeIf { it.hasUnread }?.let { it to positions[id].orEmpty() } }
+            fun minus(raw: ArchiveUnread, folder: ChatFolder): ArchiveUnread {
+                val inFolder = unread.filter { (_, folders) -> folder in folders }
+                return ArchiveUnread(
+                    chats = (raw.chats - inFolder.size).coerceAtLeast(0),
+                    unmutedChats = (raw.unmutedChats - inFolder.count { (chat, _) -> !chat.isMuted }).coerceAtLeast(0),
+                )
+            }
+            val hiddenMessages = unread.filter { (chat, folders) -> ChatFolder.Main in folders && !chat.isMuted }.sumOf { it.first.unreadCount }
+            UnreadSnapshot(
+                main = minus(rawMainUnread, ChatFolder.Main),
+                archive = minus(rawArchiveUnread, ChatFolder.Archive),
+                folders = rawFolderUnread.mapValues { (id, raw) -> minus(raw, ChatFolder.Custom(id)) },
+                messages = rawUnreadMessages?.let { (it - hiddenMessages).coerceAtLeast(0) },
+            )
+        }
+        _mainUnread.value = main
+        _archiveUnread.value = archive
+        _folderUnread.value = folders
+        _unreadMessages.value = messages
+    }
+
+    private data class UnreadSnapshot(
+        val main: ArchiveUnread,
+        val archive: ArchiveUnread,
+        val folders: Map<Int, ArchiveUnread>,
+        val messages: Int?,
+    )
 
     private companion object {
         const val PAGE_SIZE = 30
@@ -2386,10 +2516,12 @@ private fun ChatList?.folder(): ChatFolder? = when (this) {
     else -> null
 }
 
-private fun ChatFolder.toChatList(): ChatList = when (this) {
+/** Seznam TDLib pro složku; zamčené chaty TDLib nezná (`null`). */
+private fun ChatFolder.toChatList(): ChatList? = when (this) {
     ChatFolder.Main -> ChatListMain()
     ChatFolder.Archive -> ChatListArchive()
     is ChatFolder.Custom -> ChatListFolder(chatFolderId = id)
+    ChatFolder.Locked -> null
 }
 
 private fun ChatFolderInfo.toTab(): ChatFolderTab {

@@ -162,6 +162,7 @@ actual class NotificationPresenter(
                     is NotificationUpdate.Removed -> remove(update)
                     is NotificationUpdate.Call -> showCall(update.call)
                     NotificationUpdate.Cleared -> clear()
+                    is NotificationUpdate.ChatLocked -> forgetChat(update.chatId)
                 }
             }
         }
@@ -191,6 +192,7 @@ actual class NotificationPresenter(
             // Fotka chatu se doplňuje i u už rozepsané konverzace: na začátku nemusela být
             // stažená a nechat kvůli tomu notifikaci navždy bez ikony by byla škoda.
             conversation.avatarPath = newest.chatAvatarPath ?: conversation.avatarPath
+            conversation.isLocked = newest.isLocked
             // Práva psát se můžou změnit; platí to, co TDLib řekl u nejnovější zprávy.
             conversation.canReply = newest.canReply
             conversation.canMute = newest.canMute
@@ -341,6 +343,31 @@ actual class NotificationPresenter(
         logger.d { "Odhlášení: notifikace a zkratky uklizeny." }
     }
 
+    /**
+     * Chat se zamkl: pryč s jeho notifikacemi (nesou jméno a text) i se zkratkou konverzace, kterou
+     * kvůli nim dostal systém (Direct Share, nabídka ikony, jméno v Android Auto). Notifikace
+     * z minulého běhu procesu presenter v paměti nemá; pozná se podle zkratky, kterou nese.
+     */
+    private fun forgetChat(chatId: Long) {
+        conversations.filterValues { it.chatId == chatId }.keys.toList().forEach { groupId ->
+            manager.cancel(tag, groupId)
+            conversations.remove(groupId)
+        }
+        manager.activeNotifications
+            .filter { it.tag == tag && shortcutChat(it.notification.shortcutId)?.let { target -> target.slot == slot && target.chatId == chatId } == true }
+            .forEach { manager.cancel(tag, it.id) }
+        runCatching {
+            val ids = ShortcutManagerCompat.getShortcuts(
+                context,
+                ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED or ShortcutManagerCompat.FLAG_MATCH_PINNED,
+            ).map { it.id }.filter { id -> shortcutChat(id)?.let { it.slot == slot && it.chatId == chatId } == true }
+            ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+            // Zkratku připnutou na ploše aplikace odebrat nesmí, jen vypnout: ťuknutí pak nic neotevře.
+            ShortcutManagerCompat.disableShortcuts(context, ids, null)
+        }.onFailure { logger.w(it) { "Zkratku zamčeného chatu se nepodařilo odebrat." } }
+        logger.d { "Chat $chatId zamčen: notifikace a zkratka uklizeny." }
+    }
+
     private suspend fun remove(update: NotificationUpdate.Removed) {
         val conversation = conversations[update.groupId]
 
@@ -412,6 +439,7 @@ actual class NotificationPresenter(
         // Android 11+ ze zkratky (`publishShortcut`), ne z `conversationTitle` — ověřeno na
         // Pixelu 5 (Android 14). Do `conversationTitle` jde účet pro starší Android bez zkratek.
         val account = accountName()
+        if (conversation.isLocked) return showLocked(groupId, conversation, silent, account)
         val style = NotificationCompat.MessagingStyle(Person.Builder().setName(getString(Res.string.notification_self_name)).build())
             .setGroupConversation(isGroup)
             // V soukromém chatu je název chatu totéž co jméno odesílatele u každého řádku —
@@ -518,6 +546,47 @@ actual class NotificationPresenter(
             .build()
 
         logger.d { "Zobrazuji $groupId: ${conversation.lines.size} zpráv z ${conversation.chatId}." }
+        manager.notify(tag, groupId, built)
+    }
+
+    /**
+     * Notifikace ze zamčeného chatu: jen „Zamčený chat — Nová zpráva" (texty začernil už `core`).
+     * Bez `MessagingStyle` a zkratky — z nich systém skládá konverzaci se jménem a fotkou,
+     * nabízí ji v Direct Share a Android Auto by ji přečetl nahlas. Bez bubliny a bez akcí
+     * (Odpovědět i Přečteno by šlo bez PINu). Ťuknutí otevře chat přes bránu s PINem.
+     */
+    private suspend fun showLocked(groupId: Int, conversation: Conversation, silent: Boolean, account: String?) {
+        val last = conversation.lines.lastOrNull() ?: return
+        val built = NotificationCompat.Builder(context, soundChannelId(context, slot, conversation.channel, conversation.sound, account))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(conversation.title)
+            .setContentText(last.text)
+            .setNumber(conversation.lines.size)
+            .setSubText(account)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            // Na zamykací obrazovce se neukáže nic víc než na liště; jméno chatu tam stejně není.
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setSilent(silent)
+            .setAutoCancel(true)
+            .setContentIntent(
+                NotificationIntents.openChat(
+                    context = context,
+                    slot = slot,
+                    notificationId = groupId,
+                    chatId = conversation.chatId,
+                    topicId = null,
+                ),
+            )
+            .setDeleteIntent(
+                NotificationIntents.dismiss(
+                    context = context,
+                    slot = slot,
+                    groupId = groupId,
+                    chatId = conversation.chatId,
+                    maxNotificationId = dismissUpTo(conversation.lines.map { it.notificationId }),
+                ),
+            )
+            .build()
         manager.notify(tag, groupId, built)
     }
 
@@ -989,6 +1058,8 @@ actual class NotificationPresenter(
         var sound: NotificationSoundChoice = NotificationSoundChoice.Default,
         /** Téma nejnovější zprávy ve skupině s tématy; `null` = celý chat. */
         var topicId: Int? = null,
+        /** Zamčený chat: notifikace bez jména a textu ([showLocked]). */
+        var isLocked: Boolean = false,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */

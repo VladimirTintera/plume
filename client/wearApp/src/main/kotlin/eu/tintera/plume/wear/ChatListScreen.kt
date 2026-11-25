@@ -96,6 +96,8 @@ fun ChatListScreen(
         ChatFolder.Main -> stringResource(Res.string.wear_chats_title)
         ChatFolder.Archive -> stringResource(Res.string.chats_archive)
         is ChatFolder.Custom -> folders.folders.firstOrNull { it.id == folder.id }?.title.orEmpty()
+        // Zamčené chaty hodinky nenabízejí (sada je jen v telefonu).
+        ChatFolder.Locked -> ""
     }
 
     when (val current = listState) {

@@ -79,6 +79,8 @@ class WearNotifications(private val context: Context, private val scope: Corouti
                     NotificationUpdate.Cleared -> clear()
                     // Hovory hodinky nemají.
                     is NotificationUpdate.Call -> Unit
+                    // Zamčené chaty hodinky neznají (sada je v nastavení telefonu).
+                    is NotificationUpdate.ChatLocked -> Unit
                 }
             }
         }

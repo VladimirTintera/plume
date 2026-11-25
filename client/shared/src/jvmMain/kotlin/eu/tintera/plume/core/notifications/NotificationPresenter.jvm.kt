@@ -113,6 +113,8 @@ actual class NotificationPresenter internal constructor(
     private val idPrefix: String = accountKey?.let { "$it-" }.orEmpty()
 
     /** Id všech ukázaných oznámení — úklid po odhlášení vedle jiných účtů stáhne jen ta. */
+    /** Skupina notifikací → chat; podle ní se po zamčení chatu najdou jeho oznámení. */
+    private val groupChats = mutableMapOf<Int, Long>()
     private val shown: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
 
     private fun show(notification: DesktopNotification) {
@@ -150,6 +152,7 @@ actual class NotificationPresenter internal constructor(
                         is NotificationUpdate.Removed -> remove(update)
                         is NotificationUpdate.Call -> showCall(update.call)
                         NotificationUpdate.Cleared -> clear()
+                        is NotificationUpdate.ChatLocked -> forgetChat(update.chatId)
                     }
                 }.onFailure { logger.w(it) { "Oznámení se nepodařilo zpracovat." } }
             }
@@ -175,6 +178,7 @@ actual class NotificationPresenter internal constructor(
             logger.d { "Oznámení skupiny $groupId (${fresh.size} nových), potichu=${newest.isSilent || quiet}." }
             if (!newest.isSilent && !quiet) attention = true
             titles[newest.chatId] = newest.chatTitle
+            groupChats[groupId] = newest.chatId
             show(
                 DesktopNotification(
                     id = id(groupId, newest.notificationId),
@@ -190,7 +194,8 @@ actual class NotificationPresenter internal constructor(
                     imagePath = newest.imagePath,
                     avatarPath = newest.chatAvatarPath,
                     timestamp = newest.timestamp.toLong(),
-                    buttons = labels?.let {
+                    // Zamčený chat: bez tlačítek (odpověď a přečtení by šly bez PINu).
+                    buttons = labels?.takeUnless { newest.isLocked }?.let {
                         NotificationButtons(
                             messageId = newest.messageId,
                             // Ve skupině odpověď cituje, komu odpovídá; v soukromém chatu je to jasné.
@@ -286,6 +291,16 @@ actual class NotificationPresenter internal constructor(
                 avatarPath = null,
             ),
         )
+    }
+
+    /** Chat se zamkl: jeho oznámení (se jménem a textem) pryč z centra oznámení. */
+    private fun forgetChat(chatId: Long) {
+        val groups = groupChats.filterValues { it == chatId }.keys
+        groups.forEach { groupId ->
+            known.remove(groupId)?.let { ids -> notifier.remove(ids.map { id(groupId, it) }) }
+            groupChats.remove(groupId)
+        }
+        titles.remove(chatId)
     }
 
     private fun remove(update: NotificationUpdate.Removed) {

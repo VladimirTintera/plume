@@ -694,6 +694,12 @@ sealed interface ChatFolder {
 
     /** Složka Telegramu s [id] z [ChatFolderTab.id]. */
     data class Custom(val id: Int) : ChatFolder
+
+    /**
+     * Chaty zamčené v tomhle zařízení (`LockedChats`). Ze všech ostatních seznamů zmizely
+     * a jsou jen tady, seřazené podle hlavního seznamu (archivované za ním).
+     */
+    data object Locked : ChatFolder
 }
 
 /**

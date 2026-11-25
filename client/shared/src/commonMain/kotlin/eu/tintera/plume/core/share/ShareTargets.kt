@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.share
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -32,6 +34,11 @@ class ShareTargets(
     private val scope: CoroutineScope,
     /** Jméno účtu do názvu zkratky, když je účtů víc ([shortcutLabel]); jinak `null`. */
     private val accountName: suspend () -> String? = { null },
+    /**
+     * Zamčené chaty (`AccountSettings.lockedChats`): zkratku nedostanou — nesla by jméno a fotku
+     * do nabídky Sdílet, k ikoně aplikace i na plochu. `null` = ještě se čte (počká se).
+     */
+    private val locked: StateFlow<Set<Long>?> = MutableStateFlow(emptySet()),
 ) {
 
     private val logger = Logger.withTag("Share")
@@ -50,6 +57,7 @@ class ShareTargets(
      */
     fun reportUsed(chatId: Long) {
         scope.launch {
+            if (chatId in locked.filterNotNull().first()) return@launch
             val chat = shortcutChat(chatId, AVATAR_WAIT_MS) ?: return@launch
             publisher.publish(slot, chat.chatId, shortcutLabel(chat.title, accountName()), chat.avatarPath, chat.isSavedMessages)
         }
@@ -67,6 +75,7 @@ class ShareTargets(
         scope.launch {
             // Na plochu jde fotka napořád a uživatel o ni výslovně požádal: na stažení se
             // počká déle než u zkratky ke sdílení.
+            if (chatId in locked.filterNotNull().first()) return@launch
             val chat = shortcutChat(chatId, PIN_AVATAR_WAIT_MS) ?: return@launch
             if (!publisher.pin(slot, chat.chatId, shortcutLabel(chat.title, accountName()), chat.avatarPath, chat.isSavedMessages)) {
                 logger.w { "Launcher zástupce chatu $chatId nepřijal." }

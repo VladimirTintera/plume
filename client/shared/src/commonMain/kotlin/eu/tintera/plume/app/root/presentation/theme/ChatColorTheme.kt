@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.root.presentation.theme
 
+import eu.tintera.plume.features.lockedchats.LockedChatGate
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -32,10 +33,14 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun ChatColorTheme(chatId: Long, content: @Composable () -> Unit) {
-    val chatColors = koinInject<ChatColors>()
-    val flow = remember(chatColors, chatId) { chatColors.colors.map { it[chatId] } }
-    val color by flow.collectAsState(initial = remember(chatColors, chatId) { chatColors.current()[chatId] })
-    ChatColorTheme(color, content)
+    // Přes tuhle funkci jde každá obrazovka jednoho chatu (konverzace, témata, profil, bublina),
+    // proto je tady i brána zamčených chatů — chat se neukáže, odkud se otevře.
+    LockedChatGate(chatId) {
+        val chatColors = koinInject<ChatColors>()
+        val flow = remember(chatColors, chatId) { chatColors.colors.map { it[chatId] } }
+        val color by flow.collectAsState(initial = remember(chatColors, chatId) { chatColors.current()[chatId] })
+        ChatColorTheme(color, content)
+    }
 }
 
 /** Konverzace v barvě [color]; `null` = barvy aplikace. */

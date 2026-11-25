@@ -74,7 +74,8 @@ internal fun List<NavKey>.shownChatFolder(): ChatFolder =
 internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = when (folder) {
     // Seznam témat stojí na místě konverzace (skupina s tématy se otevírá jím). Složka Telegramu
     // je výběr z hlavního seznamu a sdílí jeho větev.
-    ChatFolder.Main, is ChatFolder.Custom -> any { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
+    // Zamčené chaty se otevírají v hlavním zásobníku (`LockedChatsRoute`).
+    ChatFolder.Main, is ChatFolder.Custom, ChatFolder.Locked -> any { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
     ChatFolder.Archive -> any { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
 }
 
