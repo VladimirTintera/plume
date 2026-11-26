@@ -1684,8 +1684,7 @@ seznam". Zbývá:
    [navrh-scena-chatu.md](navrh-scena-chatu.md)). Neověřené: Windows (pevné akce konverzace vlevo
    od tlačítek okna), skutečný Fold a iPad. **Pant v pozici kniha scéna nerespektuje** — hranice
    panelů neleží na pantu (na emulátoru stejně jako dřív knihovna; `excludedBounds` z direktivy se
-   nepoužívají). Po zavření bočního panelu přes Esc se v Chatech jedno další Esc ztratí (řeší se
-   zvlášť).
+   nepoužívají).
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna
