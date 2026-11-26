@@ -22,16 +22,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /** Bubliny na desktopu (skiko scéna bez okna). */
@@ -98,5 +109,45 @@ class TooltipTest {
         onNodeWithText("B").performMouseInput { moveTo(Offset(-50f, -50f)) }
         waitForIdle()
         onNodeWithText("Tučně").assertDoesNotExist()
+    }
+
+    /**
+     * Esc nad zaostřenou kotvou s viditelnou bublinou bublinu schová a projde dál — na desktopu
+     * ho scéna převede na Zpět, jen když ho nikdo nespotřeboval. Holý M3 `TooltipBox` ho spotřebuje
+     * (`keyboardBehavior`), takže po kliknutí na přepínač bočního panelu se první Esc ztratil.
+     * **Když test začne padat, M3 změnilo obsluhu klávesnice bubliny** a `EscapeTransparentTooltipState`
+     * je potřeba přepsat — viz „Vlastní scéna Chatů" v `docs/poznatky/navigace.md`.
+     */
+    @Test
+    fun escapeOverTooltipGoesThrough() = runComposeUiTest {
+        var escapesBelow = 0
+        val focus = FocusRequester()
+        setContent {
+            MaterialTheme {
+                Column(
+                    Modifier
+                        .padding(start = 200.dp, top = 300.dp)
+                        .onKeyEvent { event ->
+                            if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) escapesBelow++
+                            false
+                        },
+                ) {
+                    WithTooltip("Zavřít panel") {
+                        Button(onClick = {}, modifier = Modifier.focusRequester(focus)) { Text("P") }
+                    }
+                }
+            }
+        }
+        runOnIdle { focus.requestFocus() }
+        onNodeWithText("P").assertIsFocused()
+        onNodeWithText("P").performMouseInput { moveTo(center) }
+        waitForIdle()
+        onNodeWithText("Zavřít panel").assertExists()
+
+        onNodeWithText("P").performKeyInput { pressKey(Key.Escape) }
+        waitForIdle()
+
+        assertEquals(1, escapesBelow, "Esc nad bublinou musí projít až k předkům (a dál na Zpět)")
+        onNodeWithText("Zavřít panel").assertDoesNotExist()
     }
 }
