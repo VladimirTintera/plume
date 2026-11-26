@@ -239,13 +239,13 @@ internal data class BubbleMessageItem(
                     onOpen = { act(MessageAction.OpenArticleMedia(media.index)) },
                     onRequestMenu = ::requestMenu,
                     file = FileTransfer(
-                        documentProgress = items::documentProgress,
+                        documentProgress = items.chat::documentProgress,
                         onOpenDocument = { act(MessageAction.OpenArticleDocument(media.index)) },
                     ),
                     // Zvuk a hlasovka v článku: tentýž přehrávač, klíč s pořadím v článku.
                     voice = VoiceHandlers(
-                        playback = { items.voicePlayback(message.id, part = media.index) },
-                        speed = { items.voiceSpeed() },
+                        playback = { items.playback.voicePlayback(message.id, part = media.index) },
+                        speed = { items.playback.voiceSpeed() },
                         onToggle = { act(MessageAction.ToggleArticleAudio(media.index)) },
                         onSeek = { fraction -> act(MessageAction.SeekArticleAudio(media.index, fraction)) },
                         onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
@@ -268,7 +268,7 @@ internal data class BubbleMessageItem(
      */
     @Composable
     private fun MessageBodyScope.ArticleReadMore() {
-        val loading = items.articleLoading(message.id)
+        val loading = items.chat.articleLoading(message.id)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -391,7 +391,7 @@ internal val LocalConversationTopInset = compositionLocalOf { 0.dp }
  */
 @Composable
 internal fun MessageBodyScope.LongText(atTop: Boolean) {
-    val collapsible = collapsesLongText(message, items.searchHighlight())
+    val collapsible = collapsesLongText(message, items.chat.searchHighlight())
     var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
     var overflowed by remember(message.id) { mutableStateOf(false) }
     val readMore = remember { BringIntoViewRequester() }

@@ -344,7 +344,7 @@ internal fun BoxScope.ConversationContent(
     ) {
         FloatingDayBadge(
             text = floatingDay?.label.orEmpty(),
-            onClick = itemScope.datePicker()?.let { open -> { floatingDay?.let { open(it.dayStart) } } },
+            onClick = itemScope.chat.datePicker()?.let { open -> { floatingDay?.let { open(it.dayStart) } } },
             glass = pillGlass(listHaze),
             modifier = Modifier.padding(top = 8.dp + topPadding),
         )
