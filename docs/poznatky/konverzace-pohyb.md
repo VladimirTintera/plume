@@ -245,6 +245,43 @@ Tlačítko dolů po skoku na citaci vrátí napřed ke zprávě, ze které se sk
   odrolování k odpovědi se tlačítko přepne na „Na konec konverzace". Řetěz víc skoků a návrat
   k nenačtené zprávě (okno v historii) ověřené nejsou, jen testy zásobníku.
 
+## Vlákno odpovědí
+
+Nabídka nad zprávou → „Zobrazit vlákno" otevře sheet jen s řetězem odpovědí kolem zprávy:
+nahoru až ke zprávě, kterou to začalo, a dolů ke všem, kdo na ni (nebo na odpověď na ni)
+odpověděl, i s odbočkami (`ConversationReplyThread`, `ReplyThreadSheet`, testy
+`ConversationReplyThreadTest`). Je to pro skupiny bez témat, kde se rozhovor dvou lidí rozpadne
+mezi stovky zpráv; oficiální klient nic takového nemá.
+
+- **Nahoru po citacích, dolů procházením historie.** Server odpovědi na zprávu neindexuje
+  (`getMessageThread` umí jen komentáře a témata), takže se historie čte OD KOŘENE směrem
+  k přítomnosti (`history` se záporným offsetem, jako `loadNewer`) a ke vláknu se připojí
+  každá zpráva, jejíž citace míří na zprávu vlákna (`extendThread`). Kořen je nejstarší zpráva
+  řetězu citací, takže odbočky z dřívějších zpráv řetězu se chytí taky.
+- **Nejvýš 1000 zpráv za kolo** (`SCAN_BUDGET`), pak „Prohledáno do 5. února" a „Hledat dál".
+  Kořen ze starého měsíce v živé skupině by jinak znamenal desítky tisíc zpráv a dotazů.
+  Chyba načítání skončí stejně (snackbar a „Hledat dál" jako zkusit znovu).
+- **Sheet se plní po každé stránce**: otevře se hned s výchozí zprávou, pak přibude řetěz nad
+  ní a odpovědi pod ní. Na výchozí zprávu se seznam posune JEDNOU, až dorazí řetěz citací;
+  odbočky přibyté nad ní ji neposunou, `LazyColumn` drží první viditelnou položku podle klíče.
+- **„Zobrazit vlákno" se nabízí, jen když vlákno je** (`MessageMenu.inReplyThread`): zpráva sama
+  odpovídá, nebo na ni odpovídá některá NAČTENÁ. Odpověď mimo načtené okno tím unikne; nabídka
+  kvůli tomu historii neprochází (otevírá se při každém podržení). Kanál odpovědi nemá, takže
+  se tam položka neukáže sama od sebe.
+- **Citace na smazanou zprávu vlákno uzavře** a sheet to řekne větou nahoře
+  (`ReplyThreadSheet.rootMissing`). Odpověď do jiného chatu `replyToMessageId` nemá (nese ji
+  `externalReply`), takže se do vlákna nepočítá.
+- **Z alba jen první fotka** (`threadRows`): ostatní odpovídají na totéž a v seznamu by byly jen
+  opakované „[Fotka]". Pro připojování odpovědí se drží všechny, odpověď může mířit na kteroukoli.
+- **Odbočka má nad textem „Odpovídá: jméno – začátek zprávy"**, když zpráva neodpovídá na tu
+  těsně nad sebou; větve by se jinak v časovém pořadí nedaly rozeznat. Samotné jméno nestačilo
+  (ověřeno na emulátoru): ve vlákně často píšou pořád titíž lidé. Odsazení podle hloubky vědomě ne —
+  v časovém pořadí by skákalo sem a tam.
+- **Ťuknutí skočí na zprávu s bodem návratu na výchozí zprávu** (`jumpToMessage(returnTo = …)`,
+  viz „Návrat po skoku na citaci"), takže tlačítko dolů vrátí tam, odkud se vlákno otevřelo.
+- **Vlákno se nepřepočítává podle živých zpráv**: odpověď, která přijde při otevřeném sheetu,
+  se ukáže až po novém otevření.
+
 ## Nepřečtené zmínky, reakce a hlasy v anketě
 
 Nad tlačítkem dolů jsou tlačítka „@" (nepřečtené zmínky a odpovědi), „❤" (nepřečtené reakce na

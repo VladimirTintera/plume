@@ -8,6 +8,7 @@ import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
+import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ReactionChoices
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageInfo
@@ -174,6 +175,21 @@ class ConversationMessageMenuTest {
         assertNull(open.favoriteSticker, "u zprávy bez samolepky se oblíbenost nenabízí")
         assertEquals(false, open.bookmarked)
         assertEquals(2L, open.pressedMessageId, "fotka uprostřed alba, na kterou uživatel podržel")
+    }
+
+    @Test
+    fun vlaknoSeNabidneUOdpovediIUZpravySNacitanouOdpovedi() = runTest {
+        suspend fun TestScope.inThread(messageId: Long, vararg messages: ChatMessage): Boolean {
+            val state = testState(*messages)
+            menu(state).showMessageMenu(messageId, listOf(MessageMenuAction.ShowReplyThread))
+            advanceUntilIdle()
+            return assertNotNull(state.value.messageMenu).inReplyThread
+        }
+        val root = testMessage(1)
+        val reply = testMessage(2).copy(replyToMessageId = 1)
+        assertTrue(inThread(2, root, reply), "odpověď")
+        assertTrue(inThread(1, root, reply), "zpráva, na kterou načtená zpráva odpovídá")
+        assertFalse(inThread(1, root, testMessage(2)), "osamělá zpráva")
     }
 
     @Test

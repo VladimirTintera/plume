@@ -30,6 +30,22 @@ data class ScheduledSheet(val messages: List<ChatMessage>) : ConversationSheet
 /** „Vybrat text" — text zprávy k výběru části. */
 data class SelectTextSheet(val message: ChatMessage) : ConversationSheet
 
+/**
+ * Vlákno odpovědí kolem zprávy [originId] (viz [ConversationReplyThread]).
+ *
+ * [messages] jsou od nejstarší, z alba jen první zpráva. [pausedAt] je čas poslední prošlé
+ * zprávy, když se procházení historie zastavilo na stropu nebo na chybě — sheet pak nabídne
+ * „Hledat dál"; `null`, když běží ([scanning]) nebo došlo až k přítomnosti. [rootMissing]:
+ * první zpráva vlákna odpovídá na zprávu, která už neexistuje.
+ */
+data class ReplyThreadSheet(
+    val originId: Long,
+    val messages: List<ChatMessage>,
+    val scanning: Boolean,
+    val pausedAt: Int? = null,
+    val rootMissing: Boolean = false,
+) : ConversationSheet
+
 /** Otevřený sheet druhu [T], nebo `null`. */
 inline fun <reified T : ConversationSheet> ConversationState.sheet(): T? = sheet as? T
 

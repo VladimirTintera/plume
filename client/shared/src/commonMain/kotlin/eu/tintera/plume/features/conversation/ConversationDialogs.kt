@@ -559,6 +559,16 @@ internal fun ConversationDialogs(
         )
     }
 
+    state.sheet<ReplyThreadSheet>()?.let { sheet ->
+        ReplyThreadSheet(
+            sheet = sheet,
+            partnerName = state.info?.title,
+            onPick = viewModel::pickReplyThreadMessage,
+            onScanMore = viewModel::scanReplyThreadMore,
+            onDismiss = viewModel::closeReplyThread,
+        )
+    }
+
     state.sheet<ScheduledSheet>()?.messages?.let { scheduled ->
         ScheduledMessagesSheet(
             messages = scheduled,

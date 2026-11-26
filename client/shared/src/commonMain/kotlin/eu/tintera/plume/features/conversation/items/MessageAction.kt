@@ -63,6 +63,7 @@ import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.format_quote_24dp
+import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.keep_off_24dp
@@ -82,6 +83,7 @@ import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_quote
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.menu_reply_elsewhere
+import eu.tintera.plume.resources.menu_reply_thread
 import eu.tintera.plume.resources.menu_report
 import eu.tintera.plume.resources.menu_select_messages
 import eu.tintera.plume.resources.menu_select_text
@@ -422,6 +424,16 @@ sealed interface MessageMenuAction : MessageAction {
     data object StopPoll : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.stop_circle_24dp, Res.string.menu_poll_stop).takeIf { menu.actions.canEdit }
+    }
+
+    /**
+     * Vlákno odpovědí kolem zprávy (sheet, `ConversationReplyThread`). Kandidát u každé zprávy;
+     * ukáže se jen tam, kde vlákno je — zpráva na něco odpovídá, nebo na ni odpovídá některá
+     * načtená ([MessageMenu.inReplyThread]). Kanál odpovědi nemá, takže tam se neukáže sám.
+     */
+    data object ShowReplyThread : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.forum_24dp, Res.string.menu_reply_thread).takeIf { menu.inReplyThread }
     }
 
     /**
@@ -816,6 +828,7 @@ val MessageMenuAction.slot: MenuSlot
         MessageMenuAction.Edit,
         MessageMenuAction.EditChecklist,
         MessageMenuAction.Reply,
+        MessageMenuAction.ShowReplyThread,
         MessageMenuAction.Copy,
         MessageMenuAction.Forward,
         MessageMenuAction.Translate,

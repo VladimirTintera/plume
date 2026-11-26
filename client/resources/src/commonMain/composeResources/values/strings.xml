@@ -953,6 +953,18 @@
     <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>
     <string name="menu_reply">Reply</string>
     <string name="menu_reply_elsewhere">Reply elsewhere</string>
+    <string name="menu_reply_thread">Show thread</string>
+    <string name="reply_thread_title">Thread</string>
+    <plurals name="reply_thread_count">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
+    <string name="reply_thread_scanning">Looking for replies…</string>
+    <string name="reply_thread_paused">Searched up to %1$s</string>
+    <string name="reply_thread_more">Search further</string>
+    <string name="reply_thread_root_missing">The thread starts with a reply to a deleted message</string>
+    <string name="reply_thread_replying_to">Replying to %1$s: %2$s</string>
+    <string name="reply_thread_failed">Couldn't load the thread</string>
     <string name="reply_elsewhere_title">Reply in another chat</string>
     <string name="menu_quote">Quote</string>
     <string name="menu_edit">Edit</string>

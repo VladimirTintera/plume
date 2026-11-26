@@ -59,6 +59,7 @@ z bubliny (`onAction`). Ostatní dělají části v `features/conversation/`:
 | `ConversationReactions` | reakce a kdo jak reagoval |
 | `ConversationSelection` | výběr víc zpráv a hromadné akce |
 | `ConversationSearch` | hledání v chatu, filtr podle člena, skok na datum |
+| `ConversationReplyThread` | vlákno odpovědí kolem zprávy (sheet) a procházení historie pro něj |
 | `ConversationTranslation` | překlad (server i telefon) a shrnutí |
 | `ConversationMessageContext` | akce u zprávy a posudky modelu (termíny, podvod) |
 | `ConversationPlayback` | hlasovky, kolečko se zvukem, čas v médiu, hudba, hlášení poslechu, přepis řeči |
@@ -95,7 +96,7 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   `ConversationBotsTest`, `ConversationSuggestionsTest`, `ConversationPlaybackTest`,
   `ConversationRecorderTest`, `ConversationDocumentsTest`, `ConversationTranslationTest`,
   `ConversationMessageContextTest`, `ConversationMessageMenuTest`, `ConversationChatActionsTest`,
-  `ConversationPendingRepliesTest` — tedy všechny; držáky obrazovky `ConversationSheets` a `ConversationRecording` testuje
+  `ConversationPendingRepliesTest`, `ConversationReplyThreadTest` — tedy všechny; držáky obrazovky `ConversationSheets` a `ConversationRecording` testuje
   `ConversationScreenHoldersTest`):
   stav je obyčejný `MutableStateFlow`, repository
   `UnimplementedConversationRepository`, `UnimplementedChatRepository`,
@@ -164,7 +165,7 @@ všechny nad sebou; dva modální dialogy naráz nedávají smysl a typ to teď 
 
 Sheety nad konverzací (překlad, informace o zprávě, kdo reagoval, pozvánka a pozvánka do
 složky, soutěž, hlasující, kontakty a poslední soubory ze sponky, naplánované zprávy,
-připomenutí, import chatu, výběr textu) nesou jedno pole `ConversationState.sheet`, sealed typ
+připomenutí, import chatu, výběr textu, vlákno odpovědí) nesou jedno pole `ConversationState.sheet`, sealed typ
 `ConversationSheet`. Dřív jich bylo třináct polí a mohlo jich být otevřených víc naráz.
 
 - **Datové třídy sheetů typ implementují samy** (`TranslationSheet`, `ReactionDetails`,
