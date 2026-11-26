@@ -1024,6 +1024,9 @@ okno a nepadal.
   `verifyTooltipsThroughRoot`. Obal i kontrola s přechodem na 1.13 zmizely.
 - **Dnes**: bublina s textem `WithTooltip`, ostatní rovnou `TooltipBox` (nápověda gest,
   nahrávání u tlačítka odeslání, avatar ve sbaleném seznamu, položky složek).
+- **Esc nad zaostřenou kotvou s viditelnou bublinou spotřebuje M3** (zavře bublinu, na Zpět
+  nedojde). `WithTooltip` ho proto propouští dál — viz „Vlastní scéna Chatů" v `navigace.md`
+  a `TooltipTest.escapeOverTooltipGoesThrough`.
 - **Pojistka v `jvmTest`** (`TooltipTest.tooltipRemovedDuringMeasureSurvives`, headless
   `runComposeUiTest` nad skiko scénou): holý `TooltipBox` s viditelnou bublinou přežije zúžení pod
   práh dvou panelů. **Když začne padat, oprava se v upstreamu ztratila.**

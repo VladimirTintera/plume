@@ -609,6 +609,33 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
 - **Zpět, po kterém zůstane táž scéna, obslouží scéna sama** (`NavigationBackHandler`, jako
   `ThreePaneScaffoldScene`): `NavDisplay` by mezi dvěma stavy téže scény (stejný klíč) nic
   neanimoval. Během gesta se sloupec zužuje o čtvrtinu šířky, po dokončení odjíždí z té šířky.
+- **„Ztracený" Esc nebyl handler zpět, ale bublina přepínače panelu.** Po kliknutí na přepínač
+  bočního panelu (nebo jiné tlačítko s `WithTooltip` v liště) jeden Esc nic neudělal a teprve
+  další zavřel sloupec či konverzaci. Logování ukázalo, že dispečer navigationevent ztracenou
+  klávesu vůbec nedostal: scéna má svůj handler navrchu (LIFO) a všechny `NavigationBackHandler`
+  konverzace jsou vypnuté. Na desktopu převádí Esc na Zpět až `ComposeSceneMediator.onKeyEvent`
+  (`BackNavigationEventInput`), a jen když klávesu nikdo ve scéně nespotřeboval — a M3
+  `TooltipBox` ji spotřebuje (`keyboardBehavior` v `BasicTooltip.kt`): je-li bublina vidět
+  a kotva zaostřená, Esc bublinu zavře a vrátí `true`. Po kliknutí myší kotva fokus drží a bublina
+  je vidět, dokud nad tlačítkem stojí kurzor (i 4 s po kliknutí).
+  - **Oprava je v `WithTooltip`, ne ve scéně**: Esc bublinu schová a propustí dál
+    (`EscapeTransparentTooltipState` hlásí M3 po Esc „neviditelná", dokud se bublina znovu
+    neukáže). Bublina s textem je popisek, ne obsah; Esc má dělat totéž co bez ní. Holý
+    `TooltipBox` (nápověda gest, nahrávání, avatar ve sbaleném seznamu, složky) obal nemá.
+  - **Závisí na tom, že M3 čte `state.isVisible`** — ověřeno `javap` nad material3-desktop
+    1.13.0-rc01 (`BasicTooltipKt$keyboardBehavior$2`). Pojistka je jvmTest
+    `TooltipTest.escapeOverTooltipGoesThrough`, bez opravy padá.
+  - **Jak to najít příště**: dočasný `println` v `onBackCompleted` scény, v `onBack` NavDisplay
+    a sběr `dispatcher.history` (který handler je navrchu). Když se po Esc neozve nic, klávesu
+    snědlo něco ve scéně Compose, ne navigace; kdo pracuje s `Key.Escape`, najde `grep` nad
+    rozbalenými jary (`grep -rla Escape` nad třídami material3/foundation).
+  - Ověřeno na desktopu (macOS, Notifikátor, „AI BL"): klik na přepínač s viditelnou bublinou,
+    Esc zavře sloupec a druhý konverzaci; ⌥⌘I s Esc, Esc; úprava kanálu → profil → zavřeno →
+    placeholder; Nastavení podstránka → sekce → Chaty. Na Androidu Esc bere `MainActivity` dřív
+    a gesto zpět jde mimo klávesy, oprava se ho netýká. Na emulátoru Fold (rozložený,
+    `input motionevent` od levého okraje) s opravou ověřeno: panel otevřený přepínačem → gesto
+    zavře panel → další gesto konverzaci; úprava kanálu → profil → zavřeno → placeholder, každé
+    gesto jeden krok, týž pid.
 - **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
   `RESERVE_BESIDE_LIST`). Kotva je táž jako u dřívějšího knihovního táhla
   (`AppSettings.listPaneAnchor`), takže uživatelům šířka seznamu zůstala.
