@@ -614,10 +614,21 @@ na knihovně a `SinglePaneScene`.
 - **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
   `RESERVE_BESIDE_LIST`), knihovní `PaneExpansionState` se nepoužije. Kotva je táž
   (`AppSettings.listPaneAnchor`), takže přepnutí přepínače šířku seznamu nezmění.
-- **Ověřeno jen na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
-  a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu. **Neověřeno:** gesto
-  zpět dotykem (Android), Fold (rozložení, pant v pozici kniha — scéna ho zatím nerespektuje),
-  okno pod `THREE_PANE_MIN_WIDTH`, Windows, archiv.
+- **Ověřeno na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
+  a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu.
+- **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený je pod `THREE_PANE_MIN_WIDTH`):
+  s otevřeným profilem seznam ustoupí a vedle sebe zůstane konverzace s profilem, jako
+  s knihovnou. Gesto zpět od okraje (`input motionevent` DOWN/MOVE/UP) sloupec během tahu
+  zužuje a po puštění zavře, zrušené gesto ho vrátí. Deset cyklů `adb emu fold`/`unfold`
+  s otevřeným profilem bez pádu, týž pid, profil zůstal otevřený.
+- **Pád při složení s fokusem v textovém poli NEZPŮSOBUJE scéna**: s otevřeným hledáním v chatu
+  složení shodí aplikaci (`TextFieldCoreModifierNode.startCursorJob`, „Modifier node is not
+  currently attached") úplně stejně s vypnutým přepínačem, tedy s knihovnou. Je to pád popsaný
+  v `desktop.md`, „Textové pole při změně scény", který na Androidu opravený není.
+- **Pant v pozici kniha** (`adb shell cmd device_state state 1`, zpět `state reset`): hranice
+  panelů na pantu neleží ani se scénou, ani s knihovnou, rozvržení je v obou režimech stejné.
+  Jestli emulátor oddělující pant aplikaci vůbec hlásí, ověřené není; rozhodne skutečný Fold.
+- **Neověřeno:** okno mezi `TWO_PANE_MIN_WIDTH` a tři panely na desktopu, Windows, archiv.
 
 ### Obsah přesouvaný mezi scénami
 
