@@ -624,6 +624,11 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      Ohlášení po 15 s propadne: chat se otevřít nemusel a pozdější otevření téhož chatu by
      hlásilo přepnutí, které se nestalo. Sdílení přes Direct Share účet taky přepíná, ale vede
      na „Komu: …", ne do konverzace — ohlášení tam není.
+   - **Ověřeno na emulátoru `Plume_Galerie_Fold`** (rozložený, dva účty): chat jen hlavního
+     účtu („Plume test triaze") bez odznaku a s polem „Message", Notifikátor (píše mu i druhý
+     účet) bez odznaku s „Message as …", režim Vše odznak i pole, intent notifikace druhého
+     účtu přepnul výchozí účet a konverzace ukázala „Switched to VT". **Snackbar `uiautomator
+     dump` nezachytil** ani jednou za šest výpisů, i když běžel celé 4 s — ověřovat snímkem.
 
 6. **Komu notifikace patří** — hotovo:
    - **Android: jméno účtu je ve jménu konverzace** („Notifikator · VT2", `shortcutLabel`).
