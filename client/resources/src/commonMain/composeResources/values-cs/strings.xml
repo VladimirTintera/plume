@@ -4560,6 +4560,14 @@
         <item quantity="other">%1$s zpráv</item>
     </plurals>
     <string name="instant_view_mark">Rychlé zobrazení</string>
+    <string name="link_preview_view_channel">Zobrazit kanál</string>
+    <string name="link_preview_view_group">Zobrazit skupinu</string>
+    <string name="link_preview_send_message">Napsat zprávu</string>
+    <string name="link_preview_open_bot">Otevřít bota</string>
+    <string name="link_preview_view_stickers">Zobrazit samolepky</string>
+    <string name="link_preview_open_app">Otevřít aplikaci</string>
+    <string name="link_preview_view_message">Zobrazit zprávu</string>
+    <string name="link_preview_view_story">Zobrazit příběh</string>
     <string name="instant_view_open_browser">Otevřít v prohlížeči</string>
     <string name="instant_view_full_page">Zbytek dočíst v prohlížeči</string>
     <string name="instant_view_failed">Stránku se nepodařilo načíst.</string>

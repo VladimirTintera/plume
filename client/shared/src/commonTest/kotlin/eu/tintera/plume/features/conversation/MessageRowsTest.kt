@@ -5,6 +5,7 @@ import eu.tintera.plume.core.telegram.Article
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ExternalReply
 import eu.tintera.plume.core.telegram.LinkPreview
+import eu.tintera.plume.core.telegram.LinkPreviewTarget
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -393,6 +394,27 @@ class MessageRowsTest {
         )
 
         assertFalse(showsLinkPreviewCard(message(id = 1, text = "odkaz", linkPreview = empty)))
+    }
+
+    @Test
+    fun profilovkaVNahleduNeniNikdyVelka() {
+        // Odkaz na kanál: profilovka jde do kruhu vedle popisu, ne přes celou šířku karty.
+        val channel = preview().copy(target = LinkPreviewTarget.Channel)
+        assertTrue(preview().showsLargePhoto)
+        assertFalse(channel.showsLargePhoto)
+    }
+
+    @Test
+    fun nahledJenSeSamolepkamiJeKarta() {
+        val sticker = MessageMedia.Sticker(
+            stickerFileId = 1, setId = 2, fileId = 1, animationFileId = null, thumbnailFileId = null,
+            width = 512, height = 512, emoji = "🙂",
+        )
+        val stickers = LinkPreview(
+            url = "https://t.me/addstickers/x", siteName = null, title = null, description = null, photo = null,
+            largePhoto = false, showAboveText = false, target = LinkPreviewTarget.Stickers, stickers = listOf(sticker),
+        )
+        assertTrue(showsLinkPreviewCard(message(id = 1, text = "odkaz", linkPreview = stickers)))
     }
 
     @Test

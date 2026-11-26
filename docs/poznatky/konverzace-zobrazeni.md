@@ -1411,9 +1411,28 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
 - **Náhled skládá server**, ne klient (`MessageText.linkPreview`). Nic se nestahuje kromě
   obrázku, který k němu server přiložil — žádné připojení k cizí stránce z aplikace.
 - **Obrázek jen z druhů, které nesou fotku**: článek, fotka, obal videa, náhled vloženého
-  přehrávače. Ostatní druhy (samolepka, hlasovka, chat…) mají soubory, které neumíme vykreslit;
-  náhled zůstane textový. **Úplně prázdný náhled se zahodí** — rámeček bez obsahu vypadá jako
-  chyba načítání.
+  přehrávače, a u odkazu na Telegram profilovka chatu (kanál, skupina, člověk, bot, boost) nebo
+  obrázek mini aplikace (`previewPhoto` v `MessageContent.kt`). Ostatní druhy (hlasovka,
+  dokument…) zůstanou textové. **Úplně prázdný náhled se zahodí** — rámeček bez obsahu vypadá
+  jako chyba načítání.
+- **Odkaz na Telegram (`t.me/…`) říká, kam vede** (`LinkPreview.target`, `LinkPreviewTarget`,
+  testy `LinkPreviewTargetTest`). Je to v Telegramu nejčastější odkaz a jeho náhled byl dřív jen
+  text — `toDomain()` bral obrázek z pěti druhů stránek a profilovku chatu (`ChatPhoto`) zahodil.
+  - **Profilovka je v kruhu a nikdy velká** (`roundPhoto`, `showsLargePhoto`): přes celou šířku
+    karty by byla portrétem, ne poznávací značkou chatu.
+  - **Pod popisem značka, co ťuknutí otevře** („Zobrazit kanál", „Napsat zprávu", „Otevřít
+    bota", „Zobrazit samolepky"…), tentýž tvar jako „⚡ Rychlé zobrazení" (`PreviewMark`).
+    Značka, ne tlačítko: otevírá ťuknutí na celý náhled, a to už do Plume vede
+    (`resolveLink`). **Boost značku nemá** — `InternalLinkTypeChatBoost` Plume v aplikaci
+    neotevře a značka by slibovala něco, co se nestane.
+  - **Sada samolepek ukáže samolepky** (`stickers`, nejvýš `LINK_PREVIEW_STICKERS`), statickým
+    náhledem `StickerPreview` jako obálky ve výběru — animace by běžely v každé zprávě s odkazem.
+    Server v náhledu posílá často jen jednu.
+  - Náhled uvnitř bubliny (`LinkPreviewCard`) bere popis z `PreviewInfo` jako karta; dřív ho měl
+    opsaný a značky by mu chyběly.
+  - Ověřeno na emulátoru: Notifikátor poslal `t.me/telegram` (kanál), `t.me/kotlin_lang`
+    (skupina), `t.me/BotFather` (bot) a `t.me/addstickers/HotCherry`; ťuknutí na sadu otevřelo
+    její sheet. Odkaz na člověka bez kanálu, mini aplikaci, zprávu a příběh ověřené nejsou.
 - **Velký nebo malý obrázek určuje odesílatel** (`showLargeMedia`), jen se to respektuje.
 - **Vzhled: karta ze dvou částí** (viz „Náhled odkazu jako karta"), v bublině tónovaný
   kontejner jako citace. Akcent se podává zvenku ze stejného důvodu jako u citace — v odchozí

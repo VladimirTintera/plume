@@ -4410,6 +4410,14 @@
         <item quantity="other">%1$s messages</item>
     </plurals>
     <string name="instant_view_mark">Instant View</string>
+    <string name="link_preview_view_channel">View channel</string>
+    <string name="link_preview_view_group">View group</string>
+    <string name="link_preview_send_message">Send message</string>
+    <string name="link_preview_open_bot">Open bot</string>
+    <string name="link_preview_view_stickers">View stickers</string>
+    <string name="link_preview_open_app">Open app</string>
+    <string name="link_preview_view_message">View message</string>
+    <string name="link_preview_view_story">View story</string>
     <string name="instant_view_open_browser">Open in browser</string>
     <string name="instant_view_full_page">Read the rest in the browser</string>
     <string name="instant_view_failed">Couldn't load the page.</string>

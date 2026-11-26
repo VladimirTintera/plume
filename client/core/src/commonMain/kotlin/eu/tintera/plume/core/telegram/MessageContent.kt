@@ -62,6 +62,20 @@ import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
 import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
+import dev.g000sha256.tdl.dto.LinkPreviewType
+import dev.g000sha256.tdl.dto.LinkPreviewTypeApp
+import dev.g000sha256.tdl.dto.LinkPreviewTypeChannelBoost
+import dev.g000sha256.tdl.dto.LinkPreviewTypeChat
+import dev.g000sha256.tdl.dto.LinkPreviewTypeLiveStory
+import dev.g000sha256.tdl.dto.LinkPreviewTypeMessage
+import dev.g000sha256.tdl.dto.LinkPreviewTypeSticker
+import dev.g000sha256.tdl.dto.LinkPreviewTypeStickerSet
+import dev.g000sha256.tdl.dto.LinkPreviewTypeStory
+import dev.g000sha256.tdl.dto.LinkPreviewTypeSupergroupBoost
+import dev.g000sha256.tdl.dto.LinkPreviewTypeUser
+import dev.g000sha256.tdl.dto.LinkPreviewTypeWebApp
+import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
+import dev.g000sha256.tdl.dto.ChatPhoto as TdlChatPhoto
 import dev.g000sha256.tdl.dto.DiceStickers
 import dev.g000sha256.tdl.dto.DiceStickersRegular
 import dev.g000sha256.tdl.dto.DiceStickersSlotMachine
@@ -1464,14 +1478,13 @@ internal fun Message.linkPreview(hideSensitive: Boolean = false): LinkPreview? =
 internal fun TdlLinkPreview.toDomain(): LinkPreview? {
     val preview = this
 
-    val photo = when (val type = preview.type) {
-        is LinkPreviewTypeArticle -> type.photo
-        is LinkPreviewTypePhoto -> type.photo
-        is LinkPreviewTypeVideo -> type.cover
-        is LinkPreviewTypeEmbeddedVideoPlayer -> type.thumbnail
-        is LinkPreviewTypeEmbeddedAnimationPlayer -> type.thumbnail
-        else -> null
-    }?.toMedia()
+    val photo = preview.type.previewPhoto()
+    val stickers = when (val type = preview.type) {
+        is LinkPreviewTypeStickerSet -> type.stickers.filterNotNull().take(LINK_PREVIEW_STICKERS).map { it.toMedia() }
+        is LinkPreviewTypeSticker -> listOf(type.sticker.toMedia())
+        else -> emptyList()
+    }
+    val target = preview.type.target()
 
     val result = LinkPreview(
         url = preview.url,
@@ -1484,11 +1497,49 @@ internal fun TdlLinkPreview.toDomain(): LinkPreview? {
         canChangeSize = preview.hasLargeMedia,
         isVideo = preview.type is LinkPreviewTypeVideo || preview.type is LinkPreviewTypeEmbeddedVideoPlayer,
         instantView = preview.instantViewVersion > 0,
+        target = target,
+        stickers = stickers,
     )
-    if (result.siteName == null && result.title == null && result.description == null && photo == null) {
+    if (result.siteName == null && result.title == null && result.description == null && photo == null &&
+        stickers.isEmpty()
+    ) {
         return null
     }
     return result
+}
+
+/**
+ * Obrázek náhledu: fotka stránky (článek, fotka, obal videa, vložený přehrávač), u odkazu na
+ * Telegram profilovka chatu nebo obrázek mini aplikace. Profilovka nese tytéž `PhotoSize` jako
+ * fotka ([photoMedia]).
+ */
+internal fun LinkPreviewType.previewPhoto(): MessageMedia.Photo? = when (this) {
+    is LinkPreviewTypeArticle -> photo?.toMedia()
+    is LinkPreviewTypePhoto -> photo?.toMedia()
+    is LinkPreviewTypeVideo -> cover?.toMedia()
+    is LinkPreviewTypeEmbeddedVideoPlayer -> thumbnail?.toMedia()
+    is LinkPreviewTypeEmbeddedAnimationPlayer -> thumbnail?.toMedia()
+    is LinkPreviewTypeChat -> photo?.toMedia()
+    is LinkPreviewTypeUser -> photo?.toMedia()
+    is LinkPreviewTypeChannelBoost -> photo?.toMedia()
+    is LinkPreviewTypeSupergroupBoost -> photo?.toMedia()
+    is LinkPreviewTypeWebApp -> photo?.toMedia()
+    is LinkPreviewTypeApp -> photo?.toMedia()
+    else -> null
+}
+
+private fun TdlChatPhoto.toMedia(): MessageMedia.Photo? = photoMedia(sizes = sizes.filterNotNull(), minithumbnail = minithumbnail)
+
+/** Kam vede odkaz na Telegram; `null` u běžné stránky a u druhů, ke kterým nemáme co říct. */
+internal fun LinkPreviewType.target(): LinkPreviewTarget? = when (this) {
+    is LinkPreviewTypeChat -> if (type is InviteLinkChatTypeChannel) LinkPreviewTarget.Channel else LinkPreviewTarget.Group
+    is LinkPreviewTypeUser -> if (isBot) LinkPreviewTarget.Bot else LinkPreviewTarget.User
+    is LinkPreviewTypeChannelBoost, is LinkPreviewTypeSupergroupBoost -> LinkPreviewTarget.Boost
+    is LinkPreviewTypeStickerSet, is LinkPreviewTypeSticker -> LinkPreviewTarget.Stickers
+    is LinkPreviewTypeWebApp, is LinkPreviewTypeApp -> LinkPreviewTarget.App
+    is LinkPreviewTypeMessage -> LinkPreviewTarget.Message
+    is LinkPreviewTypeStory, is LinkPreviewTypeLiveStory -> LinkPreviewTarget.Story
+    else -> null
 }
 
 /**

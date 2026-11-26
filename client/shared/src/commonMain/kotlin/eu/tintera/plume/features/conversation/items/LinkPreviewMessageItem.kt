@@ -28,7 +28,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.LinkPreview
-import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.features.conversation.photoFrame
@@ -36,6 +35,29 @@ import eu.tintera.plume.features.conversation.showsLargePhoto
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bolt_filled_24dp
 import eu.tintera.plume.resources.instant_view_mark
+import eu.tintera.plume.resources.apps_24dp
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.chat_24dp
+import eu.tintera.plume.resources.chat_bubble_24dp
+import eu.tintera.plume.resources.group_24dp
+import eu.tintera.plume.resources.motion_photos_on_24dp
+import eu.tintera.plume.resources.smart_toy_24dp
+import eu.tintera.plume.resources.sticky_note_2_24dp
+import eu.tintera.plume.resources.link_preview_open_app
+import eu.tintera.plume.resources.link_preview_open_bot
+import eu.tintera.plume.resources.link_preview_send_message
+import eu.tintera.plume.resources.link_preview_view_channel
+import eu.tintera.plume.resources.link_preview_view_group
+import eu.tintera.plume.resources.link_preview_view_message
+import eu.tintera.plume.resources.link_preview_view_stickers
+import eu.tintera.plume.resources.link_preview_view_story
+import eu.tintera.plume.core.telegram.LinkPreviewTarget
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.features.conversation.StickerPreview
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Shape
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -189,7 +211,7 @@ internal data class LinkPreviewMessageItem(
                         messageId = message.id,
                         label = false,
                         onLongClick = ::requestMenu,
-                        modifier = Modifier.size(LINK_PREVIEW_THUMBNAIL).clip(ShapeDefaults.Medium),
+                        modifier = Modifier.size(LINK_PREVIEW_THUMBNAIL).clip(preview.thumbnailShape(ShapeDefaults.Medium)),
                     )
                 }
             }
@@ -244,9 +266,47 @@ internal fun PreviewInfo(preview: LinkPreview, accent: Color, modifier: Modifier
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (preview.instantView) InstantViewMark(accent, Modifier.padding(top = 4.dp))
+        if (preview.stickers.isNotEmpty()) PreviewStickers(preview.stickers, Modifier.padding(top = 4.dp))
+        val target = preview.target?.mark()
+        when {
+            target != null -> PreviewMark(target.first, stringResource(target.second), accent, Modifier.padding(top = 4.dp))
+            preview.instantView -> InstantViewMark(accent, Modifier.padding(top = 4.dp))
+        }
     }
 }
+
+/**
+ * Ukázka sady samolepek pod popisem náhledu — z odkazu na sadu se jinak nedalo poznat, jak
+ * samolepky vypadají. Statické náhledy ([StickerPreview] bez přehrávání): animace by v každé
+ * zprávě s odkazem na sadu běžely naráz.
+ */
+@Composable
+private fun PreviewStickers(stickers: List<MessageMedia.Sticker>, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        stickers.forEach { sticker ->
+            StickerPreview(sticker = sticker, playing = false, modifier = Modifier.size(LINK_PREVIEW_STICKER))
+        }
+    }
+}
+
+/**
+ * Co se po ťuknutí na náhled odkazu na Telegram otevře: ikona a popisek značky; `null`, kde
+ * akci slíbit nejde. Boost (`t.me/boost/…`) Plume v aplikaci neotevře, takže značku nemá.
+ */
+internal fun LinkPreviewTarget.mark(): Pair<DrawableResource, StringResource>? = when (this) {
+    LinkPreviewTarget.Channel -> Res.drawable.campaign_24dp to Res.string.link_preview_view_channel
+    LinkPreviewTarget.Group -> Res.drawable.group_24dp to Res.string.link_preview_view_group
+    LinkPreviewTarget.User -> Res.drawable.chat_24dp to Res.string.link_preview_send_message
+    LinkPreviewTarget.Bot -> Res.drawable.smart_toy_24dp to Res.string.link_preview_open_bot
+    LinkPreviewTarget.Stickers -> Res.drawable.sticky_note_2_24dp to Res.string.link_preview_view_stickers
+    LinkPreviewTarget.App -> Res.drawable.apps_24dp to Res.string.link_preview_open_app
+    LinkPreviewTarget.Message -> Res.drawable.chat_bubble_24dp to Res.string.link_preview_view_message
+    LinkPreviewTarget.Story -> Res.drawable.motion_photos_on_24dp to Res.string.link_preview_view_story
+    LinkPreviewTarget.Boost -> null
+}
+
+/** Tvar malého obrázku náhledu: profilovka v kruhu, jinak [default]. */
+internal fun LinkPreview.thumbnailShape(default: Shape): Shape = if (roundPhoto) CircleShape else default
 
 /**
  * Ťuknutí na náhled: stránka s Instant View se otevře ve čtečce v aplikaci, ostatní odkazem
@@ -261,8 +321,20 @@ internal fun LinkPreview.openAction(): MessageAction =
  */
 @Composable
 internal fun InstantViewMark(accent: Color, modifier: Modifier = Modifier) {
+    PreviewMark(Res.drawable.bolt_filled_24dp, stringResource(Res.string.instant_view_mark), accent, modifier)
+}
+
+/**
+ * Značka pod popisem náhledu: co ťuknutí udělá. Značka, ne tlačítko — otevírá ťuknutí na celý
+ * náhled, jako u Instant View ([InstantViewMark]) a odkazu na Telegram ([LinkPreviewTarget]).
+ */
+@Composable
+private fun PreviewMark(icon: DrawableResource, label: String, accent: Color, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Icon(painterResource(Res.drawable.bolt_filled_24dp), contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
-        Text(stringResource(Res.string.instant_view_mark), style = MaterialTheme.typography.labelLarge, color = accent)
+        Icon(painterResource(icon), contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = accent)
     }
 }
+
+/** Samolepka v ukázce sady pod popisem náhledu. */
+private val LINK_PREVIEW_STICKER = 44.dp

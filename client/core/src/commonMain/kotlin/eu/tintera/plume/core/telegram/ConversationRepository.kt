@@ -2278,7 +2278,39 @@ data class LinkPreview(
     val isVideo: Boolean = false,
     /** Stránka má Instant View (`instantViewVersion > 0`) — jde přečíst v aplikaci, bez prohlížeče. */
     val instantView: Boolean = false,
-)
+    /**
+     * Kam vede odkaz na Telegram (`t.me/…`): kanál, skupina, člověk, sada samolepek…; `null`
+     * u běžné stránky. Odkaz na Telegram je v Telegramu nejčastější odkaz vůbec, a bez toho byl
+     * jeho náhled jen text — bez profilovky i bez slova, co se po ťuknutí otevře.
+     */
+    val target: LinkPreviewTarget? = null,
+    /** Ukázka sady samolepek (nejvýš [LINK_PREVIEW_STICKERS]), nebo odkazovaná samolepka. */
+    val stickers: List<MessageMedia.Sticker> = emptyList(),
+) {
+    /** Obrázek je profilovka (kanál, skupina, člověk, bot): kreslí se v kruhu a nikdy přes celou šířku. */
+    val roundPhoto: Boolean get() = target?.avatar == true
+}
+
+/**
+ * Cíl odkazu na Telegram v náhledu (`LinkPreviewType*` od TDLib). Náhled podle něj řekne, co se
+ * po ťuknutí otevře („Zobrazit kanál", „Napsat zprávu"), a profilovku nakreslí v kruhu ([avatar]).
+ */
+enum class LinkPreviewTarget(val avatar: Boolean) {
+    Channel(avatar = true),
+    Group(avatar = true),
+    User(avatar = true),
+    Bot(avatar = true),
+    /** Odkaz na boost kanálu nebo skupiny. */
+    Boost(avatar = true),
+    Stickers(avatar = false),
+    /** Mini aplikace bota (`t.me/bot/app`, `?startapp`). */
+    App(avatar = false),
+    Message(avatar = false),
+    Story(avatar = false),
+}
+
+/** Kolik samolepek ukáže náhled odkazu na sadu — víc se do řádku popisu nevejde. */
+const val LINK_PREVIEW_STICKERS = 4
 
 /**
  * Rozmazaný náhled obrázku, který přišel rovnou se zprávou (`minithumbnail` v TDLib).

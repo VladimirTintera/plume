@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.showsLargePhoto
+
 import eu.tintera.plume.core.ui.LocalAutoDownload
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.ui.layout.ContentScale
@@ -66,38 +68,11 @@ internal fun LinkPreviewCard(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                preview.siteName?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = accent,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                preview.title?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                preview.description?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = LINK_PREVIEW_DESCRIPTION_LINES,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (preview.instantView) InstantViewMark(accent, Modifier.padding(top = 4.dp))
-            }
+            // Tentýž popis jako v kartě odkazu (dřív tu byl opsaný a značky ani samolepky neměl).
+            PreviewInfo(preview, accent, Modifier.weight(1f))
 
-            // Malý obrázek vedle textu, jen když odesílatel nechtěl velký.
-            if (!preview.largePhoto) {
+            // Malý obrázek vedle textu, jen když odesílatel nechtěl velký (profilovka vždycky).
+            if (!preview.showsLargePhoto) {
                 preview.photo?.let { photo ->
                     LinkPreviewImage(
                         photo = photo,
@@ -106,13 +81,13 @@ internal fun LinkPreviewCard(
                         onLongClick = onLongClick,
                         modifier = Modifier
                             .size(LINK_PREVIEW_THUMBNAIL)
-                            .clip(ShapeDefaults.Small),
+                            .clip(preview.thumbnailShape(ShapeDefaults.Small)),
                     )
                 }
             }
         }
 
-        if (preview.largePhoto) {
+        if (preview.showsLargePhoto) {
             preview.photo?.let { photo ->
                 // Výška ručně, ne `aspectRatio` — ten by strop z `heightIn` neuplatnil (viz fotka).
                 BoxWithConstraints {
