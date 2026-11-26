@@ -1083,6 +1083,14 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       účtu, které uživatel neviděl. Notifikace zůstávají dvě — jsou to dvě různé zprávy.
     - **Uložené zprávy zobrazené jako chaty** (`SavedTopicsRoute`) výběr účtu nemají: ten je
       u pole zprávy a seznam témat žádné nemá. Otevřou se účtem řádku.
+    - **Ověřeno na emulátoru Fold** (rozložený, anglicky, hlavní účet a VT): Notifikátor,
+      služební chat Telegram a „Pixel 7 Pro" jsou jedním řádkem s oběma odznaky; chat „VT"
+      (hlavní účet s VT) a „Já" (VT s hlavním účtem) zůstaly zvlášť a chat s VT výběr účtu nemá.
+      Notifikátor za hlavní účet → výběr s větou o oddělených konverzacích → VT ukáže historii
+      VT a „Message as VT". Uložené zprávy hlavního účtu → VT otevře Uložené zprávy VT (jiné id,
+      jiný obsah). **Neověřené:** spojený řádek Uložených zpráv v seznamu (na Foldu je oba účty
+      nemají připnuté, takže se neukazují — pokrývá test), „Označit jako přečtené" nad spojeným
+      soukromým chatem, desktop.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
