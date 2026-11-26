@@ -240,8 +240,8 @@ private fun typingItem(state: ConversationState): TypingItem? {
  * Jaký blok ze zprávy vznikne — JEDINÉ místo, kde se o tom rozhoduje.
  *
  * Bez bubliny se kreslí to, co je obrázek samo o sobě: pár emoji, samolepka, fotka a video,
- * náhled odkazu s velkým obrázkem. Podmínkou je vždycky, že na zprávě nevisí nic, co pozadí
- * potřebuje — citace se bez něj ztratí, takže si bublinu vynutí.
+ * náhled odkazu s velkým obrázkem. Obsah s údajem navíc (citace, přeposlání) je karta: snímek
+ * je nese v horním dílu karty, samolepka, kolečko a velká emoji si vynutí bublinu.
  */
 private fun messageItem(
     frame: MessageFrameData,
@@ -254,7 +254,8 @@ private fun messageItem(
     val media = message.media
     // Popisek alba z pár emoji je pořád popisek pod fotkami, ne velké emoji bez bubliny.
     // Citace i značka přeposlání jsou údaj navíc a obsah s údajem navíc je karta: bublinu si
-    // vynutí, jako popisek u fotky (holý text vedle samolepky by od ní odplul).
+    // vynutí, jako popisek u fotky (holý text vedle samolepky by od ní odplul; samostatný
+    // štítek nad samolepkou se zkoušel a byl to třetí, vymyšlený tvar).
     // Kořen vlákna komentářů se necituje, takže ani bublinu nevynutí (viz showsQuote).
     val needsCard = message.showsQuote(threadRootId) || message.hasOriginLabel
     val emojiCount = if (album != null || media != null || needsCard) {
@@ -269,10 +270,10 @@ private fun messageItem(
         poll != null -> PollMessageItem(frame, poll = poll, quoted = quoted, partnerName = partnerName)
         checklist != null -> ChecklistMessageItem(frame, checklist = checklist, quoted = quoted, partnerName = partnerName)
         emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
-        showsBareMedia(message, album, threadRootId) -> MediaMessageItem(frame, album)
+        showsBareMedia(message, album) -> MediaMessageItem(frame, album, quoted = quoted, partnerName = partnerName)
         preview != null && showsLinkPreviewCard(message, threadRootId) -> LinkPreviewMessageItem(frame, preview)
-        (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji || media is MessageMedia.Dice ||
-            media is MessageMedia.VideoNote) &&
+        media is MessageMedia.VideoNote && !needsCard -> VideoNoteMessageItem(frame, media)
+        (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji || media is MessageMedia.Dice) &&
             !needsCard -> StickerMessageItem(frame, media)
         else -> BubbleMessageItem(frame, album = album, quoted = quoted, partnerName = partnerName)
     }

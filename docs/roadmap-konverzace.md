@@ -492,15 +492,13 @@ Velikost: S / M / L.
 
 **Viditelné nekonzistence a chyby**
 
-- **Kolečko přeposlané nebo s citací ztratí přepis (S–M).** Citace i značka přeposlání ho pošlou
-  do `BubbleMessageItem` (`needsCard` v `messageItem()`), kde se kreslí holým `Attachment` uvnitř
-  barevné bubliny — `VideoNoteWithTranscript` je jen v `StickerMessageItem`. Hlasovka přepis
-  má v obou cestách. Řešení spolu s vlastním blokem kolečka (viz níž).
-- **Citace a přeposlání u holých médií jednotně jako díl karty (M).** Dnes tři podoby: přeposlaná
-  fotka je karta s hlavičkou (`OriginHeader`) od kraje ke kraji; fotka nebo album S CITACÍ spadne
-  do bubliny, odsazená o `MESSAGE_PADDING_H` s vlastním zaoblením 12 dp („fotka v rámečku");
-  přeposlaná samolepka nebo kolečko dostane celou bublinu. Citace může být horní díl karty
-  jako u `QuotedBubble` / `MediaWithCaption`.
+- ~~**Kolečko přeposlané nebo s citací ztratí přepis**~~ — hotovo: kolečko má vlastní blok
+  `VideoNoteMessageItem` a v bublině se kreslí s přepisem (`docs/poznatky/konverzace-zobrazeni.md`,
+  „Médium bez bubliny").
+- ~~**Citace u holých médií jako díl karty**~~ — hotovo pro fotku, video, album a mapu: citace je
+  horní díl karty nad značkou přeposlání (`QuotePart`). **Samolepka, kolečko a velká emoji
+  zůstávají s citací i přeposláním v bublině vědomě** — samostatná karta nad samolepkou je
+  zkoušený a zamítnutý „třetí tvar" (`docs/poznatky/konverzace-zobrazeni.md`, „Přeposlaná zpráva").
 - **Odpověď na smazanou zprávu (S).** `showsQuote` je pravda, citovaná zpráva se nenajde — bublina
   se vynutí, ale citace v ní není (fotka v prázdné bublině, žádné „Smazaná zpráva").
   `resolveMissingQuotes` navíc při každé nové zprávě znovu volá `getMessage` na zprávy, které už

@@ -113,7 +113,12 @@ internal data class BubbleMessageItem(
             if (album != null) {
                 Album(members = album, accent = accent)
             } else {
-                message.media?.let { Attachment(media = it, accent = accent) }
+                when (val media = message.media) {
+                    null -> Unit
+                    // Kolečko s citací nebo přeposláním: i v bublině s přepisem, jako bez ní.
+                    is MessageMedia.VideoNote -> VideoNoteWithTranscript(media, accent)
+                    else -> Attachment(media = media, accent = accent)
+                }
             }
             (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }?.let {
                 LocationDetails(it, color = onBubbleColor, modifier = Modifier.padding(top = 6.dp), onStop = stopLiveLocation(), onProximityAlert = setProximityAlert())

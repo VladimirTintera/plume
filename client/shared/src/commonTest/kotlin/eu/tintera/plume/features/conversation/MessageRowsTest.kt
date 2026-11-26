@@ -211,8 +211,8 @@ class MessageRowsTest {
     fun mapaPolohyJdeNaPlochuJakoFotka() {
         val location = MessageMedia.Location(50.08, 14.42, title = "Staroměstské náměstí", address = "Praha")
         assertTrue(showsBareMedia(message(id = 1, media = location), album = null))
-        // Odpověď si bublinu drží i s mapou — citace se bez pozadí ztratí.
-        assertFalse(showsBareMedia(message(id = 1, media = location, replyToMessageId = 5L), album = null))
+        // Odpověď mapu na ploše nechá — citace je horní díl karty mapy.
+        assertTrue(showsBareMedia(message(id = 1, media = location, replyToMessageId = 5L), album = null))
     }
 
     @Test
@@ -311,32 +311,13 @@ class MessageRowsTest {
     }
 
     @Test
-    fun citaceSiBublinuVynuti() {
-        val withQuote = message(id = 1, media = photo(), replyToMessageId = 7L)
-
-        assertFalse(showsBareMedia(withQuote, album = null))
-    }
-
-    @Test
-    fun korenVlaknaKomentaruBublinuNevynuti() {
-        // Komentář odpovídá příspěvku kanálu, i když nikdo „Odpovědět" neťukl. Citace kořene se
-        // ve vlákně nekreslí, takže fotka i video jdou na plochu jako všude jinde.
-        val comment = message(id = 1, media = video(), replyToMessageId = 7L)
-
-        assertTrue(showsBareMedia(comment, album = null, threadRootId = 7L))
-        assertTrue(showsBareMedia(comment.copy(media = photo()), album = null, threadRootId = 7L))
-        // Odpověď na jiný komentář ve vlákně citaci kreslí, a tím i bublinu.
-        assertFalse(showsBareMedia(comment.copy(replyToMessageId = 8L), album = null, threadRootId = 7L))
-    }
-
-    @Test
-    fun odpovedZJinehoChatuSiBublinuVynuti() {
-        // Citovaná zpráva v historii není, citaci nese `externalReply` — bez bubliny by zmizela.
+    fun citaceBublinuNevynuti() {
+        // Citace je horní díl karty snímku, jako značka přeposlání.
+        assertTrue(showsBareMedia(message(id = 1, media = photo(), replyToMessageId = 7L), album = null))
         val external = message(id = 1, media = photo()).copy(
             externalReply = ExternalReply(quote = message(id = 9, text = "jinde"), target = null),
         )
-
-        assertFalse(showsBareMedia(external, album = null))
+        assertTrue(showsBareMedia(external, album = null))
     }
 
     @Test

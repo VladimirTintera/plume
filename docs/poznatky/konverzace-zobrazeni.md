@@ -298,8 +298,16 @@ Messages.
   zvýraznění a díře v závoji nabídky), takže jméno přilepené k levé hraně ukouslo zaoblené
   nároží první písmeno („ilipHorky"). Totéž u karty náhledu odkazu. **Cokoli, co leží v rohu
   zprávy bez bubliny, se musí odsadit o zaoblení** — ořez nekončí u snímku.
-- **Citace si bublinu vynutí.** Bez pozadí se ztratí, tentýž důvod, proč si ji drží i zpráva
-  z pár emoji. Náhled odkazu má vlastní kartu (viz „Náhled odkazu jako karta").
+- **Citace je horní díl karty snímku, bublinu si nevynutí** (`QuotePart`, nad značkou
+  přeposlání; `MediaMessageItem.quoted`). Bez pozadí by se ztratila — ale pozadí jí dá karta,
+  stejně jako popisku a značce přeposlání. Dřív si bublinu vynutila a fotka, video, album i mapa
+  v ní ležely odsazené o `MESSAGE_PADDING_H` s vlastním zaoblením 12 dp, jako fotka v rámečku,
+  zatímco přeposlaný snímek šel od kraje ke kraji. Samolepka, kolečko a velká emoji si bublinu
+  s citací drží dál (viz „Přeposlaná zpráva"). Náhled odkazu má vlastní kartu (viz „Náhled
+  odkazu jako karta").
+- **Kolečko v bublině má přepis taky** (`VideoNoteWithTranscript` v `BubbleMessageItem`). S citací
+  nebo přeposláním se kreslilo holou přílohou a tlačítko přepisu i přepis zmizely; bez nich má
+  vlastní blok `VideoNoteMessageItem`.
 - **Rozhoduje citace, která se KRESLÍ, ne `replyToMessageId`** (`showsQuote` v `MessageRows.kt`).
   Ve vlákně komentářů TDLib vyplní odpověď na kořen (příspěvek kanálu) skoro každému komentáři,
   i bez ťuknutí na „Odpovědět"; citace kořene se tam nekreslí (`quoted` ho přeskočí). Pravidla
@@ -1508,10 +1516,12 @@ otevře kanál se skokem na původní zprávu (`ChatTarget(chatId, messageId)`),
   řádkem, u holého snímku horní díl karty v barvě bubliny (`ForwardHeader`, protějšek popisku
   pod snímkem — `MediaWithCaption` má proto hlavičku, snímek a popisek se stejnou šířkou),
   a u karty odkazu v horním dílu s textem.
-- **Přeposlaná samolepka a pár emoji si bublinu vynutí** (`needsCard` v `messageItem()`, testy
-  `ConversationItemsTest`), stejně jako odpověď. Pravidlo je obecné: **holý obsah jde na plochu
-  jen sám; jakmile nese údaj navíc (popisek, citace, přeposlání), je z něj karta.** Samostatný
-  štítek nad samolepkou (zkoušeno) byl třetí, vymyšlený tvar vedle bubliny a karty.
+- **Přeposlaná samolepka, kolečko a pár emoji si bublinu vynutí** (`needsCard` v `messageItem()`,
+  testy `ConversationItemsTest`), stejně jako odpověď. Pravidlo je obecné: **holý obsah jde na
+  plochu jen sám; jakmile nese údaj navíc (popisek, citace, přeposlání), je z něj karta.** U snímku
+  je kartou snímek s hlavičkou (citace, značka) a popiskem, u samolepky bublina. Samostatný
+  štítek nad samolepkou (zkoušeno) byl třetí, vymyšlený tvar vedle bubliny a karty — a při revizi
+  v listopadu 2026 se k němu málem vrátilo, proto to tu stojí výslovně.
 - **Značka je u KAŽDÉ zprávy bloku**, ne jen u první jako jméno odesílatele. Přeposlané zprávy
   téhož člověka bývají každá odjinud.
 - **Jméno zdroje jde z keše odesílatelů** (`resolveSender`, bere uživatele i chat). V kanálu,

@@ -38,6 +38,10 @@ internal data class MediaMessageItem(
     override val frame: MessageFrameData,
     /** Zprávy alba od nejstarší; u samostatné fotky nebo videa `null`. */
     val album: List<ChatMessage>?,
+    /** Citovaná zpráva — horní díl karty, nad značkou přeposlání. */
+    val quoted: ChatMessage? = null,
+    /** Koho citace uvede v soukromém chatu, kde TDLib jméno odesílatele nevyplňuje. */
+    val partnerName: String? = null,
 ) : MessageItem {
 
     override fun containsMessage(messageId: Long): Boolean =
@@ -55,13 +59,15 @@ internal data class MediaMessageItem(
         val edited = message.isEdited && !message.isLiveLocation
         val hasCaption = message.text.isNotBlank() || edited || location != null || document != null || story != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
+        // Citace nad ní, stejně jako u odpovědi v bublině.
         val forwarded = message.hasOriginLabel
-        val isCard = hasCaption || forwarded
+        val hasHeader = forwarded || quoted != null
+        val isCard = hasCaption || hasHeader
         // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní, ne k bublině.
         val surfaceAccent = if (message.isOutgoing) LocalContentColor.current else MaterialTheme.colorScheme.primary
         // S popiskem nebo hlavičkou ořezává karta celá; snímek si přesto nese nároží karty, do
         // kterých sahá — kvůli letu do prohlížeče (viz [cardMediaShape]). Jinak nese tvar snímek.
-        val mediaShape = if (isCard) cardMediaShape(shape, hasHeader = forwarded, hasCaption = hasCaption) else shape
+        val mediaShape = if (isCard) cardMediaShape(shape, hasHeader = hasHeader, hasCaption = hasCaption) else shape
 
         Column(
             // Karta se srovnává ke straně odesílatele.
@@ -73,7 +79,14 @@ internal data class MediaMessageItem(
 
             MediaWithCaption(
                 modifier = if (isCard) Modifier.clip(shape) else Modifier,
-                header = { if (forwarded) OriginHeader() },
+                header = {
+                    if (hasHeader) {
+                        Column {
+                            quoted?.let { QuotePart(it, partnerName) }
+                            if (forwarded) OriginHeader()
+                        }
+                    }
+                },
                 media = {
                     if (album != null) {
                         Album(members = album, accent = surfaceAccent, shape = mediaShape)
