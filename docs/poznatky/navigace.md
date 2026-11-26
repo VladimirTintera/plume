@@ -604,6 +604,49 @@ na připojení, se tím může rozbít, a to bez chyby v logu.
 - **Ověřuje se na emulátoru Fold**: aplikace spuštěná složená, pak `adb emu unfold`. Ikona
   chyběla hned při prvním rozložení.
 
+### Textové pole při rozložení Foldu
+
+**Složení nebo rozložení Foldu s fokusem v textovém poli shazovalo aplikaci** (Compose
+foundation 1.13.0-rc01): první chyba v logu je „Cannot read CompositionLocal because the Modifier
+node is not currently attached" z `TextFieldCoreModifierNode.startCursorJob` ← `updateNode` ←
+`LayoutNode.attach` ← `applyModifier` ← `CopyNodesToNewAnchorLocation`. Je to tentýž přesun
+obsahu jako výš: `updateNode` při fokusu spouští blikání kurzoru nad uzlem, který ještě není
+připojený. Mechanismus a desktopová oprava: „Textové pole při změně scény" v `desktop.md`.
+
+- **Padá to s knihovní trojicí panelů i s vlastní scénou chatu** (přepínač „Experimentální
+  rozvržení chatu"), scéna za to nemůže. Spolehlivě to shodí pole hledání v chatu (⋮ → Hledat
+  v chatu): bez opravy pád hned při prvním složení. Pole zprávy s fokusem bez opravy 8 cyklů
+  přežilo — ne každé pole dostane při přesunu `updateNode` se změnou, která kurzor spouští
+  (`!wasFocused`, jiný `textFieldState`), ale kód je tentýž, takže na něj oprava platí taky.
+- **Opravu dělá instrumentace bajtkódu AGP** (`plume.compose-text-field-android`,
+  `build-logic/…/ComposeTextField.kt`), tentýž visitor jako přepis jaru na desktopu:
+  `startCursorJob()` začíná `if (!isAttached) return`. Aplikační obcházka (zrušit fokus před
+  změnou scény) se nezkoušela: fokus by musel zmizet dřív, než NavDisplay obsah přesune, tedy
+  ještě před rekompozicí s novou velikostí okna, a uživatel by o něj přicházel i tam, kde nic
+  nehrozí.
+- **AGP v režimu `COPY_FRAMES` čte třídy s `ClassReader.EXPAND_FRAMES`** (a zapisuje bez
+  přepočtu), takže vložený rámec za stráží musí být rozbalený `F_NEW`; komprimovaný `F_SAME`
+  z desktopového přepisu (reader bez `EXPAND_FRAMES`) by se s rozbalenými rámci metody
+  nesnesl. Visitor proto bere `expandedFrames`.
+- **Přejmenovanou metodu ohlásí build, přejmenovanou třídu ne** — instrumentace se na ni prostě
+  nezavolá. Že stráž v APK je: `dexdump -d classes*.dex` a v
+  `TextFieldCoreModifierNode.startCursorJob:()V` napřed `invoke-virtual …
+  Modifier$Node;.isAttached`, `if-nez` a `return-void`.
+- **Upstream to opravené nemá** ani ve foundation 1.13.0 a 1.14.0-alpha01 (listopad 2026,
+  ověřeno ve zdrojovém jaru). Při bumpu Compose se podívat, jestli `startCursorJob` nebo
+  `updateNode` nekontrolují `isAttached` samy; když ano, oba pluginy pryč.
+- **iOS opravu nemá**: klib Kotlin/Native přepsat nejde (stejně jako hook TDLib). Kód je
+  společný, takže by tam spadlo totéž přepnutí scény s fokusem — na iPadu změna velikosti okna
+  (Stage Manager, Split View) přes práh dvou panelů. Neověřené.
+- **Reprodukce na emulátoru Fold** (`Plume_Galerie_Fold`, `Pixel_10_Pro_Fold`): rozložený,
+  otevřený chat, ⋮ → Hledat v chatu, napsat pár znaků, pak `adb emu fold` / `adb emu unfold` po
+  2,5 s. Bez opravy pád do několika cyklů. Klávesnice při přepnutí displeje mizí a fokus se časem ztratí, proto před
+  každým přepnutím ťuknout do pole znovu (souřadnice z `uiautomator dump`, ověřit
+  `focused="true"`) — cyklus bez fokusu nic neověří.
+- **Ověřeno 26. 11. 2026 na `Pixel_10_Pro_Fold` (API 37)**: s opravou 12 cyklů s fokusem
+  v hledání a 12 s fokusem v poli zprávy, fokus ověřený před každým přepnutím, bez výjimky;
+  totéž APK bez pluginu spadlo s fokusem v hledání při prvním složení.
+
 ### Standardní šířky
 
 Na okně přes dva monitory (snímek ~2000 dp) se konverzace roztáhla přes celou šířku: přijaté zprávy

@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     // Hook TdlibJsonRepair za JsonClient.receive uvnitř wrapperu (build-logic, Tdlib.kt).
     id("plume.tdlib-android")
+    // Textové pole přežije přesun mezi scénami při rozložení Foldu (build-logic, ComposeTextField.kt).
+    id("plume.compose-text-field-android")
     // res/xml/locales_config.xml ze seznamu jazyků (build-logic, LocaleConfig.kt).
     id("plume.locale-config")
     // Verze z tagu, podpis a verifyReleaseConfiguration (build-logic, AndroidRelease.kt).

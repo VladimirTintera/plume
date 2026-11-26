@@ -50,6 +50,10 @@ gradlePlugin {
             id = "plume.compose-text-field-desktop"
             implementationClass = "eu.tintera.plume.gradle.ComposeTextFieldDesktopPlugin"
         }
+        register("composeTextFieldAndroid") {
+            id = "plume.compose-text-field-android"
+            implementationClass = "eu.tintera.plume.gradle.ComposeTextFieldAndroidPlugin"
+        }
         register("liteRtDesktop") {
             id = "plume.litertlm-desktop"
             implementationClass = "eu.tintera.plume.gradle.LiteRtDesktopPlugin"
