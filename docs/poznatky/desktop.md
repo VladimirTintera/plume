@@ -410,11 +410,59 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   desktopu zpracuje událost synchronně uvnitř posluchače AWT, ze kterého se JBR ptá — stejně to
   dělal Jewel, než přešel na ručně hlášené oblasti (`clientRegion`). Ruční oblasti by tu
   znamenaly označit každé tlačítko v hlavičkách.
+- **Na Macu JBR rozhoduje podle PŘEDCHOZÍ odpovědi, ne podle stisku.** Tah začíná
+  v `AWTWindowDragView` (`AWTWindow.m`): při prvním `mouseDragged` přečte pole
+  `Window.customTitleBarHitTest` na vlákně AppKitu, jenže stisk v tu chvíli často ještě čeká ve
+  frontě AWT. Pole tak drží odpověď na poslední ZPRACOVANOU událost. Když to byl pohyb nad
+  obsahem (frontu zdrželo otevření chatu, pohyb do pruhu se nestihl zpracovat), tah se odmítl
+  a celý šel obsahu — „oknem nejde hýbat", hlavně hned po otevření chatu. Pole se ale čte jen
+  pohledem v pruhu titulku (pod ním leží obsahová vrstva, kam tah nikdy nejde), takže pod
+  pruhem se na Macu hlásí titulek a zastaralá odpověď tah nezablokuje. Na Windows zůstává obsah
+  (tam JBR podle všeho čte `customTitleBarHitTestQuery`; neověřeno). Zdroj čten
+  z větve `jbr25` JetBrainsRuntime; ladicí log odpovědí ukázal stisk správně jako titulek,
+  a okno se přesto nehnulo.
+- **Tah oknem obsah nevidí** (průchod `Initial` na kořeni, po stisku v pruhu, který si nic
+  nevzalo, až do puštění). Na Macu během tahu chodí pohyby myši dál i do Compose — okno jede
+  za kurzorem, ale ne přesně — a lišta s hledáním v seznamu chatů (`enterAlways`, táhnout jde
+  i za ni) se tahem odsunula. Nad vyscrollovaným seznamem se pak už nevrátila: nad seznamem
+  nebylo za co chytit a semafory ležely přes první chat.
+- **Oknem jde táhnout i za prvky v pruhu** (tlačítka, avatar účtu, ikona hledání, název
+  chatu), jako za tlačítka nástrojové lišty aplikací pro Mac: stisk bez pohybu je klik, pohyb
+  přes práh tahu (`touchSlop`) začne tah oknem a prvek o klik přijde (kořen mu spotřebuje
+  pohyby i puštění, `clickable` se zruší). Jen na Macu.
+  - **Tah začíná náš most, ne JBR** (`MacTitleBar.startDrag`, `nativeStartDrag`
+    v `PlumeWindow.m`): `AWTWindowDragView` rozhoduje jen jednou, při prvním `mouseDragged`,
+    a stisk, který si vzal prvek, je pro něj obsah. Most volá `performWindowDragWithEvent`
+    s `NSApp.currentEvent` z hlavní fronty — v tu chvíli poslední tah myší, protože se volá až
+    po zpracování události ve frontě AWT. Tak to dělá i `drag_window` v knihovně tao (Tauri).
+    Bez stisknutého levého tlačítka nebo s jinou událostí než tahem / stiskem nedělá nic.
+  - **Textové pole si tah nechá a pozná se podle kurzoru**: pole si nastavuje textový kurzor
+    (`pointerHoverIcon`) už při najetí, takže při stisku ho má komponenta okna (`SkiaLayer`)
+    z události AWT. Výběr textu myší v poli hledání chatů tak oknem nehne.
+  - **Podle toho, jestli pohyb spotřeboval prvek, to rozlišit nejde.** Tak to bylo napřed
+    („prvek, který si pohyb vezme, táhne sám") a ikona hledání v seznamu chatů oknem nehnula:
+    pohyby spotřebovala lišta s hledáním kolem ní (táhnout jde i za ni, `enterAlways`).
+  - Týž most dotáhne i prázdné místo, když tam JBR tah přesto odmítl a okno po prahu stojí.
+  - Na Windows ne: most je jen na Macu a prvky v pruhu tam zůstávají jen klikací.
+- **Syntetický tah na pozadí okno neposune ani tam, kde to funguje** (computer-use `app_drag`,
+  událost poslaná procesu): `performWindowDragWithEvent` chce skutečnou myš. Ověřuje se přes
+  celou obrazovku (`left_mouse_down` / `mouse_move` / `left_mouse_up`), a táhnout DOLŮ — tah
+  nahoru nad plochu computer-use zastaví s ještě stisknutým tlačítkem.
 - **Popup a dialog jsou jiná vrstva** a přes kořen nejdou: JBR pak nedostane odpověď a bere
   místo jako obsah, což je správně (nabídka u horního kraje okna jde normálně kliknout).
 - Ověřeno na macOS 26.6 v ladicím běhu: tah za prázdnou část hlavičky konverzace posune oknem,
   ⋮ v témže řádku otevře nabídku, zelený semafor přepne na celou obrazovku a zpět, zúžení
   a rozšíření okna přes práh dvou panelů (`osascript`, dvě kola) bez chyby.
+  Oprava zastaralé odpovědi a lišty s hledáním ověřena na macOS 27.2 v ladicím běhu skutečnou
+  myší: otevření chatu a hned tah za hlavičku konverzace posune oknem (dřív ne), tah za mezeru
+  v hlavičce seznamu posune oknem a lišta s hledáním zůstane (dřív odjela a nevrátila se), tah
+  za název chatu oknem nehne, přepínač bočního panelu v pruhu jde kliknout. Dvojklik na pruh
+  po opravě nezkoušen.
+  Tah za prvky ověřen týmž způsobem: tah za ikonu hledání posune oknem, hledání se neotevře
+  a lišta zůstane, klik na ni hledání otevře; tah za avatar účtu posune oknem bez nabídky;
+  tah za název chatu posune oknem bez profilu, klik na název profil otevře; výběr textu tahem
+  v poli hledání chatů (leží v pruhu) okno nechá na místě. Dvojklik na pruh se ověřit nedal:
+  okno přes celou plochu na něj viditelně nereaguje ani ve verzi před změnou.
   **Windows ověřené není** — tlačítka okna, jejich barvy podle motivu (`controls.dark`)
   a klik do pilulky hledání, která tam leží v pruhu titulku. Rozložení hlaviček vpravo je
   ověřené jen náhledem na Macu (`-PwindowControlsPreview=windows`).
