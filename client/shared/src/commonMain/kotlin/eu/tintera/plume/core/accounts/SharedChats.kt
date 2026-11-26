@@ -95,7 +95,7 @@ class SharedChats(
      */
     fun readUpTo(from: AccountSlot, chatId: Long, messageId: Long) {
         if (!isSharedHistoryChat(chatId)) return
-        spread(from, chatId) { repository, _ -> repository.readUpTo(chatId, messageId) }
+        inOthers(from, chatId) { account, _ -> account.koin.get<ChatRepository>().readUpTo(chatId, messageId) }
     }
 
     /**
@@ -104,15 +104,25 @@ class SharedChats(
      * takže „přečteno" musí platit za všechny.
      */
     fun readAll(from: AccountSlot, chatId: Long) {
-        spread(from, chatId) { repository, counterpart -> repository.readChat(counterpart) }
+        inOthers(from, chatId) { account, counterpart -> account.koin.get<ChatRepository>().readChat(counterpart) }
     }
 
-    private fun spread(from: AccountSlot, chatId: Long, read: suspend (ChatRepository, Long) -> Result<Unit>) {
+    /**
+     * Akce nad řádkem, kterou uživatel udělal v účtu [from] nad chatem [chatId], i nad týmž chatem
+     * v ostatních účtech ([counterparts]; id se může lišit, Uložené zprávy). Spojený řádek je
+     * jeden, takže ztlumení, archiv, připnutí nebo odložení musí platit za všechny jeho účty —
+     * jinak by se řádek po archivaci rozpadl a ztlumený chat dál zvonil z druhého účtu.
+     *
+     * Běží na pozadí a chyba v jiném účtu se jen zaloguje: akce ve vlastním účtu už proběhla
+     * a uživatel ji viděl; v druhém účtu může selhat z vlastních důvodů (limit připnutých).
+     * Mimo režim Všechny účty nedělá nic.
+     */
+    fun inOthers(from: AccountSlot, chatId: Long, action: suspend (account: AccountSession, chatId: Long) -> Result<Unit>) {
         if (!active) return
         scope.launch {
             counterparts(from, chatId).forEach { counterpart ->
-                read(counterpart.account.koin.get(), counterpart.chatId)
-                    .onFailure { logger.w(it) { "Přečtení spojeného chatu se do druhého účtu nepřeneslo." } }
+                action(counterpart.account, counterpart.chatId)
+                    .onFailure { logger.w(it) { "Akce nad spojeným chatem se v druhém účtu nepovedla." } }
             }
         }
     }

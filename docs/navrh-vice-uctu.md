@@ -1042,9 +1042,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       (`NotificationClaims`, posledních 512 zpráv). Jeho náhrada dočasné notifikace z pushe
       drží týž účet, takže projde. Přečtení v jednom účtu přečte i druhý, takže druhá
       notifikace nikde nezůstane viset.
-    - **Akce nad řádkem patří účtu, kterým se otevírá** (ztlumení, archiv, připnutí, smazání):
-      jen „přečteno" platí za všechny. Archivace v jednom účtu proto řádek rozdělí — v hlavním
-      seznamu zůstane druhý účet, v archivu ten první.
+    - **Vratné akce nad řádkem platí za všechny účty** (krok 26); smazání, opuštění,
+      zablokování a vymazání historie jen za účet, kterým se řádek otevírá.
     - **Fotky odznaků a výběru účtu se kreslí v kontejneru SVÉHO účtu** (`BadgeAccount.session`,
       `InAccount`): řádek stojí v kontejneru účtu, kterým se otevírá, a `photoFileId` druhého
       účtu tam znamená jiný soubor — na Foldu se místo fotky VT ukázala samolepka dárku.
@@ -1056,7 +1055,7 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       přečtení za VT zmizel odznak nepřečtených řádku i notifikace a v seznamu jen hlavního
       účtu je skupina přečtená. Soukromý chat s Notifikátorem zůstal dvakrát. **Neověřené:**
       desktop, sbalený sloupec, archiv, „Označit jako přečtené" a přečtení z notifikace.
-    - **Zbývá:** přenos pozice v historii při přepnutí účtu, akce nad řádkem za všechny účty.
+    - **Zbývá:** přenos pozice v historii při přepnutí účtu.
 
 25. **Spojené Uložené zprávy a soukromé chaty** — hotovo (`mergeKey`, `SharedChats.counterparts`,
     testy v `MergedChatGroupsTest`):
@@ -1091,6 +1090,34 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       jiný obsah). **Neověřené:** spojený řádek Uložených zpráv v seznamu (na Foldu je oba účty
       nemají připnuté, takže se neukazují — pokrývá test), „Označit jako přečtené" nad spojeným
       soukromým chatem, desktop.
+
+26. **Akce nad spojeným řádkem za všechny účty** — hotovo (`ChatsViewModel.everywhere`,
+    `SharedChats.inOthers`):
+    - **Ztlumení (i na dobu), archiv a vrácení z něj (i „Vrátit" ve snackbaru), připnutí
+      a odepnutí** z nabídky nad řádkem i tahem do strany proběhnou v účtu řádku, a když se
+      povedou, i nad týmž chatem v ostatních účtech (`counterparts`, tedy i s jiným id
+      Uložených zpráv). Dřív archivace v jednom účtu řádek rozdělila a ztlumený chat dál zvonil
+      z druhého účtu.
+    - **Odložení** (i jeho zrušení a „otevřeno" po vynoření) taky: `ChatSnoozes` je v kontejneru
+      každého účtu zvlášť, a připomínka v druhém účtu by jinak držela řádek nahoře.
+    - **„Přečteno" už platilo za všechny** (krok 24), „Nepřečteno" stačí v jednom — řádek je
+      nepřečtený, je-li nepřečtený kterýkoli výskyt.
+    - **Jen za účet řádku:** smazání, opuštění skupiny, zablokování, nahlášení a vymazání
+      historie. Jsou nevratné nebo míří na lidi a opustit skupinu oběma účty jedním ťuknutím by
+      bylo moc; řádek pak zůstane za druhý účet. Složky patří účtu (jsou na serveru), takže
+      „Přidat do složky" taky.
+    - **Výběr víc chatů** zůstává v jednom účtu, jak byl: seznam po dobu výběru ukazuje jen
+      chaty toho účtu, takže spojený řádek tam není.
+    - **Výsledek akce je výsledek účtu řádku**: chyba v druhém účtu (třeba limit připnutých) se
+      jen zaloguje, akci uživatel už viděl proběhnout.
+    - **Ověřeno na emulátoru Fold** (rozložený, anglicky, „Plume test triaze" s hlavním účtem
+      a VT): archivace z nabídky → řádek zmizel z hlavního seznamu celý a v archivu je jedním
+      řádkem s oběma odznaky; „Move to chats" ho vrátil celý. „Mute for 1 hour" → ztlumená
+      i v seznamu samotného VT; „Unmute" → odtlumená i tam. **Neověřené:** připnutí, odložení,
+      tah do strany, „Vrátit" ve snackbaru, Uložené zprávy a soukromý chat, desktop.
+    - **Nabídka nad řádkem se na Foldu po podržení ještě posouvá**: ťuknutí podle souřadnic ze
+      snímku trefilo o dvě položky níž („Add to home screen" místo „Move to chats"). Položky se
+      ťukají podle čerstvého `uiautomator dump`, ne podle snímku.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
