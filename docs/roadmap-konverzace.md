@@ -483,6 +483,78 @@ témat má věty se jmény jako seznam chatů (bez předpony „Jana:").
 - ~~**Kostka se sázkou**~~ — hotovo: animace hodu jako u kostky a pod ní vklad a výhra v TON
   (`docs/poznatky/emoji-samolepky-reakce.md`, „Kostka se sázkou"). Skutečnou sázkou neověřené.
 
+## Obsah zpráv v konverzaci (revize listopad 2026)
+
+Průchod bloky seznamu (`items/`): jak se kreslí jednotlivé druhy zpráv, co je bez bubliny, co
+karta a co se opakuje. Jen čtení kódu, na zařízení nic neověřené. Doporučené pořadí: kolečko,
+citace u holých médií, smazaná citace, náhledy `t.me`; úklid kódu jde kdykoli zvlášť.
+Velikost: S / M / L.
+
+**Viditelné nekonzistence a chyby**
+
+- **Kolečko přeposlané nebo s citací ztratí přepis (S–M).** Citace i značka přeposlání ho pošlou
+  do `BubbleMessageItem` (`needsCard` v `messageItem()`), kde se kreslí holým `Attachment` uvnitř
+  barevné bubliny — `VideoNoteWithTranscript` je jen v `StickerMessageItem`. Hlasovka přepis
+  má v obou cestách. Řešení spolu s vlastním blokem kolečka (viz níž).
+- **Citace a přeposlání u holých médií jednotně jako díl karty (M).** Dnes tři podoby: přeposlaná
+  fotka je karta s hlavičkou (`OriginHeader`) od kraje ke kraji; fotka nebo album S CITACÍ spadne
+  do bubliny, odsazená o `MESSAGE_PADDING_H` s vlastním zaoblením 12 dp („fotka v rámečku");
+  přeposlaná samolepka nebo kolečko dostane celou bublinu. Citace může být horní díl karty
+  jako u `QuotedBubble` / `MediaWithCaption`.
+- **Odpověď na smazanou zprávu (S).** `showsQuote` je pravda, citovaná zpráva se nenajde — bublina
+  se vynutí, ale citace v ní není (fotka v prázdné bublině, žádné „Smazaná zpráva").
+  `resolveMissingQuotes` navíc při každé nové zprávě znovu volá `getMessage` na zprávy, které už
+  selhaly (selhání si nepamatuje); TDLib má na odpovědi `getRepliedMessage`.
+- **Upravená fotka bez popisku má pruh popisku jen s „upraveno" (S).** `hasCaption`
+  v `MediaMessageItem` zahrnuje `edited`.
+- **Jméno odesílatele nad kartou odkazu, jinde v bublině (S).** `LinkPreviewMessageItem` (i holé
+  médium) kreslí `SenderName` na ploše nad kartou, přestože horní díl karty má barvu bubliny;
+  blok začínající odkazem vypadá jinak než blok začínající textem.
+- **Akce u servisních oznámení dvojím jazykem (S).** Žádost o vypnutí ochrany má tlačítka
+  (`ActionButtonGroup`), návrh fotky, návrh data narození a odkaz na převedenou skupinu jen
+  klikatelný sloupec s textem v `primary` (`Notes.kt`). Sjednotit, nejlíp na tlačítka.
+- **Akcent na ploše asymetrický (S).** Holé bloky dávají odchozí straně `onSurface`, příchozí
+  `primary` (průběh nahrávání na holé fotce, velká emoji, samolepka) — bez bubliny důvod
+  k rozdílu není. Pravidlo je opsané třikrát (`MediaMessageItem`, 2× `BareMessageItems`).
+- **Karty pod zprávou mají zaoblení 16 dp, bublina nad nimi 18 dp (S).** Kontrola faktů,
+  varování před podvodem a navrhovaný příspěvek, každá s vlastní konstantou — ta navíc obchází
+  `verifyShapeTokens` (16 dp je token `Large`; totéž `PRODUCT_PHOTO_CORNER` = `Medium`).
+
+**Co chybí**
+
+- **Bohatší náhledy odkazů `t.me` (M).** `TdlLinkPreview.toDomain()` bere obrázek jen z článku,
+  fotky, videa a dvou vložených přehrávačů. Odkaz na kanál, uživatele, zprávu, sadu samolepek
+  nebo příběh (`LinkPreviewTypeChat`, `…User`, `…Message`, `…StickerSet`, `…Story`…) tak zůstane
+  kartou jen s textem, bez fotky a bez tlačítka („Zobrazit kanál"). Totéž náhled typu samolepka,
+  GIF a dokument.
+
+**Úklid kódu (uživatel nepozná)**
+
+- **Spoiler a mizející médium jedním pomocníkem (S).** `koinInject<RevealedSpoilers>` a „první
+  ťuknutí odkryje, druhé otevře" je šestkrát (fotka, video, GIF v `Attachments.kt`, dvě dlaždice
+  alba, sponzorovaná karta), `SelfDestructTimers` dvakrát. Např. `rememberMediaReveal(messageId,
+  media)` vracející stav a `onClick`.
+- **Jeden layout „díl pod dílem ve stejné šířce" (S).** `MediaWithCaption`, `BelowWithSameWidth`
+  (`Transcript.kt`) a `WithBelowMessage` (`BotKeyboard.kt`) dělají totéž; patří do `core/ui`.
+- **Společná kostra karty bubliny (S).** `BubbleMessageItem`, `PollMessageItem`
+  a `ChecklistMessageItem` opakují `quoted ?: return Bubble { X }` + `QuotedBubble(…)`, X začíná
+  `SenderName(bubbleColor)` + `OriginLabel()`, a všechny tři nesou `quoted` a `partnerName`.
+- **Vlastní blok pro kolečko a pro dárek (S).** `StickerMessageItem` nese i kostku a kolečko
+  (s vnitřní větví `if (media is VideoNote)`); `ServiceMessageItem` uvnitř rozhoduje
+  `if (gift != null) GiftCard` — proti pravidlu „jediný `when` je v builderu".
+- **`ServiceMessage` s osmi parametry (S).** Šest lambd, které volající hned převádí na
+  `MessageAction` — stačí jeden `onAction`.
+- **Rozdělit `MessageFrame` (M).** Jedna funkce ~530 řádků s rozbitým odsazením (vnořený
+  `Box`/`Row`, obsah `WithBelowMessage`). Vytáhnout tvář odesílatele, značky u bubliny a patičku
+  (počty, mizející zpráva, doručení). Značky (kontext, efekt, hover) si posun počítají ručním
+  sčítáním mezer — nová značka = úprava všech ostatních; řada by to dělala sama.
+- **`ConversationItemScope` rozdělit (M).** ~45 členů, většina s prázdnou výchozí implementací,
+  takže zapomenutá implementace se neozve. Menší rozhraní (přehrávání, AI, nabídka, efekty).
+- **Drobnosti (S):** dvakrát stejné `atTop` v `BubbleMessageItem`; `VoiceHandlers` s `onAccent`
+  opsané v článku i v `Attachment`; poměr stran `width / height` na třech místech; rozpis akcentu
+  `takeIf { it != Color.Unspecified } ?: LocalContentColor` v pěti kartách; `PostStats(views = 0…)`
+  jako berlička pro podpis autora; zastaralý KDoc `AlbumTile` („přehrávat neumíme").
+
 ## Nápady z průchodu aplikací (27. 10. 2026)
 
 Konverzační část průchodu, který je jinak v [roadmap.md](roadmap.md) („Nápady z průchodu
