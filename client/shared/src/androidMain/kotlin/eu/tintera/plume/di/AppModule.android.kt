@@ -76,9 +76,9 @@ import kotlinx.coroutines.CoroutineScope
 import eu.tintera.plume.core.location.LiveLocationControls
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
-import eu.tintera.plume.core.files.ActiveUploads
+import eu.tintera.plume.core.files.ActiveTransfers
 import eu.tintera.plume.core.files.FileOpener
-import eu.tintera.plume.core.files.UploadKeepAlive
+import eu.tintera.plume.core.files.TransferKeepAlive
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.WebFileDownloader
 import eu.tintera.plume.core.files.MediaSharer
@@ -136,9 +136,9 @@ actual fun Module.platformModule() {
     single(createdAtStart = true) {
         VideoChatServiceControls(context = androidContext(), videoChats = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
     }
-    // Odesílání souborů na pozadí: úloha se službou v popředí, dokud se v kterémkoli účtu nahrává.
+    // Odesílání a stahování souborů na pozadí: úloha se službou v popředí, dokud v kterémkoli účtu běží přenos.
     single(createdAtStart = true) {
-        UploadKeepAlive(context = androidContext(), activity = get<ActiveUploads>().activity, scope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        TransferKeepAlive(context = androidContext(), activity = get<ActiveTransfers>().activity, scope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
             .also { it.start() }
     }
     // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba. Jedna přes všechny

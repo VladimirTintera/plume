@@ -106,9 +106,15 @@ Teď je prázdné.
     > finishes, a WorkManager task in a foreground service keeps the upload running and shows
     > its progress in a notification. It starts only when the user sends the file and stops as
     > soon as the upload finishes, is cancelled, or makes no progress for five minutes.
+    >
+    > The same task keeps a file download running when the user explicitly downloads a file
+    > from a chat (open, save or share a document, download a video) and leaves the app. The
+    > notification shows the progress and has Pause downloads; the task stops when the
+    > downloads finish, are paused, or make no progress for five minutes.
 
     Druhé video k témuž typu: v chatu poslat delší video, odejít z aplikace, průběh
-    „Odesílám 1 soubor" v notifikaci a zpráva odejde (`UploadKeepAliveWorker`).
+    „Odesílám 1 soubor" v notifikaci a zpráva odejde (`UploadKeepAliveWorker`). Pak stáhnout
+    velký soubor, odejít z aplikace, „Stahuji 1 soubor" v notifikaci a „Pozastavit stahování".
 
 ## Zveřejnění zdrojáků
 

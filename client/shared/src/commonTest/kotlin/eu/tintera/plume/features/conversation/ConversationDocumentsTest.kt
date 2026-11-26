@@ -35,8 +35,13 @@ class ConversationDocumentsTest {
         val file = MutableStateFlow<FileState>(FileState.Pending)
         val retried = mutableListOf<Int>()
         val cancelled = mutableListOf<Int>()
+        /** Odběry přes `file()`, které by stahování samy spustily. */
+        val requested = mutableListOf<Int>()
+        val observed = mutableListOf<Int>()
 
-        override fun file(fileId: Int): Flow<FileState> = file
+        override fun file(fileId: Int): Flow<FileState> = file.also { requested += fileId }
+
+        override fun observe(fileId: Int): Flow<FileState> = file.also { observed += fileId }
 
         override suspend fun retryDownload(fileId: Int) {
             retried += fileId
@@ -152,8 +157,11 @@ class ConversationDocumentsTest {
         runCurrent()
 
         assertEquals(listOf(Triple(FILE, TEST_CHAT, 1L)), downloads.added)
-        // Stahování spustil seznam; postaru se nestahuje.
+        // Stahování spustil seznam; postaru se nestahuje a průběh se jen sleduje — vlastní
+        // `downloadFile` by nešel pozastavit ze Stahování ani z notifikace.
         assertEquals(emptyList(), files.retried)
+        assertEquals(emptyList(), files.requested)
+        assertEquals(listOf(FILE), files.observed)
     }
 
     @Test

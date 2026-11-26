@@ -154,7 +154,7 @@ import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.stories.StoriesViewModel
 import eu.tintera.plume.features.videochat.VideoChatSession
 import eu.tintera.plume.features.videochat.VideoChats
-import eu.tintera.plume.core.files.ActiveUploads
+import eu.tintera.plume.core.files.ActiveTransfers
 import eu.tintera.plume.features.videochat.VideoChatViewModel
 import eu.tintera.plume.features.stories.StoryComposerViewModel
 import eu.tintera.plume.features.stickers.OwnedStickerSetViewModel
@@ -295,7 +295,7 @@ fun appModule() = module {
     // Nahrávání přes všechny účty: podle něj drží proces naživu služba v popředí / úloha na pozadí.
     single {
         val koin = getKoin()
-        ActiveUploads(accounts = { koin.get() }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        ActiveTransfers(accounts = { koin.get() }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
     }
     single { ExchangeRates(TextDownloader()) }
     // Model v zařízení (ai-engine :ai-core): stahování modelu bere stav sítě od Plume.

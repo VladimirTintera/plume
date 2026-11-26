@@ -228,7 +228,10 @@ internal class ConversationDocuments(
                     downloads.add(document.fileId, chatId, messageId).isSuccess
                 if (!listed) fileRepository.retryDownload(document.fileId)
 
-                val states = fileRepository.file(document.fileId)
+                // Soubor ze seznamu se jen SLEDUJE: `file()` by vedle seznamu spustil vlastní
+                // `downloadFile` a „Pozastavit" (ve Stahování i v notifikaci přenosů) by zastavilo
+                // jen to stahování přes seznam — soubor by tekl dál.
+                val states = if (listed) fileRepository.observe(document.fileId) else fileRepository.file(document.fileId)
                     .onEach { file ->
                         if (file is FileState.Downloading) {
                             state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to file.progress)) }

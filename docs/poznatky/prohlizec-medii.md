@@ -2104,6 +2104,9 @@ a pozastavením) a „Nedávno staženo". Seznam vede TDLib (`addFileToDownloads
   - **Při ověřování „Vrátit" nedělat `uiautomator dump` mezi vymazáním a ťuknutím**: výpis
     čeká, až se obrazovka uklidní, a odpočet v snackbaru ji drží v pohybu — ťuknutí pak
     přišlo po osmivteřinové lhůtě a vypadalo to, že „Vrátit" nefunguje.
+- **Stahování ze seznamu drží proces naživu** (služba v popředí na Androidu, úloha na pozadí
+  na iOS, s „Pozastavit stahování" v notifikaci) — společně s nahráváním, viz „Nahrávání
+  a stahování na pozadí" v `docs/poznatky/konverzace-psani.md`.
 - **Seznam se po každé změně čte znovu** (`fileAddedToDownloads` / `fileDownload` /
   `fileRemovedFromDownloads`, sloučené s 300ms debounce), průběh jednotlivých řádků si ale
   odebírá řádek sám (`FileRepository.observe`) — kvůli procentům se seznam číst nemusí.

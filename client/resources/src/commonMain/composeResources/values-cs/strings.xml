@@ -2716,14 +2716,27 @@
     <string name="notification_channel_model_download">Stahování modelu AI</string>
     <string name="notification_channel_model_download_description">Průběh stahování jazykového modelu do telefonu</string>
     <string name="model_download_notification_title">Stahuji %1$s</string>
-    <string name="notification_channel_uploads">Odesílání souborů</string>
-    <string name="notification_channel_uploads_description">Dokončí odesílání souborů i s aplikací na pozadí</string>
+    <string name="notification_channel_uploads">Odesílání a stahování souborů</string>
+    <string name="notification_channel_uploads_description">Dokončí odesílání a stahování souborů i s aplikací na pozadí</string>
     <plurals name="upload_notification_title">
         <item quantity="one">Odesílám %1$d soubor</item>
         <item quantity="few">Odesílám %1$d soubory</item>
         <item quantity="other">Odesílám %1$d souborů</item>
     </plurals>
-    <string name="upload_notification_progress">%1$s z %2$s</string>
+    <plurals name="download_notification_title">
+        <item quantity="one">Stahuji %1$d soubor</item>
+        <item quantity="few">Stahuji %1$d soubory</item>
+        <item quantity="other">Stahuji %1$d souborů</item>
+    </plurals>
+    <plurals name="download_notification_title_after_upload">
+        <item quantity="one">stahuji %1$d soubor</item>
+        <item quantity="few">stahuji %1$d soubory</item>
+        <item quantity="other">stahuji %1$d souborů</item>
+    </plurals>
+    <string name="transfer_notification_both">%1$s, %2$s</string>
+    <string name="transfer_notification_progress">%1$s z %2$s</string>
+    <string name="transfer_notification_cancel_uploads">Zrušit odesílání</string>
+    <string name="transfer_notification_pause_downloads">Pozastavit stahování</string>
     <string name="model_download_notification_waiting">Čekám na připojení</string>
     <string name="model_download_notification_stop">Zastavit</string>
     <string name="model_download_notification_done">Model %1$s je stažený</string>
