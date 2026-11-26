@@ -1,16 +1,34 @@
 package eu.tintera.plume.core.adaptive
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.currentCompositionLocalContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 
 /**
@@ -42,6 +60,15 @@ class PaneBand internal constructor() {
      * jsou obě karty i pás nad nimi v jedné řadě, ať je hlavička konverzace vysoká, jak chce.
      */
     internal var detailCardTop by mutableStateOf<Float?>(null)
+
+    /**
+     * Kontext, ve kterém konverzace akce poslala (`currentCompositionLocalContext`): scéna Chatů
+     * je kreslí sama ([PaneBandEnd]) a skládá je v něm, ať mají barvy hlavičky konverzace.
+     */
+    internal var actionsContext by mutableStateOf<CompositionLocalContext?>(null)
+
+    /** Šířka akcí na konci lišty scény; tolik místa si na svém konci nechají hlavičky ([PaneBandActions]). */
+    internal var actionsWidth by mutableStateOf(0.dp)
 }
 
 /** Pás hlavičky scény; `null` mimo shell (bublina konverzace, náhledy). */
@@ -61,13 +88,23 @@ fun rememberPaneBand(): PaneBand = remember { PaneBand() }
 fun publishToPaneBand(actions: @Composable () -> Unit): Boolean {
     val band = LocalPaneBand.current
     val neighbours = LocalPaneNeighbours.current
-    val active = band != null && LocalPanesSideBySide.current && neighbours.extraBeside && neighbours.extraCard
+    // Ve scéně Chatů ([SceneBar]) vždycky: akce stojí na konci lišty scény s panelem i bez něj.
+    val inScene = LocalSceneBarTarget.current != null
+    val active = band != null && LocalPanesSideBySide.current && (inScene || neighbours.extraBeside && neighbours.extraCard)
     val current by rememberUpdatedState(actions)
+    val context = currentCompositionLocalContext
     if (active) {
         val stable: @Composable () -> Unit = remember { { current() } }
+        SideEffect { if (band.actions === stable) band.actionsContext = context }
         DisposableEffect(band, stable) {
             band.actions = stable
-            onDispose { if (band.actions === stable) band.actions = null }
+            band.actionsContext = context
+            onDispose {
+                if (band.actions === stable) {
+                    band.actions = null
+                    band.actionsContext = null
+                }
+            }
         }
     }
     return active
@@ -84,8 +121,55 @@ internal val LocalPaneBandActions = compositionLocalOf<(@Composable () -> Unit)?
  */
 @Composable
 fun RowScope.PaneBandActions() {
-    LocalPaneBandActions.current?.invoke()
+    val actions = LocalPaneBandActions.current ?: return
+    // Ve scéně Chatů kreslí akce scéna na konci lišty ([PaneBandEnd]); tady zůstane jen jejich místo.
+    if (LocalSceneBarTarget.current != null) PaneBandSpace() else actions()
 }
+
+/**
+ * Místo pro akce konverzace na konci hlavičky, kterou ve scéně Chatů kreslí scéna sama
+ * ([PaneBandEnd]). Mimo scénu nic. Konverzace ho dává místo svých akcí, když je poslala do pásu
+ * a vedle ní žádný boční sloupec není — je pak sama u pravého okraje.
+ */
+@Composable
+fun RowScope.PaneBandSpace() {
+    if (LocalSceneBarTarget.current == null) return
+    if (LocalPaneNeighbours.current.extraBeside && LocalPaneBandActions.current == null) return
+    Spacer(Modifier.width(LocalPaneBand.current?.actionsWidth ?: 0.dp))
+}
+
+/**
+ * Akce konverzace na konci lišty scény Chatů: na pevném místě u pravého okraje oblasti chatu,
+ * mimo boční sloupec, takže se při jeho otevření ani zavření nehnou. Dřív je nesla hlavička toho
+ * sloupce, který byl zrovna vpravo — z konverzace zmizely hned, ve sloupci se objevily až s jeho
+ * animací a jely s jeho rostoucí šířkou.
+ *
+ * [rowHeight] je výška řady lišty ([SceneBar]); akce sedí v jejím spodním řádku, jako akce
+ * `TopAppBar` hlaviček vedle.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PaneBandEnd(band: PaneBand, rowHeight: Dp, endClearance: Dp, modifier: Modifier = Modifier) {
+    val actions = band.actions ?: return
+    val context = band.actionsContext ?: return
+    val density = LocalDensity.current
+    Box(modifier.height(rowHeight)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = PANE_HEADER_GAP)
+                .height(TopAppBarDefaults.TopAppBarExpandedHeight)
+                .padding(end = TOP_APP_BAR_END_PADDING + endClearance)
+                .onSizeChanged { band.actionsWidth = with(density) { it.width.toDp() } - endClearance },
+        ) {
+            CompositionLocalProvider(context) { actions() }
+        }
+    }
+}
+
+/** Vodorovný okraj akcí v `TopAppBar` (M3 `TopAppBarHorizontalPadding`). */
+private val TOP_APP_BAR_END_PADDING = 4.dp
 
 /**
  * Stojí obrazovka jako boční panel v pásu vedle konverzace? Pak **nemá šipku zpět ani ✕**:

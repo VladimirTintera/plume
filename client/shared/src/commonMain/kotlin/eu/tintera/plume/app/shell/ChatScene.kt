@@ -22,6 +22,14 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.core.adaptive.LocalSceneBar
+import eu.tintera.plume.core.adaptive.LocalPaneBand
+import eu.tintera.plume.core.adaptive.LocalWindowControls
+import eu.tintera.plume.core.adaptive.PaneBandEnd
+import eu.tintera.plume.core.adaptive.WindowControlsSide
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.adaptive.SceneBar
 import eu.tintera.plume.core.adaptive.SceneBarSlot
 import eu.tintera.plume.core.adaptive.rememberSceneBar
@@ -270,41 +278,59 @@ private fun ChatSceneContent(
         ) {
             Box(Modifier.width(listWidth).fillMaxHeight()) { PaneSlot(panes.list, placeholder = null) }
         }
-        Box(
-            Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .graphicsLayer { if (detailChanges) alpha = 1f - backProgress.value },
-        ) {
-            CompositionLocalProvider(LocalSceneBar provides sceneBar) {
-                PaneSlot(panes.detail, placeholder = detailPlaceholder, bar = sceneBar)
-            }
-        }
-        // Zavíraný sloupec odjíždí s poslední položkou, kterou ukazoval.
-        val lastSide = remember { mutableStateOf<NavEntry<NavKey>?>(null) }
-        SideEffect { if (panes.side != null) lastSide.value = panes.side }
-        val side = panes.side ?: lastSide.value
-        // Po dokončeném gestu sloupec odjíždí z šířky, na kterou ho gesto zúžilo, ne z plné.
-        val sideFactor = remember { mutableFloatStateOf(1f) }
-        val factor = when {
-            panes.side == null -> sideFactor.floatValue
-            sideCloses -> 1f - backProgress.value
-            else -> 1f
-        }
-        SideEffect { if (panes.side != null) sideFactor.floatValue = factor }
-        AnimatedVisibility(
-            visible = panes.side != null,
-            enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +
-                fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastEffectsSpec(), shrinkTowards = Alignment.Start) +
-                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-        ) {
-            Box(Modifier.width(sideWidth * factor).fillMaxHeight()) {
-                if (side != null) {
+        // Oblast chatu: konverzace, boční sloupec a nad nimi konec lišty s akcemi konverzace.
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            Row(Modifier.fillMaxSize()) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .graphicsLayer { if (detailChanges) alpha = 1f - backProgress.value },
+                ) {
                     CompositionLocalProvider(LocalSceneBar provides sceneBar) {
-                        PaneSlot(side, placeholder = null, bar = sceneBar)
+                        PaneSlot(panes.detail, placeholder = detailPlaceholder, bar = sceneBar)
                     }
                 }
+                // Zavíraný sloupec odjíždí s poslední položkou, kterou ukazoval.
+                val lastSide = remember { mutableStateOf<NavEntry<NavKey>?>(null) }
+                SideEffect { if (panes.side != null) lastSide.value = panes.side }
+                val side = panes.side ?: lastSide.value
+                // Po dokončeném gestu sloupec odjíždí z šířky, na kterou ho gesto zúžilo, ne z plné.
+                val sideFactor = remember { mutableFloatStateOf(1f) }
+                val factor = when {
+                    panes.side == null -> sideFactor.floatValue
+                    sideCloses -> 1f - backProgress.value
+                    else -> 1f
+                }
+                SideEffect { if (panes.side != null) sideFactor.floatValue = factor }
+                AnimatedVisibility(
+                    visible = panes.side != null,
+                    enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +
+                        fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastEffectsSpec(), shrinkTowards = Alignment.Start) +
+                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    Box(Modifier.width(sideWidth * factor).fillMaxHeight()) {
+                        if (side != null) {
+                            CompositionLocalProvider(LocalSceneBar provides sceneBar) {
+                                PaneSlot(side, placeholder = null, bar = sceneBar)
+                            }
+                        }
+                    }
+                }
+            }
+            // Akce konverzace (přepínač panelu, ⋮) na pevném místě u pravého okraje: s otevřeným
+            // i zavřeným sloupcem, i během jeho animace (`PaneBandEnd`).
+            val band = LocalPaneBand.current
+            if (band != null) {
+                val controls = LocalWindowControls.current
+                val controlsAtStart = (controls.side == WindowControlsSide.Left) != (LocalLayoutDirection.current == LayoutDirection.Rtl)
+                PaneBandEnd(
+                    band = band,
+                    rowHeight = with(LocalDensity.current) { sceneBar.rowHeight.toDp() },
+                    endClearance = if (controls.side != WindowControlsSide.None && !controlsAtStart) controls.width else 0.dp,
+                    modifier = Modifier.align(Alignment.TopEnd),
+                )
             }
         }
     }

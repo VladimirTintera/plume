@@ -628,8 +628,15 @@ na knihovně a `SinglePaneScene`.
   - **Při přechodu scéna ↔ jiné rozvržení hlavička vzniká znovu** (jiné místo v kompozici). Text
     hledání v chatu přežije, drží ho ViewModel (`initialQuery`); fokus ne. Movable content by stav
     přenesl, ale hlavička by se během přechodu `NavDisplay` volala ze dvou scén naráz.
-  - `PaneBand` dál přenáší akce konverzace nad boční sloupec; jeho měření (`detailCardTop`,
-    `LocalPaneHeaderMinHeight`) ve scéně nepotřebné vychází na nulu.
+  - **Akce konverzace (přepínač panelu, ⋮) stojí na konci lišty jako prvek scény** (`PaneBandEnd`),
+    vpravo nahoře v oblasti chatu, mimo animovaný boční sloupec. Hlavičky si na jejich místě
+    nechají jen mezeru (`PaneBandSpace`, `PaneBandActions`): konverzace bez sloupce, sloupec s ním.
+    Dřív je nesla hlavička sloupce, který byl zrovna vpravo — při otevření panelu z konverzace
+    zmizely hned a ve sloupci se objevily až s jeho animací (`expandHorizontally`), takže ikony
+    jely s rostoucí šířkou. Ve scéně proto konverzace posílá akce do `PaneBand` vždycky, nejen
+    s otevřeným sloupcem, i s kontextem své hlavičky (`actionsContext`). Na Windows je u nich
+    místo pro tlačítka okna (`endClearance` z `LocalWindowControls`).
+  - Měření pásu (`detailCardTop`, `LocalPaneHeaderMinHeight`) ve scéně vychází na nulu.
 - **Ověřeno na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
   a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu.
 - **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený je pod `THREE_PANE_MIN_WIDTH`):
