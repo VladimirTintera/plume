@@ -209,6 +209,22 @@ private fun Modifier.badgeFlight(chatId: Long?, account: AccountInfo, layer: Int
 /** O kolik výš v překryvu leží odznak o vrstvu výš; celá hromádka zůstane pod `2f`. */
 private const val BADGE_LAYER_STEP = 0.1f
 
+/**
+ * Odznaky účtů [slots] (spojený výsledek hledání): jméno a fotka každého z místní databáze TDLib
+ * jeho účtu. Účet, který mezitím zmizel, vypadne.
+ */
+@Composable
+fun rememberBadgeAccounts(slots: List<AccountSlot>): List<BadgeAccount> {
+    val accounts = koinInject<Accounts>()
+    val badges by produceState(emptyList<BadgeAccount>(), slots) {
+        value = slots.mapNotNull { slot ->
+            val session = accounts.find(slot) ?: return@mapNotNull null
+            session.session.me().getOrNull()?.let { BadgeAccount(it, session) }
+        }
+    }
+    return badges
+}
+
 /** [content] v účtu [session] ([AccountScope]), nebo v tom kolem, když je `null`. */
 @Composable
 fun InAccount(session: AccountSession?, content: @Composable () -> Unit) {

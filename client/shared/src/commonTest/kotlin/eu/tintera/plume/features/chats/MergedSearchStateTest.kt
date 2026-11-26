@@ -90,6 +90,69 @@ class MergedSearchStateTest {
         assertFalse(mergedSearchState(ChatSearchState(), listOf(first to ChatSearchState())).searching)
     }
 
+    /** Id Uložených zpráv obou účtů (jejich user id): podle nich se pozná chat s vlastním účtem. */
+    private val saved = mapOf(first to 100L, second to 200L)
+
+    /** Společná skupina ve výsledcích obou účtů je jednou, na místě prvního výskytu, s oběma účty. */
+    @Test
+    fun spolecnaSkupinaJednou() {
+        val merged = mergedSearchState(
+            ChatSearchState(),
+            listOf(first to ChatSearchState(results = listOf(chat(SUPERGROUP), chat(1))), second to ChatSearchState(results = listOf(chat(2), chat(SUPERGROUP)))),
+            saved,
+        )
+
+        assertEquals(listOf(first to SUPERGROUP, first to 1L, second to 2L), merged.results.map { it.slot to it.id })
+        assertEquals(mapOf((first to SUPERGROUP) to listOf(first, second), (first to 1L) to listOf(first)).filterValues { it.size > 1 }, merged.resultAccounts)
+    }
+
+    /** Soukromý chat s týmž člověkem ze dvou účtů jednou; otevře se účtem, kterým se psalo naposledy. */
+    @Test
+    fun soukromyChatJednouPodlePreference() {
+        val merged = mergedSearchState(
+            ChatSearchState(),
+            listOf(first to ChatSearchState(results = listOf(chat(7))), second to ChatSearchState(results = listOf(chat(7)))),
+            saved,
+            preferred = mapOf(7L to second),
+        )
+
+        assertEquals(listOf(second to 7L), merged.results.map { it.slot to it.id })
+        assertEquals(listOf(second, first), merged.resultAccounts[second to 7L])
+    }
+
+    /** Chat s druhým vlastním účtem se nespojuje: v tom účtu je pod jeho id chat s námi. */
+    @Test
+    fun chatSVlastnimUctemZvlast() {
+        val merged = mergedSearchState(
+            ChatSearchState(),
+            listOf(first to ChatSearchState(results = listOf(chat(200))), second to ChatSearchState(results = listOf(chat(100)))),
+            saved,
+        )
+
+        assertEquals(listOf(first to 200L, second to 100L), merged.results.map { it.slot to it.id })
+        assertTrue(merged.resultAccounts.isEmpty())
+    }
+
+    /** Zpráva ve společné skupině, kterou najdou oba účty, je mezi zprávami jednou; v soukromém chatu ne. */
+    @Test
+    fun zpravaVeSpolecneSkupineJednou() {
+        val merged = mergedSearchState(
+            ChatSearchState(),
+            listOf(
+                first to ChatSearchState(messages = listOf(message(SUPERGROUP, 10), message(7, 5))),
+                second to ChatSearchState(messages = listOf(message(SUPERGROUP, 10), message(7, 5))),
+            ),
+            saved,
+        )
+
+        assertEquals(listOf(first to SUPERGROUP, first to 7L, second to 7L), merged.messages.map { it.chat.slot to it.chat.id })
+    }
+
+    private companion object {
+        /** Id supergroupy, jak ho dává TDLib (`-100…`). */
+        const val SUPERGROUP = -1_001_234_567_890L
+    }
+
     private fun chat(id: Long) = ChatSummary(
         id = id,
         title = "Chat $id",

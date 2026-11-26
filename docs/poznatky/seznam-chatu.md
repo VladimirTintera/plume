@@ -1399,7 +1399,9 @@ rozhodnutí je v `docs/navrh-vice-uctu.md`
 - **Výsledek hledání nese účet v `ChatSummary.slot`** (`mergedSearchState`, krok 8 návrhu).
   Řádky výsledků, které nemají slot (návrhy, reklamy), patří účtu obrazovky. Kdo přidává do
   výsledků další druh řádku, předá slot do ťuknutí i do klíče (`resultKey`) — veřejný chat
-  i zprávy ze společné skupiny se jinak srazí.
+  i zprávy ze společné skupiny se jinak srazí. **Chat, který má víc účtů, je mezi vlastními
+  výsledky jednou** (týž `mergeKey` jako seznam, krok 29 návrhu); jeho účty nese
+  `ChatSearchState.resultAccounts` a odznaky kreslí `ResultAvatar` každý v kontejneru svého účtu.
 - **Sbalený sloupec má režim Vše taky** (`CollapsedAccounts`): bez něj by po sbalení táhlem
   zmizely chaty ostatních účtů, i když je pilulka ukazuje jako „Všechny účty".
 - **Klíče sdílených prvků nesou účet i instanci shellu** (`chatAvatarKey`, `chatTitleKey`,
