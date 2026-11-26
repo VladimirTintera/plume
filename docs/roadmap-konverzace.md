@@ -508,8 +508,9 @@ Velikost: S / M / L.
 **Co chybí**
 
 - ~~**Bohatší náhledy odkazů `t.me`**~~ — hotovo: profilovka v kruhu, značka „Zobrazit kanál" a další,
-  ukázka sady samolepek (`docs/poznatky/konverzace-zobrazeni.md`, „Náhled odkazu"). Zbývá: náhled
-  typu GIF, dokument a album (TDLib je posílá, kreslí se jen text).
+  ukázka sady samolepek, a obrázek i u náhledu typu GIF, soubor a album
+  (`docs/poznatky/konverzace-zobrazeni.md`, „Náhled odkazu"; GIF, soubor a album na zařízení
+  neověřené — server je k vnějším odkazům neposlal).
 
 **Úklid kódu (uživatel nepozná)**
 
