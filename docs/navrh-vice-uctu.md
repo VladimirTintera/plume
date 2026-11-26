@@ -1175,6 +1175,9 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       najdou pod týmž id. Zprávy ze soukromého chatu se nespojují, jsou to různé zprávy.
     - Našlo se to na desktopu: „Plume test triaze" byla ve výsledcích dvakrát, každá s jedním
       odznakem, přitom v seznamu je jednou.
+    - **Ověřeno na desktopu** (hlavní účet a VT): „Plume test triaze" i Notifikátor jsou ve
+      výsledcích jednou s oběma odznaky; dvě zprávy „…jedna notifikace" ze společné skupiny jsou
+      mezi zprávami každá jednou. **Neověřené:** Android, otevření podle `preferred`.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
