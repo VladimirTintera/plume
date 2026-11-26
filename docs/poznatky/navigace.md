@@ -57,6 +57,16 @@ v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
 - **Ověřeno na emulátoru sondou** (Notifikátor podstrčený jako online v seznamu i hlavičce,
   necommituje se) a sérií surových snímků se zpomalenými animacemi, tam i zpět. Online
   kontakt se neotevírá — přečetly by se mu zprávy.
+- **Odznak účtu letí stejně** (`chatAccountBadgeKey`, `AccountBadge(chatId)` / `AccountBadges(chatId)`,
+  `zIndexInOverlay = 1f`) a problikával ze stejného důvodu jako tečka. Kdo přidá na avatar
+  další značku, která je v seznamu i v hlavičce, dá jí vlastní klíč taky.
+  - **Klíč odznaku nese id účtu, který odznak UKAZUJE**, ne slot kolem. Spojená společná
+    skupina má v řádku odznaky víc účtů přes sebe a hlavička jen ten, kterým se píše: přiletí
+    právě ten, ostatní protějšek nemají a odejdou s řádkem. Ověřeno na Foldu záznamem obrazovky
+    (`screenrecord --display-id`, po snímcích; série `screencap` po půl vteřině je na let moc
+    řídká a z posunutých výřezů se zdálo, že odznak ujíždí nahoru).
+  - **Klíč tečky nese slot účtu**, jako `chatAvatarKey`: soukromý chat s týmž člověkem je ve
+    společném seznamu z každého účtu jednou a dvě tečky s jedním klíčem by letěly jako jedna.
 
 **Na široké ploše jsou dva panely vždycky** (kromě prázdného seznamu, viz „Archiv"), i bez otevřeného chatu — vpravo je pak
 `ConversationPlaceholder`. Dřív dostal seznam bez konverzace celou šířku (`singlePane`), takže
@@ -468,6 +478,14 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     (`scrollToChat`, jen jeden účet). Bez toho sloupec začínal nahoře a z odrolovaného seznamu
     neměl kam doletět žádný avatar. Obě podoby mají tytéž klíče položek (`chat.id`,
     ve společném seznamu `MergedChat.key`), avatary pro let nesou i účet (`collapseAvatarKey`).
+  - **Odznak účtu na avataru letí sám** (`collapseBadgeFlight`, klíč `collapseBadgeKey` s id
+    účtu odznaku). S avatarem nejde: let posouvá a zvětšuje jen prvek, na kterém je modifikátor,
+    a odznak vedle něj zůstával v řádku a naskočil až na dosednutý avatar. V překryvu nad
+    avatarem (`COLLAPSE_BADGE_Z`), stejný rozměr na obou stranách, takže se jen posouvá. Spojená
+    společná skupina má odznaky přes sebe a každý letí na své místo. `AccountBadges` dostává let
+    zvenku (`flight`), protože `collapseFlight` je interní v `features/chats`.
+    Ověřeno na Foldu (rozložený, režim Všechny účty) tlačítkem sbalení tam i zpět, sérií snímků
+    se zpomalenými animacemi.
   - **S letem avataru do hlavičky konverzace se nepere**: sbalený sloupec je jen vedle panelů
     a tam `sharedNavElement` nesdílí.
   - **Během přechodu jsou složené oba seznamy a snímky jsou delší** (v logu průběhu letu
