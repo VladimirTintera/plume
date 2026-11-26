@@ -34,6 +34,7 @@ import eu.tintera.plume.core.adaptive.SceneBar
 import eu.tintera.plume.core.adaptive.SceneBarSlot
 import eu.tintera.plume.core.adaptive.rememberSceneBar
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
@@ -156,6 +157,12 @@ internal data class PaneSceneLayout(
     val sideWidth: Dp,
     /** Za tahu táhlem a jeho dojezdu jdou šířky přímo, bez animace (`DraggedWidth`). */
     val instant: Boolean,
+    /**
+     * Šířka pantu v pozici kniha, který leží mezi dvěma viditelnými sloupci (`rememberBookHinge`):
+     * scéna ji mezi nimi vynechá, ať přes pant nic nevede. Šířky sloupců nastaví shell tak, aby
+     * hranice ležela na pantu. 0 = pant není, nebo nic nezakrývá (Pixel Fold).
+     */
+    val hingeGap: Dp = 0.dp,
 )
 
 /** Jak se kreslí jedna scéna panelů (Chaty, archiv, Nastavení). */
@@ -311,6 +318,8 @@ private fun PaneSceneContent(
         ) {
             Box(Modifier.width(listWidth).fillMaxHeight()) { PaneSlot(panes.list, placeholder = null) }
         }
+        // Pant mezi seznamem a detailem (pozice kniha, bez bočního sloupce).
+        if (layout.hingeGap > 0.dp && listShown && panes.side == null) Spacer(Modifier.width(layout.hingeGap))
         // Oblast chatu: konverzace, boční sloupec a nad nimi konec lišty s akcemi konverzace.
         Box(Modifier.weight(1f).fillMaxHeight()) {
             Row(Modifier.fillMaxSize()) {
@@ -336,6 +345,8 @@ private fun PaneSceneContent(
                     else -> 1f
                 }
                 SideEffect { if (panes.side != null) sideFactor.floatValue = factor }
+                // Pant mezi detailem a bočním sloupcem, když seznam ustoupil (pozice kniha).
+                if (layout.hingeGap > 0.dp && panes.side != null && !listShown) Spacer(Modifier.width(layout.hingeGap))
                 AnimatedVisibility(
                     visible = panes.side != null,
                     enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +

@@ -712,9 +712,24 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
   složení shodí aplikaci (`TextFieldCoreModifierNode.startCursorJob`, „Modifier node is not
   currently attached") úplně stejně s vypnutým přepínačem, tedy s knihovnou. Je to pád popsaný
   v `desktop.md`, „Textové pole při změně scény", který na Androidu opravený není.
-- **Pant v pozici kniha** (`adb shell cmd device_state state 1`, zpět `state reset`): hranice
-  panelů na pantu neleží ani se scénou, ani s knihovnou, rozvržení je v obou režimech stejné.
-  Jestli emulátor oddělující pant aplikaci vůbec hlásí, ověřené není; rozhodne skutečný Fold.
+- **Pant v pozici kniha: hranice dvou viditelných sloupců leží na něm** (`rememberBookHinge`
+  v `Tabletop.kt`, výpočet v `AppShell`). Seznam | detail: seznam končí u levého okraje pantu.
+  Detail | boční sloupec (seznam ustoupil): boční sloupec začíná za pantem. Platí pro Chaty
+  i Nastavení; se třemi sloupci se pant neřeší (nevešly by se). Pant, který displej zakrývá
+  (`isOccluding`, šířka), scéna mezi sloupci vynechá (`PaneSceneLayout.hingeGap`); Pixel Fold má
+  nulovou šířku. **Táhla v pozici kniha nejsou**, hranici by z pantu odtáhla; po rozložení se
+  šířky z kotev i táhla vrátí.
+  - **Meze pantu jsou v souřadnicích OKNA**, plocha scény začíná v `BoxWithConstraints` shellu:
+    levý okraj plochy se měří (`positionInWindow`) a odečítá. Na Foldu je to nula, s budoucím
+    railem by nebyla.
+  - **Dřív hranice na pantu neležela vůbec**, ani s knihovním scaffoldem: na emulátoru vypadalo
+    rozvržení v pozici kniha stejně jako rozložené (`excludedBounds` z direktivy se v naší
+    direktivě s pevným počtem oddílů zjevně neprojevily). Emulátor oddělující pant aplikaci hlásí
+    (`device_state state 1`, zpět `state reset`) — ověřeno tím, že se seznam po přepnutí roztáhl
+    na půl displeje a táhlo zmizelo.
+  - Ověřeno na emulátoru `Plume_Galerie_Fold`: Chaty se seznamem a placeholderem, s konverzací,
+    konverzace | profil, Nastavení se sekcí i se sekcí | podstránkou, návrat do rozložené polohy.
+    Skutečný Fold neověřený.
 - **Lišta ověřená** na desktopu (konverzace, profil, úprava kanálu i s rolováním, kalendář, Esc,
   přepnutí chatu) a na emulátoru Fold (gesto zpět, osm cyklů skládání s profilem).
   **Pozor na studený start emulátoru:** po něm v Plume chyběl mikrofon ve vstupním poli a část
@@ -722,7 +737,7 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
 - **Archiv a užší okno ověřené na desktopu**: archiv má vlastní klíč scény (seznam, placeholder,
   konverzace s profilem); okno zúžené pod `THREE_PANE_MIN_WIDTH` (`osascript … set size of window`)
   při otevřeném profilu seznam schová, po zavření vrátí a akce v liště zůstávají vpravo.
-- **Neověřeno:** Windows (pevné akce vlevo od tlačítek okna), skutečný Fold a pant v pozici kniha.
+- **Neověřeno:** Windows (pevné akce vlevo od tlačítek okna), skutečný Fold (i pant v pozici kniha).
 
 ### Obsah přesouvaný mezi scénami
 

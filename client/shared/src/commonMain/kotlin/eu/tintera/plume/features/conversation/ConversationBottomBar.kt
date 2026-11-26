@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.rememberConversationAccount
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -574,6 +575,7 @@ internal fun ConversationBottomBar(
             focusRequest = state.inputFocusRequest,
             placeholder = state.inputPlaceholder,
             onEditLast = viewModel::editLastMessage,
+            account = rememberConversationAccount(viewModel.chatId)?.info,
         ),
         editing = state.editing?.let { message ->
             EditingControls(

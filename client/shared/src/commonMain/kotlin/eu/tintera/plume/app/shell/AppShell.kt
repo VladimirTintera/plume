@@ -2,6 +2,7 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.lockedchats.LockedChatsScreen
 import eu.tintera.plume.core.navigation.LockedChatsRoute
+import eu.tintera.plume.core.accounts.AccountSwitchNotices
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountViewModels
@@ -132,6 +133,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Modifier
 import eu.tintera.plume.core.adaptive.Panes
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import eu.tintera.plume.core.adaptive.rememberBookHinge
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.adaptive.PANE_SPACING
 import eu.tintera.plume.core.adaptive.LocalPaneNeighbours
@@ -335,6 +341,7 @@ fun AppShell(modifier: Modifier = Modifier) {
     val openRequest by chatOpenRequests.request.collectAsStateWithLifecycle()
 
     val shellSettings = koinInject<AppSettings>()
+    val switchNotices = koinInject<AccountSwitchNotices>()
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
         // Chat jiného účtu: seznam ukazuje výchozí účet, takže se výchozím stane účet chatu
@@ -343,6 +350,8 @@ fun AppShell(modifier: Modifier = Modifier) {
         // Notifikace nebo zástupce můžou přežít odhlášení svého účtu; pak není co otevřít.
         val switchAccount = !shellSettings.chatListAllAccounts.value
         if (switchAccount && request.slot != slot && accounts.all.value.any { it.slot == request.slot }) {
+            // Přepnutí je potichu a vede rovnou do konverzace; ta ho ohlásí (`AccountSwitchSnackbar`).
+            switchNotices.switchedFor(request.slot, request.chatId)
             accounts.setDefault(request.slot)
             return@LaunchedEffect
         }
@@ -475,7 +484,9 @@ private fun ShellContent(
 ) {
     val slot = LocalAccount.current.slot
     val accounts = koinInject<Accounts>()
-    BoxWithConstraints(modifier) {
+    // Levý okraj plochy scény v okně (px): meze pantu jsou v souřadnicích okna (`rememberBookHinge`).
+    var shellLeft by remember { mutableFloatStateOf(0f) }
+    BoxWithConstraints(modifier.onGloballyPositioned { shellLeft = it.positionInWindow().x }) {
         val base = contentPaneScaffoldDirective(maxWidth, maxHeight)
         val wide = maxWidth >= TWO_PANE_MIN_WIDTH
 
@@ -603,6 +614,21 @@ private fun ShellContent(
         val threePane = twoPane && extraShown && maxWidth >= THREE_PANE_MIN_WIDTH
 
         /*
+         * Pant v pozici kniha (napůl otevřená skládačka, svislý ohyb): hranice dvou viditelných
+         * sloupců leží na něm, ať přes pant nevede seznam ani karta. Seznam | detail: seznam končí
+         * u levého okraje pantu. Detail | boční sloupec (seznam ustoupil): boční sloupec začíná za
+         * pantem. Se třemi sloupci se pant neřeší — nevešly by se. Táhla v pozici kniha nejsou,
+         * hranici by z pantu odtáhla. Dřív to dělal knihovní scaffold podle `excludedBounds`.
+         */
+        val density = LocalDensity.current
+        val bookHinge = rememberBookHinge()?.let { hinge ->
+            with(density) { (hinge.left - shellLeft).toDp()..(hinge.right - shellLeft).toDp() }
+        }?.takeIf { twoPane && !threePane && it.start > 0.dp && it.endInclusive < maxWidth }
+        val hingeGap = bookHinge?.let { it.endInclusive - it.start } ?: 0.dp
+        // Boční sloupec za pantem: od pravého okraje pantu do kraje plochy.
+        val sideBeyondHinge = bookHinge?.let { maxWidth - it.endInclusive }
+
+        /*
          * Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací. Archiv, nová zpráva a Nastavení
          * mají svou výchozí šířku: sbalený archiv by byl jen sloupec avatarů bez vysvětlení,
          * co je to za seznam. Šířku seznamu i profilu dostává scéna Chatů (`PaneSceneLayout`).
@@ -625,7 +651,7 @@ private fun ShellContent(
         )
         // Seznam je vidět, dokud ho boční sloupec pod THREE_PANE_MIN_WIDTH nevytlačí.
         val sceneListShown = twoPane && mainListShown && (!extraShown || threePane)
-        val listResizeShown = listResize.resize.takeIf { sceneListShown }
+        val listResizeShown = listResize.resize.takeIf { sceneListShown && bookHinge == null }
         val expandList: () -> Unit = { listResize.settleTo(listExpansion.expandedAnchor) }
         // Hledání ve sbaleném sloupci (zkratka, nabídka, hashtag) by bylo nečitelné: panel se rozbalí.
         LaunchedEffect(searchShown, twoPane) {
@@ -728,7 +754,7 @@ private fun ShellContent(
                     LocalExpandListPane provides expandList.takeIf { twoPane && mainListShown },
                     LocalSearchMorph provides searchMorph,
                     LocalListPaneToggle provides listToggle,
-                    LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
+                    LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside && bookHinge == null },
                     LocalListPaneResize provides listResizeShown,
                     LocalPaneResizeOwners provides paneResizeOwners,
                     // Jeden pás hlavičky přes konverzaci a boční panel (akce konverzace nad panelem).
@@ -780,9 +806,10 @@ private fun ShellContent(
                                         layout = PaneSceneLayout(
                                             twoPane = true,
                                             sideBesideList = sideBesideList,
-                                            listWidth = base.defaultPanePreferredWidth,
-                                            sideWidth = base.defaultPanePreferredWidth,
+                                            listWidth = bookHinge?.start ?: base.defaultPanePreferredWidth,
+                                            sideWidth = sideBeyondHinge ?: base.defaultPanePreferredWidth,
                                             instant = false,
+                                            hingeGap = hingeGap,
                                         ),
                                         // Sekce je v širokém Nastavení otevřená vždycky (`ensureSettingsSection`).
                                         detailPlaceholder = null,
@@ -793,9 +820,12 @@ private fun ShellContent(
                                             twoPane = twoPane,
                                             sideBesideList = sideBesideList,
                                             // Archiv a ostatní seznamy táhlo nemají, stojí na výchozí šířce.
-                                            listWidth = if (mainListShown) listResize.width else base.defaultPanePreferredWidth,
-                                            sideWidth = profileResize.width + PROFILE_CARD_MARGINS,
+                                            listWidth = bookHinge?.start
+                                                ?: if (mainListShown) listResize.width else base.defaultPanePreferredWidth,
+                                            sideWidth = sideBeyondHinge
+                                                ?: (profileResize.width + PROFILE_CARD_MARGINS),
                                             instant = instantPaneBounds,
+                                            hingeGap = hingeGap,
                                         ),
                                         detailPlaceholder = ChatDetailPlaceholder,
                                         conversationActions = true,
@@ -805,7 +835,7 @@ private fun ShellContent(
                         ),
                     )
                     // Vlastní táhla nad panely (seznam ve třech panelech, profil) — viz `PaneResize`.
-                    PaneHandleOverlay(listOfNotNull(listResizeShown, profileResize.resize.takeIf { profileBeside }))
+                    PaneHandleOverlay(listOfNotNull(listResizeShown, profileResize.resize.takeIf { profileBeside && bookHinge == null }))
                 }
             }
         }
