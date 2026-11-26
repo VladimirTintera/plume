@@ -531,9 +531,45 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   **Vlákno komentářů nad konverzací se vrací do ní** (testy `vlaknoKomentaru…`): čip pod
   příspěvkem ho otevřel nad kanálem, takže kanál je jeho rodič. Dokud se bralo jako zmínka,
   zavřela šipka na desktopu i kanál a na telefonu ne. Vlákno přímo na seznamu (z přehledu
-  konceptů) se zavře celé. Třetí panel pro komentáře se zvažoval a zatím ne: třetí panel nese
-  profil (`followProfile`, přepínač, táhlo) a pod Large by se tři panely stejně nevešly.
+  konceptů) se zavře celé. Na široké ploše se vlákno z čipu otevírá v bočním sloupci vedle
+  kanálu (viz „Komentáře v bočním sloupci"); tohle pravidlo platí pro vlákno, které na místě
+  kanálu stojí (telefon, okno zúžené až po otevření).
   **Šipku neschovávat**: bez ní nešla otevřená konverzace zavřít vůbec (zkusilo se, vrátilo se).
+
+### Komentáře v bočním sloupci
+
+Čip „N komentářů" pod příspěvkem kanálu otevře na široké ploše (dva i tři panely) vlákno
+v bočním sloupci vedle kanálu, ne na jeho místě (`openCommentsBeside`, testy `CommentsBesideTest`).
+Od Large stojí seznam | kanál | komentáře, pod ním seznam ustoupí jako u profilu. Telefon beze změny.
+
+- **Vlákno ve sloupci je tatáž `ConversationRoute` s `beside = true`**, ne nová routa: role se
+  bere z metadat podle klíče (`entry(metadata = { route -> … })`, Navigation3 1.1), takže stačí
+  Extra místo Detail a scéna, táhlo, odjezd sloupce i zpět fungují jako u profilu. Obrazovka
+  i ViewModel jsou tytéž (klíč ViewModelu příznak nenese, nic se nezdvojí).
+- **Sloupec je jeden**: vlákno nahradí profil, kalendář i vlákno jiného příspěvku; totéž vlákno
+  podruhé nic nedělá. Odkaz na jiné vlákno z vlákna ve sloupci patří ke kanálu pod ním.
+- **Zavírá ho přepínač panelu v hlavičce kanálu** (a Esc, systémové zpět), stejně jako profil.
+  Vlákno ve sloupci proto nemá šipku zpět ani vlastní přepínač — ten by svou zkratkou ⌥⌘I nad
+  sloupcem otevřel profil diskusní skupiny.
+- **Vlákno ve sloupci neposílá akce do pásu** (`publishToPaneBand`): pás na konci lišty patří
+  kanálu a druhá konverzace by mu akce přepsala (při svém zániku je pak smazala). Kreslí je ve
+  své hlavičce a za ně dá místo pro akce kanálu (`PaneBandActions`), jako profil člena — vedle
+  sebe jsou tedy dvě ⋮. Rozhoduje role panelu (`inSideColumn`, `LocalPaneRole` z `PaneCard`),
+  ne `inPaneBand`: to při odjezdu sloupce zhasne a vlákno by na poslední chvíli do pásu zapsalo.
+- **Jiný chat sloupec s komentáři zavře, profil nepřenese**: výběr ze seznamu (`openConversation`)
+  odebere všechny konverzace i s vláknem; zmínka z vlákna zakryje sloupec a `followProfile` podle
+  KOŘENE zakrytého sloupce vloží profil, kalendář, nebo u komentářů nic — patří ke kanálu.
+- **Šířku má sloupec po profilu** (táhlo a kotvy `profilePaneAnchor`). Konverzace se do 360 dp
+  vejde, užší kotvu sloupec nemá.
+- Ověřeno na desktopu (macOS, testovací kanál): tři panely, zavření přepínačem, profil → čip
+  (vlákno profil nahradí), Esc, přepnutí chatu v seznamu, okno 1050 bodů (kanál | komentáře bez
+  seznamu). Neověřeno: Windows, archiv, iOS.
+- **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený 852 dp, tedy pod Large): kanál
+  | komentáře bez seznamu; složený displej ukáže vlákno přes celou obrazovku i se šipkou zpět
+  (role panelu tam není, takže `inSideColumn` neplatí) a po rozložení je sloupec zpátky; osm
+  cyklů `adb emu fold` / `unfold` bez pádu (týž pid, v logu nic); gesto zpět od okraje sloupec
+  zavře a seznam se vrátí. Vlákno otevřené na SLOŽENÉM displeji má `beside = false`, takže po
+  rozložení stojí na místě kanálu — tak to zůstává, přepínat ho nemá smysl.
 
 ### Táhlo profilu
 

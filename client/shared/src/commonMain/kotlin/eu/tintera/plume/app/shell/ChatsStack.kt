@@ -238,9 +238,18 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(slot: AccountSlot, old: Lon
  * Téma se přidává rovnou, bez seznamu témat pod sebou: zpět z něj má vést tam, odkud uživatel
  * přišel, ne do seznamu, který nikdy neviděl. [archive] vybírá větev, do které se píše.
  */
-internal fun MutableList<NavKey>.openTarget(slot: AccountSlot, target: ChatTarget, archive: Boolean) {
+internal fun MutableList<NavKey>.openTarget(
+    slot: AccountSlot,
+    target: ChatTarget,
+    archive: Boolean,
+    /** Konverzace, ze které se otevírá; s [beside] jde vlákno komentářů do bočního sloupce vedle ní. */
+    from: NavKey? = null,
+    /** Panely vedle sebe: vlákno komentářů se otevře vedle [from] ([openCommentsBeside]). */
+    beside: Boolean = false,
+) {
     val chatId = target.chatId
     when {
+        target.threadId != null && beside && from != null -> openCommentsBeside(from, slot, chatId, target.threadId, archive)
         target.threadId != null -> add(conversation(slot, archive, chatId, threadId = target.threadId))
         target.topicId != null -> {
             val top = lastOrNull()
@@ -289,14 +298,43 @@ internal fun MutableList<NavKey>.openCommentThread(slot: AccountSlot, chatId: Lo
     add(ConversationRoute(slot, chatId, threadId = threadId))
 }
 
+/**
+ * Vlákno komentářů v bočním sloupci vedle konverzace [from] (čip pod příspěvkem kanálu na široké
+ * ploše). Sloupec je jeden, takže co v něm leželo (profil, kalendář, komentáře jiného příspěvku),
+ * se zavře a vlákno ho nahradí. Otevírá-li se z vlákna ve sloupci (odkaz na jiný příspěvek),
+ * patří nové vlákno ke kanálu pod ním a staré nahradí. Totéž vlákno podruhé nic nedělá.
+ */
+internal fun MutableList<NavKey>.openCommentsBeside(from: NavKey, slot: AccountSlot, chatId: Long, threadId: Long, archive: Boolean) {
+    val index = lastIndexOf(from)
+    if (index < 0) return
+    val owner = if (from.isBesideThread()) index - 1 else index
+    if (owner < 0) return
+    val thread = conversation(slot, archive, chatId, threadId = threadId, beside = true)
+    if (lastIndex == owner + 1 && last() == thread) return
+    while (lastIndex > owner) removeAt(lastIndex)
+    add(thread)
+}
+
+/** Vlákno komentářů v bočním sloupci ([ConversationRoute.beside]). */
+internal fun NavKey.isBesideThread(): Boolean =
+    (this as? ConversationRoute)?.beside == true || (this as? ArchiveConversationRoute)?.beside == true
+
 private fun NavKey.isCommentThread(): Boolean =
     (this as? ConversationRoute)?.threadId != null || (this as? ArchiveConversationRoute)?.threadId != null
 
-private fun conversation(slot: AccountSlot, archive: Boolean, chatId: Long, messageId: Long? = null, threadId: Long? = null, topicId: Int? = null): NavKey =
+private fun conversation(
+    slot: AccountSlot,
+    archive: Boolean,
+    chatId: Long,
+    messageId: Long? = null,
+    threadId: Long? = null,
+    topicId: Int? = null,
+    beside: Boolean = false,
+): NavKey =
     if (archive) {
-        ArchiveConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId)
+        ArchiveConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId, beside = beside)
     } else {
-        ConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId)
+        ConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId, beside = beside)
     }
 
 /** Přidá routu, jen když už nahoře není — dvojí ťuknutí nesmí obrazovku otevřít dvakrát. */
@@ -384,23 +422,34 @@ internal fun MutableList<NavKey>.closeConversation(route: NavKey, list: NavKey, 
  * Konverzace bez profilu (Uložené zprávy po chatech, článek) panel zavře. Zavřený panel (✕,
  * ťuknutí na hlavičku) se s přepnutím neotevírá — žádný profil v zásobníku není co přenést.
  *
+ * Co se vloží, říká KOŘEN zakrytého sloupce (položka hned nad konverzací): kalendář přejde na
+ * kalendář nové konverzace, profil na její profil a vlákno komentářů se jen zavře — patří
+ * ke kanálu, ne k chatu, který ho zakryl.
+ *
  * Vrací, jestli se zásobník změnil. Na telefonu se nevolá: tam je profil pod konverzací
  * obyčejná historie a zpět se do něj vrací.
  */
 internal fun MutableList<NavKey>.followProfile(paneOf: (NavKey) -> PaneInfo?): Boolean {
     val covered = coveredExtras(paneOf)
     if (covered.isEmpty()) return false
-    val scenes = covered.mapNotNull { paneOf(this[it])?.scene }.toSet()
-    // Byl-li zakrytý kalendář, přejde panel na kalendář nové konverzace, ne na její profil.
-    val calendar = covered.any { this[it].calendarChatId() != null }
+    // Kořen zakrytého sloupce v každé scéně: indexy jdou od konce, kořen má nejmenší.
+    val roots = HashMap<Any, NavKey>()
+    for (index in covered) {
+        val scene = paneOf(this[index])?.scene ?: continue
+        roots[scene] = this[index]
+    }
     covered.forEach(::removeAt)
-    for (scene in scenes) {
+    for ((scene, root) in roots) {
         val detail = indexOfLast { paneOf(it)?.let { info -> info.role == PaneRole.Detail && info.scene == scene } == true }
         if (detail < 0) continue
         // Profil téže scény nad konverzací už je (otevřel se v témže kroku) — nic nepřidávat.
         val hasExtra = subList(detail + 1, size).any { paneOf(it)?.let { info -> info.role == PaneRole.Extra && info.scene == scene } == true }
-        val profile = if (calendar) this[detail].calendarRoute() else this[detail].profileRoute()
-        if (!hasExtra && profile != null) add(detail + 1, profile)
+        val follower = when {
+            root.isBesideThread() -> null
+            root.calendarChatId() != null -> this[detail].calendarRoute()
+            else -> this[detail].profileRoute()
+        }
+        if (!hasExtra && follower != null) add(detail + 1, follower)
     }
     return true
 }
@@ -455,12 +504,15 @@ internal fun List<NavKey>.standsOnOwnConversation(route: NavKey): Boolean {
     }
 }
 
-/** Profil chatu, který stojí v detailu; `null` = obrazovka bez profilu. */
+/**
+ * Profil chatu, který stojí v detailu; `null` = obrazovka bez profilu. Vlákno komentářů v bočním
+ * sloupci detail není: profil nad ním je profil člena, ne kořen sloupce.
+ */
 private fun NavKey.profileRoute(): NavKey? = when (this) {
-    is ConversationRoute -> ChatProfileRoute(slot, chatId)
+    is ConversationRoute -> ChatProfileRoute(slot, chatId).takeIf { !beside }
     is ForumTopicsRoute -> ChatProfileRoute(slot, chatId)
     is DirectTopicsRoute -> ChatProfileRoute(slot, chatId)
-    is ArchiveConversationRoute -> ArchiveChatProfileRoute(slot, chatId)
+    is ArchiveConversationRoute -> ArchiveChatProfileRoute(slot, chatId).takeIf { !beside }
     is ArchiveForumTopicsRoute -> ArchiveChatProfileRoute(slot, chatId)
     is ArchiveDirectTopicsRoute -> ArchiveChatProfileRoute(slot, chatId)
     else -> null

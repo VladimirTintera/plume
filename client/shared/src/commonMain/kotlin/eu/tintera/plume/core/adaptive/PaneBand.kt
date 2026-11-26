@@ -168,3 +168,14 @@ private val TOP_APP_BAR_END_PADDING = 4.dp
  */
 @Composable
 fun inPaneBand(): Boolean = LocalPaneBandActions.current != null
+
+/** Role panelu, ve kterém obrazovka stojí vedle jiných ([PaneCard]); `null` = sama přes celou plochu. */
+internal val LocalPaneRole = compositionLocalOf<PaneRole?> { null }
+
+/**
+ * Stojí obrazovka v bočním sloupci vedle jiných panelů? Na rozdíl od [inPaneBand] platí i během
+ * odjezdu sloupce, kdy místo pro akce konverzace už nedrží: vlákno komentářů ve sloupci podle toho
+ * neposílá své akce do pásu ([publishToPaneBand]), kde by přepsalo akce kanálu vedle.
+ */
+@Composable
+fun inSideColumn(): Boolean = LocalPaneRole.current == PaneRole.Extra

@@ -71,6 +71,8 @@ import eu.tintera.plume.resources.profile_open
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.PaneBandActions
+import eu.tintera.plume.core.adaptive.inSideColumn
 import eu.tintera.plume.core.adaptive.publishToPaneBand
 import eu.tintera.plume.core.adaptive.PaneBandSpace
 import eu.tintera.plume.features.profile.chatActionsViewModel
@@ -115,14 +117,20 @@ internal fun ConversationTopBar(
     // ViewModel akcí nad chatem bere konverzace sama: v pásu se akce skládají v kompozici
     // bočního panelu a `koinViewModel` by tam vrátil jinou instanci než hostiteli ořezu fotky.
     val chatActions = chatActionsViewModel(viewModel.chatId)
+    // Vlákno komentářů v bočním sloupci vedle kanálu: akce kreslí samo ve své hlavičce, pás na
+    // konci lišty patří kanálu (jeho přepínač panelu sloupec zavírá) a šipku zpět sloupec nemá.
+    val inColumn = inSideColumn()
     val actions: @Composable () -> Unit = {
         // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
         ConversationCallButtons(state.info, state.callRequest, viewModel::consumeCallRequest)
         // Panel s profilem vedle konverzace (jen se zavřeným panelem; zkratka oběma směry).
-        ProfilePaneButton(
-            hasProfile = state.info?.isSavedMessages == false && state.threadRootId == null,
-            onToggleProfile = navigation.onOpenProfile,
-        )
+        // Ve sloupci ne: přepínač i jeho zkratku má kanál vedle.
+        if (!inColumn) {
+            ProfilePaneButton(
+                hasProfile = state.info?.isSavedMessages == false && state.threadRootId == null,
+                onToggleProfile = navigation.onOpenProfile,
+            )
+        }
         // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
         // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
         ConversationMenu(
@@ -144,7 +152,7 @@ internal fun ConversationTopBar(
     }
     // Vedle bočního panelu kreslí akce pás nad ním, u pravého okraje okna (`PaneBand`): stojí tak
     // na stejném místě s panelem i bez něj.
-    val inBand = publishToPaneBand(actions)
+    val inBand = if (inColumn) false else publishToPaneBand(actions)
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
         title = {
@@ -363,12 +371,20 @@ internal fun ConversationTopBar(
         navigationIcon = {
             WindowControlsSpace {
                 // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
-                ChatSwitcherBackButton(state = switcher, onBack = navigation.onBack)
+                if (!inColumn) ChatSwitcherBackButton(state = switcher, onBack = navigation.onBack)
             }
         },
         actions = {
             // Ve scéně Chatů kreslí akce scéna na konci lišty; tady zůstane jejich místo.
-            if (!inBand) actions() else PaneBandSpace()
+            when {
+                // Za vlastní akce místo pro akce kanálu na konci lišty, jako profil ve sloupci.
+                inColumn -> {
+                    actions()
+                    PaneBandActions()
+                }
+                !inBand -> actions()
+                else -> PaneBandSpace()
+            }
             WindowControlsEndSpace()
         },
     )
