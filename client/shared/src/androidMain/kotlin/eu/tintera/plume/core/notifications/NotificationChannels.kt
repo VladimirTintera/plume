@@ -31,6 +31,8 @@ import eu.tintera.plume.resources.notification_channel_mentions
 import eu.tintera.plume.resources.notification_channel_mentions_description
 import eu.tintera.plume.resources.notification_channel_model_download
 import eu.tintera.plume.resources.notification_channel_model_download_description
+import eu.tintera.plume.resources.notification_channel_uploads
+import eu.tintera.plume.resources.notification_channel_uploads_description
 import eu.tintera.plume.resources.notification_channel_private
 import eu.tintera.plume.resources.notification_channel_private_description
 import eu.tintera.plume.resources.notification_channel_silent
@@ -293,6 +295,24 @@ suspend fun createModelDownloadChannel(context: Context) {
             getString(Res.string.notification_channel_model_download),
             NotificationManager.IMPORTANCE_LOW,
         ).apply { description = getString(Res.string.notification_channel_model_download_description) },
+    )
+}
+
+/** Průběh odesílání souborů (`UploadKeepAliveWorker`). Stejně jako ostatní id se nesmí měnit. */
+const val UPLOADS_CHANNEL_ID = "uploads"
+
+/**
+ * Kanál odesílání souborů. Tichý (`IMPORTANCE_LOW`) ze stejného důvodu jako stahování modelu:
+ * odesílání spustil uživatel sám a notifikace jen říká, že pořád běží. Zakládá ho úloha sama —
+ * WorkManager ji po zabití procesu spustí dřív, než by kanál založil start notifikací.
+ */
+suspend fun createUploadsChannel(context: Context) {
+    context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+        NotificationChannel(
+            UPLOADS_CHANNEL_ID,
+            getString(Res.string.notification_channel_uploads),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply { description = getString(Res.string.notification_channel_uploads_description) },
     )
 }
 

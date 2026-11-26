@@ -293,6 +293,53 @@ album. Bublina ukazuje průběh nahrávání.
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
 
+### Nahrávání na pozadí
+
+Nahrává TDLib ve vlastních vláknech, takže pokračuje i na pozadí — ale jen dokud proces běží.
+Android aplikaci bez služby v popředí brzy zmrazí (app freezer) a v dozu zavře sokety, iOS ji
+uspí za pár vteřin; nahrávání pak stojí, dokud se aplikace nevrátí do popředí (`setNetworkType`
+v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces proto drží naživu
+**úloha jen po dobu nahrávání**, nahrává pořád TDLib.
+
+- **Co se nahrává, říká `UploadMonitor`** (`:client:core`, jeden na účet, eager): týž
+  `updateFile` jako průběh u zprávy, soubory s `remote.isUploadingActive`. Počítá se každé
+  nahrávání, nejen příloha zprávy (fotka profilu, příběh, samolepka). Přes všechny účty to
+  sčítá `ActiveUploads` (globální, jako `VideoChats`) — služba v popředí je v procesu jedna.
+- **Nové nahrávání se pozná podle `UploadActivity.started`**, ne podle přechodu z nuly.
+  Soubor, o jehož konci by TDLib neřekl, by jinak v počtu visel a další nahrávání by úlohu
+  nespustilo; plánuje se tak při každém novém souboru (`KEEP`, běžící úloha zůstane).
+- **Android: `UploadKeepAliveWorker`** (WorkManager, služba v popředí `dataSync` přes
+  `SystemForegroundService`, kterou manifest už má kvůli stahování modelu). Plánuje ho
+  `UploadKeepAlive` z popředí, protože nahrávání začíná ťuknutím na Odeslat — od Androidu 12
+  jde službu v popředí spustit jen tehdy. Proto se `setForeground` volá HNED, ne až při odchodu
+  do pozadí: tam už by systém spuštění odmítl (`ForegroundServiceStartNotAllowedException`).
+- **Notifikace je `FOREGROUND_SERVICE_DEFERRED`**: Android 12+ ji ukáže až po deseti vteřinách,
+  takže u fotky, která se nahraje hned, žádná nevyskočí. Do Androidu 11 odklad systém nedělá;
+  služba se tam spustit z pozadí smí, takže úloha napřed tři vteřiny počká, jestli nahrávání
+  neskončí samo, a teprve pak se povýší. Ze stejného důvodu tam úloha není expedited —
+  WorkManager by si pro expedited úlohu do Androidu 11 vzal službu v popředí hned od startu.
+- **Konec**: po pěti vteřinách bez nahrávání (soubory alba a zprávy odeslané rychle za sebou na
+  sebe nenavazují), po patnácti při startu (WorkManager úlohu po zabití procesu spustí znovu
+  a TDLib rozeslané zprávy obnoví až s klientem), a po pěti minutách bez posunu průběhu — bez
+  sítě by služba jen pálila baterii a TDLib nahrávání dokončí po návratu do popředí.
+- **Spuštěná po zabití procesu běží bez služby v popředí** (z pozadí ji Android 12+ nepovolí);
+  úloha proces drží i tak, jen kratší dobu.
+- **iOS: `UploadBackgroundTask`**, `beginBackgroundTask` s prvním nahráváním — už v popředí,
+  odpočet běží teprve na pozadí a nezávisí na tom, kdy dorazí oznámení o odchodu. iOS dá zhruba
+  půl minuty: fotky a krátká videa to stihnou, delší nahrávání dokončí návrat do popředí. Po
+  vypršení se do návratu do popředí znovu nežádá. `URLSession` na pozadí použít nejde, síť
+  si vede TDLib.
+- **Desktop nic nepotřebuje**, proces na pozadí běží.
+- **Play chce typ `dataSync` popsat v deklaraci služeb v popředí** — popis i video jsou
+  v roadmapě u téže deklarace jako stahování modelu.
+- **Ověřeno na emulátoru** (Pixel 10 Pro Fold, Android 17): soubor 250 MB do Uložených, hned
+  Domů. Proces celou dobu `isFrozen=false` (`dumpsys activity processes`), notifikace „Sending
+  1 file · 143 MB of 250 MB" s průběhem, zpráva odešla a úloha pak skončila sama i se
+  službou a notifikací. Fotka (1 MB) spustila službu taky, ale skončila za pár vteřin bez
+  viditelné notifikace. `adb emu network speed` na Wi-Fi emulátoru nic nezpomalí — na dlouhé
+  nahrávání je potřeba velký soubor. **Neověřeno**: Android do 11, zrušení nahrávání
+  křížkem, obnova po zabití procesu a iOS (jen přeložené).
+
 ### Jméno odesílaného videa
 
 TDLib bere jméno videa z cesty nahrávaného souboru a příjemce ho uvidí při uložení a sdílení
