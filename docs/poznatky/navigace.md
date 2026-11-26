@@ -63,11 +63,24 @@ v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
   - **Klíč odznaku nese id účtu, který odznak UKAZUJE**, ne slot kolem. Spojená společná
     skupina má v řádku odznaky víc účtů přes sebe a hlavička jen ten, kterým se píše: přiletí
     právě ten, ostatní protějšek nemají a odejdou s řádkem.
-  - **Letící odznak musí být v hromádce NAVRCHU** (`AccountBadges`: odznak účtu kolem má
-    `zIndex`, místo v řadě zůstává podle pořadí účtů). Ležel-li pod jiným, horní při otevření
-    zmizel s řádkem a vepředu skočila jiná fotka; při návratu dosedl letící a horní mu po doletu
-    vyskočil přes něj. Při sbalení do sloupce letí všechny, horní i v překryvu výš
-    (`collapseBadgeFlight(front)`), jinak by se za letu prohodily. Ověřeno na Foldu záznamem obrazovky
+  - **Hlavička spojeného chatu má odznaky VŠECH jeho účtů, jako řádek** (`rememberChatAccounts`),
+    vepředu (vlevo a navrchu) účet konverzace, ostatní za ním každý o vrstvu níž (`AccountBadges`,
+    `zIndex` i `zIndexInOverlay` podle vrstvy). Řádek má vepředu účet, kterým chat otevře, takže
+    obě strany mají totéž pořadí a každý odznak přiletí na své místo. Dřív měla hlavička jen
+    odznak účtu konverzace a v řádku ležel pod ostatními: horní při otevření zmizel a vepředu
+    skočila jiná fotka, při návratu mu po doletu vyskočil přes něj.
+  - **Přepnutí účtu v konverzaci odznaky přeskládá** (vybraný přejede navrchu dopředu). Přepnutí
+    vymění obrazovku (`replaceRoute`) a nová se ukáže až s načtenou hlavičkou, takže sdílený let
+    tu nepomůže: hlavička si pamatuje pořadí, ve kterém odznaky naposledy ukazovala
+    (`rememberPreviousBadgeOrder`), nová začne ve starém a pružinou dojede do nového. Pořadí se
+    zapisuje jen při změně (`LaunchedEffect`), ne každou rekompozicí — odcházející obrazovka by
+    během přechodu přepsala pořadí té nové.
+  - **Účty spojeného chatu se pamatují v procesu** (`knownChatAccounts`). Zjišťují se dotazem do
+    TDLib (`SharedChats.counterparts`) a nová hlavička by v prvních snímcích měla jen vlastní
+    odznak; ostatní doskočily (zachyceno záznamem obrazovky po přepnutí účtu).
+  - Ověřeno na Foldu (složený, dva účty) záznamem obrazovky: otevření a návrat (obě strany
+    tytéž odznaky v témž pořadí), přepnutí účtu tam i zpět (prohození s pružinou), návrat do
+    seznamu po přepnutí (řádek má vepředu nově vybraný účet) a rozbalení sloupce. Ověřeno na Foldu záznamem obrazovky
     (`screenrecord --display-id`, po snímcích; série `screencap` po půl vteřině je na let moc
     řídká a z posunutých výřezů se zdálo, že odznak ujíždí nahoru).
   - **Klíč tečky nese slot účtu**, jako `chatAvatarKey`: soukromý chat s týmž člověkem je ve

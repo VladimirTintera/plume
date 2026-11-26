@@ -2,8 +2,9 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
 import androidx.compose.material3.TopAppBarDefaults
-import eu.tintera.plume.core.accounts.AccountBadge
 import eu.tintera.plume.core.accounts.rememberConversationAccount
+import eu.tintera.plume.core.accounts.AccountBadges
+import eu.tintera.plume.core.accounts.BadgeAccount
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.AnimatedVisibility
@@ -165,6 +166,9 @@ internal fun ConversationTopBar(
              */
             val shownConnection = rememberShownConnection(connection)
             val shownAccount = rememberConversationAccount(viewModel.chatId)?.takeIf { it.inHeader }?.info
+            // Všechny účty spojeného chatu, jako odznaky v jeho řádku (`AccountBadges`).
+            val chatAccounts = rememberChatAccounts(viewModel.chatId, enabled = shownAccount != null).takeIf { it.size > 1 }
+            val badgesFrom = rememberPreviousBadgeOrder(chatAccounts)
             // „Online" už v podtitulu není, nese ho jen tečka — čtečce ho proto řekne
             // popis stavu hlavičky. Bez spojení ne: dostupnost je stará hodnota.
             val onlineLabel = stringResource(Res.string.presence_online)
@@ -245,10 +249,14 @@ internal fun ConversationTopBar(
                             },
                         )
                         // Kterým účtem se tu píše, když seznam míchá účty nebo chat patří jinému
-                        // než výchozímu účtu (`rememberConversationAccount`). Jako odznak v seznamu.
+                        // než výchozímu účtu (`rememberConversationAccount`). Spojený chat má
+                        // odznaky všech svých účtů jako jeho řádek, vepředu ten, kterým se píše:
+                        // z řádku tak každý přiletí na své místo a po přepnutí účtu se přeskládají.
                         shownAccount?.let { account ->
-                            AccountBadge(
-                                account,
+                            AccountBadges(
+                                accounts = chatAccounts?.map { BadgeAccount(it.info, it.session) } ?: listOf(BadgeAccount(account)),
+                                // Po přepnutí účtu se přeskládají ze starého pořadí.
+                                enterFrom = badgesFrom,
                                 rim = MaterialTheme.colorScheme.surface,
                                 modifier = Modifier.align(Alignment.BottomStart),
                                 // Letí s avatarem ze seznamu chatů; ve vlákně ne, stejně jako avatar.

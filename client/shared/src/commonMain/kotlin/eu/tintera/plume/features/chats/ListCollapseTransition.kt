@@ -146,8 +146,8 @@ internal fun collapseAvatarKey(chatId: Long): String = "avatar-${LocalAccount.cu
  * s avatarem: ten se do sloupce posouvá a zvětšuje ručně a odznak vedle něj zůstával v řádku,
  * pak problikl a naskočil až na dosednutý avatar. Id účtu odznaku, ne slot kolem: spojená
  * společná skupina má odznaků víc přes sebe a každý letí na své místo. Nad avatarem
- * ([COLLAPSE_BADGE_Z]), jinak by ho letící avatar mohl přikrýt; odznak navrchu hromádky
- * (`front`, viz `AccountBadges`) i v překryvu nad ostatními, jinak by se za letu prohodily.
+ * ([COLLAPSE_BADGE_Z]), jinak by ho letící avatar mohl přikrýt; odznaky přes sebe i v překryvu
+ * podle vrstvy (`layer`, viz `AccountBadges`), jinak by se za letu prohodily.
  */
 internal fun collapseBadgeKey(chatId: Long, accountId: Long): String = "badge-$accountId-$chatId"
 
@@ -156,8 +156,8 @@ internal const val COLLAPSE_BADGE_Z = 2f
 
 /** Let odznaku účtu [account] na avataru chatu [chatId] při sbalení seznamu ([collapseBadgeKey]). */
 @Composable
-internal fun collapseBadgeFlight(chatId: Long, account: AccountInfo, front: Boolean): Modifier =
-    Modifier.collapseFlight(collapseBadgeKey(chatId, account.id), zIndexInOverlay = COLLAPSE_BADGE_Z + if (front) 1f else 0f)
+internal fun collapseBadgeFlight(chatId: Long, account: AccountInfo, layer: Int): Modifier =
+    Modifier.collapseFlight(collapseBadgeKey(chatId, account.id), zIndexInOverlay = COLLAPSE_BADGE_Z + layer * 0.1f)
 
 /**
  * Klíč prvního celého chatu, který je v [state] vidět — kotva, na kterou dojede seznam na druhé

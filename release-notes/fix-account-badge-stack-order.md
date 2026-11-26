@@ -1,3 +1,3 @@
 type: fix
-cs: Odznaky účtů přes sebe už při otevření chatu nepoblikávají
-en: Stacked account badges no longer flicker when opening a chat
+cs: Odznaky účtů v hlavičce spojeného chatu jako v seznamu, po přepnutí účtu se přeskládají
+en: Shared chat header shows all account badges like the list and reorders them on account switch

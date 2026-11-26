@@ -513,7 +513,7 @@ private fun CollapsedChat(
                         RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
                     }
                 }
-                AccountBadges(accounts, rim = container, modifier = Modifier.align(Alignment.BottomStart), flight = { account, front -> collapseBadgeFlight(chat.id, account, front) })
+                AccountBadges(accounts, rim = container, modifier = Modifier.align(Alignment.BottomStart), flight = { account, layer -> collapseBadgeFlight(chat.id, account, layer) })
                 if (selectionMark != null) {
                     SelectionMark(
                         selected = selectionMark,
