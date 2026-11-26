@@ -337,8 +337,19 @@ v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces
   1 file · 143 MB of 250 MB" s průběhem, zpráva odešla a úloha pak skončila sama i se
   službou a notifikací. Fotka (1 MB) spustila službu taky, ale skončila za pár vteřin bez
   viditelné notifikace. `adb emu network speed` na Wi-Fi emulátoru nic nezpomalí — na dlouhé
-  nahrávání je potřeba velký soubor. **Neověřeno**: Android do 11, zrušení nahrávání
-  křížkem, obnova po zabití procesu a iOS (jen přeložené).
+  nahrávání je potřeba velký soubor.
+- **Ověřeno na Androidu 11** (emulátor `Plume_A11`): fotka (17 kB) — úloha doběhla za
+  0,2 s a služba v popředí se nespustila vůbec, takže nic neproblikne. Soubor 250 MB —
+  během odesílání spadl `system_server` emulátoru (chyba emulátoru v `RoleControllerService`,
+  ne naše), proces Plume zanikl a tím se ověřila i obnova: nový proces, TDLib rozeslanou
+  zprávu obnovil, WorkManager úlohu spustil znovu, ta po 3 s povýšila na službu v popředí
+  z pozadí („Sending 1 file · 94 MB of 250 MB"), soubor odešel a služba s notifikací zmizely.
+  **Neověřeno**: zrušení nahrávání křížkem a iOS (jen přeložené).
+- **Výběr souboru na emulátoru s Androidem 11 nereaguje na ťuknutí** (DocumentsUI ťuknutí
+  na položku ani složku nepřijme, kořeny vlevo ano). Vybírá se klávesnicí:
+  `input keyevent KEYCODE_DPAD_DOWN` na položku a `KEYCODE_ENTER`. Sdílení souboru přes
+  `am start -a android.intent.action.SEND --grant-read-uri-permission` s URI z MediaStore
+  nepomůže — shell práva k URI předat nesmí a Plume ukáže „The shared files couldn't be read".
 
 ### Jméno odesílaného videa
 
