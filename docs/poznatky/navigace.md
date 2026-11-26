@@ -563,7 +563,13 @@ Od Large stojí seznam | kanál | komentáře, pod ním seznam ustoupí jako u p
   vejde, užší kotvu sloupec nemá.
 - Ověřeno na desktopu (macOS, testovací kanál): tři panely, zavření přepínačem, profil → čip
   (vlákno profil nahradí), Esc, přepnutí chatu v seznamu, okno 1050 bodů (kanál | komentáře bez
-  seznamu). Neověřeno: Fold, Windows, archiv, iOS.
+  seznamu). Neověřeno: Windows, archiv, iOS.
+- **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený 852 dp, tedy pod Large): kanál
+  | komentáře bez seznamu; složený displej ukáže vlákno přes celou obrazovku i se šipkou zpět
+  (role panelu tam není, takže `inSideColumn` neplatí) a po rozložení je sloupec zpátky; osm
+  cyklů `adb emu fold` / `unfold` bez pádu (týž pid, v logu nic); gesto zpět od okraje sloupec
+  zavře a seznam se vrátí. Vlákno otevřené na SLOŽENÉM displeji má `beside = false`, takže po
+  rozložení stojí na místě kanálu — tak to zůstává, přepínat ho nemá smysl.
 
 ### Táhlo profilu
 
