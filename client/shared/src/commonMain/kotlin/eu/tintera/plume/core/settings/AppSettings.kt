@@ -503,15 +503,6 @@ interface AppSettings {
 
     /** Zapne nebo vypne rychlou reakci dvojitým ťuknutím. Neblokuje. */
     fun setDoubleTapReaction(enabled: Boolean)
-
-    /**
-     * PROTOTYP: Chaty na široké ploše kreslí vlastní scéna (seznam | oblast chatu), ne třípanel
-     * z knihovny (`docs/navrh-scena-chatu.md`). Výchozí `false`; jen v tomhle zařízení, nesynchronizuje se.
-     */
-    val chatScene: StateFlow<Boolean>
-
-    /** Zapne nebo vypne prototyp scény Chatů. Neblokuje. */
-    fun setChatScene(enabled: Boolean)
 }
 
 /** Výchozí velikost písma zpráv (sp) — `bodyLarge`, jak ho zprávy měly odjakživa. */
@@ -1266,16 +1257,6 @@ class DataStoreAppSettings(
         }
     }
 
-    override val chatScene: StateFlow<Boolean> = value(false) { preferences ->
-        preferences[CHAT_SCENE] ?: false
-    }
-
-    override fun setChatScene(enabled: Boolean) {
-        scope.launch {
-            edit { preferences -> preferences[CHAT_SCENE] = enabled }
-        }
-    }
-
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -1487,7 +1468,6 @@ class DataStoreAppSettings(
         val STICKER_SIZE = intPreferencesKey("sticker_size")
         val OPEN_LINKS_IN_APP = booleanPreferencesKey("open_links_in_app")
         val DOUBLE_TAP_REACTION = booleanPreferencesKey("double_tap_reaction")
-        val CHAT_SCENE = booleanPreferencesKey("chat_scene_prototype")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "

@@ -371,8 +371,6 @@
     <string name="settings_chat_preview_lines">Řádky náhledu zprávy</string>
     <string name="settings_chat_row_gaps">Mezery mezi chaty</string>
     <string name="settings_chat_row_gaps_summary">Bez mezer je seznam chatů jeden souvislý panel</string>
-    <string name="settings_chat_scene">Zkušební rozvržení chatů</string>
-    <string name="settings_chat_scene_summary">Na široké obrazovce sdílí konverzace a boční panel jednu plochu. Je to prototyp, něco nemusí fungovat.</string>
     <plurals name="settings_chat_preview_lines_count">
         <item quantity="one">%1$d řádek</item>
         <item quantity="few">%1$d řádky</item>

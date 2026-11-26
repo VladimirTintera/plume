@@ -105,20 +105,6 @@ internal fun rememberListPaneExpansion(defaultWidth: Dp): ListPaneExpansion {
     }
 }
 
-/** Táhlo M3 v mezeře mezi panely. Šipkami a čtečkou jde přepínat kotvy (výchozí sémantika). */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalMaterial3Api::class)
-internal val ListPaneDragHandle: @Composable ThreePaneScaffoldScope.(PaneExpansionState) -> Unit = { state ->
-    val interactionSource = remember { MutableInteractionSource() }
-    VerticalDragHandle(
-        modifier = Modifier.paneExpansionDraggable(
-            state = state,
-            minTouchTargetSize = LocalMinimumInteractiveComponentSize.current,
-            interactionSource = interactionSource,
-        ),
-        interactionSource = interactionSource,
-    )
-}
-
 /**
  * `animateTo`, které kotvu mimo seznam kotev stavu jen přeskočí. `runCatching` by spolkl
  * i zrušení korutiny, proto výslovně jen `IllegalArgumentException` z jeho `require`.

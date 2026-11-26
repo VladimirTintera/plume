@@ -66,8 +66,8 @@ import eu.tintera.plume.core.adaptive.paneInfo
 /*
  * Vlastní scéna Chatů: seznam | oblast chatu (`docs/navrh-scena-chatu.md`, varianta D).
  *
- * PROTOTYP za přepínačem (`AppSettings.chatScene`). Vypnutý = dosavadní třípanel z knihovny
- * (`rememberListDetailSceneStrategy`), strategie vrací `null`.
+ * Na široké ploše kreslí Chaty a archiv vždycky ona; knihovní list-detail (`rememberListDetailSceneStrategy`)
+ * zůstává Nastavení a telefon má standardní výměnu obrazovek.
  *
  * Co scéna dělá jinak než `ThreePaneScaffoldScene`:
  * - **Boční sloupec patří k detailu pod sebou.** Kreslí se jen boční položka NAD posledním
@@ -150,7 +150,7 @@ internal data class ChatSceneLayout(
 )
 
 /**
- * Scéna Chatů na široké ploše. [layout] `null` = vypnutá (přepínač, telefon): rozhoduje další
+ * Scéna Chatů na široké ploše. [layout] `null` = úzké okno (telefon): rozhoduje další
  * strategie. Stojí za `SheetSceneStrategy` (sheet se kreslí nad ní) a před knihovní list-detail,
  * která dál kreslí Nastavení.
  */

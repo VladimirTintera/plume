@@ -361,8 +361,6 @@
     <string name="settings_chat_preview_lines">Message preview lines</string>
     <string name="settings_chat_row_gaps">Gaps between chats</string>
     <string name="settings_chat_row_gaps_summary">Without gaps, the chat list is one continuous panel</string>
-    <string name="settings_chat_scene">Experimental chat layout</string>
-    <string name="settings_chat_scene_summary">On wide screens, a conversation and its side panel share one area. A prototype; things may misbehave.</string>
     <plurals name="settings_chat_preview_lines_count">
         <item quantity="one">%1$d line</item>
         <item quantity="other">%1$d lines</item>

@@ -587,15 +587,16 @@ knihovny ve dvou panelech).
   pryč) a s opravou ověřeno, že zůstanou. Týž mechanismus hrozil u skoku mezi archivem
   (`ARCHIVE_SCENE`) a hlavními Chaty, ten ověřený není.
 
-### Vlastní scéna Chatů (prototyp)
+### Vlastní scéna Chatů
 
-Za přepínačem Vzhled → Chaty → „Zkušební rozvržení chatů" (`AppSettings.chatScene`, výchozí
-vypnuto) kreslí Chaty a archiv na široké ploše vlastní scéna (`ChatScene.kt`, návrh
+Chaty a archiv na široké ploše kreslí vlastní scéna (`ChatScene.kt`, návrh
 `docs/navrh-scena-chatu.md`), ne `ThreePaneScaffold` z knihovny. Nastavení a telefon zůstávají
-na knihovně a `SinglePaneScene`.
+na knihovně a `SinglePaneScene`. Prototyp měl přepínač ve Vzhledu; po ověření na desktopu
+a emulátoru Fold zmizel ještě před sloučením (VladimirTintera/plume#70), aby do vydání nešla dvě
+rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se daly uklidit.
 
-- **Strategie stojí za `SheetSceneStrategy` a před knihovní list-detail** a vypnutá vrací `null`;
-  návrat ke knihovně je tedy jeden řádek. Scénu staví jen se seznamem v souvislém konci zásobníku:
+- **Strategie stojí za `SheetSceneStrategy` a před knihovní list-detail** a na úzkém okně vrací
+  `null`; návrat ke knihovně je tedy jeden řádek (`.takeIf { wide }`). Scénu staví jen se seznamem v souvislém konci zásobníku:
   konverzace otevřená nad prohlížečem (`chats, conv, media, conv`) seznam nemá a nakreslí ji
   knihovna přes celou šířku, jako dosud.
 - **Boční sloupec je poslední boční položka NAD posledním detailem** (`selectChatPanes`, test
@@ -658,7 +659,10 @@ na knihovně a `SinglePaneScene`.
   přepnutí chatu) a na emulátoru Fold (gesto zpět, osm cyklů skládání s profilem).
   **Pozor na studený start emulátoru:** po něm v Plume chyběl mikrofon ve vstupním poli a část
   avatarů, i s vypnutým přepínačem; po restartu aplikace bylo vše zpátky a znovu se to nestalo.
-- **Neověřeno:** okno mezi `TWO_PANE_MIN_WIDTH` a tři panely na desktopu, Windows, archiv.
+- **Archiv a užší okno ověřené na desktopu**: archiv má vlastní klíč scény (seznam, placeholder,
+  konverzace s profilem); okno zúžené pod `THREE_PANE_MIN_WIDTH` (`osascript … set size of window`)
+  při otevřeném profilu seznam schová, po zavření vrátí a akce v liště zůstávají vpravo.
+- **Neověřeno:** Windows (pevné akce vlevo od tlačítek okna), skutečný Fold a pant v pozici kniha.
 
 ### Obsah přesouvaný mezi scénami
 

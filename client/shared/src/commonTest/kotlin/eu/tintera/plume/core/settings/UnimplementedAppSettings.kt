@@ -137,8 +137,6 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setOpenLinksInApp(enabled: Boolean): Unit = error("setOpenLinksInApp")
     override val doubleTapReaction: StateFlow<Boolean> get() = error("doubleTapReaction")
     override fun setDoubleTapReaction(enabled: Boolean): Unit = error("setDoubleTapReaction")
-    override val chatScene: StateFlow<Boolean> get() = error("chatScene")
-    override fun setChatScene(enabled: Boolean): Unit = error("setChatScene")
     override fun forAccount(slot: eu.tintera.plume.core.accounts.AccountSlot): AccountSettings = error("forAccount")
 }
 

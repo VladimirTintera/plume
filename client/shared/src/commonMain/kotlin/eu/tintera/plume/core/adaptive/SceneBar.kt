@@ -23,7 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
 
 /**
- * Jedna lišta oblasti chatu, kterou kreslí scéna Chatů (`ChatScene`, prototyp), ne obrazovky.
+ * Jedna lišta oblasti chatu, kterou kreslí scéna Chatů (`ChatScene`), ne obrazovky.
  *
  * Hlavička nad kartou ([PaneHeader]) se ve scéně nekreslí v obrazovce, ale v řadě nad kartami:
  * obrazovka ji jen popíše a [PaneHeader] ji sem pošle i s kompozičním kontextem své položky

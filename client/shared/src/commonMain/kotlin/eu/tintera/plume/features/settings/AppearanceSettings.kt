@@ -64,10 +64,6 @@ import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.SwitchListItem
 import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.TitledGroup
-import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.resources.settings_chat_scene
-import eu.tintera.plume.resources.settings_chat_scene_summary
-import org.koin.compose.koinInject
 
 /**
  * Sekce „Vzhled": motiv, barva aplikace, písmo a samolepky ve zprávách a řádky náhledu v seznamu
@@ -143,24 +139,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
             modifier = Modifier.highlightAnchor(gapsTitle),
             onCheckedChange = viewModel::setChatRowGaps,
         )
-        ChatSceneRow()
     }
-}
-
-/**
- * PROTOTYP vlastní scény Chatů (`docs/navrh-scena-chatu.md`): na široké ploše seznam | oblast
- * chatu místo třípanelu z knihovny. Projeví se jen tam, kde jsou panely vedle sebe.
- */
-@Composable
-private fun ChatSceneRow() {
-    val settings = koinInject<AppSettings>()
-    val enabled by settings.chatScene.collectAsStateWithLifecycle()
-    SwitchListItem(
-        headline = stringResource(Res.string.settings_chat_scene),
-        checked = enabled,
-        supporting = stringResource(Res.string.settings_chat_scene_summary),
-        onCheckedChange = settings::setChatScene,
-    )
 }
 
 /** Widget s chaty na ploše: umístí ho launcher po potvrzení v jeho dialogu. Jen kde to launcher umí. */

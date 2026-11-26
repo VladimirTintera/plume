@@ -550,10 +550,7 @@ private fun ShellContent(
 
         val twoPane = wide && !nothingToPick
 
-        // PROTOTYP: Chaty na široké ploše kreslí vlastní scéna (`ChatScene.kt`), ne třípanel z knihovny.
-        val appSettings = koinInject<AppSettings>()
-        val chatSceneOn by appSettings.chatScene.collectAsStateWithLifecycle()
-        val chatScene = chatSceneOn && wide
+        // Chaty na široké ploše kreslí vlastní scéna (`ChatScene.kt`), ne třípanel z knihovny.
         val sideBesideList = maxWidth >= THREE_PANE_MIN_WIDTH
 
         /*
@@ -642,26 +639,19 @@ private fun ShellContent(
         val shownListRoute = chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List }
         val searchShown = navigation.section == ChatsRoute && shownListRoute is ChatSearchRoute
         val mainListShown = navigation.section == ChatsRoute && (shownListRoute == ChatsRoute || searchShown)
-        // Scéna Chatů (prototyp) má táhlo seznamu vlastní i ve dvou panelech, knihovní tam není.
-        val draggable = twoPane && mainListShown && !extraShown && !chatScene
-        // Ve třech panelech táhlo knihovny není — seznam má vlastní (`rememberListPaneResize`).
-        // Ve scéně Chatů bez bočního sloupce vedle seznamu zbývá jen konverzace.
+        // Táhlo seznamu je vlastní (`rememberListPaneResize`), i ve dvou panelech: Chaty kreslí
+        // scéna Chatů, knihovní táhlo tam není. Bez bočního sloupce vedle seznamu zbývá jen konverzace.
         val listResize = rememberListPaneResize(
             listExpansion,
             base.defaultPanePreferredWidth,
             maxWidth,
-            reserve = RESERVE_BESIDE_LIST.takeIf { chatScene && !threePane },
+            reserve = RESERVE_BESIDE_LIST.takeIf { !threePane },
         )
-        val ownListHandle = threePane || chatScene
         val listPaneWidth = listResize.width.takeIf { threePane && mainListShown }
-        // Ve scéně Chatů je seznam vidět, dokud ho boční sloupec pod THREE_PANE_MIN_WIDTH nevytlačí.
-        val sceneListShown = chatScene && twoPane && mainListShown && (!extraShown || threePane)
-        val listResizeShown = listResize.resize.takeIf { threePane && mainListShown || sceneListShown }
-        val expandList: () -> Unit = if (chatScene) {
-            { listResize.settleTo(listExpansion.expandedAnchor) }
-        } else {
-            listExpansion.expand
-        }
+        // Seznam je vidět, dokud ho boční sloupec pod THREE_PANE_MIN_WIDTH nevytlačí.
+        val sceneListShown = twoPane && mainListShown && (!extraShown || threePane)
+        val listResizeShown = listResize.resize.takeIf { sceneListShown }
+        val expandList: () -> Unit = { listResize.settleTo(listExpansion.expandedAnchor) }
         // Hledání ve sbaleném sloupci (zkratka, nabídka, hashtag) by bylo nečitelné: panel se rozbalí.
         LaunchedEffect(searchShown, twoPane) {
             if (searchShown && twoPane && listExpansion.anchor == ListPaneAnchor.Collapsed) expandList()
@@ -670,11 +660,11 @@ private fun ShellContent(
          * Tlačítko a zkratka sbalení: jen u hlavního seznamu vedle konverzace, ne v hledání (to
          * seznam rozbaluje samo). Ve třech panelech dojede vlastní táhlo, ve dvou táhlo knihovny.
          */
-        val listAnchor = if (ownListHandle) listResize.anchor else listExpansion.anchor
+        val listAnchor = listResize.anchor
         val listToggle = if (twoPane && mainListShown && !searchShown) {
             ListPaneToggle {
                 val target = if (listAnchor == ListPaneAnchor.Collapsed) listExpansion.expandedAnchor else ListPaneAnchor.Collapsed
-                if (ownListHandle) listResize.settleTo(target) else listExpansion.animateTo(target)
+                listResize.settleTo(target)
             }
         } else {
             null
@@ -785,14 +775,13 @@ private fun ShellContent(
                      * METADATECH — po změně kotvy by zůstala stará.
                      */
                     /*
-                     * Zavřený třetí panel (profil, podstránka Nastavení) ještě chvíli ve scéně, ať odjede
+                     * Zavřená podstránka Nastavení (třetí panel) ještě chvíli ve scéně, ať odjede
                      * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
                      * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
                      */
-                    val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
                     val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
-                    // Scéna Chatů nechává odjet boční sloupec sama.
-                    val chatsDrawn = (if (twoPane && !chatScene) chatsWithLeaving else chatsDisplayed) + chatsSheets
+                    // Chaty: odjezd bočního sloupce drží scéna Chatů sama.
+                    val chatsDrawn = chatsDisplayed + chatsSheets
                     val settingsDrawn = (if (twoPane) settingsWithLeaving else settingsDisplayed) + settingsSheets
                     val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth, instantPaneBounds) { chatsDrawn.map(entryProvider) }
                     /*
@@ -818,7 +807,7 @@ private fun ShellContent(
                         sceneStrategies = listOf(
                             // Sheet navrchu se kreslí nad scénou, kterou z položek pod ním spočítá list-detail.
                             remember { SheetSceneStrategy() },
-                            // Prototyp: Chaty a archiv na široké ploše vlastní scénou; vypnutá vrací null.
+                            // Chaty a archiv na široké ploše vlastní scénou; na telefonu vrací null.
                             ChatSceneStrategy(
                                 layout = ChatSceneLayout(
                                     twoPane = twoPane,
@@ -827,7 +816,7 @@ private fun ShellContent(
                                     listWidth = if (mainListShown) listResize.width else base.defaultPanePreferredWidth,
                                     sideWidth = profileResize.width + PROFILE_CARD_MARGINS,
                                     instant = instantPaneBounds,
-                                ).takeIf { chatScene },
+                                ).takeIf { wide },
                                 isChatScene = { it != SETTINGS_SCENE },
                                 detailPlaceholder = ChatDetailPlaceholder,
                             ),
@@ -856,8 +845,6 @@ private fun ShellContent(
                                     BackNavigationBehavior.PopUntilScaffoldValueChange
                                 },
                                 directive = directive,
-                                paneExpansionDragHandle = ListPaneDragHandle.takeIf { draggable },
-                                paneExpansionState = listExpansion.state.takeIf { draggable },
                             ),
                         ),
                     )
