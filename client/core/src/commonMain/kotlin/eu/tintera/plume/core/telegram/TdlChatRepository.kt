@@ -1434,6 +1434,17 @@ class TdlChatRepository(
     // Na konkrétní chaty se ptá konverzace, profil a hovor — tam zamčený chat patří.
     override suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = summariesFor(chatIds.toLongArray(), includeLocked = true)
 
+    override suspend fun takesPartIn(chatId: Long): Boolean {
+        // `getChat`, `getSupergroup` i `getBasicGroup` jsou u běžného účtu offline dotazy.
+        // Neznámý chat (s tímhle člověkem účet nikdy nepsal) skončí chybou, tedy `false`.
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return false
+        return when (chat.type) {
+            is ChatTypePrivate -> chat.lastMessage != null || chat.positions.isNotEmpty()
+            is ChatTypeBasicGroup, is ChatTypeSupergroup -> client.ownMemberStatus(chat).isMember()
+            else -> false
+        }
+    }
+
     override suspend fun openSavedMessages(): Result<Long> {
         val userId = me.value ?: session.me().getOrNull()?.id
             ?: return Result.failure(IllegalStateException("Účet není přihlášený."))

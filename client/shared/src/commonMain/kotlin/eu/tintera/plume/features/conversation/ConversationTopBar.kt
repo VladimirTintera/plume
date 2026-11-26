@@ -3,7 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
 import androidx.compose.material3.TopAppBarDefaults
 import eu.tintera.plume.core.accounts.AccountBadge
-import eu.tintera.plume.core.accounts.rememberShownAccount
+import eu.tintera.plume.core.accounts.rememberConversationAccount
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.AnimatedVisibility
@@ -156,7 +156,7 @@ internal fun ConversationTopBar(
              * avatar — tvář protějšku by jinak vypadala, že se něco děje s ním.
              */
             val shownConnection = rememberShownConnection(connection)
-            val shownAccount = rememberShownAccount()
+            val shownAccount = rememberConversationAccount(viewModel.chatId)?.takeIf { it.inHeader }?.info
             // „Online" už v podtitulu není, nese ho jen tečka — čtečce ho proto řekne
             // popis stavu hlavičky. Bez spojení ne: dostupnost je stará hodnota.
             val onlineLabel = stringResource(Res.string.presence_online)
@@ -236,8 +236,8 @@ internal fun ConversationTopBar(
                                 Modifier
                             },
                         )
-                        // Kterým účtem se tu píše, když je jich víc — ve skupině, kde jsou
-                        // oba, se jinak snadno odpoví ze špatného. Jako odznak v seznamu chatů.
+                        // Kterým účtem se tu píše, když seznam míchá účty nebo chat patří jinému
+                        // než výchozímu účtu (`rememberConversationAccount`). Jako odznak v seznamu.
                         shownAccount?.let { account ->
                             AccountBadge(account, rim = MaterialTheme.colorScheme.surface, modifier = Modifier.align(Alignment.BottomStart))
                         }
