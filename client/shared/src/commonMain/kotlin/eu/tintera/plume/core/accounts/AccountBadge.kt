@@ -9,6 +9,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
@@ -16,7 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.AccountInfo
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.ui.Avatar
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
@@ -24,8 +27,9 @@ import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Účet téhle části obrazovky ([LocalAccount]), když je v aplikaci víc účtů; s jedním `null`.
- * Kde se ukazuje, komu chat patří (řádek společného seznamu, hlavička konverzace, vstupní pole),
- * má s jedním účtem zůstat všechno, jak bylo.
+ * Kde se ukazuje, komu chat patří (řádek společného seznamu, výsledek hledání, lišta obrazovky
+ * účtu), má s jedním účtem zůstat všechno, jak bylo. Konverzace se ptá užší
+ * [rememberConversationAccount].
  */
 @Composable
 fun rememberShownAccount(): AccountInfo? {
@@ -37,6 +41,42 @@ fun rememberShownAccount(): AccountInfo? {
         value = if (several) account.session.me().getOrNull() else null
     }
     return info?.takeIf { several }
+}
+
+/**
+ * Kde konverzace ukáže, kterým účtem se v ní píše: [inHeader] = odznak na avataru v hlavičce,
+ * vstupní pole „Zpráva jako …" pokaždé, když je tahle hodnota vůbec.
+ */
+@Immutable
+data class ConversationAccount(val info: AccountInfo, val inHeader: Boolean)
+
+/**
+ * Účet konverzace [chatId] ([LocalAccount]), jen když ho má smysl ukázat; s jedním účtem `null`.
+ *
+ * - **Režim Všechny účty, nebo chat jiného než výchozího účtu**: odznak v hlavičce i pole.
+ *   Seznam tu míchá účty, nebo konverzace patří účtu, jehož chaty seznam neukazuje.
+ * - **Chat výchozího účtu mimo režim Všechny účty**: kdo jsem, říká fotka v pilulce seznamu,
+ *   takže odznak v hlavičce nic nepřidá. Pole účet jmenuje jen u chatu, do kterého se dá psát
+ *   i z jiného přihlášeného účtu (společná skupina, tentýž člověk): tam se dá splést.
+ *
+ * Přepnutí výchozího účtu z notifikace nebo zástupce ohlásí konverzace zvlášť
+ * ([AccountSwitchSnackbar]), takže pole kvůli němu účet nést nemusí.
+ */
+@Composable
+fun rememberConversationAccount(chatId: Long): ConversationAccount? {
+    val info = rememberShownAccount() ?: return null
+    val account = LocalAccount.current
+    val accounts = koinInject<Accounts>()
+    val signedIn by accounts.all.collectAsStateWithLifecycle()
+    val default by accounts.default.collectAsStateWithLifecycle()
+    val allAccounts by koinInject<AppSettings>().chatListAllAccounts.collectAsStateWithLifecycle()
+    if (allAccounts || default.slot != account.slot) return ConversationAccount(info, inHeader = true)
+    val others = signedIn.filter { it.slot != account.slot }
+    // Uložené zprávy mají id vlastního účtu; ve druhém účtu je to chat s tímhle, ne „totéž".
+    val shared by produceState(false, chatId, others, info.id) {
+        value = chatId != info.id && others.any { other -> other.koin.getOrNull<ChatRepository>()?.takesPartIn(chatId) == true }
+    }
+    return ConversationAccount(info, inHeader = false).takeIf { shared }
 }
 
 /**

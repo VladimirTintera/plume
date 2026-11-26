@@ -6,6 +6,7 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.settings.RecordMode
+import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -51,6 +52,8 @@ internal data class ComposerField(
     val placeholder: String? = null,
     /** Šipka nahoru v prázdném poli: úprava poslední vlastní zprávy; `null` = nic. */
     val onEditLast: (() -> Unit)? = null,
+    /** Účet, který pole jmenuje („Zpráva jako …"); `null` = nejmenuje (`rememberConversationAccount`). */
+    val account: AccountInfo? = null,
 )
 
 /** Tlačítko výběru samolepek, emoji a GIFů vpravo u pole. */

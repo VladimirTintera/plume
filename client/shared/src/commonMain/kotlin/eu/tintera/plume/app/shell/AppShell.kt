@@ -2,6 +2,7 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.lockedchats.LockedChatsScreen
 import eu.tintera.plume.core.navigation.LockedChatsRoute
+import eu.tintera.plume.core.accounts.AccountSwitchNotices
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountViewModels
@@ -335,6 +336,7 @@ fun AppShell(modifier: Modifier = Modifier) {
     val openRequest by chatOpenRequests.request.collectAsStateWithLifecycle()
 
     val shellSettings = koinInject<AppSettings>()
+    val switchNotices = koinInject<AccountSwitchNotices>()
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
         // Chat jiného účtu: seznam ukazuje výchozí účet, takže se výchozím stane účet chatu
@@ -343,6 +345,8 @@ fun AppShell(modifier: Modifier = Modifier) {
         // Notifikace nebo zástupce můžou přežít odhlášení svého účtu; pak není co otevřít.
         val switchAccount = !shellSettings.chatListAllAccounts.value
         if (switchAccount && request.slot != slot && accounts.all.value.any { it.slot == request.slot }) {
+            // Přepnutí je potichu a vede rovnou do konverzace; ta ho ohlásí (`AccountSwitchSnackbar`).
+            switchNotices.switchedFor(request.slot, request.chatId)
             accounts.setDefault(request.slot)
             return@LaunchedEffect
         }

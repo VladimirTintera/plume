@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSwitchSnackbar
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -68,6 +69,7 @@ internal fun ConversationSnackbars(
     ReportHost(viewModel.reportFlow, snackbarHostState)
     ReportHost(viewModel.sponsoredReportFlow, snackbarHostState)
     ProxyLinkHost(viewModel.proxyLinkFlow, snackbarHostState)
+    AccountSwitchSnackbar(viewModel.chatId, snackbarHostState)
 
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
     // přečte tady v kompozici.

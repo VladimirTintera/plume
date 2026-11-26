@@ -601,11 +601,34 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
    - Pole proto, že avatar v hlavičce u tématu ani vlákna komentářů není, a do pole se píše vždycky.
      Účet se čte nad nápovědou, ne v ní: nápověda se skládá znovu s každým vymazáním pole a jméno
      by pokaždé naskočilo se zpožděním.
-   - Platí s víc účty v obou režimech, ne jen v režimu Vše: konverzace otevřená z notifikace
-     nebo odkazu patří účtu, o kterém uživatel nemusí vědět.
    - **Ověřeno na Pixelu 5** se dvěma účty (chat VT i VT2). S jedním účtem má zůstat pole „Zpráva"
      a hlavička bez odznaku (`rememberShownAccount` vrací `null`); na zařízení s jedním účtem
      tenhle build vyzkoušený není.
+   - **Od listopadu 2026 jen tam, kde se dá splést** (`rememberConversationAccount`). Napřed to
+     platilo s víc účty vždycky, i mimo režim Vše, a v chatu výchozího účtu to byl jen šum:
+     kdo jsem, říká fotka v pilulce seznamu a k chatům jiného účtu se mimo režim Vše z UI
+     nedostaneš. Dnes:
+     - **režim Vše, nebo chat jiného než výchozího účtu** (hledání, routa ze zásobníku):
+       odznak v hlavičce i pole, jako dřív;
+     - **chat výchozího účtu mimo režim Vše**: odznak v hlavičce není; pole jmenuje účet jen
+       u chatu, do kterého se dá psát i z jiného přihlášeného účtu (společná skupina, tentýž
+       člověk). Pozná to `ChatRepository.takesPartIn` ostatních účtů: id takového chatu je
+       v obou účtech stejné, dotaz jde jen do místní databáze TDLib (člen skupiny, u soukromého
+       chatu poslední zpráva). Seznam načtených chatů (`positions`) na to nestačí, druhý účet má
+       mimo režim Vše načtenou jen první stránku. Uložené zprávy se nepočítají — ve druhém účtu
+       je to chat s tímhle účtem, ne totéž.
+   - **Původní důvod, proč účet vždycky, řeší ohlášení**: notifikace nebo zástupce chatu jiného
+     účtu mimo režim Vše přepne výchozí účet potichu a vede rovnou do konverzace. Konverzace to
+     teď jednou ohlásí snackbarem „Přepnuto na účet VT2" (`AccountSwitchNotices`, zapisuje
+     `AppShell` před `setDefault`, vyzvedne `AccountSwitchSnackbar` v `ConversationSnackbars`).
+     Ohlášení po 15 s propadne: chat se otevřít nemusel a pozdější otevření téhož chatu by
+     hlásilo přepnutí, které se nestalo. Sdílení přes Direct Share účet taky přepíná, ale vede
+     na „Komu: …", ne do konverzace — ohlášení tam není.
+   - **Ověřeno na emulátoru `Plume_Galerie_Fold`** (rozložený, dva účty): chat jen hlavního
+     účtu („Plume test triaze") bez odznaku a s polem „Message", Notifikátor (píše mu i druhý
+     účet) bez odznaku s „Message as …", režim Vše odznak i pole, intent notifikace druhého
+     účtu přepnul výchozí účet a konverzace ukázala „Switched to VT". **Snackbar `uiautomator
+     dump` nezachytil** ani jednou za šest výpisů, i když běžel celé 4 s — ověřovat snímkem.
 
 6. **Komu notifikace patří** — hotovo:
    - **Android: jméno účtu je ve jménu konverzace** („Notifikator · VT2", `shortcutLabel`).

@@ -210,6 +210,14 @@ interface ChatRepository {
     suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = emptyList()
 
     /**
+     * Je účet v chatu [chatId] doma: člen skupiny nebo kanálu, u soukromého chatu s historií?
+     * Jen z místní databáze TDLib, bez sítě. Ptá se na to konverzace jiného účtu, aby poznala
+     * chat, do kterého se dá napsat z obou účtů (společná skupina, tentýž člověk) — id takového
+     * chatu je v obou účtech stejné. Tajný chat má id jen v jednom účtu, proto `false`.
+     */
+    suspend fun takesPartIn(chatId: Long): Boolean = false
+
+    /**
      * Skupiny ze seznamu chatů (i archivu), do kterých smí uživatel přidat bota ([canAddBot]);
      * s [asAdmin] jen ty, kde ho smí i jmenovat správcem.
      */

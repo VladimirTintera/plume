@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.combine
 import eu.tintera.plume.core.accounts.AccountVisibility
 import eu.tintera.plume.core.accounts.notificationName
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.AccountSwitchNotices
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.ai.core.Connectivity
 import eu.tintera.plume.core.ai.NetworkConnectivity
@@ -303,6 +304,7 @@ fun appModule() = module {
     // Mosty mezi platformním vstupem (ťuknutí na notifikaci, sdílení, odkaz) a navigací.
     single { CallRequests() }
     single { ChatOpenRequests() }
+    single { AccountSwitchNotices() }
     single { LinkOpenRequests() }
     // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
     single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }
