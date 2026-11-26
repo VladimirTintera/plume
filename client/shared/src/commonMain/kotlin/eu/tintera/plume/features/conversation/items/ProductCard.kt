@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +70,7 @@ internal fun ProductCard(product: MessageMedia.Product, accent: Color) {
                 placeholder = photo.minithumbnail,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(frame).clip(RoundedCornerShape(PRODUCT_PHOTO_CORNER)),
+                modifier = Modifier.size(frame).clip(ShapeDefaults.Medium),
             )
             ProductText(product, contentAccent, width = frame.width)
         }
@@ -158,7 +158,5 @@ private fun PriceLabel(price: Price, accent: Color) {
     }
 }
 
-/** Jako fotka v bublině s citací — velké zaoblení bubliny by na obrázku uvnitř nesedělo. */
-private val PRODUCT_PHOTO_CORNER = 12.dp
 private const val DESCRIPTION_MAX_LINES = 6
 private const val NOTE_ALPHA = 0.7f

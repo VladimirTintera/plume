@@ -51,7 +51,7 @@ internal fun ScamWarningCard(
     val content = MaterialTheme.colorScheme.onErrorContainer
     val accent = accentOn(background, MaterialTheme.colorScheme.error, content)
     Surface(
-        shape = RoundedCornerShape(SCAM_WARNING_CORNER),
+        shape = RoundedCornerShape(BUBBLE_CORNER),
         color = background,
         contentColor = content,
         modifier = modifier,
@@ -103,6 +103,5 @@ internal fun ScamWarningCard(
     }
 }
 
-private val SCAM_WARNING_CORNER = 16.dp
 
 private const val SCAM_WARNING_NOTE_ALPHA = 0.75f

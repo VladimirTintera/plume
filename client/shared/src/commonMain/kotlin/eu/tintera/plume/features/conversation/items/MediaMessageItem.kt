@@ -57,14 +57,13 @@ internal data class MediaMessageItem(
         val document = if (album == null) message.media as? MessageMedia.Document else null
         // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
         val edited = message.isEdited && !message.isLiveLocation
-        val hasCaption = message.text.isNotBlank() || edited || location != null || document != null || story != null
+        // „Upraveno" samo popisek nedělá: pruh v barvě bubliny jen s tímhle slovem vypadal jako
+        // useknutá zpráva. Bez popisku stojí pod snímkem na ploše, jako u samolepky.
+        val hasCaption = message.text.isNotBlank() || location != null || document != null || story != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
-        // Citace nad ní, stejně jako u odpovědi v bublině.
-        val forwarded = message.hasOriginLabel
-        val hasHeader = forwarded || quoted != null
+        // Citace nad ní, stejně jako u odpovědi v bublině; jméno odesílatele s hlavičkou v ní.
+        val hasHeader = message.hasOriginLabel || quoted != null
         val isCard = hasCaption || hasHeader
-        // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní, ne k bublině.
-        val surfaceAccent = if (message.isOutgoing) LocalContentColor.current else MaterialTheme.colorScheme.primary
         // S popiskem nebo hlavičkou ořezává karta celá; snímek si přesto nese nároží karty, do
         // kterých sahá — kvůli letu do prohlížeče (viz [cardMediaShape]). Jinak nese tvar snímek.
         val mediaShape = if (isCard) cardMediaShape(shape, hasHeader = hasHeader, hasCaption = hasCaption) else shape
@@ -74,8 +73,9 @@ internal data class MediaMessageItem(
             horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
         ) {
             // Nad holým snímkem si jméno musí odsazení přinést samo — i do strany: zpráva je
-            // ořezaná tvarem bubliny a zaoblené nároží by jinak ukouslo první písmeno.
-            SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
+            // ořezaná tvarem bubliny a zaoblené nároží by jinak ukouslo první písmeno. S hlavičkou
+            // je jméno v ní (CardHeader).
+            if (!hasHeader) SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
 
             MediaWithCaption(
                 modifier = if (isCard) Modifier.clip(shape) else Modifier,
@@ -83,7 +83,7 @@ internal data class MediaMessageItem(
                     if (hasHeader) {
                         Column {
                             quoted?.let { QuotePart(it, partnerName) }
-                            if (forwarded) OriginHeader()
+                            CardHeader(withName = true)
                         }
                     }
                 },
@@ -94,6 +94,7 @@ internal data class MediaMessageItem(
                         message.media?.let {
                             Attachment(
                                 media = it,
+                                // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní.
                                 accent = surfaceAccent,
                                 mediaShape = mediaShape,
                                 // Popisek má šířku fotky; s ním využije celou nabízenou šířku.
@@ -125,6 +126,14 @@ internal data class MediaMessageItem(
                     }
                 },
             )
+            if (edited && !hasCaption) {
+                EditedLabel(
+                    color = LocalContentColor.current,
+                    // S reakcemi pod sebou místo na jejich čipy, které leží na spodní hraně zprávy.
+                    modifier = Modifier.align(Alignment.End).padding(horizontal = MESSAGE_PADDING_H)
+                        .padding(top = 2.dp, bottom = (contentBottom - MESSAGE_PADDING_V).coerceAtLeast(0.dp)),
+                )
+            }
         }
     }
 }

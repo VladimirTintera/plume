@@ -296,8 +296,19 @@ Messages.
 - **Jméno odesílatele nad holým snímkem si nese odsazení i do stran** (`MESSAGE_PADDING_H`,
   jako text v bublině). Celá zpráva je ořezaná tvarem bubliny (`MessageBox`, kvůli vlnce
   zvýraznění a díře v závoji nabídky), takže jméno přilepené k levé hraně ukouslo zaoblené
-  nároží první písmeno („ilipHorky"). Totéž u karty náhledu odkazu. **Cokoli, co leží v rohu
+  nároží první písmeno („ilipHorky"). **Cokoli, co leží v rohu
   zprávy bez bubliny, se musí odsadit o zaoblení** — ořez nekončí u snímku.
+- **Má-li karta hlavičku (citace, přeposlání), je jméno v ní, ne nad kartou** (`CardHeader`,
+  `showsSenderName`). Karta odkazu ho má v horním dílu vždycky. Dřív stálo jméno na ploše nad
+  kartou, zatímco u textu je prvním řádkem bubliny — blok začínající kartou vypadal jinak než
+  blok začínající textem. Holý snímek bez hlavičky má jméno nad sebou dál: hlavička jen kvůli
+  jménu by z fotky udělala kartu.
+- **„Upraveno" samo popisek nedělá** (`hasCaption` v `MediaMessageItem`). Upravená fotka bez
+  popisku dostávala pruh v barvě bubliny jen s tímhle slovem; teď stojí pod snímkem na ploše jako
+  u samolepky, s místem na čipy reakcí.
+- **Akcent obsahu na ploše je `primary` na obou stranách** (`surfaceAccent`). Odchozí strana měla
+  barvu popředí plochy — zbytek z doby, kdy snímky ležely v bublině, kde v odchozí `primary`
+  bublině akcent `primary` být nemohl (zděděno přestavbou na bloky, `5018e7f4d`).
 - **Citace je horní díl karty snímku, bublinu si nevynutí** (`QuotePart`, nad značkou
   přeposlání; `MediaMessageItem.quoted`). Bez pozadí by se ztratila — ale pozadí jí dá karta,
   stejně jako popisku a značce přeposlání. Dřív si bublinu vynutila a fotka, video, album i mapa
@@ -483,6 +494,11 @@ v delší historii nedalo poznat, kde končí včerejšek.
   jinak by se nároží přes předěl stahovala). Klíč je odvozený od klíče zprávy pod ním.
 - **Předěl a systémové oznámení vypadají stejně** (`CenteredNote`). Obojí je poznámka na okraji
   konverzace, ne zpráva od někoho; dvě různá pojetí téhož by seznam roztříštila.
+- **Akce u oznámení je textové tlačítko pod větou** (`NoteWithAction` v `Notes.kt`: odkaz na
+  převedenou skupinu, návrh profilové fotky a data narození; žádost o vypnutí ochrany má dvě
+  tlačítka). Dřív byla část akcí klikatelný sloupec s textem v `primary` a část tlačítka —
+  v jedné konverzaci dva jazyky pro tutéž věc. Skok na zprávu z oznámení (připnutí, anketa)
+  tlačítko nemá: věta sama říká, o co jde, a klikatelná je celá.
 
 ## Tvar bubliny a seskupení
 
@@ -1375,7 +1391,9 @@ pod sebou kartu „Kontrola faktů": ikona s nadpisem, text poznámky s odkazy a
 doplnili ověřovatelé (se zemí, pro kterou platí). `ChatMessage.factCheck`, `FactCheckCard`.
 
 - **Karta visí pod zprávou, ne v bublině** — přes `WithBelowMessage` (dřív `WithBotKeyboard`),
-  stejně jako tlačítka bota, a nad nimi. Pod holou fotkou žádná bublina není, a karta tak
+  stejně jako tlačítka bota, a nad nimi. **Zaoblení má jako bublina** (`BUBBLE_CORNER`), stejně
+  jako varování před podvodem a navrhovaný příspěvek; každá měla vlastních 16 dp a pod bublinou
+  s 18 dp to nesedělo. Pod holou fotkou žádná bublina není, a karta tak
   vypadá stejně u textu, fotky i alba; šířku má aspoň jako zpráva.
 - **Terciární role**, jako popis webu u náhledu odkazu: je to cizí vložený obsah, ne slovo
   autora. Věta o ověřovatelích je nutná — bez ní by se poznámka dala číst jako dodatek kanálu.

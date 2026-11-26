@@ -501,20 +501,9 @@ Velikost: S / M / L.
   zkoušený a zamítnutý „třetí tvar" (`docs/poznatky/konverzace-zobrazeni.md`, „Přeposlaná zpráva").
 - ~~**Odpověď na smazanou zprávu**~~ — hotovo: zástupná citace „Smazaná zpráva" a bez opakovaných
   dotazů (`docs/poznatky/konverzace-zobrazeni.md`, „Médium bez bubliny").
-- **Upravená fotka bez popisku má pruh popisku jen s „upraveno" (S).** `hasCaption`
-  v `MediaMessageItem` zahrnuje `edited`.
-- **Jméno odesílatele nad kartou odkazu, jinde v bublině (S).** `LinkPreviewMessageItem` (i holé
-  médium) kreslí `SenderName` na ploše nad kartou, přestože horní díl karty má barvu bubliny;
-  blok začínající odkazem vypadá jinak než blok začínající textem.
-- **Akce u servisních oznámení dvojím jazykem (S).** Žádost o vypnutí ochrany má tlačítka
-  (`ActionButtonGroup`), návrh fotky, návrh data narození a odkaz na převedenou skupinu jen
-  klikatelný sloupec s textem v `primary` (`Notes.kt`). Sjednotit, nejlíp na tlačítka.
-- **Akcent na ploše asymetrický (S).** Holé bloky dávají odchozí straně `onSurface`, příchozí
-  `primary` (průběh nahrávání na holé fotce, velká emoji, samolepka) — bez bubliny důvod
-  k rozdílu není. Pravidlo je opsané třikrát (`MediaMessageItem`, 2× `BareMessageItems`).
-- **Karty pod zprávou mají zaoblení 16 dp, bublina nad nimi 18 dp (S).** Kontrola faktů,
-  varování před podvodem a navrhovaný příspěvek, každá s vlastní konstantou — ta navíc obchází
-  `verifyShapeTokens` (16 dp je token `Large`; totéž `PRODUCT_PHOTO_CORNER` = `Medium`).
+- ~~**Upravená fotka bez popisku**, **jméno nad kartou odkazu**, **akce u servisních oznámení**,
+  **asymetrický akcent na ploše** a **zaoblení karet pod zprávou**~~ — hotovo
+  (`docs/poznatky/konverzace-zobrazeni.md`, „Médium bez bubliny", „Předěly dne", „Kontrola faktů").
 
 **Co chybí**
 

@@ -45,7 +45,7 @@ internal data class LargeEmojiMessageItem(
         PaddedColumn {
             SenderName()
             MessageText(
-                linkColor = if (message.isOutgoing) onSurface else MaterialTheme.colorScheme.primary,
+                linkColor = surfaceAccent,
                 style = when (emojiCount) {
                     1 -> MaterialTheme.typography.displayLarge
                     2 -> MaterialTheme.typography.displayMedium
@@ -94,7 +94,7 @@ private fun MessageBodyScope.BareColumn(content: @Composable (accent: Color) -> 
     val onSurface = LocalContentColor.current
     PaddedColumn {
         SenderName()
-        content(if (message.isOutgoing) onSurface else MaterialTheme.colorScheme.primary)
+        content(surfaceAccent)
         EditedLabel(color = onSurface, modifier = Modifier.align(Alignment.End))
     }
 }

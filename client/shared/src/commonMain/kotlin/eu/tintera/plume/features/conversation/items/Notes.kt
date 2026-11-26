@@ -245,22 +245,36 @@ internal fun ServiceMessage(
     }
     // Převod skupiny: dosavadní zprávy zůstaly ve staré skupině, a tohle je jediná cesta k nim
     // (a ze staré skupiny k nové). Ťuká se na celé oznámení, akce je pod ním jako odkaz.
+    NoteWithAction(
+        text = text,
+        actionLabel = stringResource(if (link.toNewGroup) Res.string.service_upgraded_open_new else Res.string.service_upgraded_open_old),
+        onAction = { onOpenChat(link.chatId) },
+        modifier = modifier,
+    )
+}
+
+/**
+ * Oznámení s jednou akcí: věta a pod ní textové tlačítko. Tentýž tvar jako žádost o vypnutí
+ * ochrany se dvěma tlačítky — dřív byla část akcí klikatelný sloupec s textem v `primary`
+ * a část tlačítka, a v jedné konverzaci tak vedle sebe stály dva jazyky pro tutéž věc.
+ */
+@Composable
+private fun NoteWithAction(
+    text: String,
+    actionLabel: String?,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+    leading: (@Composable () -> Unit)? = null,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .clip(ShapeDefaults.Medium)
-            .clickable(role = Role.Button) { onOpenChat(link.chatId) }
-            .padding(vertical = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
     ) {
+        leading?.invoke()
         CenteredNote(text = text)
-        Text(
-            text = stringResource(if (link.toNewGroup) Res.string.service_upgraded_open_new else Res.string.service_upgraded_open_old),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center,
-        )
+        if (actionLabel != null) {
+            TextButton(onClick = onAction, shapes = ButtonDefaults.shapes()) { Text(actionLabel) }
+        }
     }
 }
 
@@ -277,31 +291,21 @@ private fun SuggestedPhotoNote(
     onAccept: () -> Unit,
 ) {
     var confirm by rememberSaveable { mutableStateOf(false) }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .clip(ShapeDefaults.Medium)
-            .then(if (photo.canSet) Modifier.clickable(role = Role.Button) { confirm = true } else Modifier)
-            .padding(vertical = 8.dp),
-    ) {
-        Avatar(
-            chatId = message.senderId,
-            title = message.senderName.orEmpty(),
-            avatarFileId = photo.fileId,
-            size = SUGGESTED_PHOTO_SIZE,
-        )
-        CenteredNote(text = text)
-        if (photo.canSet) {
-            Text(
-                text = stringResource(Res.string.birthdate_suggestion_set),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
+    NoteWithAction(
+        text = text,
+        actionLabel = stringResource(Res.string.birthdate_suggestion_set).takeIf { photo.canSet },
+        onAction = { confirm = true },
+        modifier = modifier,
+        leading = {
+            Avatar(
+                chatId = message.senderId,
+                title = message.senderName.orEmpty(),
+                avatarFileId = photo.fileId,
+                size = SUGGESTED_PHOTO_SIZE,
+                modifier = Modifier.padding(top = 4.dp),
             )
-        }
-    }
+        },
+    )
     if (confirm) {
         ConfirmDialog(
             title = stringResource(Res.string.photo_suggestion_confirm_title),
@@ -327,23 +331,12 @@ private val SUGGESTED_PHOTO_SIZE = 96.dp
 @Composable
 private fun SuggestedBirthdateNote(text: String, birthdate: Birthdate, modifier: Modifier, onAccept: () -> Unit) {
     var confirm by rememberSaveable { mutableStateOf(false) }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .clip(ShapeDefaults.Medium)
-            .clickable(role = Role.Button) { confirm = true }
-            .padding(vertical = 4.dp),
-    ) {
-        CenteredNote(text = text)
-        Text(
-            text = stringResource(Res.string.birthdate_suggestion_set),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center,
-        )
-    }
+    NoteWithAction(
+        text = text,
+        actionLabel = stringResource(Res.string.birthdate_suggestion_set),
+        onAction = { confirm = true },
+        modifier = modifier,
+    )
     if (confirm) {
         ConfirmDialog(
             title = stringResource(Res.string.birthdate_suggestion_confirm_title, birthdate.label()),
