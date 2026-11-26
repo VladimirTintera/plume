@@ -1028,9 +1028,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - **Účet se vybírá fotkou vlevo u pole** (`AccountSwitchButton`, místo a podoba jako výběr
       „Psát jako" skupiny; oba naráz stojí vedle sebe). Výběr otevře tutéž konverzaci druhým
       účtem na TÉMŽE místě zásobníku (`replaceRoute` s jiným slotem): ViewModel, akce, reakce
-      i koncept tak patří jednomu účtu, nic se nemíchá. **Pozice v historii se nepřenáší** —
-      konverzace druhého účtu se otevře, jako by se otevřela ze seznamu. Rozepsaný text taky
-      ne (koncept patří účtu na serveru).
+      i koncept tak patří jednomu účtu, nic se nemíchá. **Pozice v historii se přenáší**
+      (krok 27). Rozepsaný text ne (koncept patří účtu na serveru).
     - **Přečtení se přenáší** (`SharedChats.readUpTo` / `readAll` → `ChatRepository.readUpTo`):
       z konverzace (po nejnovější přečtenou), z „Označit jako přečtené" v seznamu i v konverzaci
       a z tlačítka v notifikaci. Druhý účet dostane `viewMessages` se zdrojem historie chatu
@@ -1055,7 +1054,7 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       přečtení za VT zmizel odznak nepřečtených řádku i notifikace a v seznamu jen hlavního
       účtu je skupina přečtená. Soukromý chat s Notifikátorem zůstal dvakrát. **Neověřené:**
       desktop, sbalený sloupec, archiv, „Označit jako přečtené" a přečtení z notifikace.
-    - **Zbývá:** přenos pozice v historii při přepnutí účtu.
+    - Pozice v historii při přepnutí účtu: krok 27.
 
 25. **Spojené Uložené zprávy a soukromé chaty** — hotovo (`mergeKey`, `SharedChats.counterparts`,
     testy v `MergedChatGroupsTest`):
@@ -1118,6 +1117,33 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - **Nabídka nad řádkem se na Foldu po podržení ještě posouvá**: ťuknutí podle souřadnic ze
       snímku trefilo o dvě položky níž („Add to home screen" místo „Move to chats"). Položky se
       ťukají podle čerstvého `uiautomator dump`, ne podle snímku.
+
+27. **Pozice v historii při přepnutí účtu** — hotovo (`ConversationRoute.restoreMessageId`,
+    `ConversationViewModel.positionForAccountSwitch` a `restoreAt`):
+    - **Jen společná skupina nebo kanál**: tam mají účty tatáž id zpráv, takže stejné id je
+      stejná zpráva. Soukromý chat a Uložené zprávy jsou v každém účtu jiná historie a otevřou
+      se jako ze seznamu.
+    - **Seznam hlásí ViewModelu nejvyšší CELOU viditelnou zprávu** a jestli stojí úplně dole
+      (`ConversationListEffects`, `reportVisibleTop`). Při `reverseLayout` je nahoře nejvyšší
+      index; klíč zprávy je její id, reklama a předěly id nemají. Dole u nejnovějších se nic
+      nepřenáší — druhý účet se dole otevře sám.
+    - **Nová routa nese `restoreMessageId`, ne `messageId`**: ten znamená skok z hledání, tedy
+      zvýraznění a dojíždění animací. Konverzace s `restoreMessageId` načte okno kolem zprávy
+      (`loadAround`) a postaví ji k horní hraně (`ScrollTarget` s `ScrollAnchor.Top`, bez
+      `highlightedMessageId`). Když ji druhý účet nemá (smazaná, starší než jeho historie —
+      přidal se později), otevře se jako obvykle (`loadUntilUnread`).
+    - **Přenáší se zpráva, ne přesný posun**: zpráva skončí u horní hrany, ne o kus níž, kde
+      byla. Spolehlivé napříč účty, které mohou mít mezi zprávami jiné předěly (nepřečtené).
+    - **Přečtení po přepnutí** se drží stejně jako po skoku (`releaseReads(jumped = true)`):
+      zprávy z první stránky dole, které uživatel neviděl, se nehlásí.
+    - **„Viditelná" = pod hlavičkou.** Seznam zasahuje pod průsvitnou hlavičku (horní odsazení
+      obsahu, při `reverseLayout` `afterContentPadding`) a zpráva schovaná pod ní se pro seznam
+      vejde do okna celá. První verze ji brala za nejvyšší viditelnou a druhý účet začal o dvě
+      zprávy výš (Pozice 4 místo 6).
+    - **Ověřeno na emulátoru Fold** (složený, anglicky, 20 očíslovaných zpráv od Notifikátora
+      v „Plume test triaze"): hlavní účet odscrollovaný s „Pozice 7" nahoře → VT začne s
+      „Pozice 7" nahoře, bez zvýraznění; VT dole u „Pozice 20" → hlavní účet se otevře dole.
+      **Neověřené:** zpráva, kterou druhý účet nemá, téma a vlákno komentářů, desktop.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.

@@ -221,6 +221,12 @@ data class ArchiveConversationRoute(
     val directTopicId: Long? = null,
     /** Vlákno komentářů v bočním sloupci vedle kanálu, viz [ConversationRoute.beside]. */
     val beside: Boolean = false,
+    /**
+     * Zpráva, na které se má konverzace otevřít, jako by na ní uživatel stál — bez zvýraznění
+     * a bez dojíždění, na rozdíl od [messageId]. Nese ji přepnutí účtu ve spojené společné skupině
+     * (`onSwitchAccount`): druhý účet má tatáž id zpráv a uživatel má zůstat, kde četl.
+     */
+    val restoreMessageId: Long? = null,
 ) : AccountRoute
 
 /** Témata skupiny otevřené z archivu — obdoba [ForumTopicsRoute] v archivní větvi. */
@@ -297,6 +303,12 @@ data class ConversationRoute(
      * Viz „Komentáře v bočním sloupci" v `docs/poznatky/navigace.md`.
      */
     val beside: Boolean = false,
+    /**
+     * Zpráva, na které se má konverzace otevřít, jako by na ní uživatel stál — bez zvýraznění
+     * a bez dojíždění, na rozdíl od [messageId]. Nese ji přepnutí účtu ve spojené společné skupině
+     * (`onSwitchAccount`): druhý účet má tatáž id zpráv a uživatel má zůstat, kde četl.
+     */
+    val restoreMessageId: Long? = null,
 ) : AccountRoute
 
 /**

@@ -628,10 +628,13 @@ fun appAccountModule() = module {
         val savedTopicId = parameters.values.getOrNull(4) as Long?
         // Šestý: vlákno přímých zpráv kanálu (správce s jedním odběratelem).
         val directTopicId = parameters.values.getOrNull(5) as Long?
+        // Sedmý: zpráva, na které konverzace začne bez zvýraznění (přepnutí účtu ve společné skupině).
+        val restoreMessageId = parameters.values.getOrNull(6) as Long?
         ConversationViewModel(
             slot = get(),
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
+            restoreMessageId = restoreMessageId,
             threadRootId = threadRootId,
             forumTopicId = forumTopicId,
             savedTopicId = savedTopicId,

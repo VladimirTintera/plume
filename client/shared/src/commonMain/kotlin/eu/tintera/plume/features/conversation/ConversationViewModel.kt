@@ -173,6 +173,11 @@ class ConversationViewModel(
     /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
     private val initialMessageId: Long?,
     /**
+     * Zpráva, na které konverzace začne bez zvýraznění a dojíždění (přepnutí účtu ve spojené
+     * společné skupině, `ConversationRoute.restoreMessageId`); `null` = jako obvykle.
+     */
+    private val restoreMessageId: Long? = null,
+    /**
      * Vlákno komentářů: kořenová zpráva v diskusní skupině [chatId]; `null` u běžné konverzace.
      * Rozdíly ve zdroji zpráv řeší [repository] (je to [ThreadConversationRepository]), tady jen
      * to, co je vidět: hlavička a citace kořene.
@@ -1017,6 +1022,39 @@ class ConversationViewModel(
     private var heldReads: List<Long>? = emptyList()
 
     /** Pustí hlášení přečtení; když se skákalo, podržené (nejnovější zprávy) propadne. */
+    /**
+     * Otevře okno kolem [messageId] a postaví ji k horní hraně, bez zvýraznění a bez dojíždění —
+     * uživatel na ní stál v konverzaci druhého účtu ([restoreMessageId]). `false`, když ji tenhle
+     * účet nemá (smazaná, starší než jeho historie).
+     */
+    private suspend fun restoreAt(messageId: Long): Boolean {
+        val loaded = _state.value.messages.any { it.id == messageId } || loadAround(messageId, requireTarget = true)
+        if (loaded) _state.update { it.copy(scrollTarget = ScrollTarget(messageId, ScrollAnchor.Top)) }
+        return loaded
+    }
+
+    /** Nejvyšší viditelná zpráva a jestli je seznam úplně dole ([reportVisibleTop]). */
+    private var visibleTop: Long? = null
+    private var visibleAtBottom: Boolean = true
+
+    /** Seznam hlásí, která zpráva je nahoře a jestli stojí u spodní hrany (`ConversationListEffects`). */
+    fun reportVisibleTop(messageId: Long?, atBottom: Boolean) {
+        visibleTop = messageId
+        visibleAtBottom = atBottom
+    }
+
+    /**
+     * Kde má začít tatáž konverzace v jiném účtu (`onSwitchAccount`): nejvyšší viditelná zpráva.
+     * Jen ve společné skupině nebo kanálu — tam mají účty tatáž id zpráv; soukromý chat a Uložené
+     * zprávy jsou v každém účtu jiná historie. `null` i u nejnovějších zpráv dole: druhý účet se
+     * otevře dole sám a přišlá zpráva by ho jinak nechala nad ní.
+     */
+    fun positionForAccountSwitch(): Long? {
+        if (!isSharedHistoryChat(chatId)) return null
+        if (visibleAtBottom && _state.value.reachedEnd) return null
+        return visibleTop
+    }
+
     private fun releaseReads(jumped: Boolean) {
         val held = heldReads ?: return
         heldReads = null
@@ -1262,11 +1300,15 @@ class ConversationViewModel(
                     }
                 }
                 // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
-                if (initialMessageId != null) {
-                    releaseReads(jumped = false)
-                    jumpToMessage(initialMessageId, fromSearch = true)
-                } else {
-                    releaseReads(jumped = loadUntilUnread())
+                when {
+                    initialMessageId != null -> {
+                        releaseReads(jumped = false)
+                        jumpToMessage(initialMessageId, fromSearch = true)
+                    }
+                    // Přepnutí účtu: tam, kde uživatel v druhém účtu četl; nejde-li (zpráva v tomhle
+                    // účtu není), jako obvykle.
+                    restoreMessageId != null -> releaseReads(jumped = restoreAt(restoreMessageId) || loadUntilUnread())
+                    else -> releaseReads(jumped = loadUntilUnread())
                 }
             }.onFailure { releaseReads(jumped = false) }
             composer.draftRestored.complete(Unit)
