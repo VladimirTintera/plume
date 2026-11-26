@@ -1157,6 +1157,11 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       seznamem témat prvního účtu otevřely celé Uložené zprávy druhého a zpět vedlo do témat
       prvního. Stejné téma v druhém účtu se nehledá: id témat patří účtu a téma podle
       zdrojového chatu tam být nemusí.
+    - **Ověřeno na emulátoru Fold** (složený, anglicky): Uložené zprávy hlavního účtu → „View as
+      chats" → v liště fotka hlavního účtu → výběr VT → seznam témat VT („My Notes" s jeho
+      odkazem, fotka VT). Téma „My Notes" za VT → výběr hlavního účtu u pole → seznam témat
+      hlavního účtu (My Notes, Notifikator…), zpět vede do seznamu chatů. **Neověřené:** téma
+      ve vedlejším sloupci na rozloženém displeji, desktop.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
