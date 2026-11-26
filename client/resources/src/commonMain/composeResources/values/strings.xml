@@ -2643,6 +2643,13 @@
     <string name="notification_channel_model_download">AI model download</string>
     <string name="notification_channel_model_download_description">Progress of downloading the on-device AI model</string>
     <string name="model_download_notification_title">Downloading %1$s</string>
+    <string name="notification_channel_uploads">Sending files</string>
+    <string name="notification_channel_uploads_description">Keeps sending files while the app is in the background</string>
+    <plurals name="upload_notification_title">
+        <item quantity="one">Sending %1$d file</item>
+        <item quantity="other">Sending %1$d files</item>
+    </plurals>
+    <string name="upload_notification_progress">%1$s of %2$s</string>
     <string name="model_download_notification_waiting">Waiting for connection</string>
     <string name="model_download_notification_stop">Stop</string>
     <string name="model_download_notification_done">%1$s downloaded</string>

@@ -46,7 +46,7 @@ Teď je prázdné.
   na YouTube jako neveřejné video. Bez deklarace Play vydání s těmi oprávněními nepustí.
   Jedno video z videohovoru stačí na všechny čtyři typy hovoru, pokud je v něm kamera,
   sdílení obrazovky a odchod z aplikace. Kdo co v kódu spouští: `CallService`,
-  `MusicPlaybackService`, `LiveLocationService` a `ModelDownloadWorker`, typy jsou
+  `MusicPlaybackService`, `LiveLocationService`, `ModelDownloadWorker` a `UploadKeepAliveWorker`, typy jsou
   v `AndroidManifest.xml` vstupního bodu. Popisy níž jsou návrhy, anglicky, protože je čte
   recenzent Googlu. Názvy úloh kromě kamery jsou odhad: zaškrtnout tu, která odpovídá
   smyslu; „Jiné" jen tehdy, když nesedí nic, protože vede k delší ruční kontrole.
@@ -101,6 +101,14 @@ Teď je prázdné.
     > suggestions. The download is started explicitly by the user, runs as a WorkManager task
     > in a foreground service with a progress notification and Stop, and continues if the
     > user leaves the app. It stops when the download finishes or the user cancels it.
+    >
+    > When the user sends a photo, video or file in a chat and leaves the app before the upload
+    > finishes, a WorkManager task in a foreground service keeps the upload running and shows
+    > its progress in a notification. It starts only when the user sends the file and stops as
+    > soon as the upload finishes, is cancelled, or makes no progress for five minutes.
+
+    Druhé video k témuž typu: v chatu poslat delší video, odejít z aplikace, průběh
+    „Odesílám 1 soubor" v notifikaci a zpráva odejde (`UploadKeepAliveWorker`).
 
 ## Zveřejnění zdrojáků
 

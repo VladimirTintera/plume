@@ -2715,6 +2715,14 @@
     <string name="notification_channel_model_download">Stahování modelu AI</string>
     <string name="notification_channel_model_download_description">Průběh stahování jazykového modelu do telefonu</string>
     <string name="model_download_notification_title">Stahuji %1$s</string>
+    <string name="notification_channel_uploads">Odesílání souborů</string>
+    <string name="notification_channel_uploads_description">Dokončí odesílání souborů i s aplikací na pozadí</string>
+    <plurals name="upload_notification_title">
+        <item quantity="one">Odesílám %1$d soubor</item>
+        <item quantity="few">Odesílám %1$d soubory</item>
+        <item quantity="other">Odesílám %1$d souborů</item>
+    </plurals>
+    <string name="upload_notification_progress">%1$s z %2$s</string>
     <string name="model_download_notification_waiting">Čekám na připojení</string>
     <string name="model_download_notification_stop">Zastavit</string>
     <string name="model_download_notification_done">Model %1$s je stažený</string>
