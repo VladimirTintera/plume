@@ -196,22 +196,39 @@ internal fun MergedChatActionsHosts(
  * a kterému patří jeho akce. Klíč položky nese účet, protože totéž id má chat ve dvou účtech
  * (společná skupina, soukromý chat s týmž člověkem).
  *
- * [alsoIn]: spojená společná skupina nebo kanál ([isSharedHistoryChat]) — účty, které v chatu
- * jsou taky. Řádek pak nese odznaky všech a klíč bez účtu, ať se nepřeskládá, když se změní
- * účet, kterým se chat otevírá.
+ * [others]: spojený řádek ([mergedChatGroups]) — tentýž chat v ostatních účtech, s id chatu
+ * v nich (Uložené zprávy mají v každém účtu jiné). Řádek pak nese odznaky všech a klíč bez
+ * účtu, ať se nepřeskládá, když se změní účet, kterým se otevírá.
  */
-internal data class MergedChat(val source: Int, val chat: ChatSummary, val alsoIn: List<Int> = emptyList()) {
-    val key: String get() = if (alsoIn.isEmpty()) "$source:${chat.id}" else "shared:${chat.id}"
+internal data class MergedChat(
+    val source: Int,
+    val chat: ChatSummary,
+    val others: List<MergedInstance> = emptyList(),
+    /** Čím se výskyty poznaly jako tentýž chat ([mergeKey]); `null` u řádku jednoho účtu. */
+    val mergeKey: String? = null,
+) {
+    val key: String get() = mergeKey?.let { "shared:$it" } ?: "$source:${chat.id}"
 
     /** Účty řádku: ten, kterým se otevře, a pak ostatní. */
-    val sources: List<Int> get() = listOf(source) + alsoIn
+    val sources: List<Int> get() = listOf(source) + others.map { it.source }
+
+    /** Výskyty řádku (účet a id chatu v něm), v pořadí [sources]. */
+    val instances: List<MergedInstance> get() = listOf(MergedInstance(source, chat.id)) + others
 }
+
+/** Výskyt spojeného chatu: pořadí účtu a id chatu v tom účtu. */
+internal data class MergedInstance(val source: Int, val chatId: Long)
 
 /** Vstup [mergedChatGroups] za jeden účet: jeho chaty a co z nich nevidět nebo vynořit. */
 internal data class MergeSource(
     val chats: List<ChatSummary>,
     val hiddenSavedMessagesChatId: Long? = null,
     val due: Set<Long> = emptySet(),
+    /**
+     * Id Uložených zpráv účtu, tedy jeho vlastní user id, i když se v seznamu neukazují.
+     * Podle něj se spojí Uložené zprávy účtů a pozná chat s jiným vlastním účtem.
+     */
+    val savedMessagesChatId: Long? = null,
 )
 
 /**
@@ -223,18 +240,27 @@ internal data class MergeSource(
  *   TDLib: co si uživatel připnul, nesmí zmizet jen proto, že se dívá na všechny účty.
  * - **Ostatní podle data poslední zprávy.** `ChatPosition.order` je číslo uvnitř jednoho účtu
  *   a mezi účty se porovnat nedá; chat bez zprávy jde na konec, při shodě rozhoduje `order`.
- * - **Společná skupina nebo kanál je jednou** (viz „Spojené společné skupiny" v návrhu): mají
- *   v obou účtech tutéž historii. Stojí tam, kam ji posílá nejvyšší z jejích výskytů (připnutá
- *   v jednom účtu je mezi připnutými) a otevře se účtem z [preferred] (kterým se do ní psalo
- *   naposledy), jinak tím z toho výskytu. Nepřečtené ukazuje nejvyšší ze všech účtů: jsou to
- *   tytéž zprávy, součet by je počítal dvakrát.
- * - **Ostatní chat ve dvou účtech je dvakrát**: soukromý chat (i s botem) je v každém účtu jiná
- *   konverzace a obyčejná skupina má v každém účtu jiná id zpráv.
+ * - **Chat, který má víc účtů, je jednou** ([mergeKey]; kroky 24 a 25 návrhu). Stojí tam,
+ *   kam ho posílá nejvyšší z jeho výskytů (připnutý v jednom účtu je mezi připnutými).
+ *   - **Společná skupina nebo kanál** má v obou účtech tutéž historii: otevře se účtem
+ *     z [preferred] (kterým se do ní psalo naposledy), jinak tím z nejvyššího výskytu.
+ *     Nepřečtené nejvyšší z účtů — jsou to tytéž zprávy, součet by je počítal dvakrát.
+ *   - **Soukromý chat a Uložené zprávy** mají v každém účtu jinou historii: řádek ukazuje
+ *     a otevírá výskyt s nepřečtenými, jinak ten s nejnovější zprávou (při shodě [preferred]).
+ *     Nepřečtené se sčítají — každý účet má jiné zprávy.
+ *   - **Uložené zprávy** se spojí i s těmi, které druhý účet v seznamu neukazuje (nepřipnuté):
+ *     stačí, že je vidět jeden výskyt.
+ * - **Obyčejná skupina ve dvou účtech je dvakrát**: má v každém účtu jiná id zpráv a řádek by
+ *   nevěděl, které nepřečtené ukázat. Chat s jiným vlastním účtem taky — v tom druhém je totéž
+ *   id jeho Uložených zpráv.
  *
  * [preferred]: id chatu → pořadí účtu, kterým ho otevřít.
  */
 internal fun mergedChatGroups(sources: List<MergeSource>, preferred: Map<Long, Int> = emptyMap()): List<List<MergedChat>> {
-    class Entry(val source: Int, val chat: ChatSummary, val rank: Int)
+    class Entry(val source: Int, val chat: ChatSummary, val rank: Int, val key: String?)
+    val ownIds = sources.mapNotNull { it.savedMessagesChatId }.toSet()
+    // Dokud některý účet nezná své id, nejde chat s vlastním účtem poznat: soukromé se nespojují.
+    val ownIdsKnown = sources.all { it.savedMessagesChatId != null }
     val entries = buildList {
         sources.forEachIndexed { index, source ->
             chatGroups(source.chats, source.hiddenSavedMessagesChatId, source.due).flatten().forEach { chat ->
@@ -244,16 +270,25 @@ internal fun mergedChatGroups(sources: List<MergeSource>, preferred: Map<Long, I
                     chat.isPinned -> RANK_PINNED
                     else -> RANK_REST
                 }
-                add(Entry(index, chat, rank))
+                add(Entry(index, chat, rank, mergeKey(chat, source.savedMessagesChatId, ownIds, ownIdsKnown)))
             }
         }
     }
-    // Výskyty spojitelných chatů ve víc účtech, v pořadí účtů.
-    val shared = entries.filter { it.chat.mergesAcrossAccounts() }.groupBy { it.chat.id }.filterValues { it.size > 1 }
+    val instancesByKey = entries.filter { it.key != null }.groupBy { it.key!! }.toMutableMap()
+    // Uložené zprávy, které účet neukazuje (nepřipnuté), se přidají k viditelným z jiného účtu.
+    instancesByKey[SAVED_MESSAGES_KEY]?.let { visible ->
+        val hidden = sources.mapIndexedNotNull { index, source ->
+            if (visible.any { it.source == index }) return@mapIndexedNotNull null
+            val id = source.savedMessagesChatId ?: return@mapIndexedNotNull null
+            source.chats.firstOrNull { it.id == id }?.let { Entry(index, it, RANK_HIDDEN, SAVED_MESSAGES_KEY) }
+        }
+        instancesByKey[SAVED_MESSAGES_KEY] = (visible + hidden).sortedBy { it.source }
+    }
+    val shared = instancesByKey.filterValues { it.size > 1 }
 
     val buckets = List(RANK_REST + 1) { mutableListOf<MergedChat>() }
     entries.forEach { entry ->
-        val instances = shared[entry.chat.id]
+        val instances = entry.key?.let(shared::get)
         if (instances == null) {
             buckets[entry.rank] += MergedChat(entry.source, entry.chat)
             return@forEach
@@ -261,17 +296,28 @@ internal fun mergedChatGroups(sources: List<MergeSource>, preferred: Map<Long, I
         // Řádek stojí jen na místě nejvyššího výskytu, ostatní výskyty vypadnou.
         val best = instances.minBy { it.rank }
         if (entry !== best) return@forEach
-        val opener = instances.firstOrNull { it.source == preferred[entry.chat.id] } ?: best
+        val sharedHistory = isSharedHistoryChat(entry.chat.id)
+        val favourite = instances.firstOrNull { it.source == preferred[it.chat.id] }
+        val opener = if (sharedHistory) {
+            favourite ?: best
+        } else {
+            val candidates = instances.filter { it.chat.hasUnread }.ifEmpty { instances }
+            val newest = candidates.maxOf { it.chat.lastMessageTimestamp ?: Int.MIN_VALUE }
+            val latest = candidates.filter { (it.chat.lastMessageTimestamp ?: Int.MIN_VALUE) == newest }
+            latest.firstOrNull { it === favourite } ?: latest.first()
+        }
+        fun count(of: (ChatSummary) -> Int) = instances.map { of(it.chat) }.let { if (sharedHistory) it.max() else it.sum() }
         val chat = opener.chat.copy(
-            unreadCount = instances.maxOf { it.chat.unreadCount },
-            unreadMentionCount = instances.maxOf { it.chat.unreadMentionCount },
-            unreadReactionCount = instances.maxOf { it.chat.unreadReactionCount },
-            unreadPollVoteCount = instances.maxOf { it.chat.unreadPollVoteCount },
+            unreadCount = count { it.unreadCount },
+            unreadMentionCount = count { it.unreadMentionCount },
+            unreadReactionCount = count { it.unreadReactionCount },
+            unreadPollVoteCount = count { it.unreadPollVoteCount },
             isMarkedAsUnread = instances.any { it.chat.isMarkedAsUnread },
             // Připínáček podle místa řádku, ne podle účtu, kterým se otevře.
             isPinned = best.chat.isPinned,
         )
-        buckets[entry.rank] += MergedChat(opener.source, chat, instances.map { it.source } - opener.source)
+        val others = instances.filter { it !== opener }.map { MergedInstance(it.source, it.chat.id) }
+        buckets[entry.rank] += MergedChat(opener.source, chat, others, entry.key)
     }
     buckets[RANK_REST].sortWith(
         compareByDescending<MergedChat> { it.chat.lastMessageTimestamp ?: Int.MIN_VALUE }.thenByDescending { it.chat.order },
@@ -279,13 +325,30 @@ internal fun mergedChatGroups(sources: List<MergeSource>, preferred: Map<Long, I
     return buckets.filter { it.isNotEmpty() }
 }
 
+/** Má chat co číst: nepřečtené zprávy, nebo ruční příznak. */
+private val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
+
 /**
- * Chat, který se ve společném seznamu spojí přes účty: supergroupa nebo kanál s tímtéž obsahem
- * v obou účtech. Ne reklama, ne přímé zprávy kanálu (správce je čte po vláknech odběratelů,
- * odběratel má vlastní vlákno).
+ * Podle čeho se výskyt chatu spojí s výskytem v jiném účtu ([mergedChatGroups]); `null` = nespojuje
+ * se. Uložené zprávy mají v každém účtu jiné id, proto společný klíč; ostatní spojuje id chatu.
+ *
+ * - Ne reklama, tajný chat (id jen v jednom účtu) a přímé zprávy kanálu (správce je čte po
+ *   vláknech odběratelů, odběratel má vlastní vlákno).
+ * - Supergroupa a kanál ([isSharedHistoryChat]) a soukromý chat (kladné id, i bot) ano.
+ * - Chat s jiným vlastním účtem ([ownIds]) ne — v něm je to id jeho Uložených zpráv.
  */
-internal fun ChatSummary.mergesAcrossAccounts(): Boolean =
-    isSharedHistoryChat(id) && sponsor == null && !isSecret && !isDirectMessages
+internal fun mergeKey(chat: ChatSummary, savedMessagesChatId: Long?, ownIds: Set<Long>, ownIdsKnown: Boolean): String? = when {
+    chat.sponsor != null || chat.isSecret || chat.isDirectMessages -> null
+    savedMessagesChatId != null && chat.id == savedMessagesChatId -> SAVED_MESSAGES_KEY
+    isSharedHistoryChat(chat.id) -> chat.id.toString()
+    ownIdsKnown && chat.id > 0 && chat.id !in ownIds -> chat.id.toString()
+    else -> null
+}
+
+private const val SAVED_MESSAGES_KEY = "saved"
+
+/** Uložené zprávy, které účet v seznamu neukazuje: přidají se jen ke spojenému řádku. */
+private const val RANK_HIDDEN = Int.MAX_VALUE
 
 private const val RANK_SPONSORED = 0
 private const val RANK_REMINDED = 1
@@ -328,10 +391,10 @@ internal fun MergedChatListContent(
     // u seznamu jednoho účtu (`ChatListContent`). Bez toho se v režimu Všechny účty „Fully drawn"
     // neohlásil vůbec (Play vitals, měření startu).
     ReportDrawnWhen { states.any { it !is ChatListState.Loading } }
-    val groups = remember(ready, hidden, contexts.map { it.snoozes.due }, preferred) {
+    val groups = remember(ready, hidden, contexts.map { it.snoozes.due }, contexts.map { it.savedMessagesChatId }, preferred) {
         mergedChatGroups(
             ready.mapIndexed { index, chats ->
-                MergeSource(chats.orEmpty(), hidden[index], contexts[index].snoozes.due)
+                MergeSource(chats.orEmpty(), hidden[index], contexts[index].snoozes.due, contexts[index].savedMessagesChatId)
             },
             preferred,
         )
@@ -432,13 +495,13 @@ internal fun rememberPreferredSources(sources: List<ChatSource>): Map<Long, Int>
     }
 }
 
-/** Je řádek otevřený v detailu? U spojené skupiny v kterémkoli z jejích účtů. */
+/** Je řádek otevřený v detailu? U spojeného řádku v kterémkoli z jeho účtů. */
 internal fun MergedChat.isOpen(sources: List<ChatSource>, selected: Pair<AccountSlot, Long>?): Boolean =
-    selected != null && selected.second == chat.id && this.sources.any { sources[it].account.slot == selected.first }
+    selected != null && instances.any { sources[it.source].account.slot == selected.first && it.chatId == selected.second }
 
 /** Odznaky účtů spojeného řádku; `null` = řádek jednoho účtu, odznak dá jeho [ChatRowsContext]. */
 internal fun MergedChat.accounts(sources: List<ChatSource>): List<BadgeAccount>? =
-    if (alsoIn.isEmpty()) null else this.sources.mapNotNull { index -> sources[index].let { s -> s.info?.let { BadgeAccount(it, s.account) } } }
+    if (others.isEmpty()) null else this.sources.mapNotNull { index -> sources[index].let { s -> s.info?.let { BadgeAccount(it, s.account) } } }
 
 /** [ChatRowsContext] jednoho účtu společného seznamu, s odznakem účtu. */
 @Composable

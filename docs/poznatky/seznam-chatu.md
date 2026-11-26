@@ -1407,11 +1407,12 @@ rozhodnutí je v `docs/navrh-vice-uctu.md`
   seznam se ve snímku výměny potkají v jednom `SharedTransitionLayout`. Se stejnými klíči
   aplikace padala (`docs/navrh-vice-uctu.md`, krok 15). Kdo přidává sdílený prvek, bere klíč
   přes `sharedKey`.
-- **Společná supergroupa nebo kanál je jeden řádek** (`MergedChat.alsoIn`, klíč `shared:<id>`,
-  krok 24 návrhu). Kdo porovnává řádek s otevřeným chatem, bere všechny jeho účty
-  (`MergedChat.isOpen`), ne jen ten, kterým se otevírá — po přepnutí účtu v konverzaci by
-  zvýraznění v seznamu zhaslo. Odznaky dává `MergedChat.accounts`, akce dál ViewModel účtu,
-  kterým se řádek otevírá.
+- **Chat, který má víc účtů, je jeden řádek** (`MergedChat.others`, klíč `shared:<mergeKey>`,
+  kroky 24 a 25 návrhu): společná skupina nebo kanál, soukromý chat a Uložené zprávy. Kdo
+  porovnává řádek s otevřeným chatem, bere všechny jeho výskyty (`MergedChat.isOpen`
+  přes `instances`) i s id chatu — Uložené zprávy ho mají v každém účtu jiné a po přepnutí účtu
+  v konverzaci by zvýraznění v seznamu zhaslo. Odznaky dává `MergedChat.accounts`, akce dál
+  ViewModel účtu, kterým se řádek otevírá.
 - **Archiv má ViewModel za účet A složku** (klíč `chats-all-archive-<slot>`): sdílet ho
   s hlavním seznamem by přepínalo složku pod rukama.
 

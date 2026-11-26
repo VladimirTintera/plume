@@ -313,14 +313,15 @@ private fun MergedCollapsedChats(accounts: CollapsedAccounts, listState: LazyLis
     val states = sources.map { source -> key(source.account.slot) { source.viewModel.state.collectAsStateWithLifecycle().value } }
     val hidden = sources.map { source -> key(source.account.slot) { source.viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle().value } }
     val due = sources.map { source -> key(source.account.slot) { source.viewModel.snoozeState.collectAsStateWithLifecycle().value.due } }
+    val saved = sources.map { source -> key(source.account.slot) { source.viewModel.savedMessagesChatId.collectAsStateWithLifecycle().value } }
     val ready = states.map { (it as? ChatListState.Ready)?.chats }
     val preferred = rememberPreferredSources(sources)
     if (ready.all { it == null }) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
         return
     }
-    val chats = remember(ready, hidden, due, preferred) {
-        mergedChatGroups(ready.mapIndexed { index, chats -> MergeSource(chats.orEmpty(), hidden[index], due[index]) }, preferred).flatten()
+    val chats = remember(ready, hidden, due, saved, preferred) {
+        mergedChatGroups(ready.mapIndexed { index, chats -> MergeSource(chats.orEmpty(), hidden[index], due[index], saved[index]) }, preferred).flatten()
     }
     LaunchedEffect(anchorKey) {
         val index = chats.indexOfFirst { it.key == anchorKey }

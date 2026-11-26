@@ -878,6 +878,7 @@
     <string name="conversation_account_switch_current">Píšete jako %1$s. Změnit účet</string>
     <string name="conversation_account_switch_title">Psát za účet</string>
     <string name="conversation_account_switch_text">V tomhle chatu jste z víc účtů. Zprávy, reakce i odpovědi odejdou z toho, který vyberete.</string>
+    <string name="conversation_account_switch_text_separate">Každý účet tu má vlastní konverzaci. Po přepnutí uvidíte zprávy vybraného účtu a budete psát z něj.</string>
     <string name="conversation_input_caption">Popisek</string>
     <string name="conversation_save_edit">Uložit úpravu</string>
     <string name="conversation_record_voice">Nahrát hlasovou zprávu</string>
