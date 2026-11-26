@@ -1,6 +1,12 @@
 package eu.tintera.plume.core.accounts
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -14,6 +20,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -109,7 +116,7 @@ fun AccountBadge(
         modifier = modifier
             .offset(x = (-4).dp, y = 4.dp)
             .then(flight)
-            .badgeFlight(chatId, account)
+            .badgeFlight(chatId, account, layer = 1)
             .background(rim, CircleShape)
             .padding(2.dp),
     )
@@ -129,7 +136,21 @@ data class BadgeAccount(val info: AccountInfo, val session: AccountSession? = nu
  * ve společném seznamu. Každý další leží o kus vpravo nad předchozím, s obroučkou [rim], takže
  * se od sebe odliší i stejně barevné fotky. S jedním účtem je to [AccountBadge], s žádným nic.
  * [chatId] jako u [AccountBadge]: do hlavičky konverzace přiletí odznak účtu, kterým se otevřela.
- * [flight] dostane účet odznaku, ať má každý z odznaků přes sebe vlastní let.
+ * [flight] dostane účet odznaku a jeho vrstvu (čím vyšší, tím víc navrchu), ať má každý
+ * z odznaků přes sebe vlastní let.
+ *
+ * **Vepředu je odznak účtu kolem** ([LocalAccount]: účet, ve kterém se řádek kreslí a chat
+ * otevře, v hlavičce účet, kterým se píše) — první zleva a navrchu, ostatní za ním v pořadí
+ * [accounts], každý další o vrstvu níž. Řádek i hlavička konverzace mají tytéž odznaky v témž
+ * pořadí, takže při otevření každý přiletí na své místo; přepnutí účtu v konverzaci vymění
+ * obrazovku a odznaky se při tom samy přeskládají (vybraný přejede dopředu). Dřív ležel odznak
+ * účtu řádku pod ostatními a do hlavičky letěl sám: horní při otevření zmizel a vepředu skočila
+ * jiná fotka, při návratu mu po doletu vyskočil přes něj.
+ *
+ * **Změna pořadí se přetočí** (pružina z `MotionScheme`): odznak přejede ze starého místa na
+ * nové a nová vrstva platí hned, takže vybraný jede dopředu NAD ostatními. [enterFrom] je pořadí
+ * (id účtů), ve kterém odznaky stály naposledy jinde — hlavička konverzace po přepnutí účtu je
+ * nová obrazovka a bez něj by odznaky rovnou stály na novém místě.
  */
 @Composable
 fun AccountBadges(
@@ -138,15 +159,24 @@ fun AccountBadges(
     modifier: Modifier = Modifier,
     size: Dp = 18.dp,
     chatId: Long? = null,
-    flight: @Composable (AccountInfo) -> Modifier = { Modifier },
+    flight: @Composable (account: AccountInfo, layer: Int) -> Modifier = { _, _ -> Modifier },
+    enterFrom: List<Long>? = null,
 ) {
     when (accounts.size) {
         0 -> Unit
         1 -> InAccount(accounts.single().session) {
-            AccountBadge(accounts.single().info, rim, modifier, size, chatId, flight(accounts.single().info))
+            AccountBadge(accounts.single().info, rim, modifier, size, chatId, flight(accounts.single().info, 1))
         }
         else -> Box(modifier.offset(x = (-4).dp, y = 4.dp)) {
-            accounts.take(MAX_STACKED_BADGES).forEachIndexed { index, account ->
+            val around = LocalAccount.current
+            // Stabilní řazení: účet kolem dopředu, ostatní v pořadí, jak přišly.
+            val stacked = accounts.sortedBy { if (it.session == null || it.session == around) 0 else 1 }.take(MAX_STACKED_BADGES)
+            val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+            stacked.forEachIndexed { index, account ->
+              key(account.info.id) {
+                val layer = stacked.size - index
+                val place = remember { Animatable((enterFrom?.indexOf(account.info.id)?.takeIf { it >= 0 } ?: index).toFloat()) }
+                LaunchedEffect(index) { place.animateTo(index.toFloat(), spec) }
                 InAccount(account.session) {
                     Avatar(
                         chatId = account.info.id,
@@ -154,22 +184,30 @@ fun AccountBadges(
                         avatarFileId = account.info.photoFileId,
                         size = size,
                         modifier = Modifier
-                            .padding(start = size * STACKED_BADGE_STEP * index)
-                            .then(flight(account.info))
-                            .badgeFlight(chatId, account.info)
+                            .zIndex(layer.toFloat())
+                            .offset { IntOffset(x = (size * STACKED_BADGE_STEP * place.value).roundToPx(), y = 0) }
+                            .then(flight(account.info, layer))
+                            .badgeFlight(chatId, account.info, layer)
                             .background(rim, CircleShape)
                             .padding(2.dp),
                     )
                 }
+              }
             }
         }
     }
 }
 
-/** Let odznaku [account] s avatarem chatu [chatId] ([chatAccountBadgeKey]); bez [chatId] nic. */
+/**
+ * Let odznaku [account] s avatarem chatu [chatId] ([chatAccountBadgeKey]); bez [chatId] nic.
+ * V překryvu nad avatarem (`0f`) a odznaky přes sebe podle [layer], jinak by se za letu prohodily.
+ */
 @Composable
-private fun Modifier.badgeFlight(chatId: Long?, account: AccountInfo): Modifier =
-    if (chatId == null) this else sharedNavElement(chatAccountBadgeKey(chatId, account.id), zIndexInOverlay = 1f)
+private fun Modifier.badgeFlight(chatId: Long?, account: AccountInfo, layer: Int): Modifier =
+    if (chatId == null) this else sharedNavElement(chatAccountBadgeKey(chatId, account.id), zIndexInOverlay = 1f + layer * BADGE_LAYER_STEP)
+
+/** O kolik výš v překryvu leží odznak o vrstvu výš; celá hromádka zůstane pod `2f`. */
+private const val BADGE_LAYER_STEP = 0.1f
 
 /** [content] v účtu [session] ([AccountScope]), nebo v tom kolem, když je `null`. */
 @Composable

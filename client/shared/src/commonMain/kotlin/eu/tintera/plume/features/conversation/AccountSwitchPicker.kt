@@ -13,6 +13,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -72,7 +73,10 @@ internal fun rememberChatAccounts(chatId: Long, enabled: Boolean): List<ChatAcco
     val shared = koinInject<SharedChats>()
     val signedIn by koinInject<Accounts>().all.collectAsStateWithLifecycle()
     val allAccounts by koinInject<AppSettings>().chatListAllAccounts.collectAsStateWithLifecycle()
-    val accounts by produceState(emptyList<ChatAccount>(), chatId, account.slot, signedIn, allAccounts, enabled) {
+    // Naposledy zjištěné účty, ať je má hned první snímek ([knownChatAccounts]).
+    val known = knownChatAccounts[account.slot to chatId]
+        ?.takeIf { list -> enabled && allAccounts && list.all { known -> signedIn.any { it.slot == known.slot } } }
+    val accounts by produceState(known ?: emptyList(), chatId, account.slot, signedIn, allAccounts, enabled) {
         val others = if (enabled) shared.counterparts(account.slot, chatId) else emptyList()
         value = if (others.isEmpty()) {
             emptyList()
@@ -82,9 +86,45 @@ internal fun rememberChatAccounts(chatId: Long, enabled: Boolean): List<ChatAcco
                 .sortedBy { counterpart -> signedIn.indexOfFirst { it.slot == counterpart.account.slot } }
                 .mapNotNull { (session, id) -> session.session.me().getOrNull()?.let { ChatAccount(session.slot, it, session, id) } }
         }
+        if (value.size > 1) {
+            value.forEach { knownChatAccounts[it.slot to it.chatId] = value }
+        } else if (enabled) {
+            knownChatAccounts.remove(account.slot to chatId)
+        }
     }
     return accounts
 }
+
+/**
+ * Naposledy zjištěné účty spojených chatů, pod každým jejich výskytem (účet, id chatu). Účty se
+ * zjišťují dotazem do TDLib ([SharedChats.counterparts]), takže hlavička nové obrazovky by
+ * v prvních snímcích měla jen odznak vlastního účtu a ostatní by doskočily — po přepnutí účtu
+ * v konverzaci (nová obrazovka) i po otevření z řádku. Jen hlavní vlákno (kompozice a její
+ * korutiny); účet, který se mezitím odhlásil, se z ní nepoužije.
+ */
+private val knownChatAccounts = HashMap<Pair<AccountSlot, Long>, List<ChatAccount>>()
+
+/**
+ * Pořadí odznaků (id účtů, vepředu účet konverzace), ve kterém je hlavička spojeného chatu
+ * [accounts] ukazovala naposledy, pro `AccountBadges(enterFrom)`; zároveň zapíše to současné.
+ * Přepnutí účtu otevře konverzaci znovu (nová obrazovka) a odznaky se v ní mají přeskládat ze
+ * starého pořadí, ne stát rovnou v novém. Zapisuje se jen při ZMĚNĚ pořadí, ne každou
+ * rekompozicí: odcházející obrazovka by jinak během přechodu přepsala pořadí té nové a příští
+ * otevření z řádku by se přeskládávalo zbytečně.
+ */
+@Composable
+internal fun rememberPreviousBadgeOrder(accounts: List<ChatAccount>?): List<Long>? {
+    if (accounts == null) return null
+    val current = LocalAccount.current.slot
+    val chat = accounts.map { it.slot to it.chatId }.toSet()
+    val previous = remember(chat) { lastBadgeOrder[chat] }
+    val order = accounts.sortedBy { if (it.slot == current) 0 else 1 }.map { it.info.id }
+    LaunchedEffect(chat, order) { lastBadgeOrder[chat] = order }
+    return previous
+}
+
+/** Pořadí odznaků v hlavičce po spojených chatech (výskyty chatu), viz [rememberPreviousBadgeOrder]. */
+private val lastBadgeOrder = HashMap<Set<Pair<AccountSlot, Long>>, List<Long>>()
 
 /**
  * Fotka účtu, kterým se do spojené společné skupiny píše, vlevo u pole; ťuknutí otevře výběr

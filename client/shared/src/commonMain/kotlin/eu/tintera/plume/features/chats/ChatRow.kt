@@ -601,7 +601,7 @@ internal fun ChatRow(
                     rim = containerColor,
                     modifier = Modifier.align(Alignment.BottomStart),
                     chatId = chat.id,
-                    flight = { collapseBadgeFlight(chat.id, it) },
+                    flight = { account, layer -> collapseBadgeFlight(chat.id, account, layer) },
                 )
             }
 
