@@ -596,7 +596,7 @@ internal fun ChatRow(
                     OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd), chatId = chat.id)
                 }
                 // Odznak účtu naproti tečce dostupnosti, s obroučkou barvou řádku jako ona.
-                AccountBadges(marks.accounts, rim = containerColor, modifier = Modifier.align(Alignment.BottomStart))
+                AccountBadges(marks.accounts, rim = containerColor, modifier = Modifier.align(Alignment.BottomStart), chatId = chat.id)
             }
 
             Column(Modifier.weight(1f)) {

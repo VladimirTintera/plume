@@ -247,7 +247,13 @@ internal fun ConversationTopBar(
                         // Kterým účtem se tu píše, když seznam míchá účty nebo chat patří jinému
                         // než výchozímu účtu (`rememberConversationAccount`). Jako odznak v seznamu.
                         shownAccount?.let { account ->
-                            AccountBadge(account, rim = MaterialTheme.colorScheme.surface, modifier = Modifier.align(Alignment.BottomStart))
+                            AccountBadge(
+                                account,
+                                rim = MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.align(Alignment.BottomStart),
+                                // Letí s avatarem ze seznamu chatů; ve vlákně ne, stejně jako avatar.
+                                chatId = info.id.takeIf { state.threadRootId == null },
+                            )
                         }
                         // Jako v seznamu chatů. Bez spojení je dostupnost stará hodnota.
                         if (shownConnection == null && state.presence is Presence.Online && !info.isSavedMessages) {

@@ -57,6 +57,14 @@ v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
 - **Ověřeno na emulátoru sondou** (Notifikátor podstrčený jako online v seznamu i hlavičce,
   necommituje se) a sérií surových snímků se zpomalenými animacemi, tam i zpět. Online
   kontakt se neotevírá — přečetly by se mu zprávy.
+- **Odznak účtu letí stejně** (`chatAccountBadgeKey`, `AccountBadge(chatId)` / `AccountBadges(chatId)`,
+  `zIndexInOverlay = 1f`) a problikával ze stejného důvodu jako tečka. Kdo přidá na avatar
+  další značku, která je v seznamu i v hlavičce, dá jí vlastní klíč taky.
+  - **Klíč odznaku nese id účtu, který odznak UKAZUJE**, ne slot kolem. Spojená společná
+    skupina má v řádku odznaky víc účtů přes sebe a hlavička jen ten, kterým se píše: přiletí
+    právě ten, ostatní protějšek nemají a odejdou s řádkem.
+  - **Klíč tečky nese slot účtu**, jako `chatAvatarKey`: soukromý chat s týmž člověkem je ve
+    společném seznamu z každého účtu jednou a dvě tečky s jedním klíčem by letěly jako jedna.
 
 **Na široké ploše jsou dva panely vždycky** (kromě prázdného seznamu, viz „Archiv"), i bez otevřeného chatu — vpravo je pak
 `ConversationPlaceholder`. Dřív dostal seznam bez konverzace celou šířku (`singlePane`), takže

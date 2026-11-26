@@ -439,8 +439,23 @@ fun chatTitleKey(chatId: Long): String = "chat-title-${LocalAccount.current.slot
  * sám (profil a tvář odesílatele tečku nemají), takže tečka mimo něj zůstávala na obrazovce:
  * avatar odletěl bez ní a tečka se k němu přilepila, až dosedl. Obě strany mají tutéž pružinu,
  * takže tečka drží roh avataru po celou dobu letu. Viz [OnlineDot].
+ *
+ * Nese slot účtu ze stejného důvodu jako [chatAvatarKey]: soukromý chat s týmž člověkem je ve
+ * společném seznamu z každého účtu jednou.
  */
-fun chatOnlineDotKey(chatId: Long): String = "chat-online-dot-$chatId"
+@Composable
+fun chatOnlineDotKey(chatId: Long): String = "chat-online-dot-${LocalAccount.current.slot.id}-$chatId"
+
+/**
+ * Odznak účtu na avataru (`AccountBadge`) letí VLASTNÍM sdíleným prvkem, ze stejného důvodu
+ * jako tečka dostupnosti ([chatOnlineDotKey]): avatar odletěl do hlavičky konverzace a odznak
+ * zůstal v řádku, pak problikl a objevil se až na dosednutém avataru.
+ *
+ * Klíč nese id účtu, který odznak UKAZUJE, ne slot kolem: spojená společná skupina má v řádku
+ * odznaky víc účtů přes sebe, hlavička jen ten, kterým se píše — a do ní má letět právě ten.
+ * Ostatní odznaky protějšek nemají a odejdou s řádkem.
+ */
+fun chatAccountBadgeKey(chatId: Long, accountId: Long): String = "chat-account-badge-$accountId-$chatId"
 
 /**
  * Letí fotka z mřížky sdílených médií v profilu, ne z bubliny v konverzaci?
