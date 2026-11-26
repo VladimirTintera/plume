@@ -499,10 +499,8 @@ Velikost: S / M / L.
   horní díl karty nad značkou přeposlání (`QuotePart`). **Samolepka, kolečko a velká emoji
   zůstávají s citací i přeposláním v bublině vědomě** — samostatná karta nad samolepkou je
   zkoušený a zamítnutý „třetí tvar" (`docs/poznatky/konverzace-zobrazeni.md`, „Přeposlaná zpráva").
-- **Odpověď na smazanou zprávu (S).** `showsQuote` je pravda, citovaná zpráva se nenajde — bublina
-  se vynutí, ale citace v ní není (fotka v prázdné bublině, žádné „Smazaná zpráva").
-  `resolveMissingQuotes` navíc při každé nové zprávě znovu volá `getMessage` na zprávy, které už
-  selhaly (selhání si nepamatuje); TDLib má na odpovědi `getRepliedMessage`.
+- ~~**Odpověď na smazanou zprávu**~~ — hotovo: zástupná citace „Smazaná zpráva" a bez opakovaných
+  dotazů (`docs/poznatky/konverzace-zobrazeni.md`, „Médium bez bubliny").
 - **Upravená fotka bez popisku má pruh popisku jen s „upraveno" (S).** `hasCaption`
   v `MediaMessageItem` zahrnuje `edited`.
 - **Jméno odesílatele nad kartou odkazu, jinde v bublině (S).** `LinkPreviewMessageItem` (i holé

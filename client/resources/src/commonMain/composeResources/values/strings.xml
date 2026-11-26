@@ -874,6 +874,7 @@
     <string name="conversation_edit_new_file">New file: %1$s</string>
     <string name="conversation_cancel_edit">Cancel the edit</string>
     <string name="conversation_reply">Reply</string>
+    <string name="quote_deleted">Deleted message</string>
     <string name="conversation_message_options">Message options</string>
     <string name="conversation_react">React</string>
     <string name="conversation_react_with">React %1$s</string>

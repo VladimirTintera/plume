@@ -758,6 +758,7 @@ private fun rememberConversationItems(state: ConversationState): List<Conversati
         state.readReceiptFor,
         state.lastReadOutboxMessageId,
         state.quotes,
+        state.deletedQuotes,
         state.highlightedMessageId,
         state.search?.current,
         state.flight,

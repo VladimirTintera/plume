@@ -342,6 +342,12 @@ class ConversationViewModel(
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /**
+     * Citované zprávy, na které se právě ptáme (viz [resolveMissingQuotes]). Jen z hlavního
+     * vlákna. Deklarace před `init`: inicializace jde v pořadí deklarací.
+     */
+    private val resolvingQuotes = mutableSetOf<Long>()
+
+    /**
      * Kam konverzace odchází — otevřít chat, obrazovku, příběh… (viz [ConversationNavEvent]).
      * Kanál: událost, která přijde, když obrazovka zrovna neodebírá, počká a doručí se jednou.
      */
@@ -2114,19 +2120,24 @@ class ConversationViewModel(
      * zprávách zadarmo. Tohle řeší zbytek — typicky odpověď na starou zprávu hluboko v historii.
      */
     private fun resolveMissingQuotes() {
-        val loaded = _state.value.messages.associateBy { it.id }
-        val missing = _state.value.messages
+        val current = _state.value
+        val loaded = current.messages.associateBy { it.id }
+        val missing = current.messages
             .mapNotNull { it.replyToMessageId }
-            .filter { it !in loaded && it !in _state.value.quotes }
+            .filter { it !in loaded && it !in current.quotes && it !in current.deletedQuotes && it !in resolvingQuotes }
             .distinct()
 
         if (missing.isEmpty()) return
+        // Volá se s každou novou zprávou; dotaz, který ještě běží, se nesmí poslat podruhé.
+        resolvingQuotes += missing
 
         viewModelScope.launch {
             missing.forEach { messageId ->
-                repository.message(chatId, messageId).onSuccess { quoted ->
-                    _state.update { it.copy(quotes = it.quotes + (messageId to quoted)) }
-                }
+                repository.message(chatId, messageId)
+                    .onSuccess { quoted -> _state.update { it.copy(quotes = it.quotes + (messageId to quoted)) } }
+                    // Smazaná zpráva: citace dostane zástupnou větu a dotaz se už neopakuje.
+                    .onFailure { _state.update { it.copy(deletedQuotes = it.deletedQuotes + messageId) } }
+                resolvingQuotes -= messageId
             }
         }
     }

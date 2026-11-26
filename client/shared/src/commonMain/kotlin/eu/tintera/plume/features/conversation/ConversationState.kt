@@ -628,6 +628,12 @@ data class ConversationState(
      */
     val quotes: Map<Long, ChatMessage> = emptyMap(),
     /**
+     * Citované zprávy, které se dohledat nepodařilo — smazané. Kreslí se za ně „Smazaná zpráva"
+     * (`deletedQuote`) a znovu se na ně neptá: dřív se dotaz opakoval s každou novou zprávou.
+     * TDLib na spojení čeká, takže selhání dotazu znamená, že zpráva není, ne výpadek sítě.
+     */
+    val deletedQuotes: Set<Long> = emptySet(),
+    /**
      * Protějšek přečetl odchozí zprávy až po tohle id včetně; `null`, dokud to nevíme.
      *
      * Neznámý není totéž co nula: s nulou by po otevření chatu dostala každá odchozí zpráva

@@ -538,6 +538,17 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun smazanaCitovanaZpravaMaZastupnouCitaci() {
+        // Citovaná zpráva se nedohledala: místo prázdné bubliny karta se „Smazaná zpráva".
+        val state = ConversationState(deletedQuotes = setOf(1L))
+        val item = assertIs<MediaMessageItem>(items(message(2, text = "", media = photo, replyToMessageId = 1), state = state)[0])
+        assertTrue(item.quoted?.isDeletedQuote == true)
+        // Dokud se na ni ještě ptáme, nic nevymýšlí.
+        val pending = assertIs<MediaMessageItem>(single(message(2, text = "", media = photo, replyToMessageId = 1)))
+        assertNull(pending.quoted)
+    }
+
+    @Test
     fun preposlanaFotkaZustavaNaPlose() {
         // Snímek nese značku v hlavičce vlastní karty, bublinu nepotřebuje.
         val origin = ForwardOrigin.User(userId = 5, name = "Jana")

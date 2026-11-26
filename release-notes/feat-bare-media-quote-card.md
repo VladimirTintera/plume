@@ -1,3 +1,3 @@
 type: fix
-cs: Fotka s citací je jedna karta a přeposlané video kolečko jde přepsat
-en: Quoted photos form a single card and forwarded video notes can be transcribed
+cs: Odpovědi u fotek a koleček vypadají jednotně, smazaná citace ukáže „Smazaná zpráva"
+en: Replies on photos and video notes look consistent; a deleted quote shows "Deleted message"

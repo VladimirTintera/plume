@@ -316,6 +316,16 @@ Messages.
   protože tam zrovna bylo. Naopak odpověď na zprávu z JINÉHO chatu (`externalReply`, i odpověď
   na příběh) `replyToMessageId` nemá, citaci kreslí, a fotka s ní šla na plochu bez citace.
   Ověřeno na emulátoru ve vlákně komentářů kanálu.
+- **Smazaná citovaná zpráva má zástupnou citaci „Smazaná zpráva"** (`deletedQuote`,
+  `ConversationState.deletedQuotes`, test `smazanaCitovanaZpravaMaZastupnouCitaci`). Citaci tahle
+  odpověď kreslí (`showsQuote`), takže si vynutila bublinu nebo hlavičku — a ta zůstala prázdná,
+  bez jediného slova proč. Kdo psal, už nevíme, takže citace má jen ten řádek a nikam neskáče.
+  - **Selhání dotazu = smazaná zpráva.** Chybu vrací wrapper a 404 od výpadku nerozliší, ale
+    TDLib na spojení čeká, takže dotaz offline nespadne, jen počká.
+  - **Na nedohledané citace se znovu neptá.** `resolveMissingQuotes` běží s každou novou zprávou
+    a dřív posílal `getMessage` na tutéž smazanou zprávu pořád dokola; teď si pamatuje selhání
+    i dotazy, které ještě běží (`resolvingQuotes`).
+  - Ověřeno na emulátoru: Notifikátor odpověděl fotkou a původní zprávu smazal (`deleteMessage`).
 - **Soubor, hlasovka ani samolepkový popis na plochu nejdou.** Jsou to řádky s textem a ikonou,
   ne obrázek — pozadí je to jediné, co je drží pohromadě.
 - **Reakce a odznak doručení plochu snesou.** Čipy reakcí mají vlastní pozadí a odznak je pod

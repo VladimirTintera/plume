@@ -467,7 +467,8 @@ internal fun MessageBodyScope.ReplyQuote(quote: ChatMessage, partnerName: String
         message = quote,
         partnerName = partnerName,
         // Citace z jiného chatu vede do toho chatu, stejně jako značka „Přeposláno od".
-        onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } }
+        // Na smazanou zprávu není kam skočit.
+        onClick = if (quote.isDeletedQuote) null else message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } }
             ?: message.externalReply?.target?.let { target -> { act(MessageAction.OpenForwardOrigin(target)) } }
             // Odpověď na příběh otevře příběh sám, ne chat jeho autora.
             ?: (message.externalReply?.quote?.media as? MessageMedia.Story)

@@ -186,9 +186,11 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
                 // konverzace citovaná zpráva není.
                 // Ve vlákně komentářů odpovídá kořeni skoro každý komentář — citace příspěvku nad
                 // každým z nich by byla jen opakování toho, co stojí nahoře.
+                // Smazaná citovaná zpráva dostane zástupnou citaci — jinak by si zpráva vynutila
+                // bublinu a citace v ní nebyla.
                 quoted = message.replyToMessageId
                     ?.takeIf { it != state.threadRootId }
-                    ?.let { id -> byId[id] ?: state.quotes[id] }
+                    ?.let { id -> byId[id] ?: state.quotes[id] ?: deletedQuote(id).takeIf { id in state.deletedQuotes } }
                     ?: message.externalReply?.quote,
                 // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje, takže citace by
                 // neměla koho uvést.
