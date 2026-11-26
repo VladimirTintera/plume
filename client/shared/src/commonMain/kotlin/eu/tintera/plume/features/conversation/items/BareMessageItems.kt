@@ -115,8 +115,10 @@ internal fun MessageBodyScope.VideoNoteWithTranscript(note: MessageMedia.VideoNo
             )
         }
     }
-    BelowWithSameWidth(
-        top = {
+    SameWidthStack(
+        stretch = false,
+        spacing = 6.dp,
+        anchor = {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (message.isOutgoing) button()
                 Attachment(media = note, accent = accent)

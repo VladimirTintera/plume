@@ -77,9 +77,9 @@ internal data class MediaMessageItem(
             // je jméno v ní (CardHeader).
             if (!hasHeader) SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
 
-            MediaWithCaption(
+            SameWidthStack(
                 modifier = if (isCard) Modifier.clip(shape) else Modifier,
-                header = {
+                above = {
                     if (hasHeader) {
                         Column {
                             quoted?.let { QuotePart(it, partnerName) }
@@ -87,7 +87,7 @@ internal data class MediaMessageItem(
                         }
                     }
                 },
-                media = {
+                anchor = {
                     if (album != null) {
                         Album(members = album, accent = surfaceAccent, shape = mediaShape)
                     } else {
@@ -112,7 +112,7 @@ internal data class MediaMessageItem(
                         }
                     }
                 },
-                caption = {
+                below = {
                     if (hasCaption) {
                         BubbleSurface {
                             PaddedColumn {
@@ -138,33 +138,6 @@ internal data class MediaMessageItem(
     }
 }
 
-/**
- * Hlavička snímku, pod ní snímek a pod ním popisek — hlavička i popisek s PŘESNĚ jeho šířkou.
- *
- * Vlastní layout, ne `IntrinsicSize`: snímek se kreslí v `BoxWithConstraints` (SubcomposeLayout),
- * a ten intrinsické míry neumí — aplikace by spadla (viz „Gotchas" v CLAUDE.md). Tady se snímek
- * změří normálně a popisek dostane jeho šířku jako pevnou.
- */
-@Composable
-private fun MediaWithCaption(
-    header: @Composable () -> Unit,
-    media: @Composable () -> Unit,
-    caption: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Layout(contents = listOf(header, media, caption), modifier = modifier) { (headerMeasurables, mediaMeasurables, captionMeasurables), constraints ->
-        val mediaPlaceables = mediaMeasurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-        val width = mediaPlaceables.maxOfOrNull { it.width } ?: 0
-        val fixed = Constraints(minWidth = width, maxWidth = width)
-        val headerPlaceables = headerMeasurables.map { it.measure(fixed) }
-        val captionPlaceables = captionMeasurables.map { it.measure(fixed) }
-        val height = (headerPlaceables + mediaPlaceables + captionPlaceables).sumOf { it.height }
-        layout(width, height) {
-            var y = 0
-            (headerPlaceables + mediaPlaceables + captionPlaceables).forEach { it.place(0, y); y += it.height }
-        }
-    }
-}
 
 /**
  * Tvar snímku uvnitř karty s popiskem nebo hlavičkou: nároží karty tam, kam snímek sahá (nahoře

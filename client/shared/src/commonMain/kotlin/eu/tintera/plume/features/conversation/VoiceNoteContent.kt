@@ -50,7 +50,7 @@ import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.tick
-import eu.tintera.plume.features.conversation.items.BelowWithSameWidth
+import eu.tintera.plume.features.conversation.items.SameWidthStack
 import eu.tintera.plume.features.conversation.items.TranscribeButton
 import eu.tintera.plume.features.conversation.items.TranscriptState
 import eu.tintera.plume.features.conversation.items.TranscriptText
@@ -96,9 +96,12 @@ internal fun VoiceNoteContent(
     modifier: Modifier = Modifier,
     transcript: TranscriptState? = null,
 ) {
-    BelowWithSameWidth(
+    // Přepis nemá bublinu rozšířit, zalomí se pod záznam.
+    SameWidthStack(
         modifier = modifier,
-        top = {
+        stretch = false,
+        spacing = 6.dp,
+        anchor = {
             VoiceRow(voice, playback, speed, onToggle, onSeek, onCycleSpeed, accent, onAccent, transcript)
         },
         below = {

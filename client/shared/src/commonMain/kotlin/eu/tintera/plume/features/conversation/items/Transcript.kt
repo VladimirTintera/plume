@@ -219,34 +219,6 @@ internal fun TranscriptBody(state: TranscriptState, color: Color, modifier: Modi
 
 private val TRANSCRIBE_BUTTON_SIZE = 32.dp
 
-/**
- * [top] a pod ním [below] zalomené na šířku [top]: přepis nemá bublinu rozšířit, má se zalomit
- * pod záznam. Vlastní `Layout`, ne `IntrinsicSize` — kolečko je `BoxWithConstraints`
- * a intrinsické míry neumí.
- */
-@Composable
-internal fun BelowWithSameWidth(
-    top: @Composable () -> Unit,
-    below: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    spacing: androidx.compose.ui.unit.Dp = 6.dp,
-) {
-    androidx.compose.ui.layout.Layout(contents = listOf(top, below), modifier = modifier) { (tops, belows), constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val topPlaceables = tops.map { it.measure(loose) }
-        val width = topPlaceables.maxOfOrNull { it.width } ?: 0
-        val topHeight = topPlaceables.maxOfOrNull { it.height } ?: 0
-        val belowPlaceables = belows.map {
-            it.measure(androidx.compose.ui.unit.Constraints(maxWidth = width))
-        }
-        val belowHeight = belowPlaceables.maxOfOrNull { it.height } ?: 0
-        val gap = if (belowHeight > 0) spacing.roundToPx() else 0
-        layout(width, topHeight + gap + belowHeight) {
-            topPlaceables.forEach { it.place(0, 0) }
-            belowPlaceables.forEach { it.place(0, topHeight + gap) }
-        }
-    }
-}
 
 /**
  * Rada, kterým modelem jde hlasovku přepsat v zařízení, s výčtem modelů ze zvukovým vstupem

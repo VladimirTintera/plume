@@ -281,7 +281,7 @@ Messages.
   vlastní kontejner v barvě bubliny pod snímkem. „Bez bubliny" platí pro obrázek, ne pro text u něj.
 - **Snímek s popiskem je JEDNA KARTA**, jako v Google Zprávách a jako náhled odkazu: tvar bubliny
   nese celá karta (`clip(shape)`), uvnitř nejsou spáry ani vlastní zaoblení a **popisek má přesně
-  šířku snímku** (`MediaWithCaption`). Dřív to byla skupina dvou kusů se spárou 2 dp a staženými
+  šířku snímku** (`SameWidthStack`, dřív `MediaWithCaption`). Dřív to byla skupina dvou kusů se spárou 2 dp a staženými
   nárožími a popisek byl široký jako jeho text — u krátkého čouhalo zaoblené nároží a vypadal jako
   další, useknutá zpráva, u dlouhého se roztáhl vedle zúžené fotky.
 - **Šířku popisku dává vlastní `Layout`, ne `IntrinsicSize`.** Snímek je v `BoxWithConstraints`
@@ -1561,7 +1561,7 @@ otevře kanál se skokem na původní zprávu (`ChatTarget(chatId, messageId)`),
 - **Značka je součást téže karty jako obsah, ne text nad ní.** Přeposlání je údaj O ZPRÁVĚ;
   volně nad holou fotkou (první verze) vypadala jako popisek něčeho jiného. V bublině je prvním
   řádkem, u holého snímku horní díl karty v barvě bubliny (`ForwardHeader`, protějšek popisku
-  pod snímkem — `MediaWithCaption` má proto hlavičku, snímek a popisek se stejnou šířkou),
+  pod snímkem — `SameWidthStack` má proto hlavičku, snímek a popisek se stejnou šířkou),
   a u karty odkazu v horním dílu s textem.
 - **Přeposlaná samolepka, kolečko a pár emoji si bublinu vynutí** (`needsCard` v `messageItem()`,
   testy `ConversationItemsTest`), stejně jako odpověď. Pravidlo je obecné: **holý obsah jde na

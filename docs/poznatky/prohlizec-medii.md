@@ -845,7 +845,7 @@ a `TranscribeOffer` (`core/telegram/SpeechRecognition.kt`, testy `TranscribeOffe
   nepoznáme — tlačítko se tam bez Premium nenabídne.
 - **Viditelnost přepisu je stav obrazovky** (`rememberSaveable` podle zprávy), výsledek stav
   zprávy. Přepis, který už ve zprávě je, je vidět hned.
-- **Přepis je pod záznamem zalomený na jeho šířku** (`BelowWithSameWidth`, vlastní `Layout`):
+- **Přepis je pod záznamem zalomený na jeho šířku** (`SameWidthStack`, vlastní `Layout`):
   dlouhý text nemá bublinu rozšířit.
 - **Hotový přepis jde kopírovat a vybrat** (`copyableText`), **přeložit ne** — server
   překládá text zprávy (`translateMessageText`) a přepis jím není.
