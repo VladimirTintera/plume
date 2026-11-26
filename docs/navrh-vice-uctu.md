@@ -1020,7 +1020,7 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       není co spojovat; přečtení i notifikace se pak mezi účty nepřenášejí (`SharedChats.active`).
     - **Řádek stojí na místě nejvyššího výskytu** (připnutá v jednom účtu je mezi připnutými,
       s připínáčkem) a otevře se účtem, kterým se do skupiny naposledy psalo
-      (`SharedChats.preferred`, jen do konce procesu), jinak účtem toho výskytu. Klíč řádku je
+      (`SharedChats.preferred`, natrvalo od kroku 30), jinak účtem toho výskytu. Klíč řádku je
       bez účtu (`shared:<id>`), ať se po přepnutí účtu nepřeskládá. Nepřečtené ukazuje nejvyšší
       z účtů: jsou to tytéž zprávy, součet by je počítal dvakrát. Zmínky a reakce taky
       nejvyšší, i když patří jednomu účtu.
@@ -1178,6 +1178,25 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - **Ověřeno na desktopu** (hlavní účet a VT): „Plume test triaze" i Notifikátor jsou ve
       výsledcích jednou s oběma odznaky; dvě zprávy „…jedna notifikace" ze společné skupiny jsou
       mezi zprávami každá jednou. **Neověřené:** Android, otevření podle `preferred`.
+
+30. **Účet chatu natrvalo a i po odeslání** — hotovo (`AppSettings.chatAccounts`,
+    `SharedChats.wroteWith`, testy v `DataStoreAppSettingsTest`):
+    - **Dřív jen v paměti a jen po výběru účtu.** Po zabití procesu (na Androidu běžné) se
+      skupina otevírala zase výchozím účtem, a kdo psal účtem, kterým se chat otevřel, nic
+      nezanechal — KDoc přitom sliboval „kterým se psalo naposledy".
+    - **Ukládá se do `AppSettings`** jako jeden řetězec „id:slot" od nejnovějšího, nejvýš
+      `MAX_CHAT_ACCOUNTS` (200); nejstarší volba vypadne. Nesynchronizuje se mezi zařízeními:
+      sloty jsou místní id účtů.
+    - **Zapisuje se i po odeslání vlastní zprávy** (text, přílohy, nahrávky — `readAfterOwnMessage`
+      v konverzaci), ale jen u chatu, který má i jiný účet (`counterparts`); chaty jednoho účtu by
+      mapu jen plnily. Samolepky a GIFy odesílá jiná cesta a volbu nezapíší.
+    - **Čte se jako dřív**: spojený řádek společné skupiny se otevře tímto účtem, u soukromého
+      chatu a Uložených zpráv rozhoduje jen při shodě (přednost mají nepřečtené a nejnovější
+      zpráva), ve výsledcích hledání určí účet výsledku.
+    - **Ověřeno na emulátoru Fold** („Plume test triaze", hlavní účet a VT): přepnutí na VT
+      zapsalo `chat_accounts` = `-1004345085150:63bf1a`; po `am force-stop` a novém startu je
+      u spojeného řádku první odznak VT (otevře se za VT). Zpráva odeslaná za hlavní účet volbu
+      přepsala na `-1004345085150:0`. **Neověřené:** desktop, soukromý chat a Uložené zprávy.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.

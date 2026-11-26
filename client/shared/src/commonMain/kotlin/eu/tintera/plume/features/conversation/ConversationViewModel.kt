@@ -2227,6 +2227,9 @@ class ConversationViewModel(
      * nic: přečtení hlásí seznam sám, jak se zprávy ukazují.
      */
     private fun readAfterOwnMessage() {
+        // Kterým účtem se do chatu, který má víc účtů, psalo naposledy: tím ho seznam a hledání
+        // otevřou příště (`SharedChats.preferred`).
+        sharedChats?.wroteWith(slot, chatId)
         if (settings.discreetReading.value) readNow()
     }
 

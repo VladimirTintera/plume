@@ -126,6 +126,34 @@ class DataStoreAppSettingsTest {
         assertEquals(emojis.last(), settings.recentEmojis.value.first())
     }
 
+    /**
+     * Účet chatu, který má víc účtů (`SharedChats.preferred`): nejnovější volba první a znovu
+     * zvolený chat se přesune na začátek s novým účtem, nepřidá se podruhé.
+     */
+    @Test
+    fun uctyChatuNejnovejsiPrvni() = settingsTest { settings, _ ->
+        val vt = AccountSlot("vt0001")
+        settings.recordChatAccount(7, AccountSlot.Primary)
+        settings.chatAccounts.awaitValue("chat 7") { it == mapOf(7L to AccountSlot.Primary) }
+        settings.recordChatAccount(-1_001_234_567_890, vt)
+        settings.chatAccounts.awaitValue("skupina první") { it.keys.firstOrNull() == -1_001_234_567_890L }
+        settings.recordChatAccount(7, vt)
+        val stored = settings.chatAccounts.awaitValue("chat 7 znovu, jiný účet") { it.keys.firstOrNull() == 7L }
+
+        assertEquals(listOf(7L to vt, -1_001_234_567_890L to vt), stored.toList())
+    }
+
+    @Test
+    fun uctuChatuJeNejvysStrop() = settingsTest { settings, _ ->
+        (0..MAX_CHAT_ACCOUNTS.toLong()).forEach { chatId ->
+            settings.recordChatAccount(chatId, AccountSlot.Primary)
+            settings.chatAccounts.awaitValue("účty chatů začínají $chatId") { it.keys.firstOrNull() == chatId }
+        }
+
+        assertEquals(MAX_CHAT_ACCOUNTS, settings.chatAccounts.value.size)
+        assertEquals(MAX_CHAT_ACCOUNTS.toLong(), settings.chatAccounts.value.keys.first())
+    }
+
     @Test
     fun odstinPletiSeUloziAZrusi() = settingsTest { settings, _ ->
         settings.setEmojiSkinTone("👍", "👍🏽")
