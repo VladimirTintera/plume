@@ -344,7 +344,12 @@ v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces
   ne naše), proces Plume zanikl a tím se ověřila i obnova: nový proces, TDLib rozeslanou
   zprávu obnovil, WorkManager úlohu spustil znovu, ta po 3 s povýšila na službu v popředí
   z pozadí („Sending 1 file · 94 MB of 250 MB"), soubor odešel a služba s notifikací zmizely.
-  **Neověřeno**: zrušení nahrávání křížkem a iOS (jen přeložené).
+  **Neověřeno**: iOS (jen přeložené).
+- **Zrušení křížkem ověřeno** (Fold, Android 17): soubor 250 MB, během nahrávání křížek
+  v kolečku průběhu a hned Domů. Zpráva zmizela a úloha skončila 8 s po ťuknutí (5 s bez
+  nahrávání a vteřina mezi notifikacemi), se službou i notifikací. TDLib po `deleteMessages`
+  pošle `updateFile` s ukončeným nahráváním, takže `UploadMonitor` nezůstane viset na
+  zrušeném souboru (jinak by úlohu ukončil až pětiminutový limit bez posunu).
 - **Výběr souboru na emulátoru s Androidem 11 nereaguje na ťuknutí** (DocumentsUI ťuknutí
   na položku ani složku nepřijme, kořeny vlevo ano). Vybírá se klávesnicí:
   `input keyevent KEYCODE_DPAD_DOWN` na položku a `KEYCODE_ENTER`. Sdílení souboru přes
