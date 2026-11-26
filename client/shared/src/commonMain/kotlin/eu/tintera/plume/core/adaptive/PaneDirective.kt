@@ -18,7 +18,7 @@ import androidx.window.core.layout.computeWindowSizeClass
  * [THREE_PANE_MIN_WIDTH]). Velikostní třída se počítá z naměřené šířky content-oblasti (typicky
  * z `BoxWithConstraints`), ne z [currentWindowAdaptiveInfoV2] celého okna.
  *
- * Pozn.: posture (pant) se přebírá z okna; scéna ho zatím nepoužívá (`docs/navrh-scena-chatu.md`).
+ * Pant scéna nebere odsud (`excludedBounds`), ale přímo z polohy okna (`rememberBookHinge`).
  */
 @Composable
 fun contentPaneScaffoldDirective(width: Dp, height: Dp): PaneScaffoldDirective {

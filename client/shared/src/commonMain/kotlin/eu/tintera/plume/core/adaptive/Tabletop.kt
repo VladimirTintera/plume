@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.adaptive
 
 import androidx.compose.material3.adaptive.allHorizontalHingeBounds
+import androidx.compose.material3.adaptive.separatingVerticalHingeBounds
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -22,4 +23,19 @@ fun rememberTabletopHinge(): Rect? {
     return remember(posture) {
         if (posture.isTabletop) posture.allHorizontalHingeBounds.firstOrNull() else null
     }
+}
+
+/**
+ * Pant skládačky napůl otevřené „jako kniha": svislý ohyb, který okno dělí na levou a pravou
+ * půlku (`isSeparating`). Meze jsou v souřadnicích OKNA v pixelech; `null`, když okno pantem
+ * rozdělené není (telefon, plně otevřená skládačka, pozice stolek, desktop a iOS).
+ *
+ * Scéna panelů (`PaneScene`) na něj klade hranici dvou sloupců, jako to dřív dělal knihovní
+ * scaffold podle `excludedBounds` direktivy. Pant Pixel Foldu má nulovou šířku; pant, který část
+ * displeje zakrývá (`isOccluding`), má šířku a scéna ji mezi sloupci vynechá.
+ */
+@Composable
+fun rememberBookHinge(): Rect? {
+    val posture = currentWindowAdaptiveInfoV2().windowPosture
+    return remember(posture) { posture.separatingVerticalHingeBounds.firstOrNull() }
 }
