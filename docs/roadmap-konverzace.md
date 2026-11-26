@@ -507,11 +507,9 @@ Velikost: S / M / L.
 
 **Co chybí**
 
-- **Bohatší náhledy odkazů `t.me` (M).** `TdlLinkPreview.toDomain()` bere obrázek jen z článku,
-  fotky, videa a dvou vložených přehrávačů. Odkaz na kanál, uživatele, zprávu, sadu samolepek
-  nebo příběh (`LinkPreviewTypeChat`, `…User`, `…Message`, `…StickerSet`, `…Story`…) tak zůstane
-  kartou jen s textem, bez fotky a bez tlačítka („Zobrazit kanál"). Totéž náhled typu samolepka,
-  GIF a dokument.
+- ~~**Bohatší náhledy odkazů `t.me`**~~ — hotovo: profilovka v kruhu, značka „Zobrazit kanál" a další,
+  ukázka sady samolepek (`docs/poznatky/konverzace-zobrazeni.md`, „Náhled odkazu"). Zbývá: náhled
+  typu GIF, dokument a album (TDLib je posílá, kreslí se jen text).
 
 **Úklid kódu (uživatel nepozná)**
 

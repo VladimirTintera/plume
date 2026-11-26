@@ -186,7 +186,8 @@ internal fun MessageMedia.Document.loadsOriginalPreview(limit: Long): Boolean =
  */
 internal fun showsLinkPreviewCard(message: ChatMessage, threadRootId: Long? = null): Boolean {
     val preview = message.linkPreview ?: return false
-    val hasContent = preview.photo != null || preview.siteName != null || preview.title != null || preview.description != null
+    val hasContent = preview.photo != null || preview.siteName != null || preview.title != null || preview.description != null ||
+        preview.stickers.isNotEmpty()
     return hasContent && message.media == null && !message.showsQuote(threadRootId)
 }
 
@@ -235,7 +236,7 @@ internal fun collapsesLongText(message: ChatMessage, searchQuery: String?): Bool
 internal const val COLLAPSED_QUOTE_LINES = 3
 
 /** Velký obrázek přes celou šířku karty; o velikosti rozhoduje odesílatel (`largePhoto`). */
-internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo != null
+internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo != null && !roundPhoto
 
 /** Co z té zprávy vstupní pole upravuje — a tím i které volání TDLib úpravu uloží. */
 internal enum class ComposerEdit {
