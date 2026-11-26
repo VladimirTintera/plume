@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
-import eu.tintera.plume.core.accounts.AccountBadge
+import eu.tintera.plume.core.accounts.AccountBadges
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.telegram.AccountInfo
@@ -314,12 +314,13 @@ private fun MergedCollapsedChats(accounts: CollapsedAccounts, listState: LazyLis
     val hidden = sources.map { source -> key(source.account.slot) { source.viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle().value } }
     val due = sources.map { source -> key(source.account.slot) { source.viewModel.snoozeState.collectAsStateWithLifecycle().value.due } }
     val ready = states.map { (it as? ChatListState.Ready)?.chats }
+    val preferred = rememberPreferredSources(sources)
     if (ready.all { it == null }) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
         return
     }
-    val chats = remember(ready, hidden, due) {
-        mergedChatGroups(ready.mapIndexed { index, chats -> MergeSource(chats.orEmpty(), hidden[index], due[index]) }).flatten()
+    val chats = remember(ready, hidden, due, preferred) {
+        mergedChatGroups(ready.mapIndexed { index, chats -> MergeSource(chats.orEmpty(), hidden[index], due[index]) }, preferred).flatten()
     }
     LaunchedEffect(anchorKey) {
         val index = chats.indexOfFirst { it.key == anchorKey }
@@ -340,11 +341,11 @@ private fun MergedCollapsedChats(accounts: CollapsedAccounts, listState: LazyLis
             AccountScope(source.account) {
                 CollapsedChat(
                     chat = merged.chat,
-                    selected = accounts.selected == slot to merged.chat.id,
+                    selected = merged.isOpen(sources, accounts.selected),
                     selectionMark = null,
                     onClick = { accounts.onOpen(slot, merged.chat) },
                     onLongClick = { source.sheets.actions = merged.chat },
-                    account = source.info,
+                    accounts = merged.accounts(sources) ?: listOfNotNull(source.info),
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -449,8 +450,8 @@ private fun CollapsedChat(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Účet chatu ve společném seznamu víc účtů: odznak vlevo dole na avataru. */
-    account: AccountInfo? = null,
+    /** Účty chatu ve společném seznamu víc účtů (spojená skupina jich má víc): odznaky vlevo dole. */
+    accounts: List<AccountInfo> = emptyList(),
 ) {
     val title = chatTitle(chat.id, chat.title)
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
@@ -511,9 +512,7 @@ private fun CollapsedChat(
                         RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
                     }
                 }
-                if (account != null) {
-                    AccountBadge(account, rim = container, modifier = Modifier.align(Alignment.BottomStart))
-                }
+                AccountBadges(accounts, rim = container, modifier = Modifier.align(Alignment.BottomStart))
                 if (selectionMark != null) {
                     SelectionMark(
                         selected = selectionMark,

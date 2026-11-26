@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.accounts
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
@@ -97,6 +98,39 @@ fun AccountBadge(account: AccountInfo, rim: Color, modifier: Modifier = Modifier
             .padding(2.dp),
     )
 }
+
+/**
+ * Odznaky víc účtů přes sebe ([AccountBadge] pro každý): řádek spojené společné skupiny
+ * ve společném seznamu. Každý další leží o kus vpravo nad předchozím, s obroučkou [rim], takže
+ * se od sebe odliší i stejně barevné fotky. S jedním účtem je to [AccountBadge], s žádným nic.
+ */
+@Composable
+fun AccountBadges(accounts: List<AccountInfo>, rim: Color, modifier: Modifier = Modifier, size: Dp = 18.dp) {
+    when (accounts.size) {
+        0 -> Unit
+        1 -> AccountBadge(accounts.single(), rim, modifier, size)
+        else -> Box(modifier.offset(x = (-4).dp, y = 4.dp)) {
+            accounts.take(MAX_STACKED_BADGES).forEachIndexed { index, account ->
+                Avatar(
+                    chatId = account.id,
+                    title = account.displayName,
+                    avatarFileId = account.photoFileId,
+                    size = size,
+                    modifier = Modifier
+                        .padding(start = size * STACKED_BADGE_STEP * index)
+                        .background(rim, CircleShape)
+                        .padding(2.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Víc odznaků by přes avatar chatu přerostlo; tolik účtů ve spojené skupině skoro nebývá. */
+private const val MAX_STACKED_BADGES = 3
+
+/** O kolik velikosti odznaku leží další vpravo (zbytek překrývá předchozí). */
+private const val STACKED_BADGE_STEP = 0.6f
 
 /**
  * Lišta obrazovky, která patří jednomu účtu (Moje příběhy, Hovory a Stahování mimo režim Všechny

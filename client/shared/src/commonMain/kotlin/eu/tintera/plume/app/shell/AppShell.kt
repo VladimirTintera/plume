@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.accounts.SharedChats
 import eu.tintera.plume.features.lockedchats.LockedChatsScreen
 import eu.tintera.plume.core.navigation.LockedChatsRoute
 import eu.tintera.plume.core.accounts.AccountSwitchNotices
@@ -1191,6 +1192,7 @@ private fun shellEntryProvider(
         },
     ) { route ->
         val slot = LocalAccount.current.slot
+        val sharedChats = koinInject<SharedChats>()
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             val settings = koinInject<AppSettings>()
             val sideBySide = LocalPanesSideBySide.current
@@ -1275,6 +1277,12 @@ private fun shellEntryProvider(
                     // Spravované přímé zprávy kanálu: konverzaci nahradí seznam vláken na TÉMŽE místě.
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, DirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
+                    // Spojená společná skupina jiným účtem: táž konverzace na TÉMŽE místě (bez skoku
+                    // na zprávu z hledání) a seznam ji tím účtem otevře příště.
+                    onSwitchAccount = { target ->
+                        sharedChats.prefer(route.chatId, target)
+                        chatsStack.replaceRoute(route, route.copy(slot = target, messageId = null))
+                    },
                 ),
             )
         }
@@ -1629,6 +1637,7 @@ private fun shellEntryProvider(
         },
     ) { route ->
         val slot = LocalAccount.current.slot
+        val sharedChats = koinInject<SharedChats>()
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
@@ -1692,6 +1701,10 @@ private fun shellEntryProvider(
                     onViewAsTopics = { chatsStack.openArchiveForum(slot, route.chatId) },
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
+                    onSwitchAccount = { target ->
+                        sharedChats.prefer(route.chatId, target)
+                        chatsStack.replaceRoute(route, route.copy(slot = target, messageId = null))
+                    },
                 ),
             )
         }

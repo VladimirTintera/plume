@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.Row
+import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.accounts.rememberConversationAccount
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.foundation.layout.Box
@@ -115,6 +117,10 @@ internal fun ConversationBottomBar(
     onSuggestionsFloating: (Boolean) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
+    // Spojená společná skupina: kterým účtem psát, vybírá tlačítko u pole (`AccountSwitchButton`).
+    val switchAccount = navigation.onSwitchAccount
+    val chatAccounts = rememberChatAccounts(viewModel.chatId, enabled = switchAccount != null)
+    val currentSlot = LocalAccount.current.slot
     var draft by composer
     val replySuggestions by replies.suggestions.collectAsStateWithLifecycle()
     // Emoji k rozepsanému slovu. Jazyk zařízení a angličtina, jako hledání ve výběru emoji.
@@ -523,16 +529,21 @@ internal fun ConversationBottomBar(
         gestureHints = gestureHints,
         // AI úpravy od serveru tajný chat nesmí (dokumentace `composeTextWithAi`).
         serverAiAllowed = state.info?.isSecret != true,
-        senderSlot = state.messageSender?.let { choice ->
-            { modifier ->
-                SendAsButton(
-                    choice = choice,
-                    onOpen = viewModel::refreshMessageSenders,
-                    onChoose = viewModel::chooseMessageSender,
-                    modifier = modifier,
-                )
-            }
-        },
+        senderSlot = senderSlot(
+            accounts = chatAccounts.takeIf { it.size > 1 && switchAccount != null }?.let { accounts ->
+                { modifier -> AccountSwitchButton(accounts, currentSlot, { slot -> switchAccount?.invoke(slot) }, modifier) }
+            },
+            sender = state.messageSender?.let { choice ->
+                { modifier ->
+                    SendAsButton(
+                        choice = choice,
+                        onOpen = viewModel::refreshMessageSenders,
+                        onChoose = viewModel::chooseMessageSender,
+                        modifier = modifier,
+                    )
+                }
+            },
+        ),
         // Sklo má celý sloupec výš; pás pro letící fotku zůstává jen u pole — přes návrhy
         // a klávesnici bota se letět nesmí (`SharedElementClip.openBand`).
         glass = Modifier.sharedElementOcclusionBand(),
@@ -755,3 +766,20 @@ internal fun ConversationBottomBar(
     }
 }
 
+/**
+ * Levé místo u pole: výběr účtu spojené společné skupiny ([accounts]) a výběr odesílatele
+ * skupiny ([sender]), každý jen když je. Oba naráz (ve společné skupině, kde jde psát i za
+ * kanál) stojí vedle sebe: napřed účet, pak kým v něm.
+ */
+private fun senderSlot(
+    accounts: (@Composable (Modifier) -> Unit)?,
+    sender: (@Composable (Modifier) -> Unit)?,
+): (@Composable (Modifier) -> Unit)? = when {
+    accounts != null && sender != null -> { modifier ->
+        Row(modifier) {
+            accounts(Modifier)
+            sender(Modifier)
+        }
+    }
+    else -> accounts ?: sender
+}

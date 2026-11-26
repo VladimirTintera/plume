@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.SharedChats
 import kotlin.time.Duration
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.GifRepository
@@ -296,6 +297,11 @@ class ConversationViewModel(
     private val stagedAttachments: StagedAttachmentsStore? = null,
     /** Uložené GIFy pro „Uložit GIF" v nabídce nad zprávou; bez nich se položka nenabízí. */
     private val gifs: GifRepository? = null,
+    /**
+     * Spojené společné skupiny režimu Všechny účty: přečtení se přenese do ostatních účtů ve
+     * skupině ([SharedChats.readUpTo]). Bez něj se čte jen tímhle účtem.
+     */
+    private val sharedChats: SharedChats? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -2146,7 +2152,19 @@ class ConversationViewModel(
         // Obrazovka posílá klíče položek, ne id — u odeslaných zpráv se liší.
         val incoming = _state.value.messagesToView(messageIds.toSet())
         if (incoming.isEmpty()) return
-        viewModelScope.launch { repository.markRead(chatId, incoming) }
+        viewModelScope.launch {
+            repository.markRead(chatId, incoming).onSuccess { shareRead(incoming.max()) }
+        }
+    }
+
+    /**
+     * Přečtení celého chatu po [messageId] i v ostatních účtech spojené společné skupiny.
+     * V tématu, vlákně komentářů ani přímých zprávách ne: tam se čte jen jejich část, kdežto
+     * druhý účet by s historií chatu přečetl i ostatní témata.
+     */
+    private fun shareRead(messageId: Long) {
+        if (threadRootId != null || forumTopicId != null || savedTopicId != null || directTopicId != null) return
+        sharedChats?.readUpTo(slot, chatId, messageId)
     }
 
     /**
@@ -2167,9 +2185,9 @@ class ConversationViewModel(
         val listened = playback.discreetListened.toList()
         playback.discreetListened.clear()
         viewModelScope.launch {
-            chatRepository.readChat(chatId).onFailure { failure ->
-                logger.w(failure) { "Chat se nepodařilo označit jako přečtený." }
-            }
+            chatRepository.readChat(chatId)
+                .onSuccess { sharedChats?.readAll(slot, chatId) }
+                .onFailure { failure -> logger.w(failure) { "Chat se nepodařilo označit jako přečtený." } }
             listened.forEach { messageId ->
                 repository.openContent(chatId, messageId).onFailure { failure ->
                     logger.w(failure) { "Poslechnutí hlasovky nebo kolečka se nepodařilo nahlásit." }

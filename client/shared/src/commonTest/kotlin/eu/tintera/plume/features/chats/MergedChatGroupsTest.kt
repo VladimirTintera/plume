@@ -33,7 +33,10 @@ class MergedChatGroupsTest {
         )
     }
 
-    /** Společná skupina je v obou účtech: dvakrát, s jiným klíčem. */
+    /**
+     * Soukromý chat (i s botem, třeba Notifikátor) a obyčejná skupina jsou v každém účtu jiná
+     * konverzace: dvakrát, s jiným klíčem.
+     */
     @Test
     fun stejnyChatVeDvouUctechDvakrat() {
         val groups = mergedChatGroups(listOf(MergeSource(listOf(chat(7, time = 1))), MergeSource(listOf(chat(7, time = 2)))))
@@ -70,9 +73,98 @@ class MergedChatGroupsTest {
         assertEquals(listOf(listOf("0:2")), groups.keys())
     }
 
+    /** Obyčejná skupina (`-id`) má v každém účtu jiná id zpráv: nespojuje se. */
+    @Test
+    fun obycejnaSkupinaSeNespojuje() {
+        val groups = mergedChatGroups(listOf(MergeSource(listOf(chat(-42, time = 1))), MergeSource(listOf(chat(-42, time = 1)))))
+
+        assertEquals(listOf(listOf("0:-42", "1:-42")), groups.keys())
+    }
+
+    /** Společná supergroupa nebo kanál je jednou, s odznaky obou účtů a otevírá se prvním. */
+    @Test
+    fun spolecnaSupergroupaJednou() {
+        val groups = mergedChatGroups(
+            listOf(
+                MergeSource(listOf(chat(SUPERGROUP, time = 5), chat(1, time = 9))),
+                MergeSource(listOf(chat(SUPERGROUP, time = 5), chat(2, time = 1))),
+            ),
+        )
+
+        assertEquals(listOf(listOf("0:1", "shared:$SUPERGROUP", "1:2")), groups.keys())
+        val merged = groups.flatten().single { it.alsoIn.isNotEmpty() }
+        assertEquals(listOf(0, 1), merged.sources)
+    }
+
+    /** Kterým účtem se do skupiny psalo naposledy, tím se otevře; místo v seznamu se nemění. */
+    @Test
+    fun otevreSeUctemZPreference() {
+        val sources = listOf(MergeSource(listOf(chat(SUPERGROUP, time = 5))), MergeSource(listOf(chat(SUPERGROUP, time = 5))))
+
+        val merged = mergedChatGroups(sources, preferred = mapOf(SUPERGROUP to 1)).flatten().single()
+
+        assertEquals(1, merged.source)
+        assertEquals(listOf(1, 0), merged.sources)
+        assertEquals("shared:$SUPERGROUP", merged.key)
+    }
+
+    /** Připnutá jen v druhém účtu stojí mezi připnutými a bez preference se otevře jím. */
+    @Test
+    fun pripnutaVJednomUctuMeziPripnutymi() {
+        val groups = mergedChatGroups(
+            listOf(
+                MergeSource(listOf(chat(SUPERGROUP, time = 5), chat(1, time = 9))),
+                MergeSource(listOf(chat(SUPERGROUP, pinned = true, time = 5))),
+            ),
+        )
+
+        assertEquals(listOf(listOf("shared:$SUPERGROUP"), listOf("0:1")), groups.keys())
+        val merged = groups.first().single()
+        assertEquals(1, merged.source)
+        assertEquals(true, merged.chat.isPinned)
+    }
+
+    /** Nepřečtené jsou tytéž zprávy: nejvyšší z účtů, ne součet. */
+    /** Otevírá-li se podle preference účtem, kde připnutá není, připínáček i místo zůstanou. */
+    @Test
+    fun pripnutaPodlePreferenceZustavaNahore() {
+        val groups = mergedChatGroups(
+            listOf(MergeSource(listOf(chat(SUPERGROUP, time = 5), chat(1, time = 9))), MergeSource(listOf(chat(SUPERGROUP, pinned = true, time = 5)))),
+            preferred = mapOf(SUPERGROUP to 0),
+        )
+
+        val merged = groups.first().single()
+        assertEquals(0, merged.source)
+        assertEquals(true, merged.chat.isPinned)
+    }
+
+    @Test
+    fun neprectenePodleNejvyssiho() {
+        val first = chat(SUPERGROUP, time = 5).copy(unreadCount = 3, unreadMentionCount = 0)
+        val second = chat(SUPERGROUP, time = 5).copy(unreadCount = 7, unreadMentionCount = 1)
+
+        val merged = mergedChatGroups(listOf(MergeSource(listOf(first)), MergeSource(listOf(second)))).flatten().single()
+
+        assertEquals(7, merged.chat.unreadCount)
+        assertEquals(1, merged.chat.unreadMentionCount)
+    }
+
+    /** Ve společném seznamu jen jednoho účtu se supergroupa nespojuje s ničím a klíč má účet. */
+    @Test
+    fun supergroupaJenVJednomUctu() {
+        val groups = mergedChatGroups(listOf(MergeSource(listOf(chat(SUPERGROUP, time = 5))), MergeSource(emptyList())))
+
+        assertEquals(listOf(listOf("0:$SUPERGROUP")), groups.keys())
+    }
+
     @Test
     fun prazdnySeznam() {
         assertEquals(emptyList(), mergedChatGroups(listOf(MergeSource(emptyList()), MergeSource(emptyList()))))
+    }
+
+    private companion object {
+        /** Id supergroupy, jak ho dává TDLib (`-100…`). */
+        const val SUPERGROUP = -1_001_234_567_890L
     }
 
     private fun List<List<MergedChat>>.keys() = map { group -> group.map { it.key } }

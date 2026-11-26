@@ -102,6 +102,11 @@ actual class NotificationPresenter(
      * okamžik ukázala i s celoobrazovkovou výzvou (ověřeno na Pixelu 5).
      */
     private val callBusy: () -> Boolean = { false },
+    /**
+     * Smí se notifikace ukázat? Ve spojené společné skupině ji ohlásí každý účet, ukáže se jen
+     * od prvního (`SharedChats.mayNotify`).
+     */
+    private val mayNotify: suspend (ChatNotification) -> Boolean = { true },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -168,7 +173,9 @@ actual class NotificationPresenter(
         }
     }
 
-    private suspend fun add(notifications: List<ChatNotification>) {
+    private suspend fun add(added: List<ChatNotification>) {
+        val notifications = added.filter { mayNotify(it) }
+        if (notifications.size < added.size) logger.d { "${added.size - notifications.size} notifikací ukazuje jiný účet." }
         // Jeden update může nést zprávy z několika chatů; každý z nich se překreslí jednou,
         // ne jednou za zprávu.
         notifications.groupBy { it.groupId }.forEach { (groupId, batch) ->

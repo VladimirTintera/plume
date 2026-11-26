@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.accounts.SharedChats
 import eu.tintera.plume.core.accounts.notificationName
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountSlot
@@ -217,6 +218,7 @@ actual fun Module.platformAccountModule() {
             callRequests = get(),
             callsSupported = get<CallRepository>().supported,
             accountName = { get<Accounts>().notificationName(get()) },
+            mayNotify = { notification -> get<SharedChats>().mayNotify(get(), notification.chatId, notification.messageId) },
             otherAccounts = { get<Accounts>().all.value.size - 1 },
             callBusy = { get<Accounts>().inCallElsewhere(get()) },
         )

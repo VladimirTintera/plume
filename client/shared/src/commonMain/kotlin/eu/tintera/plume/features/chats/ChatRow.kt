@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.chats
 
-import eu.tintera.plume.core.accounts.AccountBadge
+import eu.tintera.plume.core.accounts.AccountBadges
 import androidx.compose.foundation.shape.CircleShape
 import eu.tintera.plume.core.telegram.AccountInfo
 import androidx.compose.runtime.Immutable
@@ -456,10 +456,11 @@ internal data class ChatRowMarks(
     /** Kroužek příběhů kolem avataru; `null` = autor žádné nemá. */
     val stories: StoryRingState? = null,
     /**
-     * Účet, kterému chat patří, ve společném seznamu víc účtů; `null` = jeden účet. Fotka účtu,
-     * ne barva: barvy už nesou chaty (`ChatColors`) a pletly by se.
+     * Účty, kterým chat patří, ve společném seznamu víc účtů; prázdné = jeden účet. Spojená
+     * společná skupina jich má víc. Fotka účtu, ne barva: barvy už nesou chaty (`ChatColors`)
+     * a pletly by se.
      */
-    val account: AccountInfo? = null,
+    val accounts: List<AccountInfo> = emptyList(),
 )
 
 @Composable
@@ -595,9 +596,7 @@ internal fun ChatRow(
                     OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd), chatId = chat.id)
                 }
                 // Odznak účtu naproti tečce dostupnosti, s obroučkou barvou řádku jako ona.
-                marks.account?.let { account ->
-                    AccountBadge(account, rim = containerColor, modifier = Modifier.align(Alignment.BottomStart))
-                }
+                AccountBadges(marks.accounts, rim = containerColor, modifier = Modifier.align(Alignment.BottomStart))
             }
 
             Column(Modifier.weight(1f)) {

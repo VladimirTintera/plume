@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.SharedChats
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.chat_folder_delete_failed
@@ -132,6 +134,10 @@ class ChatsViewModel(
     private val history: ConversationRepository? = null,
     /** „Přidat na plochu" v nabídce nad chatem; bez něj (a mimo Android) se nenabízí. */
     private val shareTargets: ShareTargets? = null,
+    /** Účet seznamu, pro přenos přečtení spojené společné skupiny ([sharedChats]). */
+    private val slot: AccountSlot? = null,
+    /** „Označit jako přečtené" u společné skupiny přečte i ostatní účty v ní; bez něj jen tenhle. */
+    private val sharedChats: SharedChats? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -925,7 +931,7 @@ class ChatsViewModel(
         when (effect) {
             ChatSwipeEffect.Archive -> setArchived(chat, archived = true)
             ChatSwipeEffect.Unarchive -> setArchived(chat, archived = false)
-            ChatSwipeEffect.MarkRead -> run(chat.id) { repository.readChat(chat.id) }
+            ChatSwipeEffect.MarkRead -> run(chat.id) { readChatEverywhere(chat.id) }
             ChatSwipeEffect.MarkUnread -> run(chat.id) { repository.setMarkedAsUnread(chat.id, true) }
             ChatSwipeEffect.Mute -> mute(chat, duration = null)
             ChatSwipeEffect.Unmute -> unmute(chat)
@@ -969,8 +975,15 @@ class ChatsViewModel(
      * Přečtené přes [ChatRepository.readChat], ne shozením ručního příznaku: ten nechá
      * nepřečtené zprávy, jak jsou, a u chatu s nimi se po „Označit jako přečtené" nic nezměnilo.
      */
+    /**
+     * Přečte chat [chatId] celý, a je-li to spojená společná skupina, i v ostatních účtech
+     * ([SharedChats.readAll]): řádek je jeden, takže „přečteno" musí platit za všechny.
+     */
+    private suspend fun readChatEverywhere(chatId: Long): Result<Unit> =
+        repository.readChat(chatId).onSuccess { slot?.let { sharedChats?.readAll(it, chatId) } }
+
     fun toggleUnread(chat: ChatSummary) = run(chat.id) {
-        if (chat.hasUnread) repository.readChat(chat.id) else repository.setMarkedAsUnread(chat.id, true)
+        if (chat.hasUnread) readChatEverywhere(chat.id) else repository.setMarkedAsUnread(chat.id, true)
     }
 
     private val _selection = MutableStateFlow<ChatSelection?>(null)
@@ -1045,7 +1058,7 @@ class ChatsViewModel(
     fun readSelected() {
         val (actions, selected) = selectionNow() ?: return
         runOnSelection(actions.readTargets(selected)) {
-            if (actions.read) repository.readChat(it.id) else repository.setMarkedAsUnread(it.id, true)
+            if (actions.read) readChatEverywhere(it.id) else repository.setMarkedAsUnread(it.id, true)
         }
     }
 

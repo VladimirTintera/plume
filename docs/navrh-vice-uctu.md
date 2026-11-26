@@ -252,9 +252,11 @@ jednomu účtu podle řádku.
   (`AppSettings`).
 - **Řádek nese účet:** malá fotka účtu u avataru chatu (jako odznak), jen v režimu víc účtů.
   Barva účtu by se pletla s barvami chatů (`ChatColors`), proto fotka.
-- **Stejný chat ve dvou účtech se ukáže dvakrát.** Společná skupina, nebo chat s Petrem
-  z obou účtů. Sloučit je nejde: mají jiný stav přečtení, jinou historii a u starých skupin
-  i jiná id zpráv. Odznak účtu je rozliší.
+- **Společná supergroupa nebo kanál je jeden řádek s odznaky všech účtů** (krok 24): historie
+  i id zpráv jsou v obou účtech stejné, liší se jen tím, kdo píše. Účet se vybírá u pole zprávy.
+- **Ostatní chat ve dvou účtech se ukáže dvakrát.** Chat s Petrem (i s botem, třeba
+  Notifikátor) a Uložené zprávy jsou v každém účtu jiná konverzace, obyčejná skupina má
+  v každém účtu jiná id zpráv. Odznak účtu je rozliší.
 - **Řazení podle data poslední zprávy.** `ChatPosition.order` z TDLib je číslo uvnitř jednoho
   účtu a mezi účty se porovnat nedá.
 - **Připnuté chaty všech účtů jsou nahoře i v režimu Vše** (rozhodnuto): napřed připnuté
@@ -1006,6 +1008,44 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - Limit tří účtů kvůli baterii zvedat ani držet netřeba, rozhoduje paměť (krok 15).
     - **Neověřené:** popředí (Pixel 5 se po zhasnutí zamyká kódem), mobilní data a velký účet
       ve všech třech slotech.
+
+24. **Spojené společné skupiny** — hotovo (`SharedChats`, `mergedChatGroups`, testy
+    `MergedChatGroupsTest` a `SharedChatsTest`):
+    - **Spojuje se jen supergroupa a kanál** (`isSharedHistoryChat`: id v rozmezí `-100…`,
+      mimo tajné chaty kolem `-2·10^12`). Jen ty mají v obou účtech tutéž historii i tatáž id
+      zpráv. Soukromý chat (i s botem) a Uložené zprávy jsou dvě konverzace, obyčejná skupina má
+      id zpráv po účtech; ty zůstávají dvakrát. Ne reklama ani přímé zprávy kanálu.
+    - **Jen v režimu Všechny účty.** Mimo něj se chat jiného účtu v seznamu neukazuje, takže
+      není co spojovat; přečtení i notifikace se pak mezi účty nepřenášejí (`SharedChats.active`).
+    - **Řádek stojí na místě nejvyššího výskytu** (připnutá v jednom účtu je mezi připnutými,
+      s připínáčkem) a otevře se účtem, kterým se do skupiny naposledy psalo
+      (`SharedChats.preferred`, jen do konce procesu), jinak účtem toho výskytu. Klíč řádku je
+      bez účtu (`shared:<id>`), ať se po přepnutí účtu nepřeskládá. Nepřečtené ukazuje nejvyšší
+      z účtů: jsou to tytéž zprávy, součet by je počítal dvakrát. Zmínky a reakce taky
+      nejvyšší, i když patří jednomu účtu.
+    - **Odznaky přes sebe** (`AccountBadges`), v seznamu i ve sbaleném sloupci.
+    - **Účet se vybírá fotkou vlevo u pole** (`AccountSwitchButton`, místo a podoba jako výběr
+      „Psát jako" skupiny; oba naráz stojí vedle sebe). Výběr otevře tutéž konverzaci druhým
+      účtem na TÉMŽE místě zásobníku (`replaceRoute` s jiným slotem): ViewModel, akce, reakce
+      i koncept tak patří jednomu účtu, nic se nemíchá. **Pozice v historii se nepřenáší** —
+      konverzace druhého účtu se otevře, jako by se otevřela ze seznamu. Rozepsaný text taky
+      ne (koncept patří účtu na serveru).
+    - **Přečtení se přenáší** (`SharedChats.readUpTo` / `readAll` → `ChatRepository.readUpTo`):
+      z konverzace (po nejnovější přečtenou), z „Označit jako přečtené" v seznamu i v konverzaci
+      a z tlačítka v notifikaci. Druhý účet dostane `viewMessages` se zdrojem historie chatu
+      a `forceRead`; zprávu, kterou nemá v databázi, si napřed dočte (`getMessage`). V tématu,
+      vlákně komentářů a přímých zprávách se nepřenáší: druhý účet by s historií chatu přečetl
+      i ostatní témata. Zmínky a reakce zůstávají účtu, kterého se týkají.
+    - **Notifikace jen jednou** (`SharedChats.mayNotify`, Android i desktop): zprávu ve společné
+      skupině ohlásí TDLib v obou účtech a ukáže se od toho, který ji ohlásil první
+      (`NotificationClaims`, posledních 512 zpráv). Jeho náhrada dočasné notifikace z pushe
+      drží týž účet, takže projde. Přečtení v jednom účtu přečte i druhý, takže druhá
+      notifikace nikde nezůstane viset.
+    - **Akce nad řádkem patří účtu, kterým se otevírá** (ztlumení, archiv, připnutí, smazání):
+      jen „přečteno" platí za všechny. Archivace v jednom účtu proto řádek rozdělí — v hlavním
+      seznamu zůstane druhý účet, v archivu ten první.
+    - **Zbývá:** Uložené zprávy a soukromé chaty jako jeden řádek s přepínačem historie
+      (druhá fáze), přenos pozice v historii při přepnutí účtu, akce nad řádkem za všechny účty.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
