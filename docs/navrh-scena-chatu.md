@@ -1,9 +1,11 @@
 # Návrh: seznam | oblast chatu (vlastní scéna Chatů s jednou lištou)
 
-> **Stav:** návrh, nic z toho není v kódu. Vychází z `main` po VladimirTintera/plume#68
-> (první verze tohohle návrhu) a z opravy VladimirTintera/plume#67 (hlavička bočního panelu
-> v pásu s konverzací). 25. 11. 2026 padlo rozhodnutí jít směrem „dva panely, druhý je sám
-> dvousloupcový"; podoba API a pořadí kroků jsou otevřené.
+> **Stav:** scéna Chatů je v kódu a na široké ploše výchozí (VladimirTintera/plume#70): kroky 1–3
+> v jednom PR. Prototyp měl přepínač ve Vzhledu, po ověření na desktopu a emulátoru Fold zmizel.
+> Lišta: `PaneHeader` ve scéně posílá hlavičku do lišty scény (`SceneBar`) se zachyceným kontextem
+> položky, obrazovky beze změny; akce konverzace stojí na konci lišty (`PaneBandEnd`). Zbývá úklid
+> (krok 4) a volitelně Nastavení (krok 5). Poznatky: `docs/poznatky/navigace.md`, „Vlastní scéna
+> Chatů". Rozhodnutí jít směrem „dva panely, druhý je sám dvousloupcový" padlo 25. 11. 2026.
 
 Chaty dnes stojí na třípanelovém `ThreePaneScaffold` z knihovny (`adaptive-navigation3`):
 seznam | konverzace | boční panel (profil, kalendář, úprava kanálu, pozvánky…). Boční panel je

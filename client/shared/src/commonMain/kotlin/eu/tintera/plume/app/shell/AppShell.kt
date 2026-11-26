@@ -140,6 +140,7 @@ import eu.tintera.plume.core.adaptive.PaneCard
 import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.PROFILE_CARD_MARGINS
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
+import eu.tintera.plume.core.adaptive.RESERVE_BESIDE_LIST
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
 import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
 import eu.tintera.plume.core.adaptive.shownExtras
@@ -549,6 +550,9 @@ private fun ShellContent(
 
         val twoPane = wide && !nothingToPick
 
+        // Chaty na široké ploše kreslí vlastní scéna (`ChatScene.kt`), ne třípanel z knihovny.
+        val sideBesideList = maxWidth >= THREE_PANE_MIN_WIDTH
+
         /*
          * Zavření obrazovky „Komu: …" (Direct Share) vrací do aplikace, ze které se sdílelo, ne
          * do Plume: chat byl vybraný už v systémové nabídce, takže tu uživatel nic jiného
@@ -635,24 +639,32 @@ private fun ShellContent(
         val shownListRoute = chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List }
         val searchShown = navigation.section == ChatsRoute && shownListRoute is ChatSearchRoute
         val mainListShown = navigation.section == ChatsRoute && (shownListRoute == ChatsRoute || searchShown)
-        val draggable = twoPane && mainListShown && !extraShown
+        // Táhlo seznamu je vlastní (`rememberListPaneResize`), i ve dvou panelech: Chaty kreslí
+        // scéna Chatů, knihovní táhlo tam není. Bez bočního sloupce vedle seznamu zbývá jen konverzace.
+        val listResize = rememberListPaneResize(
+            listExpansion,
+            base.defaultPanePreferredWidth,
+            maxWidth,
+            reserve = RESERVE_BESIDE_LIST.takeIf { !threePane },
+        )
+        val listPaneWidth = listResize.width.takeIf { threePane && mainListShown }
+        // Seznam je vidět, dokud ho boční sloupec pod THREE_PANE_MIN_WIDTH nevytlačí.
+        val sceneListShown = twoPane && mainListShown && (!extraShown || threePane)
+        val listResizeShown = listResize.resize.takeIf { sceneListShown }
+        val expandList: () -> Unit = { listResize.settleTo(listExpansion.expandedAnchor) }
         // Hledání ve sbaleném sloupci (zkratka, nabídka, hashtag) by bylo nečitelné: panel se rozbalí.
         LaunchedEffect(searchShown, twoPane) {
-            if (searchShown && twoPane && listExpansion.anchor == ListPaneAnchor.Collapsed) listExpansion.expand()
+            if (searchShown && twoPane && listExpansion.anchor == ListPaneAnchor.Collapsed) expandList()
         }
-        // Ve třech panelech táhlo knihovny není — seznam má vlastní (`rememberListPaneResize`).
-        val listResize = rememberListPaneResize(listExpansion, base.defaultPanePreferredWidth, maxWidth)
-        val listPaneWidth = listResize.width.takeIf { threePane && mainListShown }
-        val listResizeShown = listResize.resize.takeIf { threePane && mainListShown }
         /*
          * Tlačítko a zkratka sbalení: jen u hlavního seznamu vedle konverzace, ne v hledání (to
          * seznam rozbaluje samo). Ve třech panelech dojede vlastní táhlo, ve dvou táhlo knihovny.
          */
-        val listAnchor = if (threePane) listResize.anchor else listExpansion.anchor
+        val listAnchor = listResize.anchor
         val listToggle = if (twoPane && mainListShown && !searchShown) {
             ListPaneToggle {
                 val target = if (listAnchor == ListPaneAnchor.Collapsed) listExpansion.expandedAnchor else ListPaneAnchor.Collapsed
-                if (threePane) listResize.settleTo(target) else listExpansion.animateTo(target)
+                listResize.settleTo(target)
             }
         } else {
             null
@@ -744,7 +756,7 @@ private fun ShellContent(
                     LocalPaneNeighbours provides paneNeighbours,
                     LocalSavedMessagesChatId provides savedMessagesChatId,
                     // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
-                    LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
+                    LocalExpandListPane provides expandList.takeIf { twoPane && mainListShown },
                     LocalSearchMorph provides searchMorph,
                     LocalListPaneToggle provides listToggle,
                     LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
@@ -763,13 +775,13 @@ private fun ShellContent(
                      * METADATECH — po změně kotvy by zůstala stará.
                      */
                     /*
-                     * Zavřený třetí panel (profil, podstránka Nastavení) ještě chvíli ve scéně, ať odjede
+                     * Zavřená podstránka Nastavení (třetí panel) ještě chvíli ve scéně, ať odjede
                      * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
                      * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
                      */
-                    val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
                     val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
-                    val chatsDrawn = (if (twoPane) chatsWithLeaving else chatsDisplayed) + chatsSheets
+                    // Chaty: odjezd bočního sloupce drží scéna Chatů sama.
+                    val chatsDrawn = chatsDisplayed + chatsSheets
                     val settingsDrawn = (if (twoPane) settingsWithLeaving else settingsDisplayed) + settingsSheets
                     val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth, instantPaneBounds) { chatsDrawn.map(entryProvider) }
                     /*
@@ -795,6 +807,19 @@ private fun ShellContent(
                         sceneStrategies = listOf(
                             // Sheet navrchu se kreslí nad scénou, kterou z položek pod ním spočítá list-detail.
                             remember { SheetSceneStrategy() },
+                            // Chaty a archiv na široké ploše vlastní scénou; na telefonu vrací null.
+                            ChatSceneStrategy(
+                                layout = ChatSceneLayout(
+                                    twoPane = twoPane,
+                                    sideBesideList = sideBesideList,
+                                    // Archiv a ostatní seznamy táhlo nemají, stojí na výchozí šířce.
+                                    listWidth = if (mainListShown) listResize.width else base.defaultPanePreferredWidth,
+                                    sideWidth = profileResize.width + PROFILE_CARD_MARGINS,
+                                    instant = instantPaneBounds,
+                                ).takeIf { wide },
+                                isChatScene = { it != SETTINGS_SCENE },
+                                detailPlaceholder = ChatDetailPlaceholder,
+                            ),
                             // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
                             // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
                             // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
@@ -820,8 +845,6 @@ private fun ShellContent(
                                     BackNavigationBehavior.PopUntilScaffoldValueChange
                                 },
                                 directive = directive,
-                                paneExpansionDragHandle = ListPaneDragHandle.takeIf { draggable },
-                                paneExpansionState = listExpansion.state.takeIf { draggable },
                             ),
                         ),
                     )
@@ -2549,6 +2572,11 @@ private const val ARCHIVE_SCENE = "archive"
  * nebyla výměna scény, ale změna obsahu té stávající.
  */
 private const val SETTINGS_SCENE = "settings"
+
+/** Pravý panel Chatů bez otevřeného chatu („vyber chat vlevo") pro scénu Chatů. */
+private val ChatDetailPlaceholder: @Composable () -> Unit = {
+    PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() }
+}
 
 private fun botShareRoute(slot: AccountSlot, chatId: Long, request: BotShareRequest) = BotShareRoute(slot, 
     chatId = chatId,

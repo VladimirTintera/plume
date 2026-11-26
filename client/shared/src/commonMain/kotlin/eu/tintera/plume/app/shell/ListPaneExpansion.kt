@@ -29,9 +29,10 @@ import eu.tintera.plume.core.adaptive.PANE_SPACING
 import eu.tintera.plume.core.adaptive.PROFILE_CARD_MARGINS
 import eu.tintera.plume.core.adaptive.PaneEdge
 import eu.tintera.plume.core.adaptive.PaneResize
-import eu.tintera.plume.core.adaptive.clampListBesideProfile
-import eu.tintera.plume.core.adaptive.listWidthBesideProfile
-import eu.tintera.plume.core.adaptive.nearestListAnchorBesideProfile
+import eu.tintera.plume.core.adaptive.clampListWidth
+import eu.tintera.plume.core.adaptive.listWidth
+import eu.tintera.plume.core.adaptive.reserveBesideProfile
+import eu.tintera.plume.core.adaptive.nearestListAnchor
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.list_pane_width
 import org.jetbrains.compose.resources.stringResource
@@ -104,20 +105,6 @@ internal fun rememberListPaneExpansion(defaultWidth: Dp): ListPaneExpansion {
     }
 }
 
-/** Táhlo M3 v mezeře mezi panely. Šipkami a čtečkou jde přepínat kotvy (výchozí sémantika). */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalMaterial3Api::class)
-internal val ListPaneDragHandle: @Composable ThreePaneScaffoldScope.(PaneExpansionState) -> Unit = { state ->
-    val interactionSource = remember { MutableInteractionSource() }
-    VerticalDragHandle(
-        modifier = Modifier.paneExpansionDraggable(
-            state = state,
-            minTouchTargetSize = LocalMinimumInteractiveComponentSize.current,
-            interactionSource = interactionSource,
-        ),
-        interactionSource = interactionSource,
-    )
-}
-
 /**
  * `animateTo`, které kotvu mimo seznam kotev stavu jen přeskočí. `runCatching` by spolkl
  * i zrušení korutiny, proto výslovně jen `IllegalArgumentException` z jeho `require`.
@@ -151,23 +138,36 @@ internal class ListPaneWidth(
  * (`settled`), ne až z toku nastavení, jinak by seznam na snímek skočil zpátky.
  */
 @Composable
-internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: Dp, total: Dp): ListPaneWidth {
+internal fun rememberListPaneResize(
+    expansion: ListPaneExpansion,
+    defaultWidth: Dp,
+    total: Dp,
+    /**
+     * Co musí zůstat vedle seznamu (`listWidth`). Výchozí je profil a konverzace ve třech panelech;
+     * scéna Chatů má táhlo i ve dvou panelech a rezervuje tam jen konverzaci ([RESERVE_BESIDE_LIST]).
+     * `null` = výchozí.
+     */
+    reserve: Dp? = null,
+): ListPaneWidth {
+    @Suppress("NAME_SHADOWING")
+    val reserve = reserve ?: reserveBesideProfile(defaultWidth, GAPS_BESIDE_PROFILE)
     val settings = koinInject<AppSettings>()
     val dragged = rememberDraggedWidth()
     var settled by remember { mutableStateOf<ListPaneAnchor?>(null) }
     // Až kotvu potvrdí nastavení, místní už není potřeba (zápis až po kompozici).
     SideEffect { if (settled == expansion.anchor) settled = null }
     val anchor = settled ?: expansion.anchor
-    val width = dragged.value ?: listWidthBesideProfile(anchor, total, defaultWidth, GAPS_BESIDE_PROFILE)
+    val width = dragged.value ?: listWidth(anchor, total, defaultWidth, reserve)
 
     val currentWidth by rememberUpdatedState(width)
     val currentTotal by rememberUpdatedState(total)
     val currentDefault by rememberUpdatedState(defaultWidth)
     val currentAnchor by rememberUpdatedState(anchor)
+    val currentReserve by rememberUpdatedState(reserve)
     val label = stringResource(Res.string.list_pane_width)
     val settle = remember(settings, dragged) {
         { next: ListPaneAnchor ->
-            val target = listWidthBesideProfile(next, currentTotal, currentDefault, GAPS_BESIDE_PROFILE)
+            val target = listWidth(next, currentTotal, currentDefault, currentReserve)
             dragged.settle(from = currentWidth, target = target) {
                 settled = next
                 settings.setListPaneAnchor(next)
@@ -179,10 +179,10 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
             edge = PaneEdge.End,
             // Seznam je vlevo: tah doprava (kladný posun) ho rozšiřuje.
             onDrag = { delta ->
-                dragged.drag(from = currentWidth, delta = delta) { clampListBesideProfile(it, currentTotal, currentDefault, GAPS_BESIDE_PROFILE) }
+                dragged.drag(from = currentWidth, delta = delta) { clampListWidth(it, currentTotal, currentReserve) }
             },
             onDragStopped = {
-                settle(nearestListAnchorBesideProfile(currentWidth, currentTotal, currentDefault, GAPS_BESIDE_PROFILE))
+                settle(nearestListAnchor(currentWidth, currentTotal, currentDefault, currentReserve))
             },
             onCycle = {
                 val entries = ListPaneAnchor.entries

@@ -587,6 +587,83 @@ knihovny ve dvou panelech).
   pryč) a s opravou ověřeno, že zůstanou. Týž mechanismus hrozil u skoku mezi archivem
   (`ARCHIVE_SCENE`) a hlavními Chaty, ten ověřený není.
 
+### Vlastní scéna Chatů
+
+Chaty a archiv na široké ploše kreslí vlastní scéna (`ChatScene.kt`, návrh
+`docs/navrh-scena-chatu.md`), ne `ThreePaneScaffold` z knihovny. Nastavení a telefon zůstávají
+na knihovně a `SinglePaneScene`. Prototyp měl přepínač ve Vzhledu; po ověření na desktopu
+a emulátoru Fold zmizel ještě před sloučením (VladimirTintera/plume#70), aby do vydání nešla dvě
+rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se daly uklidit.
+
+- **Strategie stojí za `SheetSceneStrategy` a před knihovní list-detail** a na úzkém okně vrací
+  `null`; návrat ke knihovně je tedy jeden řádek (`.takeIf { wide }`). Scénu staví jen se seznamem v souvislém konci zásobníku:
+  konverzace otevřená nad prohlížečem (`chats, conv, media, conv`) seznam nemá a nakreslí ji
+  knihovna přes celou šířku, jako dosud.
+- **Boční sloupec je poslední boční položka NAD posledním detailem** (`selectChatPanes`, test
+  `ChatScenePanesTest`). Zakrytý profil jiného chatu se nekreslí, ať je v zásobníku cokoli;
+  `followProfile` zůstává kvůli zpět a ukládání, ne kvůli obrazu.
+- **Výměna obsahu místa jde po `contentKey`, ne po položce** (`PaneSlot`). Dekorovaná položka je
+  v každé kompozici nový objekt (`rememberDecoratedNavEntries` → `decorateEntry`) a `NavEntry.equals`
+  porovnává i lambdu obsahu; `AnimatedContent` nad položkou by „přecházel" mezi dvěma kopiemi
+  téže obrazovky. Odcházející položku jde kreslit dál, i když už v zásobníku není: Nav3 zavolá
+  `onPop` (úklid ViewModelů a stavu) až ve chvíli, kdy obsah opustí kompozici.
+- **Odjezd sloupce drží scéna** (`AnimatedVisibility` s poslední položkou), proto se Chatům ve
+  scéně nepodává `rememberWithLeavingExtras`.
+- **Zpět, po kterém zůstane táž scéna, obslouží scéna sama** (`NavigationBackHandler`, jako
+  `ThreePaneScaffoldScene`): `NavDisplay` by mezi dvěma stavy téže scény (stejný klíč) nic
+  neanimoval. Během gesta se sloupec zužuje o čtvrtinu šířky, po dokončení odjíždí z té šířky.
+- **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
+  `RESERVE_BESIDE_LIST`), knihovní `PaneExpansionState` se nepoužije. Kotva je táž
+  (`AppSettings.listPaneAnchor`), takže přepnutí přepínače šířku seznamu nezmění.
+- **Lištu oblasti chatu kreslí scéna, ne obrazovky** (`SceneBar`, `SceneBarSlot`). `PaneHeader`
+  ve scéně hlavičku na místě nekreslí: pošle ji do lišty i s kompozičním kontextem položky
+  (`currentCompositionLocalContext`) a scéna ji složí v úseku nad kartou téže položky. Akce v ní
+  tak dál mají ViewModely, barvy a `PaneBand` své položky. Obrazovky se kvůli tomu neměnily —
+  `PaneHeader` volají konverzace, profil, kalendář i `ProfileSubpageTopBar`.
+  - **Úseky lícují rozvržením**: každý hlásí svou přirozenou výšku a všechny mají výšku nejvyššího
+    (`SceneBar.rowHeight`). Výška se hlásí z měření s `minHeight = 0`, jinak by řada nikdy neklesla.
+  - **Horní inset má lišta stejný jako karta položky** (`SceneBarTarget.consumeTop` z `PaneCard`).
+    Bez toho hlavička na desktopu sjela o výšku titulku okna: karta ho konzumuje (hlavička v řádku
+    s tlačítky okna), ale lišta leží mimo kartu a dostala ho celý. Karta pod lištou horní inset
+    zkonzumuje taky, jinak by obsah Scaffoldu bez lišty dostal odsazení pod stavovou lištou.
+  - **Při přechodu scéna ↔ jiné rozvržení hlavička vzniká znovu** (jiné místo v kompozici). Text
+    hledání v chatu přežije, drží ho ViewModel (`initialQuery`); fokus ne. Movable content by stav
+    přenesl, ale hlavička by se během přechodu `NavDisplay` volala ze dvou scén naráz.
+  - **Akce konverzace (přepínač panelu, ⋮) stojí na konci lišty jako prvek scény** (`PaneBandEnd`),
+    vpravo nahoře v oblasti chatu, mimo animovaný boční sloupec. Hlavičky si na jejich místě
+    nechají jen mezeru (`PaneBandSpace`, `PaneBandActions`): konverzace bez sloupce, sloupec s ním.
+    Dřív je nesla hlavička sloupce, který byl zrovna vpravo — při otevření panelu z konverzace
+    zmizely hned a ve sloupci se objevily až s jeho animací (`expandHorizontally`), takže ikony
+    jely s rostoucí šířkou. Ve scéně proto konverzace posílá akce do `PaneBand` vždycky, nejen
+    s otevřeným sloupcem, i s kontextem své hlavičky (`actionsContext`). Na Windows je u nich
+    místo pro tlačítka okna (`endClearance` z `LocalWindowControls`).
+    Ověřeno na desktopu i na emulátoru Fold: záznam otevření a zavření panelu (`adb shell
+    screenrecord --display-id …`, snímky přes `ffmpeg -fps_mode passthrough`) má ikony ve všech
+    66 snímcích na témže místě. Jeden `screencap` je na animaci panelu příliš pomalý.
+  - Měření pásu (`detailCardTop`, `LocalPaneHeaderMinHeight`) ve scéně vychází na nulu.
+- **Ověřeno na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
+  a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu.
+- **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený je pod `THREE_PANE_MIN_WIDTH`):
+  s otevřeným profilem seznam ustoupí a vedle sebe zůstane konverzace s profilem, jako
+  s knihovnou. Gesto zpět od okraje (`input motionevent` DOWN/MOVE/UP) sloupec během tahu
+  zužuje a po puštění zavře, zrušené gesto ho vrátí. Deset cyklů `adb emu fold`/`unfold`
+  s otevřeným profilem bez pádu, týž pid, profil zůstal otevřený.
+- **Pád při složení s fokusem v textovém poli NEZPŮSOBUJE scéna**: s otevřeným hledáním v chatu
+  složení shodí aplikaci (`TextFieldCoreModifierNode.startCursorJob`, „Modifier node is not
+  currently attached") úplně stejně s vypnutým přepínačem, tedy s knihovnou. Je to pád popsaný
+  v `desktop.md`, „Textové pole při změně scény", který na Androidu opravený není.
+- **Pant v pozici kniha** (`adb shell cmd device_state state 1`, zpět `state reset`): hranice
+  panelů na pantu neleží ani se scénou, ani s knihovnou, rozvržení je v obou režimech stejné.
+  Jestli emulátor oddělující pant aplikaci vůbec hlásí, ověřené není; rozhodne skutečný Fold.
+- **Lišta ověřená** na desktopu (konverzace, profil, úprava kanálu i s rolováním, kalendář, Esc,
+  přepnutí chatu) a na emulátoru Fold (gesto zpět, osm cyklů skládání s profilem).
+  **Pozor na studený start emulátoru:** po něm v Plume chyběl mikrofon ve vstupním poli a část
+  avatarů, i s vypnutým přepínačem; po restartu aplikace bylo vše zpátky a znovu se to nestalo.
+- **Archiv a užší okno ověřené na desktopu**: archiv má vlastní klíč scény (seznam, placeholder,
+  konverzace s profilem); okno zúžené pod `THREE_PANE_MIN_WIDTH` (`osascript … set size of window`)
+  při otevřeném profilu seznam schová, po zavření vrátí a akce v liště zůstávají vpravo.
+- **Neověřeno:** Windows (pevné akce vlevo od tlačítek okna), skutečný Fold a pant v pozici kniha.
+
 ### Obsah přesouvaný mezi scénami
 
 Při rozložení a složení Foldu (jeden panel ↔ list-detail) NavDisplay obsah položky do jiné

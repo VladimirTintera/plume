@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.adaptive
 
+import androidx.compose.runtime.currentCompositionLocalContext
+
+import androidx.compose.runtime.SideEffect
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.fillMaxSize
@@ -91,24 +95,34 @@ private val LocalInPaneHeader = staticCompositionLocalOf { false }
 fun PaneHeader(glass: Modifier? = null, content: @Composable () -> Unit) {
     val host = LocalPaneHeaderHost.current
     val outside = LocalPaneHeaderOutside.current
+    // Ve scéně Chatů kreslí hlavičku lišta scény ([SceneBar]), ne obrazovka; karta je pak celá.
+    val target = LocalSceneBarTarget.current?.takeIf { outside }
     val shownGlass = glass?.takeIf { !outside }
     val scheme = LocalPanePlaneScheme.current.takeIf { outside } ?: MaterialTheme.colorScheme
     // Obrazovka odešla, karta zůstává (jiná položka v ní není, ale pro jistotu): celá karta.
     DisposableEffect(host) { onDispose { host?.height = 0 } }
-    MaterialExpressiveTheme(colorScheme = scheme) {
-        CompositionLocalProvider(
-            LocalInPaneHeader provides (outside || shownGlass != null),
-            LocalContentColor provides scheme.onSurface,
-        ) {
-            Box(
-                Modifier
-                    .then(shownGlass ?: Modifier)
-                    .onSizeChanged { host?.height = it.height }
-                    .heightIn(min = if (outside) LocalPaneHeaderMinHeight.current else 0.dp)
-                    .padding(bottom = if (outside) PANE_HEADER_GAP else 0.dp),
-                contentAlignment = Alignment.BottomStart,
-            ) { content() }
+    val body: @Composable () -> Unit = {
+        MaterialExpressiveTheme(colorScheme = scheme) {
+            CompositionLocalProvider(
+                LocalInPaneHeader provides (outside || shownGlass != null),
+                LocalContentColor provides scheme.onSurface,
+            ) {
+                Box(
+                    Modifier
+                        .then(shownGlass ?: Modifier)
+                        .then(if (target == null) Modifier.onSizeChanged { host?.height = it.height } else Modifier)
+                        .heightIn(min = if (outside) LocalPaneHeaderMinHeight.current else 0.dp)
+                        .padding(bottom = if (outside) PANE_HEADER_GAP else 0.dp),
+                    contentAlignment = Alignment.BottomStart,
+                ) { content() }
+            }
         }
+    }
+    if (target != null) {
+        SideEffect { host?.height = 0 }
+        PublishToSceneBar(target, currentCompositionLocalContext, body)
+    } else {
+        body()
     }
 }
 

@@ -72,6 +72,7 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 import eu.tintera.plume.core.adaptive.publishToPaneBand
+import eu.tintera.plume.core.adaptive.PaneBandSpace
 import eu.tintera.plume.features.profile.chatActionsViewModel
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
@@ -366,7 +367,8 @@ internal fun ConversationTopBar(
             }
         },
         actions = {
-            if (!inBand) actions()
+            // Ve scéně Chatů kreslí akce scéna na konci lišty; tady zůstane jejich místo.
+            if (!inBand) actions() else PaneBandSpace()
             WindowControlsEndSpace()
         },
     )
