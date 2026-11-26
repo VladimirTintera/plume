@@ -1,5 +1,11 @@
 package eu.tintera.plume.gradle
 
+import com.android.build.api.instrumentation.AsmClassVisitorFactory
+import com.android.build.api.instrumentation.ClassContext
+import com.android.build.api.instrumentation.ClassData
+import com.android.build.api.instrumentation.InstrumentationParameters
+import com.android.build.api.instrumentation.InstrumentationScope
+import com.android.build.api.variant.AndroidComponentsExtension
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -23,21 +29,128 @@ import org.objectweb.asm.Label
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 
+// Textové pole přežije přesun do jiné scény. Viz „Textové pole při změně scény"
+// v docs/poznatky/desktop.md (mechanismus, desktop) a „Textové pole při rozložení Foldu"
+// v docs/poznatky/navigace.md (Android).
+//
+// `TextFieldCoreModifierNode.startCursorJob()` dostane na začátek `if (!isAttached) return`.
+// Bez toho přepnutí scény s fokusem v textovém poli (zúžení okna na desktopu, složení
+// a rozložení Foldu) shodí aplikaci na „Cannot read CompositionLocal because the Modifier node
+// is not currently attached": NavDisplay přesouvá obsah do jiné scény
+// (`CopyNodesToNewAnchorLocation`), `LayoutNode.attach` → `applyModifier` zavolá `updateNode`
+// nad uzlem, který ještě připojený není, a ten rovnou spouští blikání kurzoru (`currentValueOf`,
+// `coroutineScope`).
+//
+// Připojený uzel si kurzor spustí sám v `onAttach` (`if (isFocused && showCursor)`), takže
+// přeskočené volání nic neztratí. Upstream to nemá opravené v Compose 1.13.0 ani
+// 1.14.0-alpha01 (listopad 2026).
+//
+// Vkládá se dvěma cestami nad týmž visitorem, jako hook TDLib (Tdlib.kt): na Androidu
+// instrumentací AGP ([ComposeTextFieldAndroidPlugin]), na desktopu přepisem jaru
+// `foundation-desktop` ([ComposeTextFieldDesktopPlugin]). iOS ji nemá — klib Kotlin/Native
+// přepsat nejde.
+
+/** Třída s blikáním kurzoru, ve tvaru pro ASM. */
+private const val PATCHED_INTERNAL_NAME =
+    "androidx/compose/foundation/text/input/internal/TextFieldCoreModifierNode"
+
 /**
- * Desktop: textové pole přežije přesun do jiné scény. Přepis jaru `foundation-desktop`, viz
- * „Textové pole při změně scény" v docs/poznatky/desktop.md.
+ * Vloží na začátek `startCursorJob()V` stráž `if (!isAttached) return`.
  *
- * `TextFieldCoreModifierNode.startCursorJob()` dostane na začátek `if (!isAttached) return`.
- * Bez toho zúžení okna přes práh dvou panelů s otevřenou konverzací (pole zprávy má fokus)
- * shodí okno na „Cannot read CompositionLocal because the Modifier node is not currently
- * attached": NavDisplay přesouvá obsah do jiné scény (`CopyNodesToNewAnchorLocation`),
- * `LayoutNode.attach` → `applyModifier` zavolá `updateNode` nad uzlem, který ještě připojený
- * není, a ten rovnou spouští blikání kurzoru (`currentValueOf`, `coroutineScope`).
+ * Rámec za stráží je tentýž jako počáteční (jen `this`, prázdný zásobník), takže ostatní rámce
+ * metody zůstávají a zásobník stráže (hloubka 1) se vejde do původního maxima. Zapisuje se ale
+ * ve tvaru, v jakém rámce čte reader: s `ClassReader.EXPAND_FRAMES` (AGP v režimu
+ * `COPY_FRAMES`) jako `F_NEW`, jinak `F_SAME` — míchat rozbalené a komprimované rámce ASM
+ * neumí. Writer s `COMPUTE_FRAMES` (ostatní režimy AGP) vložený rámec ignoruje.
+ */
+internal class StartCursorJobGuardVisitor(
+    next: ClassVisitor,
+    private val expandedFrames: Boolean,
+) : ClassVisitor(Opcodes.ASM9, next) {
+
+    private var found = false
+
+    override fun visitMethod(
+        access: Int,
+        name: String?,
+        descriptor: String?,
+        signature: String?,
+        exceptions: Array<out String>?,
+    ): MethodVisitor {
+        val next = super.visitMethod(access, name, descriptor, signature, exceptions)
+        if (name != "startCursorJob" || descriptor != "()V") return next
+        found = true
+        return object : MethodVisitor(Opcodes.ASM9, next) {
+            override fun visitCode() {
+                super.visitCode()
+                val attached = Label()
+                visitVarInsn(Opcodes.ALOAD, 0)
+                visitMethodInsn(
+                    Opcodes.INVOKEVIRTUAL,
+                    "androidx/compose/ui/Modifier\$Node",
+                    "isAttached",
+                    "()Z",
+                    false,
+                )
+                visitJumpInsn(Opcodes.IFNE, attached)
+                visitInsn(Opcodes.RETURN)
+                visitLabel(attached)
+                if (expandedFrames) {
+                    visitFrame(Opcodes.F_NEW, 1, arrayOf<Any>(PATCHED_INTERNAL_NAME), 0, arrayOf<Any>())
+                } else {
+                    visitFrame(Opcodes.F_SAME, 0, null, 0, null)
+                }
+            }
+        }
+    }
+
+    override fun visitEnd() {
+        // Třídu jsme našli, metodu ne: Compose textové pole změnil (nebo chybu opravil). Bez
+        // pádu buildu by se oprava tiše rozpojila.
+        if (!found) {
+            throw GradleException(
+                "$PATCHED_INTERNAL_NAME nemá startCursorJob()V — zkontroluj, jestli Compose nezměnil " +
+                    "textové pole nebo chybu neopravil (ComposeTextField.kt).",
+            )
+        }
+        super.visitEnd()
+    }
+}
+
+/**
+ * Android: instrumentace bajtkódu AGP (`InstrumentationScope.ALL`, tedy i závislosti), jen třída
+ * [PATCHED_INTERNAL_NAME] z `foundation-android`. Režim rámců nenastavuje: výchozí `COPY_FRAMES`
+ * (tentýž, který chce `plume.tdlib-android`) čte s `EXPAND_FRAMES` a zapisuje bez přepočtu.
  *
- * Připojený uzel si kurzor spustí sám v `onAttach` (`if (isFocused && showCursor)`), takže
- * přeskočené volání nic neztratí. Upstream to v Compose 1.13.0-rc01 ani v androidx-main
- * (listopad 2026) opravené nemá. Build spadne, když třídu nebo metodu nenajde — přejmenování
- * v bumpu by opravu jinak tiše rozpojilo.
+ * Přejmenovanou metodu ohlásí build ([StartCursorJobGuardVisitor.visitEnd]), přejmenovanou nebo
+ * přesunutou třídu ne — instrumentace se na ni prostě nezavolá. Ověří se `dexdump -d` nad APK:
+ * `startCursorJob` začíná `invoke-virtual … Modifier$Node;.isAttached` a `if-nez`.
+ */
+class ComposeTextFieldAndroidPlugin : Plugin<Project> {
+    override fun apply(project: Project) {
+        project.pluginManager.withPlugin("com.android.application") {
+            project.extensions.getByType(AndroidComponentsExtension::class.java).onVariants { variant ->
+                variant.instrumentation.transformClassesWith(
+                    ComposeTextFieldGuardFactory::class.java,
+                    InstrumentationScope.ALL,
+                ) {}
+            }
+        }
+    }
+}
+
+abstract class ComposeTextFieldGuardFactory : AsmClassVisitorFactory<InstrumentationParameters.None> {
+
+    override fun isInstrumentable(classData: ClassData): Boolean =
+        classData.className == PATCHED_INTERNAL_NAME.replace('/', '.')
+
+    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor): ClassVisitor =
+        StartCursorJobGuardVisitor(nextClassVisitor, expandedFrames = true)
+}
+
+/**
+ * Desktop: přepis jaru `foundation-desktop` artifact transformem na `runtimeClasspath`. Build
+ * spadne, když třídu nebo metodu nenajde — přejmenování v bumpu by opravu jinak tiše rozpojilo.
  */
 class ComposeTextFieldDesktopPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -56,8 +169,7 @@ class ComposeTextFieldDesktopPlugin : Plugin<Project> {
     }
 }
 
-private const val PATCHED_CLASS =
-    "androidx/compose/foundation/text/input/internal/TextFieldCoreModifierNode.class"
+private const val PATCHED_CLASS = "$PATCHED_INTERNAL_NAME.class"
 
 abstract class ComposeTextFieldJarTransform : TransformAction<TransformParameters.None> {
 
@@ -80,10 +192,7 @@ abstract class ComposeTextFieldJarTransform : TransformAction<TransformParameter
                     if (entry.isDirectory) continue
                     var bytes = zip.getInputStream(entry).use { it.readBytes() }
                     if (entry.name == PATCHED_CLASS) {
-                        bytes = guardStartCursorJob(bytes) ?: throw GradleException(
-                            "$PATCHED_CLASS: v ${input.name} chybí startCursorJob()V — zkontroluj, jestli " +
-                                "Compose nezměnil textové pole nebo chybu neopravil (ComposeTextField.kt).",
-                        )
+                        bytes = guardStartCursorJob(bytes)
                         done = true
                     }
                     out.putNextEntry(ZipEntry(entry.name))
@@ -100,49 +209,13 @@ abstract class ComposeTextFieldJarTransform : TransformAction<TransformParameter
         }
     }
 
-    /** Vloží stráž na začátek `startCursorJob()`; `null`, když metoda ve třídě není. */
-    private fun guardStartCursorJob(bytes: ByteArray): ByteArray? {
+    /** Vloží stráž na začátek `startCursorJob()`; bez metody build spadne. */
+    private fun guardStartCursorJob(bytes: ByteArray): ByteArray {
         val reader = ClassReader(bytes)
         // Writer z readeru a bez COMPUTE_*: COMPUTE_FRAMES by pro ostatní metody potřeboval
-        // načítat cizí třídy. Vložený rámec je F_SAME vůči počátečnímu (jen `this`, prázdný
-        // zásobník) a další rámce metody se počítají vůči němu, tedy beze změny; zásobník
-        // stráže (hloubka 1) se vejde do původního maxima.
+        // načítat cizí třídy. Reader bez EXPAND_FRAMES, takže stráž vkládá komprimovaný rámec.
         val writer = ClassWriter(reader, 0)
-        var found = false
-        reader.accept(
-            object : ClassVisitor(Opcodes.ASM9, writer) {
-                override fun visitMethod(
-                    access: Int,
-                    name: String?,
-                    descriptor: String?,
-                    signature: String?,
-                    exceptions: Array<out String>?,
-                ): MethodVisitor {
-                    val next = super.visitMethod(access, name, descriptor, signature, exceptions)
-                    if (name != "startCursorJob" || descriptor != "()V") return next
-                    found = true
-                    return object : MethodVisitor(Opcodes.ASM9, next) {
-                        override fun visitCode() {
-                            super.visitCode()
-                            val attached = Label()
-                            visitVarInsn(Opcodes.ALOAD, 0)
-                            visitMethodInsn(
-                                Opcodes.INVOKEVIRTUAL,
-                                "androidx/compose/ui/Modifier\$Node",
-                                "isAttached",
-                                "()Z",
-                                false,
-                            )
-                            visitJumpInsn(Opcodes.IFNE, attached)
-                            visitInsn(Opcodes.RETURN)
-                            visitLabel(attached)
-                            visitFrame(Opcodes.F_SAME, 0, null, 0, null)
-                        }
-                    }
-                }
-            },
-            0,
-        )
-        return if (found) writer.toByteArray() else null
+        reader.accept(StartCursorJobGuardVisitor(writer, expandedFrames = false), 0)
+        return writer.toByteArray()
     }
 }

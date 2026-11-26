@@ -966,9 +966,10 @@ ukončení (`td::Session::~Session` v `DiagnosticReports`) — skutečná chyba 
   a sérií šířek 1400 → 360 po 8 px pád nepřišel, první tah myší (`left_mouse_down` na pravém okraji
   a posun doleva) ano. Tah jde přes `drawFrameWhileLiveResizing` (synchronní překreslování při
   živé změně velikosti, viz další oddíl) a scéna se přepíná uvnitř snímku vykresleného během tahu.
-- **Android a iOS mají tentýž kód** (`TextFieldCoreModifier.kt` je v `commonMain`), přepis jaru
-  ale jen desktop. Na Foldu by se to projevilo rozložením displeje s fokusem v poli zprávy;
-  ověřené to není.
+- **Android a iOS mají tentýž kód** (`TextFieldCoreModifier.kt` je v `commonMain`). Na Foldu to
+  padalo při složení i rozložení s fokusem v poli (ověřeno 26. 11. 2026); Android má od té doby
+  tutéž stráž přes instrumentaci AGP (`plume.compose-text-field-android`, visitor je společný),
+  iOS nic. Viz „Textové pole při rozložení Foldu" v `navigace.md`.
 - **Ověřeno na Macu** ladicím během: bez opravy okno spadlo při prvním tahu, s opravou dva tahy
   (i s fokusem v poli) a přepínání 1400 ↔ 360 px bez výjimky.
 
