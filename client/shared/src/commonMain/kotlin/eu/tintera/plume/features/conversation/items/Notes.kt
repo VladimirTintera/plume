@@ -190,12 +190,8 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
 internal fun ServiceMessage(
     message: ChatMessage,
     modifier: Modifier = Modifier,
-    onOpenChat: (Long) -> Unit = {},
-    onJumpTo: (Long) -> Unit = {},
-    onOpen: (ServiceOpen) -> Unit = {},
-    onAcceptBirthdate: () -> Unit = {},
-    onAcceptPhoto: () -> Unit = {},
-    onAnswerProtection: (approve: Boolean) -> Unit = {},
+    /** Akce z oznámení: skok na zprávu, otevření chatu nebo člověka, odpověď na návrh. */
+    onAction: (MessageAction) -> Unit = {},
 ) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
@@ -206,15 +202,15 @@ internal fun ServiceMessage(
     val birthdate = message.suggestedBirthdate
     val photo = message.suggestedPhoto
     if (photo != null) {
-        SuggestedPhotoNote(text, photo, message, modifier, onAcceptPhoto)
+        SuggestedPhotoNote(text, photo, message, modifier) { onAction(MessageAction.AcceptSuggestedPhoto) }
         return
     }
     if (birthdate != null) {
-        SuggestedBirthdateNote(text, birthdate, modifier, onAcceptBirthdate)
+        SuggestedBirthdateNote(text, birthdate, modifier) { onAction(MessageAction.AcceptSuggestedBirthdate) }
         return
     }
     if (message.protectionDisableRequest) {
-        ProtectionRequestNote(text, modifier, onAnswerProtection)
+        ProtectionRequestNote(text, modifier) { approve -> onAction(MessageAction.AnswerProtectionRequest(approve)) }
         return
     }
     if (link == null && target == null && open != null) {
@@ -223,7 +219,14 @@ internal fun ServiceMessage(
             text = text,
             modifier = modifier
                 .clip(ShapeDefaults.Medium)
-                .clickable(role = Role.Button) { onOpen(open) },
+                .clickable(role = Role.Button) {
+                    onAction(
+                        when (open) {
+                            is ServiceOpen.Chat -> MessageAction.OpenChat(open.chatId)
+                            is ServiceOpen.User -> MessageAction.OpenUser(open.userId)
+                        },
+                    )
+                },
         )
         return
     }
@@ -235,7 +238,7 @@ internal fun ServiceMessage(
             // Odsazení dává poznámka sama, takže stojí přesně jako oznámení bez ťuknutí.
             modifier = modifier
                 .clip(ShapeDefaults.Medium)
-                .clickable(role = Role.Button) { onJumpTo(target) },
+                .clickable(role = Role.Button) { onAction(MessageAction.JumpTo(target)) },
         )
         return
     }
@@ -248,7 +251,7 @@ internal fun ServiceMessage(
     NoteWithAction(
         text = text,
         actionLabel = stringResource(if (link.toNewGroup) Res.string.service_upgraded_open_new else Res.string.service_upgraded_open_old),
-        onAction = { onOpenChat(link.chatId) },
+        onAction = { onAction(MessageAction.OpenChat(link.chatId)) },
         modifier = modifier,
     )
 }

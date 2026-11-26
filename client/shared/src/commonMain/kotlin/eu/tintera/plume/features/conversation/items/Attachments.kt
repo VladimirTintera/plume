@@ -150,12 +150,10 @@ internal fun MessageAttachment(
 
     when (media) {
         is MessageMedia.Photo -> {
-            val timers = koinInject<SelfDestructTimers>()
-            val consumedIds by timers.consumedIds.collectAsState()
-            val isConsumed = messageId in consumedIds || timers.isConsumed(messageId)
             val isSelfDestruct = media.isSecret || media.selfDestructType != null
+            val reveal = rememberMediaReveal(messageId, media.hasSpoiler, selfDestruct = isSelfDestruct)
 
-            if (isSelfDestruct && isConsumed) {
+            if (reveal.expired) {
                 ExpiredMediaRow(
                     isVideo = false,
                     accent = accent,
@@ -168,11 +166,8 @@ internal fun MessageAttachment(
                 // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
                 BoxWithConstraints {
                     val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
-                    val revealedSpoilers = koinInject<RevealedSpoilers>()
-                    val revealedIds by revealedSpoilers.revealed.collectAsState()
-                    val revealed = !media.hasSpoiler || messageId in revealedIds
+                    val revealed = reveal.revealed
                     val spoilerStyle = rememberSpoilerBlurStyle()
-                    val shouldBlur = isSelfDestruct || (media.hasSpoiler && !revealed)
 
                     Box(
                         modifier = Modifier
@@ -186,18 +181,7 @@ internal fun MessageAttachment(
                              * Dlouhý stisk se musí zopakovat tady: potomek s vlastním klikáním ho
                              * nepustí k rodiči, takže by nad fotkou nešla otevřít nabídka.
                              */
-                            .contextClickable(
-                                onClick = {
-                                    if (isSelfDestruct) {
-                                        onOpen()
-                                    } else if (media.hasSpoiler && !revealed) {
-                                        revealedSpoilers.reveal(messageId)
-                                    } else {
-                                        onOpen()
-                                    }
-                                },
-                                onLongClick = onRequestMenu,
-                            )
+                            .contextClickable(onClick = { reveal.tap(onOpen) }, onLongClick = onRequestMenu)
                             // Myší ven do složky (desktop): ostrá verze, a není-li stažená, ta z bubliny.
                             // Mizející a zakrytá fotka ne — tah by obešel, co skrytí chrání.
                             .mediaDragOut(
@@ -218,7 +202,7 @@ internal fun MessageAttachment(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .spoilerBlur(shouldBlur, revealed = false, spoilerStyle),
+                                .spoilerBlur(reveal.blurred, revealed = false, spoilerStyle),
                         )
 
                         if (isSelfDestruct) {
@@ -274,7 +258,7 @@ internal fun MessageAttachment(
 
         is MessageMedia.Product -> ProductCard(media, accent)
         is MessageMedia.Giveaway -> GiveawayCard(media, accent, onAction)
-        // Dárek kreslí servisní položka (ServiceMessageItem); sem se dostane jen kdyby přestal být oznámením.
+        // Dárek kreslí vlastní blok oznámení (GiftNoticeItem); sem se dostane jen kdyby přestal být oznámením.
         is MessageMedia.Gift -> GiftCard(media, onAction)
         // Příběh je fotka nebo video — kreslí se toutéž cestou, jen se značkou v rohu.
         is MessageMedia.Story -> StoryPreview(
@@ -338,25 +322,22 @@ internal fun MessageAttachment(
         is MessageMedia.Animation -> BoxWithConstraints {
             // Stejný rámeček jako fotka a video: GIF na výšku se zúží, místo aby přišel o kraje.
             val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
-            val revealedSpoilers = koinInject<RevealedSpoilers>()
-            val revealedIds by revealedSpoilers.revealed.collectAsState()
+            val reveal = rememberMediaReveal(messageId, media.hasSpoiler)
             AnimationBubble(
                 animation = media,
                 shape = pictureShape,
                 onRequestMenu = onRequestMenu,
                 modifier = Modifier.size(frame),
-                revealed = !media.hasSpoiler || messageId in revealedIds,
-                onReveal = { revealedSpoilers.reveal(messageId) },
+                revealed = reveal.revealed,
+                onReveal = reveal::reveal,
             )
         }
 
         is MessageMedia.Video -> {
-            val timers = koinInject<SelfDestructTimers>()
-            val consumedIds by timers.consumedIds.collectAsState()
-            val isConsumed = messageId in consumedIds || timers.isConsumed(messageId)
             val isSelfDestruct = media.isSecret || media.selfDestructType != null
+            val reveal = rememberMediaReveal(messageId, media.hasSpoiler, selfDestruct = isSelfDestruct)
 
-            if (isSelfDestruct && isConsumed) {
+            if (reveal.expired) {
                 ExpiredMediaRow(
                     isVideo = true,
                     accent = accent,
@@ -369,9 +350,7 @@ internal fun MessageAttachment(
                 BoxWithConstraints {
                     // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
                     val frame = photoFrame(maxWidth, media.albumRatio(), fillWidth)
-                    val revealedSpoilers = koinInject<RevealedSpoilers>()
-                    val revealedIds by revealedSpoilers.revealed.collectAsState()
-                    val revealed = !media.hasSpoiler || messageId in revealedIds
+                    val revealed = reveal.revealed
                     VideoThumbnail(
                         video = media,
                         messageId = messageId,
@@ -384,18 +363,7 @@ internal fun MessageAttachment(
                             .size(frame)
                             .clip(pictureShape)
                             // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-                            .contextClickable(
-                                onClick = {
-                                    if (isSelfDestruct) {
-                                        onOpen()
-                                    } else if (media.hasSpoiler && !revealed) {
-                                        revealedSpoilers.reveal(messageId)
-                                    } else {
-                                        onOpen()
-                                    }
-                                },
-                                onLongClick = onRequestMenu,
-                            )
+                            .contextClickable(onClick = { reveal.tap(onOpen) }, onLongClick = onRequestMenu)
                             .mediaDragOut(
                                 messageId,
                                 media.fileId,

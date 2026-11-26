@@ -49,7 +49,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun CallRow(call: MessageMedia.Call, accent: Color, onCallBack: (() -> Unit)? = null, onRequestMenu: () -> Unit = {}) {
-    val contentAccent = accent.takeIf { it != Color.Unspecified } ?: LocalContentColor.current
+    val contentAccent = accent.orContentColor()
     val iconTint = if (call.outcome.isFailure) {
         // Zmeškaný i odmítnutý je vždycky příchozí, tedy na světlé bublině příchozí zprávy.
         // Kontrast se přesto ověřuje — v paletě se zvýšeným kontrastem nemusí `error` vyjít.

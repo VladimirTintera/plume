@@ -336,66 +336,81 @@ internal data class ServiceMessageItem(
 
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem().gathered(key, scope)) {
-            // Dárek je karta, ne věta: řekne, co se darovalo a od koho.
-            val gift = message.media as? MessageMedia.Gift
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier
-                        // Jen na šířku textu: nabídka se ukotví k oznámení, ne k levému okraji
-                        // seznamu, a dlouhý stisk vedle textu nic nedělá. Dárek šířku má sám
-                        // (a intrinsické míry by v kartě nemusely projít).
-                        .then(if (gift == null) Modifier.width(IntrinsicSize.Max) else Modifier)
-                        .contextClickable(
-                            interactionSource = null,
-                            indication = null,
-                            onClick = {},
-                            onLongClick = { scope.onAction(message.id, MessageAction.ShowNoticeMenu) },
-                        ),
-                ) {
-                    if (gift != null) {
-                        Box(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
-                            GiftCard(gift, onAction = { scope.onAction(message.id, it) })
-                        }
-                    } else {
-                        ServiceMessage(
-                            message,
-                            onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) },
-                            onJumpTo = { scope.onAction(message.id, MessageAction.JumpTo(it)) },
-                            onAcceptBirthdate = { scope.onAction(message.id, MessageAction.AcceptSuggestedBirthdate) },
-                            onAcceptPhoto = { scope.onAction(message.id, MessageAction.AcceptSuggestedPhoto) },
-                            onAnswerProtection = { approve -> scope.onAction(message.id, MessageAction.AnswerProtectionRequest(approve)) },
-                            onOpen = { open ->
+        // Jen na šířku textu: nabídka se ukotví k oznámení, ne k levému okraji seznamu, a dlouhý
+        // stisk vedle textu nic nedělá.
+        NoticeFrame(key, message, menu, scope, Modifier.width(IntrinsicSize.Max)) {
+            ServiceMessage(message, onAction = { scope.onAction(message.id, it) })
+        }
+    }
+}
+
+/**
+ * Dárek: karta uprostřed konverzace, ne věta — řekne, co se darovalo a od koho. Zůstává
+ * oznámením (nemá stranu ani odesílatele), jen má vlastní blok místo větve uvnitř
+ * [ServiceMessageItem]: o druhu bloku rozhoduje builder, ne blok sám.
+ */
+internal data class GiftNoticeItem(
+    override val key: Long,
+    val message: ChatMessage,
+    val gift: MessageMedia.Gift,
+    val menu: NoticeMenu? = null,
+) : ConversationItem {
+    override fun containsMessage(messageId: Long): Boolean = message.id == messageId
+
+    @Composable
+    override fun LazyItemScope.Content(scope: ConversationItemScope) {
+        // Dárek šířku má sám (a intrinsické míry by v kartě nemusely projít).
+        NoticeFrame(key, message, menu, scope) {
+            Box(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
+                GiftCard(gift, onAction = { scope.onAction(message.id, it) })
+            }
+        }
+    }
+}
+
+/**
+ * Společný rám oznámení uprostřed konverzace: jede s plochou při odkrývání časů, je na středu,
+ * dlouhý stisk otevře nabídku (jen smazat) ukotvenou k obsahu.
+ */
+@Composable
+private fun LazyItemScope.NoticeFrame(
+    key: Long,
+    message: ChatMessage,
+    menu: NoticeMenu?,
+    scope: ConversationItemScope,
+    contentModifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem().gathered(key, scope)) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                contentModifier.contextClickable(
+                    interactionSource = null,
+                    indication = null,
+                    onClick = {},
+                    onLongClick = { scope.onAction(message.id, MessageAction.ShowNoticeMenu) },
+                ),
+            ) {
+                content()
+                ExpressiveMenu(
+                    expanded = menu != null,
+                    onDismiss = { scope.onAction(message.id, MessageAction.CloseMenu) },
+                    groups = listOf(
+                        listOf(
+                            MenuAction(
+                                label = stringResource(Res.string.menu_delete),
+                                icon = Res.drawable.delete_24dp,
+                                destructive = true,
+                            ) {
+                                val rights = menu ?: return@MenuAction
                                 scope.onAction(
                                     message.id,
-                                    when (open) {
-                                        is ServiceOpen.Chat -> MessageAction.OpenChat(open.chatId)
-                                        is ServiceOpen.User -> MessageAction.OpenUser(open.userId)
-                                    },
+                                    MessageAction.DeleteNotice(rights.canDeleteForSelf, rights.canDeleteForAll),
                                 )
                             },
-                        )
-                    }
-                    ExpressiveMenu(
-                        expanded = menu != null,
-                        onDismiss = { scope.onAction(message.id, MessageAction.CloseMenu) },
-                        groups = listOf(
-                            listOf(
-                                MenuAction(
-                                    label = stringResource(Res.string.menu_delete),
-                                    icon = Res.drawable.delete_24dp,
-                                    destructive = true,
-                                ) {
-                                    val rights = menu ?: return@MenuAction
-                                    scope.onAction(
-                                        message.id,
-                                        MessageAction.DeleteNotice(rights.canDeleteForSelf, rights.canDeleteForAll),
-                                    )
-                                },
-                            ),
                         ),
-                    )
-                }
+                    ),
+                )
             }
         }
     }

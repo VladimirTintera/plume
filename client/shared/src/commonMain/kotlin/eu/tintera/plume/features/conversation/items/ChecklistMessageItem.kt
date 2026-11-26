@@ -68,11 +68,7 @@ internal data class ChecklistMessageItem(
 
     @Composable
     override fun MessageBodyScope.Body() {
-        val quote = quoted ?: return Bubble { ChecklistContent(checklist) }
-        QuotedBubble(
-            quote = { ReplyQuote(quote, partnerName) },
-            content = { ChecklistContent(checklist) },
-        )
+        BubbleCard(quoted, partnerName) { ChecklistContent(checklist) }
     }
 }
 
@@ -93,9 +89,6 @@ private fun MessageBodyScope.ChecklistContent(checklist: ChatChecklist) {
     val done = checklist.tasks.count { it.shownDone(pending) }
 
     Column(Modifier.widthIn(max = CHECKLIST_MAX_WIDTH).fillMaxWidth()) {
-        SenderName(background = bubbleColor)
-        OriginLabel()
-
         RichText(
             text = checklist.title,
             entities = checklist.titleEntities,

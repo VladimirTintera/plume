@@ -127,8 +127,12 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
          */
         val startsUnread = firstUnread != null && row.messages.any { it.id == firstUnread }
 
-        items += if (message.isService) {
-            ServiceMessageItem(key = key, message = message, menu = state.noticeMenu?.takeIf { it.messageId == message.id })
+        val gift = message.media as? MessageMedia.Gift
+        val noticeMenu = state.noticeMenu?.takeIf { it.messageId == message.id }
+        items += if (message.isService && gift != null) {
+            GiftNoticeItem(key = key, message = message, gift = gift, menu = noticeMenu)
+        } else if (message.isService) {
+            ServiceMessageItem(key = key, message = message, menu = noticeMenu)
         } else {
             // Za předělem dne i časovým předělem začíná nový blok, i když píše tentýž člověk.
             val olderInGroup = older.takeIf { !startsDay && !startsTimeGap }

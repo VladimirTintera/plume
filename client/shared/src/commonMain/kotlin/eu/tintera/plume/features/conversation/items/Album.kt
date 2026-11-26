@@ -181,8 +181,8 @@ internal fun AlbumGrid(
 }
 
 /**
- * Dlaždice alba. Fotka jde do prohlížeče se sdíleným prvkem, stejně jako samostatná fotka; video
- * zatím jen ukazuje náhled a popisek, přehrávat neumíme.
+ * Dlaždice alba. Fotka i video jdou do prohlížeče se sdíleným prvkem, stejně jako samostatná
+ * fotka a video.
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -199,21 +199,11 @@ private fun AlbumTile(
 
     when (val media = cell.media) {
         is MessageMedia.Photo -> {
-            val revealedSpoilers = koinInject<RevealedSpoilers>()
-            val revealedIds by revealedSpoilers.revealed.collectAsState()
-            val revealed = !media.hasSpoiler || messageId in revealedIds
+            val reveal = rememberMediaReveal(messageId, media.hasSpoiler)
+            val revealed = reveal.revealed
             val spoilerStyle = rememberSpoilerBlurStyle()
             Box(
-                modifier = modifier.contextClickable(
-                    onClick = {
-                        if (media.hasSpoiler && !revealed) {
-                            revealedSpoilers.reveal(messageId)
-                        } else {
-                            onOpen()
-                        }
-                    },
-                    onLongClick = onRequestMenu,
-                ).mediaDragOut(messageId, media.fullFileId, fallbackFileId = media.fileId, enabled = revealed && !uploading),
+                modifier = modifier.contextClickable(onClick = { reveal.tap(onOpen) }, onLongClick = onRequestMenu).mediaDragOut(messageId, media.fullFileId, fallbackFileId = media.fileId, enabled = revealed && !uploading),
             ) {
                 RemoteImage(
                     fileId = media.fileId,
@@ -242,9 +232,8 @@ private fun AlbumTile(
         }
 
         is MessageMedia.Video -> {
-            val revealedSpoilers = koinInject<RevealedSpoilers>()
-            val revealedIds by revealedSpoilers.revealed.collectAsState()
-            val revealed = !media.hasSpoiler || messageId in revealedIds
+            val reveal = rememberMediaReveal(messageId, media.hasSpoiler)
+            val revealed = reveal.revealed
             VideoThumbnail(
                 video = media,
                 messageId = messageId,
@@ -252,16 +241,8 @@ private fun AlbumTile(
                 onCancelUpload = onCancelUpload,
                 revealed = revealed,
                 shape = shape,
-                modifier = modifier.contextClickable(
-                    onClick = {
-                        if (media.hasSpoiler && !revealed) {
-                            revealedSpoilers.reveal(messageId)
-                        } else {
-                            onOpen()
-                        }
-                    },
-                    onLongClick = onRequestMenu,
-                ).mediaDragOut(messageId, media.fileId, originalName = media.fileName, enabled = revealed && !uploading),
+                modifier = modifier.contextClickable(onClick = { reveal.tap(onOpen) }, onLongClick = onRequestMenu)
+                    .mediaDragOut(messageId, media.fileId, originalName = media.fileName, enabled = revealed && !uploading),
             )
         }
 

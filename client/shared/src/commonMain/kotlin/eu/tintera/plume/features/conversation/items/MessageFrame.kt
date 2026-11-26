@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ai.ScamKind
+import eu.tintera.plume.features.conversation.ContextFinding
+
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.resources.conversation_react_with
@@ -93,6 +96,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
@@ -660,377 +664,241 @@ private fun MessageFrame(
     val rowCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
 
     Box(Modifier.fillMaxWidth().background(selectionTint)) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .hoverable(hover)
-            .onGloballyPositioned { rowCoordinates[0] = it }
-            // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
-            // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
-            .padding(top = if (frame.continuesAbove) 0.dp else GROUP_SPACING)
-            /*
-             * Tažení do strany = odpověď.
-             *
-             * Rozhoduje sdílený [detectHorizontalSwipe]: tah si vezme až po dvojnásobku touch
-             * slopu a jen když jde výrazně víc doprava než svisle. Dřív to byl
-             * `awaitHorizontalTouchSlopOrCancellation`, který se ptá JEN na vodorovnou složku
-             * a jen na jeden slop — a bublina je potomek seznamu, takže dotyk dostane dřív než
-             * on. Palec jde na začátku scrollu obloukem do strany, a místo scrollu se zakládala
-             * odpověď. Doleva se tah nebere a propadne odkrývání časů nad seznamem.
-             *
-             * Táhne se **doprava u obou stran konverzace**. Zrcadlit směr podle odesílatele by
-             * znamenalo, že uživatel musí před každým gestem přemýšlet, čí zpráva to je.
-             *
-             * V režimu výběru gesto NENÍ: překryv nad zprávou bere ťuknutí, ale tah by mu
-             * propadl a založil odpověď uprostřed vybírání.
-             */
-            .then(if (frame.selected != null) Modifier else Modifier
-            .pointerInput(Unit) {
-                detectHorizontalSwipe(
-                    direction = SwipeDirection.Right,
-                    // Na desktopu patří tah myší výběru textu; odpověď nese pilulka po najetí.
-                    mouse = !bubbleTextSelectable,
-                    onDrag = { delta ->
-                        coroutineScope.launch {
-                            // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
-                            // obrazovky a nebylo by poznat, že se dál nic nestane.
-                            val resistance = if (drag.value < threshold) 1f else DRAG_RESISTANCE
-                            val next = (drag.value + delta * resistance).coerceIn(0f, maxDrag)
-                            drag.snapTo(next)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .hoverable(hover)
+                .onGloballyPositioned { rowCoordinates[0] = it }
+                // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
+                // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
+                .padding(top = if (frame.continuesAbove) 0.dp else GROUP_SPACING)
+                /*
+                 * Tažení do strany = odpověď.
+                 *
+                 * Rozhoduje sdílený [detectHorizontalSwipe]: tah si vezme až po dvojnásobku touch
+                 * slopu a jen když jde výrazně víc doprava než svisle. Dřív to byl
+                 * `awaitHorizontalTouchSlopOrCancellation`, který se ptá JEN na vodorovnou složku
+                 * a jen na jeden slop — a bublina je potomek seznamu, takže dotyk dostane dřív než
+                 * on. Palec jde na začátku scrollu obloukem do strany, a místo scrollu se zakládala
+                 * odpověď. Doleva se tah nebere a propadne odkrývání časů nad seznamem.
+                 *
+                 * Táhne se **doprava u obou stran konverzace**. Zrcadlit směr podle odesílatele by
+                 * znamenalo, že uživatel musí před každým gestem přemýšlet, čí zpráva to je.
+                 *
+                 * V režimu výběru gesto NENÍ: překryv nad zprávou bere ťuknutí, ale tah by mu
+                 * propadl a založil odpověď uprostřed vybírání.
+                 */
+                .then(if (frame.selected != null) Modifier else Modifier
+                    .pointerInput(Unit) {
+                        detectHorizontalSwipe(
+                            direction = SwipeDirection.Right,
+                            // Na desktopu patří tah myší výběru textu; odpověď nese pilulka po najetí.
+                            mouse = !bubbleTextSelectable,
+                            onDrag = { delta ->
+                                coroutineScope.launch {
+                                    // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
+                                    // obrazovky a nebylo by poznat, že se dál nic nestane.
+                                    val resistance = if (drag.value < threshold) 1f else DRAG_RESISTANCE
+                                    val next = (drag.value + delta * resistance).coerceIn(0f, maxDrag)
+                                    drag.snapTo(next)
 
-                            // Vrácený prst práh zase odjistí: další překročení v témže tahu
-                            // se musí ozvat znovu, stejně jako se znovu vyplní šipka.
-                            val past = next >= threshold
-                            if (past && !armed) haptics.threshold()
-                            armed = past
-                        }
-                    },
-                    onEnd = { released ->
-                        coroutineScope.launch {
-                            // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to
-                            // rozmyslí, vrátí prst zpátky a nic se nestane. Zrušené gesto
-                            // (přerušení systémem) bublinu jen vrátí.
-                            if (released && armed && drag.value >= threshold) scope.onAction(currentMessageId, MessageAction.SwipeReply)
-                            armed = false
-                            drag.animateTo(0f, returnSpec)
-                        }
-                    },
-                )
-            }),
-        horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
-        // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
-        // části bloku patří.
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        if (frame.selected != null && message.isOutgoing) SelectionMark(frame.selected)
-
-        // Mimo posouvaný `Box`: při tažení na odpověď jede bublina, tvář zůstává na místě.
-        when (frame.avatar) {
-            SenderAvatar.None -> Unit
-            SenderAvatar.Spacer -> Spacer(Modifier.width(SENDER_AVATAR_SLOT))
-            SenderAvatar.Shown -> {
-                // Profil jen u člověka: záporné id je chat (anonymní správce, kanál), ne uživatel.
-                val userId = message.senderId.takeIf { it > 0 }
-                val profileLabel = stringResource(Res.string.profile_open)
-                Avatar(
-                    chatId = message.senderId,
-                    title = message.senderName.orEmpty(),
-                    avatarFileId = message.senderAvatarFileId,
-                    size = SENDER_AVATAR_SIZE,
-                    modifier = Modifier
-                        .padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE)
-                        .then(
-                            if (userId != null && scope.isProfileFlight(message.id)) {
-                                Modifier.sharedNavElement(chatAvatarKey(userId))
-                            } else {
-                                Modifier
+                                    // Vrácený prst práh zase odjistí: další překročení v témže tahu
+                                    // se musí ozvat znovu, stejně jako se znovu vyplní šipka.
+                                    val past = next >= threshold
+                                    if (past && !armed) haptics.threshold()
+                                    armed = past
+                                }
+                            },
+                            onEnd = { released ->
+                                coroutineScope.launch {
+                                    // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to
+                                    // rozmyslí, vrátí prst zpátky a nic se nestane. Zrušené gesto
+                                    // (přerušení systémem) bublinu jen vrátí.
+                                    if (released && armed && drag.value >= threshold) scope.onAction(currentMessageId, MessageAction.SwipeReply)
+                                    armed = false
+                                    drag.animateTo(0f, returnSpec)
+                                }
                             },
                         )
-                        .clip(CircleShape)
-                        .then(
-                            if (userId != null) {
-                                Modifier.clickable(onClickLabel = profileLabel) {
-                                    scope.onAction(message.id, MessageAction.OpenSenderProfile(userId))
-                                }
-                            } else {
-                                Modifier
-                            },
-                        ),
-                )
-            }
-        }
-
-        Column(
-            // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
-            // zpráva i s obsahem přeskládávala na každý snímek tahu.
-            Modifier
-                // Před posunem tahu na odpověď: ukotvení měří, kde zpráva stojí v klidu.
-                .then(if (revealAnchor != null) Modifier.onPlaced { revealAnchor.content = it } else Modifier)
-                .offset { IntOffset(drag.value.roundToInt(), 0) },
-            // Zpráva drží svou stranu, i když je něco pod ní širší než ona — „Neodesláno. Ťukni
-            // a zkus to znovu." pod krátkou bublinou ji jinak odsunulo od pravého okraje.
-            horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
+                    }),
+            horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
+            // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
+            // části bloku patří.
+            verticalAlignment = Alignment.Bottom,
         ) {
-            /*
-             * Zpráva sama. Když je nad ní otevřená nabídka, SKRYJE se, ale drží místo — nabídka ji
-             * kreslí u sebe (viz `MessageMenuLayer`), vysune ji do pohledu a při zavření vrátí.
-             * Stejně to dělají Google Zprávy: místo zprávy zůstane prázdné.
-             *
-             * Odznak doručení do ní nepatří: stojí až za ní, ve sloupci.
-             */
-            /*
-             * Varování před podvodem, kontrola faktů a tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď.
-             * Do `MessageBox` nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad
-             * zprávou — a pod holou fotkou žádná bublina, do které by se daly vložit, není.
-             */
-            val scam = scope.scamWarning(message.id)
-            // Akce u zprávy, před kterou se varuje, nejsou: QR platba k podvodu je přesně to, co
-            // podvodník chce. V režimu výběru ťuknutí patří výběru.
-            val context = if (scam == null && frame.selected == null) scope.messageContext(message) else emptyList()
-            WithBelowMessage(
-                hasBelow = message.keyboard != null || message.factCheck != null || scam != null ||
-                    message.suggestedPost != null,
-                isOutgoing = message.isOutgoing,
-                maxWidthFraction = maxWidthFraction,
-                below = {
-                    Column(verticalArrangement = Arrangement.spacedBy(FACT_CHECK_GAP)) {
-                        // Varování první: je nejdůležitější a tlačítka bota pod ním jsou to,
-                        // před čím varuje.
-                        scam?.let { kind ->
-                            ScamWarningCard(kind = kind, onDismiss = { scope.dismissScamWarning(message.id) })
-                        }
-                        message.suggestedPost?.let { post ->
-                            SuggestedPostCard(
-                                post = post,
-                                onApprove = { bodyScope.act(MessageAction.ApproveSuggestedPost) },
-                                onDecline = { bodyScope.act(MessageAction.DeclineSuggestedPost) },
-                            )
-                        }
-                        message.factCheck?.let { check ->
-                            FactCheckCard(
-                                check = check,
-                                onLinkClick = { bodyScope.act(MessageAction.OpenLink(it)) },
-                                onLongClick = bodyScope::requestMenu,
-                            )
-                        }
-                        message.keyboard?.let { keyboard ->
-                            BotKeyboardView(
-                                keyboard = keyboard,
-                                pressing = scope.pressingBotButton(message.id),
-                                onPress = { row, column -> bodyScope.act(MessageAction.PressBotButton(row, column)) },
-                            )
-                        }
-                    }
-                },
-            ) {
-            // Zpráva pro čtečku obrazovky jedním uzlem (`MessageA11y.kt`): kdo, kdy, stav, akce.
-            val optionsLabel = stringResource(Res.string.conversation_message_options)
-            val reactLabel = scope.quickReactionEmoji()?.let { stringResource(Res.string.conversation_react_with, it) }
-                ?: stringResource(Res.string.conversation_react)
-            val a11y = MessageA11y(
-                sender = a11ySender(message, frame.continuesAbove),
-                state = listOfNotNull(message.timestamp.asTimeOfDay(), frame.delivery?.let { stringResource(it.label) })
-                    .joinToString(", "),
-                replyLabel = stringResource(Res.string.menu_reply).takeIf { scope.canReply() && frame.selected == null },
-                reactLabel = reactLabel.takeIf { frame.selected == null },
-                onReply = { scope.onAction(currentMessageId, MessageAction.SwipeReply) },
-                onReact = { bodyScope.act(MessageAction.QuickReact) },
-            )
-            MessageBox(
-                frame = frame,
-                bodyScope = bodyScope,
-                maxWidthFraction = maxWidthFraction,
-                reactions = reactions,
-                body = body,
-                modifier = Modifier
-                    .layout { measurable, constraints ->
-                        boxMaxWidth[0] = constraints.maxWidth
-                        val placeable = measurable.measure(constraints)
-                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                    }
-                    .onGloballyPositioned { boxCoordinates[0] = it }
-                    // Průhledná, ne vyřazená z layoutu: místo zůstane prázdné a kopie v nabídce se
-                    // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
-                    .graphicsLayer {
-                        alpha = when {
-                            scope.isInMenu(frame.key) -> 0f
-                            // Cíl letu čeká na start u pole (`MessageFlight.launched`): na místě
-                            // se ukázat nesmí, jinak by se bublina na snímek vykreslila dole
-                            // a teprve pak přiletěla.
-                            frame.flight?.targetVisible == false -> 0f
-                            else -> sendingAlpha
-                        }
-                        scaleX = pulse.value
-                        scaleY = pulse.value
-                        transformOrigin = TransformOrigin(if (message.isOutgoing) 1f else 0f, 0.5f)
-                    },
-                // Cílová strana letu ze vstupního pole. Sdílí se CELÁ zpráva, ne jen text —
-                // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
-                // skokem naskočilo.
-                beforeClip = frame.flight?.takeIf { it.targetVisible }
-                    ?.let { Modifier.sharedFlight(it.sharedKey, visible = true) } ?: Modifier,
-                /*
-                 * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová.
-                 *
-                 * Je to ubezpečení na vyžádání: odznak se automaticky ukazuje jen u nejnovější
-                 * zprávy, takže u starší se jinak nedá zjistit, jestli ji protějšek přečetl.
-                 *
-                 * Potomci s vlastním klikáním (odkaz v textu, citace, fotka, náhled odkazu,
-                 * samolepka) si ťuknutí berou sami, takže u zprávy složené z fotky není kam
-                 * ťuknout. Přidávat jim ho by znamenalo brát ťuknutí těm akcím — u fotky
-                 * otevření prohlížeče —, a to je horší než chybějící zkratka.
-                 */
-                /*
-                 * Dvojité ťuknutí přepne rychlou reakci. Jen tam, kam se ťuknutí dostane — fotka
-                 * nebo odkaz si ho vezmou samy, jako u odznaku přečtení výš. Cena: jednoduché
-                 * ťuknutí na vlastní zprávu (odznak přečtení) čeká, jestli nepřijde druhé.
-                 * Haptika tu není: jestli reakce v chatu vůbec jde, se ví až po dotazu,
-                 * a potvrzení u ťuknutí, po kterém se nic nestane, by lhalo. Odezvu nese
-                 * výbuch za přidanou reakcí.
-                 */
-                /*
-                 * Na desktopu ťuknutí na zprávu nic nedělá a stisk nemá vlnku: patří výběru textu
-                 * myší (`bubbleTextSelectable`). Odznak přečtení by zprávu při každém kliknutí
-                 * posunul a výběr pak ujel; stav doručení nese pilulka po najetí myší. Ani pravé
-                 * tlačítko na bublině nabídku nad zprávou neotevírá — nad textem patří běžné
-                 * textové nabídce (Kopírovat, Vybrat vše), do nabídky nad zprávou vede ⋮ v pilulce.
-                 * Přílohy (fotka, soubor) mají pravé tlačítko vlastní a to zůstává.
-                 */
-                afterClip = Modifier.contextClickable(
-                    interactionSource = null,
-                    indication = if (bubbleTextSelectable) null else LocalIndication.current,
-                    rightClick = !bubbleTextSelectable,
-                    // Čtečka obrazovky dlouhý stisk nabízí jako akci; bez popisku zněla „podržet".
-                    onLongClickLabel = optionsLabel,
-                    onLongClick = bodyScope::requestMenu,
-                    onDoubleClick = if (scope.doubleTapReaction()) {
-                        { bodyScope.act(MessageAction.QuickReact) }
-                    } else {
-                        null
-                    },
-                    onClick = { if (!bubbleTextSelectable) frame.onTap?.let(bodyScope::act) },
-                ).semantics { messageA11y(a11y) },
-                onReactionClick = if (frame.reactionsOpenable) {
-                    { bodyScope.act(MessageAction.ShowReactions) }
-                } else {
-                    null
-                },
+            if (frame.selected != null && message.isOutgoing) SelectionMark(frame.selected)
+
+            // Mimo posouvaný `Box`: při tažení na odpověď jede bublina, tvář zůstává na místě.
+            SenderAvatarSlot(frame, scope)
+
+            Column(
+                // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
+                // zpráva i s obsahem přeskládávala na každý snímek tahu.
+                Modifier
+                    // Před posunem tahu na odpověď: ukotvení měří, kde zpráva stojí v klidu.
+                    .then(if (revealAnchor != null) Modifier.onPlaced { revealAnchor.content = it } else Modifier)
+                    .offset { IntOffset(drag.value.roundToInt(), 0) },
+                // Zpráva drží svou stranu, i když je něco pod ní širší než ona — „Neodesláno. Ťukni
+                // a zkus to znovu." pod krátkou bublinou ji jinak odsunulo od pravého okraje.
+                horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
             ) {
                 /*
-                 * Šipka odpovědi. Sedí hned vedle zprávy a jede s ní, takže je jasné, čeho se gesto
-                 * týká. Posazená `offset`em mimo `Box` do layoutu nezasahuje.
+                 * Zpráva sama. Když je nad ní otevřená nabídka, SKRYJE se, ale drží místo — nabídka ji
+                 * kreslí u sebe (viz `MessageMenuLayer`), vysune ji do pohledu a při zavření vrátí.
+                 * Stejně to dělají Google Zprávy: místo zprávy zůstane prázdné.
                  *
-                 * Vlevo u OBOU stran konverzace: tam vzniká mezera, když se táhne doprava.
+                 * Odznak doručení do ní nepatří: stojí až za ní, ve sloupci.
                  */
-                ReplyHint(
-                    progress = { (drag.value / threshold).coerceIn(0f, 1f) },
-                    armed = replyArmed,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset(x = -REPLY_ICON_SLOT),
-                )
-
-                // Akce ze zprávy na volné straně, za značkou efektu, když nějaká je.
-                if (context.isNotEmpty()) {
-                    val beyondEffect = if (message.effect != null) EFFECT_MARK_SIZE + EFFECT_MARK_GAP else 0.dp
-                    MessageContextMark(
-                        findings = context,
-                        onClick = { scope.openMessageContext(message.id, context) },
-                        modifier = Modifier
-                            .align(if (message.isOutgoing) Alignment.BottomStart else Alignment.BottomEnd)
-                            .offset(
-                                x = (CONTEXT_MARK_SIZE + EFFECT_MARK_GAP + beyondEffect) * (if (message.isOutgoing) -1 else 1),
-                            ),
-                    )
-                }
-
-                // Značka efektu na volné straně zprávy, u spodku (viz [EffectMark]).
-                message.effect?.let { effect ->
-                    EffectMark(
-                        effect = effect,
-                        playback = effectPlayback,
-                        isOutgoing = message.isOutgoing,
-                        modifier = Modifier
-                            .align(if (message.isOutgoing) Alignment.BottomStart else Alignment.BottomEnd)
-                            .offset(
-                                x = (EFFECT_MARK_SIZE + EFFECT_MARK_GAP) * (if (message.isOutgoing) -1 else 1),
-                            ),
-                    )
-                }
-
-                // Čas, Odpovědět a ⋮ po najetí myší, na volné straně za značkami efektu a kontextu.
-                MessageHoverActions(
-                    visible = hovered && frame.selected == null && !scope.isInMenu(frame.key),
-                    timestamp = message.timestamp,
-                    delivery = frame.delivery,
-                    onReply = if (scope.canReply()) {
-                        { scope.onAction(currentMessageId, MessageAction.SwipeReply) }
-                    } else {
-                        null
-                    },
-                    onOptions = bodyScope::requestMenu,
-                    modifier = Modifier
-                        .align(if (message.isOutgoing) Alignment.BottomStart else Alignment.BottomEnd)
-                        .outsideBubble(
-                            row = { rowCoordinates[0] },
-                            isOutgoing = message.isOutgoing,
-                            gap = EFFECT_MARK_GAP +
-                                (if (message.effect != null) EFFECT_MARK_SIZE + EFFECT_MARK_GAP else 0.dp) +
-                                (if (context.isNotEmpty()) CONTEXT_MARK_SIZE + EFFECT_MARK_GAP else 0.dp),
-                        ),
-                )
-            }
-            }
-
-            // Podpis autora nese řádek pod příspěvkem i tam, kde počty nejsou.
-            (frame.postStats ?: PostStats(views = 0, forwards = 0, comments = null).takeIf { message.authorSignature != null })?.let { stats ->
-                PostFooter(
-                    stats = stats,
-                    signature = message.authorSignature,
+                /*
+                 * Varování před podvodem, kontrola faktů a tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď.
+                 * Do `MessageBox` nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad
+                 * zprávou — a pod holou fotkou žádná bublina, do které by se daly vložit, není.
+                 */
+                val scam = scope.scamWarning(message.id)
+                // Akce u zprávy, před kterou se varuje, nejsou: QR platba k podvodu je přesně to, co
+                // podvodník chce. V režimu výběru ťuknutí patří výběru.
+                val context = if (scam == null && frame.selected == null) scope.messageContext(message) else emptyList()
+                WithBelowMessage(
+                    hasBelow = message.keyboard != null || message.factCheck != null || scam != null ||
+                        message.suggestedPost != null,
                     isOutgoing = message.isOutgoing,
-                    onOpenComments = { bodyScope.act(MessageAction.OpenComments) },
-                    modifier = Modifier.align(
-                        when {
-                            // S čipem komentářů je řádek na straně zprávy — čip je to hlavní.
-                            stats.comments != null -> if (message.isOutgoing) Alignment.End else Alignment.Start
-                            // Samotné počty na protější straně než čipy reakcí, které visí přes
-                            // nároží na straně odesílatele.
-                            else -> if (message.isOutgoing) Alignment.Start else Alignment.End
+                    maxWidthFraction = maxWidthFraction,
+                    below = { BelowMessageCards(frame, scope, bodyScope, scam) },
+                ) {
+                    // Zpráva pro čtečku obrazovky jedním uzlem (`MessageA11y.kt`): kdo, kdy, stav, akce.
+                    val optionsLabel = stringResource(Res.string.conversation_message_options)
+                    val reactLabel = scope.quickReactionEmoji()?.let { stringResource(Res.string.conversation_react_with, it) }
+                        ?: stringResource(Res.string.conversation_react)
+                    val a11y = MessageA11y(
+                        sender = a11ySender(message, frame.continuesAbove),
+                        state = listOfNotNull(message.timestamp.asTimeOfDay(), frame.delivery?.let { stringResource(it.label) })
+                            .joinToString(", "),
+                        replyLabel = stringResource(Res.string.menu_reply).takeIf { scope.canReply() && frame.selected == null },
+                        reactLabel = reactLabel.takeIf { frame.selected == null },
+                        onReply = { scope.onAction(currentMessageId, MessageAction.SwipeReply) },
+                        onReact = { bodyScope.act(MessageAction.QuickReact) },
+                    )
+                    MessageBox(
+                        frame = frame,
+                        bodyScope = bodyScope,
+                        maxWidthFraction = maxWidthFraction,
+                        reactions = reactions,
+                        body = body,
+                        modifier = Modifier
+                            .layout { measurable, constraints ->
+                                boxMaxWidth[0] = constraints.maxWidth
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                            }
+                            .onGloballyPositioned { boxCoordinates[0] = it }
+                            // Průhledná, ne vyřazená z layoutu: místo zůstane prázdné a kopie v nabídce se
+                            // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
+                            .graphicsLayer {
+                                alpha = when {
+                                    scope.isInMenu(frame.key) -> 0f
+                                    // Cíl letu čeká na start u pole (`MessageFlight.launched`): na místě
+                                    // se ukázat nesmí, jinak by se bublina na snímek vykreslila dole
+                                    // a teprve pak přiletěla.
+                                    frame.flight?.targetVisible == false -> 0f
+                                    else -> sendingAlpha
+                                }
+                                scaleX = pulse.value
+                                scaleY = pulse.value
+                                transformOrigin = TransformOrigin(if (message.isOutgoing) 1f else 0f, 0.5f)
+                            },
+                        // Cílová strana letu ze vstupního pole. Sdílí se CELÁ zpráva, ne jen text —
+                        // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
+                        // skokem naskočilo.
+                        beforeClip = frame.flight?.takeIf { it.targetVisible }
+                            ?.let { Modifier.sharedFlight(it.sharedKey, visible = true) } ?: Modifier,
+                        /*
+                         * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová.
+                         *
+                         * Je to ubezpečení na vyžádání: odznak se automaticky ukazuje jen u nejnovější
+                         * zprávy, takže u starší se jinak nedá zjistit, jestli ji protějšek přečetl.
+                         *
+                         * Potomci s vlastním klikáním (odkaz v textu, citace, fotka, náhled odkazu,
+                         * samolepka) si ťuknutí berou sami, takže u zprávy složené z fotky není kam
+                         * ťuknout. Přidávat jim ho by znamenalo brát ťuknutí těm akcím — u fotky
+                         * otevření prohlížeče —, a to je horší než chybějící zkratka.
+                         */
+                        /*
+                         * Dvojité ťuknutí přepne rychlou reakci. Jen tam, kam se ťuknutí dostane — fotka
+                         * nebo odkaz si ho vezmou samy, jako u odznaku přečtení výš. Cena: jednoduché
+                         * ťuknutí na vlastní zprávu (odznak přečtení) čeká, jestli nepřijde druhé.
+                         * Haptika tu není: jestli reakce v chatu vůbec jde, se ví až po dotazu,
+                         * a potvrzení u ťuknutí, po kterém se nic nestane, by lhalo. Odezvu nese
+                         * výbuch za přidanou reakcí.
+                         */
+                        /*
+                         * Na desktopu ťuknutí na zprávu nic nedělá a stisk nemá vlnku: patří výběru textu
+                         * myší (`bubbleTextSelectable`). Odznak přečtení by zprávu při každém kliknutí
+                         * posunul a výběr pak ujel; stav doručení nese pilulka po najetí myší. Ani pravé
+                         * tlačítko na bublině nabídku nad zprávou neotevírá — nad textem patří běžné
+                         * textové nabídce (Kopírovat, Vybrat vše), do nabídky nad zprávou vede ⋮ v pilulce.
+                         * Přílohy (fotka, soubor) mají pravé tlačítko vlastní a to zůstává.
+                         */
+                        afterClip = Modifier.contextClickable(
+                            interactionSource = null,
+                            indication = if (bubbleTextSelectable) null else LocalIndication.current,
+                            rightClick = !bubbleTextSelectable,
+                            // Čtečka obrazovky dlouhý stisk nabízí jako akci; bez popisku zněla „podržet".
+                            onLongClickLabel = optionsLabel,
+                            onLongClick = bodyScope::requestMenu,
+                            onDoubleClick = if (scope.doubleTapReaction()) {
+                                { bodyScope.act(MessageAction.QuickReact) }
+                            } else {
+                                null
+                            },
+                            onClick = { if (!bubbleTextSelectable) frame.onTap?.let(bodyScope::act) },
+                        ).semantics { messageA11y(a11y) },
+                        onReactionClick = if (frame.reactionsOpenable) {
+                            { bodyScope.act(MessageAction.ShowReactions) }
+                        } else {
+                            null
                         },
-                    ),
-                )
+                    ) {
+                        /*
+                         * Šipka odpovědi. Sedí hned vedle zprávy a jede s ní, takže je jasné, čeho se gesto
+                         * týká. Posazená `offset`em mimo `Box` do layoutu nezasahuje.
+                         *
+                         * Vlevo u OBOU stran konverzace: tam vzniká mezera, když se táhne doprava.
+                         */
+                        ReplyHint(
+                            progress = { (drag.value / threshold).coerceIn(0f, 1f) },
+                            armed = replyArmed,
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset(x = -REPLY_ICON_SLOT),
+                        )
+
+                        SideMarks(
+                            frame = frame,
+                            scope = scope,
+                            bodyScope = bodyScope,
+                            context = context,
+                            effectPlayback = effectPlayback,
+                            hovered = hovered,
+                            row = { rowCoordinates[0] },
+                            onReply = if (scope.canReply()) {
+                                { scope.onAction(currentMessageId, MessageAction.SwipeReply) }
+                            } else {
+                                null
+                            },
+                        )
+                    }
+                }
+
+                MessageFooter(frame, bodyScope)
             }
 
-            message.ephemeral?.let { ephemeral ->
-                EphemeralFooter(
-                    ephemeral = ephemeral,
-                    isOutgoing = message.isOutgoing,
-                    onShowOriginal = { bodyScope.act(MessageAction.ShowOriginalContent) },
-                    modifier = Modifier.align(if (message.isOutgoing) Alignment.End else Alignment.Start),
-                )
-            }
-
-            DeliveryBadge(
-                delivery = frame.badge,
-                failure = message.sendFailure,
-                onFailedClick = { bodyScope.act(MessageMenuAction.Resend) },
-                modifier = Modifier
-                    .align(Alignment.End)
-                    // Odznak leží mimo vrstvu zprávy: dokud cíl letu čeká na start, skryje se
-                    // s ní, jinak by hodiny visely pod prázdným místem dřív, než bublina vyletí.
-                    // Skrývá se průhledností, ne vyřazením — místo v rozvržení zůstává, takže
-                    // se po přistání nic neposune.
-                    .graphicsLayer { alpha = if (frame.flight?.targetVisible == false) 0f else 1f },
-            )
+            /*
+             * Zaškrtnutí stojí na VOLNÉ straně zprávy — u odchozí vlevo, u příchozí vpravo. Volný
+             * pruh tam je vždycky (zpráva zabere nejvýš [MESSAGE_MAX_WIDTH_FRACTION] řádku), takže
+             * se kvůli němu nic neposouvá a oko ho najde tam, kde se stejně dívá.
+             */
+            if (frame.selected != null && !message.isOutgoing) SelectionMark(frame.selected)
         }
-
-        /*
-         * Zaškrtnutí stojí na VOLNÉ straně zprávy — u odchozí vlevo, u příchozí vpravo. Volný
-         * pruh tam je vždycky (zpráva zabere nejvýš [MESSAGE_MAX_WIDTH_FRACTION] řádku), takže
-         * se kvůli němu nic neposouvá a oko ho najde tam, kde se stejně dívá.
-         */
-        if (frame.selected != null && !message.isOutgoing) SelectionMark(frame.selected)
-    }
 
         /*
          * V režimu výběru bere ťuknutí i dlouhý stisk CELÝ řádek, přes překryv nad obsahem.
@@ -1063,6 +931,185 @@ private fun MessageFrame(
  * Kolečko výběru vedle zprávy. Vybrané je plné v akcentní barvě, nevybrané prázdné — samotné
  * podbarvení řádku by u jediné vybrané zprávy nedalo poznat, že jdou vybírat i další.
  */
+/** Tvář odesílatele vedle bubliny ve skupině (viz [SenderAvatar]); ťuknutí otevře profil. */
+@Composable
+private fun SenderAvatarSlot(frame: MessageFrameData, scope: ConversationItemScope) {
+    val message = frame.message
+    when (frame.avatar) {
+        SenderAvatar.None -> Unit
+        SenderAvatar.Spacer -> Spacer(Modifier.width(SENDER_AVATAR_SLOT))
+        SenderAvatar.Shown -> {
+            // Profil jen u člověka: záporné id je chat (anonymní správce, kanál), ne uživatel.
+            val userId = message.senderId.takeIf { it > 0 }
+            val profileLabel = stringResource(Res.string.profile_open)
+            Avatar(
+                chatId = message.senderId,
+                title = message.senderName.orEmpty(),
+                avatarFileId = message.senderAvatarFileId,
+                size = SENDER_AVATAR_SIZE,
+                modifier = Modifier
+                    .padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE)
+                    .then(
+                        if (userId != null && scope.isProfileFlight(message.id)) {
+                            Modifier.sharedNavElement(chatAvatarKey(userId))
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .clip(CircleShape)
+                    .then(
+                        if (userId != null) {
+                            Modifier.clickable(onClickLabel = profileLabel) {
+                                scope.onAction(message.id, MessageAction.OpenSenderProfile(userId))
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
+            )
+        }
+    }
+}
+
+/**
+ * Co visí pod zprávou: varování před podvodem, navrhovaný příspěvek, kontrola faktů a tlačítka
+ * bota. Jede se zprávou i při tahu na odpověď; do `MessageBox` nepatří (je ořezaný tvarem
+ * bubliny a kreslí ho i nabídka nad zprávou).
+ */
+@Composable
+private fun BelowMessageCards(frame: MessageFrameData, scope: ConversationItemScope, bodyScope: MessageBodyScope, scam: ScamKind?) {
+    val message = frame.message
+    Column(verticalArrangement = Arrangement.spacedBy(FACT_CHECK_GAP)) {
+        // Varování první: je nejdůležitější a tlačítka bota pod ním jsou to,
+        // před čím varuje.
+        scam?.let { kind ->
+            ScamWarningCard(kind = kind, onDismiss = { scope.dismissScamWarning(message.id) })
+        }
+        message.suggestedPost?.let { post ->
+            SuggestedPostCard(
+                post = post,
+                onApprove = { bodyScope.act(MessageAction.ApproveSuggestedPost) },
+                onDecline = { bodyScope.act(MessageAction.DeclineSuggestedPost) },
+            )
+        }
+        message.factCheck?.let { check ->
+            FactCheckCard(
+                check = check,
+                onLinkClick = { bodyScope.act(MessageAction.OpenLink(it)) },
+                onLongClick = bodyScope::requestMenu,
+            )
+        }
+        message.keyboard?.let { keyboard ->
+            BotKeyboardView(
+                keyboard = keyboard,
+                pressing = scope.pressingBotButton(message.id),
+                onPress = { row, column -> bodyScope.act(MessageAction.PressBotButton(row, column)) },
+            )
+        }
+    }
+}
+
+/**
+ * Značky na volné straně zprávy, u spodku, od bubliny ven: efekt ([EffectMark]), akce z textu
+ * ([MessageContextMark]) a pilulka po najetí myší ([MessageHoverActions]). Každá posune ty za
+ * sebou — dřív si to každá počítala sama součtem velikostí těch před ní, takže nová značka
+ * znamenala upravit všechny ostatní.
+ */
+@Composable
+private fun BoxScope.SideMarks(
+    frame: MessageFrameData,
+    scope: ConversationItemScope,
+    bodyScope: MessageBodyScope,
+    context: List<ContextFinding>,
+    effectPlayback: EffectPlayback,
+    hovered: Boolean,
+    row: () -> LayoutCoordinates?,
+    onReply: (() -> Unit)?,
+) {
+    val message = frame.message
+    val outgoing = message.isOutgoing
+    val side = if (outgoing) Alignment.BottomStart else Alignment.BottomEnd
+    val sign = if (outgoing) -1 else 1
+    var reach = 0.dp
+
+    message.effect?.let { effect ->
+        reach += EFFECT_MARK_SIZE + EFFECT_MARK_GAP
+        EffectMark(
+            effect = effect,
+            playback = effectPlayback,
+            isOutgoing = outgoing,
+            modifier = Modifier.align(side).offset(x = reach * sign),
+        )
+    }
+
+    if (context.isNotEmpty()) {
+        reach += CONTEXT_MARK_SIZE + EFFECT_MARK_GAP
+        MessageContextMark(
+            findings = context,
+            onClick = { scope.openMessageContext(message.id, context) },
+            modifier = Modifier.align(side).offset(x = reach * sign),
+        )
+    }
+
+    // Čas, Odpovědět a ⋮ po najetí myší, za ostatními značkami.
+    MessageHoverActions(
+        visible = hovered && frame.selected == null && !scope.isInMenu(frame.key),
+        timestamp = message.timestamp,
+        delivery = frame.delivery,
+        onReply = onReply,
+        onOptions = bodyScope::requestMenu,
+        modifier = Modifier
+            .align(side)
+            .outsideBubble(row = row, isOutgoing = outgoing, gap = EFFECT_MARK_GAP + reach),
+    )
+}
+
+/** Pod zprávou: řádek pod příspěvkem kanálu (počty, komentáře, podpis), mizející zpráva, doručení. */
+@Composable
+private fun ColumnScope.MessageFooter(frame: MessageFrameData, bodyScope: MessageBodyScope) {
+    val message = frame.message
+    // Podpis autora nese řádek pod příspěvkem i tam, kde počty nejsou.
+    (frame.postStats ?: SIGNATURE_ONLY.takeIf { message.authorSignature != null })?.let { stats ->
+        PostFooter(
+            stats = stats,
+            signature = message.authorSignature,
+            isOutgoing = message.isOutgoing,
+            onOpenComments = { bodyScope.act(MessageAction.OpenComments) },
+            modifier = Modifier.align(
+                when {
+                    // S čipem komentářů je řádek na straně zprávy — čip je to hlavní.
+                    stats.comments != null -> if (message.isOutgoing) Alignment.End else Alignment.Start
+                    // Samotné počty na protější straně než čipy reakcí, které visí přes
+                    // nároží na straně odesílatele.
+                    else -> if (message.isOutgoing) Alignment.Start else Alignment.End
+                },
+            ),
+        )
+    }
+
+    message.ephemeral?.let { ephemeral ->
+        EphemeralFooter(
+            ephemeral = ephemeral,
+            isOutgoing = message.isOutgoing,
+            onShowOriginal = { bodyScope.act(MessageAction.ShowOriginalContent) },
+            modifier = Modifier.align(if (message.isOutgoing) Alignment.End else Alignment.Start),
+        )
+    }
+
+    DeliveryBadge(
+        delivery = frame.badge,
+        failure = message.sendFailure,
+        onFailedClick = { bodyScope.act(MessageMenuAction.Resend) },
+        modifier = Modifier
+            .align(Alignment.End)
+            // Odznak leží mimo vrstvu zprávy: dokud cíl letu čeká na start, skryje se
+            // s ní, jinak by hodiny visely pod prázdným místem dřív, než bublina vyletí.
+            // Skrývá se průhledností, ne vyřazením — místo v rozvržení zůstává, takže
+            // se po přistání nic neposune.
+            .graphicsLayer { alpha = if (frame.flight?.targetVisible == false) 0f else 1f },
+    )
+}
+
 @Composable
 private fun RowScope.SelectionMark(selected: Boolean) {
     Icon(
@@ -1575,6 +1622,21 @@ internal fun MessageBodyScope.CardHeader(withName: Boolean) {
 internal val MessageBodyScope.surfaceAccent: Color
     @Composable get() = MaterialTheme.colorScheme.primary
 
+/**
+ * Akcent předaný kartě, a když žádný není ([Color.Unspecified] — karta mimo bublinu, třeba
+ * v nabídce), barva popředí plochy. Dřív to stálo opsané v každé kartě (hovor, kontakt, soutěž,
+ * produkt).
+ */
+@Composable
+internal fun Color.orContentColor(): Color = takeIf { it.isSpecified } ?: LocalContentColor.current
+
+/**
+ * Barva ikony na tlačítku přehrát u hlasovky a skladby: kolečko má barvu akcentu, ikona barvu,
+ * která na něm vynikne — v odchozí bublině je akcentem barva popředí, takže ikona bere bublinu.
+ */
+internal val MessageBodyScope.voiceOnAccent: Color
+    @Composable get() = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary
+
 /** Ukáže se u téhle zprávy jméno odesílatele? Jen u první zprávy bloku a jen tam, kde ho TDLib vyplní. */
 internal val MessageBodyScope.showsSenderName: Boolean get() = !continuesAbove && message.senderName != null
 
@@ -1759,7 +1821,7 @@ internal fun MessageBodyScope.Attachment(
             onSeek = { fraction -> act(MessageAction.SeekVoice(fraction)) },
             onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
             accent = accent,
-            onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
+            onAccent = voiceOnAccent,
             transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
         ),
         onAction = { action -> act(action) },
@@ -1946,6 +2008,9 @@ private const val HIGHLIGHT_SCALE = 1.06f
 
 /** Průhlednost odesílané zprávy, než ji server potvrdí. */
 private const val SENDING_ALPHA = 0.65f
+
+/** Řádek pod příspěvkem bez počtů — jen s podpisem autora (kanál s podpisy, počty nemá). */
+private val SIGNATURE_ONLY = PostStats(views = 0, forwards = 0, comments = null)
 
 /** Po jaké době odesílání se zpráva ztlumí (viz `sendingAlpha`). */
 private const val SENDING_DIM_DELAY_SECONDS = 1L
