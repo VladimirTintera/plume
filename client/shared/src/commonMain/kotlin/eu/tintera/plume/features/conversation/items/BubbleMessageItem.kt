@@ -90,17 +90,7 @@ internal data class BubbleMessageItem(
 
     @Composable
     override fun MessageBodyScope.Body() {
-        val quote = quoted ?: return Bubble { Content() }
-
-        /*
-         * Odpověď je KARTA ZE DVOU ČÁSTÍ, stejně jako náhled odkazu: nahoře citace v tónované
-         * ploše, pod ní odpověď v barvě bubliny. Dřív byla citace subkartička uvnitř bubliny —
-         * zaoblená plocha v ploše, dvě vnořené karty.
-         */
-        QuotedBubble(
-            quote = { ReplyQuote(quote, partnerName) },
-            content = { Content() },
-        )
+        BubbleCard(quoted, partnerName) { Content() }
     }
 
     /**
@@ -111,13 +101,10 @@ internal data class BubbleMessageItem(
         quoted == null && album == null && message.media == null &&
             !message.hasOriginLabel && (continuesAbove || message.senderName == null)
 
-    /** Obsah bubliny: jméno, příloha nebo album, text, náhled odkazu, „upraveno". */
+    /** Obsah bubliny pod jménem: příloha nebo album, text, náhled odkazu, „upraveno". */
     @Composable
     private fun MessageBodyScope.Content() {
         Column {
-            SenderName(background = bubbleColor)
-            OriginLabel()
-
             if (album != null) {
                 Album(members = album, accent = accent)
             } else {
@@ -460,6 +447,33 @@ internal fun MessageBodyScope.LongText(atTop: Boolean) {
             collapseLabel = Res.string.conversation_read_less,
             topPadding = MESSAGE_PADDING_V,
         )
+    }
+}
+
+/**
+ * Bublina zprávy: jméno odesílatele, značka přeposlání a pod nimi [content]. S citací je to
+ * KARTA ZE DVOU ČÁSTÍ ([QuotedBubble]), stejně jako náhled odkazu: nahoře citace v tónované
+ * ploše, pod ní odpověď v barvě bubliny (dřív byla citace subkartička uvnitř bubliny — dvě
+ * vnořené karty).
+ *
+ * Sdílí ji textová bublina, anketa a seznam úkolů; dřív každý z nich opakoval tutéž kostru
+ * „bez citace bublina, s citací karta, nahoře jméno a značka".
+ */
+@Composable
+internal fun MessageBodyScope.BubbleCard(
+    quoted: ChatMessage?,
+    partnerName: String?,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val body: @Composable ColumnScope.() -> Unit = {
+        SenderName(background = bubbleColor)
+        OriginLabel()
+        content()
+    }
+    if (quoted == null) {
+        Bubble(body)
+    } else {
+        QuotedBubble(quote = { ReplyQuote(quoted, partnerName) }, content = body)
     }
 }
 

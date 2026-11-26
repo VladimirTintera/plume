@@ -126,11 +126,7 @@ internal data class PollMessageItem(
 
     @Composable
     override fun MessageBodyScope.Body() {
-        val quote = quoted ?: return Bubble { PollContent(poll) }
-        QuotedBubble(
-            quote = { ReplyQuote(quote, partnerName) },
-            content = { PollContent(poll) },
-        )
+        BubbleCard(quoted, partnerName) { PollContent(poll) }
     }
 }
 
@@ -154,9 +150,6 @@ private fun MessageBodyScope.PollContent(poll: ChatPoll) {
     val resultsAtStart = remember(message.id) { poll.showsResults }
 
     Column(Modifier.widthIn(max = POLL_MAX_WIDTH).fillMaxWidth()) {
-        SenderName(background = bubbleColor)
-        OriginLabel()
-
         poll.media?.let { PollQuestionMedia(it) }
         Text(
             text = poll.question,

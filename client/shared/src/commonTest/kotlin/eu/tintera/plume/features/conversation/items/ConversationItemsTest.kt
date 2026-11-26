@@ -14,6 +14,7 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ExternalReply
 import eu.tintera.plume.core.telegram.ForwardOrigin
+import eu.tintera.plume.core.telegram.GiftKind
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -546,6 +547,15 @@ class ConversationItemsTest {
         // Dokud se na ni ještě ptáme, nic nevymýšlí.
         val pending = assertIs<MediaMessageItem>(single(message(2, text = "", media = photo, replyToMessageId = 1)))
         assertNull(pending.quoted)
+    }
+
+    @Test
+    fun darekJeVlastniBlokOznameni() {
+        // O druhu bloku rozhoduje builder, ne větev uvnitř servisní položky.
+        val gift = MessageMedia.Gift(kind = GiftKind.RefundedUpgrade, sticker = null, text = "", senderName = null, receiverName = null)
+        val item = assertIs<GiftNoticeItem>(single(message(1, isService = true, media = gift)))
+        assertEquals(gift, item.gift)
+        assertIs<ServiceMessageItem>(single(message(1, isService = true)))
     }
 
     @Test

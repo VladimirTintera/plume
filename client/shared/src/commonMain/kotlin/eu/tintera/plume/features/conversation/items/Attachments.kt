@@ -258,7 +258,7 @@ internal fun MessageAttachment(
 
         is MessageMedia.Product -> ProductCard(media, accent)
         is MessageMedia.Giveaway -> GiveawayCard(media, accent, onAction)
-        // Dárek kreslí servisní položka (ServiceMessageItem); sem se dostane jen kdyby přestal být oznámením.
+        // Dárek kreslí vlastní blok oznámení (GiftNoticeItem); sem se dostane jen kdyby přestal být oznámením.
         is MessageMedia.Gift -> GiftCard(media, onAction)
         // Příběh je fotka nebo video — kreslí se toutéž cestou, jen se značkou v rohu.
         is MessageMedia.Story -> StoryPreview(
