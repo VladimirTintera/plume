@@ -1679,12 +1679,11 @@ seznam". Zbývá:
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení
    s modelem) a hovor. Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe se tam
    nevejde.
-5. **Scéna panelů: zbývá ověřit a pant.** Chaty, archiv i Nastavení kreslí vlastní scéna s jednou
-   lištou (VladimirTintera/plume#70, #72, #74, kontrola `verifyPaneHeaders`;
-   [navrh-scena-chatu.md](navrh-scena-chatu.md)). Neověřené: Windows (pevné akce konverzace vlevo
-   od tlačítek okna), skutečný Fold a iPad. **Pant v pozici kniha scéna nerespektuje** — hranice
-   panelů neleží na pantu (na emulátoru stejně jako dřív knihovna; `excludedBounds` z direktivy se
-   nepoužívají).
+5. **Scéna panelů: zbývá ověřit.** Chaty, archiv i Nastavení kreslí vlastní scéna s jednou lištou
+   (VladimirTintera/plume#70, #72, #74, kontrola `verifyPaneHeaders`;
+   [navrh-scena-chatu.md](navrh-scena-chatu.md)), v pozici kniha s hranicí panelů na pantu.
+   Neověřené: Windows (pevné akce konverzace vlevo od tlačítek okna), skutečný Fold (i pant)
+   a iPad.
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna
