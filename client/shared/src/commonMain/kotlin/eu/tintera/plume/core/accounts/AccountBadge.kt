@@ -14,6 +14,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -129,7 +130,13 @@ data class BadgeAccount(val info: AccountInfo, val session: AccountSession? = nu
  * ve společném seznamu. Každý další leží o kus vpravo nad předchozím, s obroučkou [rim], takže
  * se od sebe odliší i stejně barevné fotky. S jedním účtem je to [AccountBadge], s žádným nic.
  * [chatId] jako u [AccountBadge]: do hlavičky konverzace přiletí odznak účtu, kterým se otevřela.
- * [flight] dostane účet odznaku, ať má každý z odznaků přes sebe vlastní let.
+ * [flight] dostane účet odznaku a jestli je navrchu, ať má každý z odznaků přes sebe vlastní let.
+ *
+ * **Navrchu je odznak účtu kolem** ([LocalAccount], účet, ve kterém se řádek kreslí a chat
+ * otevře), ostatní pod ním; místo v řadě zůstává podle pořadí účtů. Do hlavičky konverzace letí
+ * jen on, a ležel-li v řádku pod jiným, horní při otevření zmizel a vepředu skočila jiná fotka;
+ * při návratu letící dosedl a horní mu po doletu vyskočil přes něj. Pořadí v klidu teď sedí
+ * s pořadím za letu — a vepředu je účet, kterým se v chatu píše.
  */
 @Composable
 fun AccountBadges(
@@ -138,15 +145,17 @@ fun AccountBadges(
     modifier: Modifier = Modifier,
     size: Dp = 18.dp,
     chatId: Long? = null,
-    flight: @Composable (AccountInfo) -> Modifier = { Modifier },
+    flight: @Composable (account: AccountInfo, front: Boolean) -> Modifier = { _, _ -> Modifier },
 ) {
     when (accounts.size) {
         0 -> Unit
         1 -> InAccount(accounts.single().session) {
-            AccountBadge(accounts.single().info, rim, modifier, size, chatId, flight(accounts.single().info))
+            AccountBadge(accounts.single().info, rim, modifier, size, chatId, flight(accounts.single().info, true))
         }
         else -> Box(modifier.offset(x = (-4).dp, y = 4.dp)) {
+            val around = LocalAccount.current
             accounts.take(MAX_STACKED_BADGES).forEachIndexed { index, account ->
+                val front = account.session == null || account.session == around
                 InAccount(account.session) {
                     Avatar(
                         chatId = account.info.id,
@@ -154,8 +163,9 @@ fun AccountBadges(
                         avatarFileId = account.info.photoFileId,
                         size = size,
                         modifier = Modifier
+                            .zIndex(if (front) 1f else 0f)
                             .padding(start = size * STACKED_BADGE_STEP * index)
-                            .then(flight(account.info))
+                            .then(flight(account.info, front))
                             .badgeFlight(chatId, account.info)
                             .background(rim, CircleShape)
                             .padding(2.dp),

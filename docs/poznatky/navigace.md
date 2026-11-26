@@ -62,7 +62,12 @@ v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
   další značku, která je v seznamu i v hlavičce, dá jí vlastní klíč taky.
   - **Klíč odznaku nese id účtu, který odznak UKAZUJE**, ne slot kolem. Spojená společná
     skupina má v řádku odznaky víc účtů přes sebe a hlavička jen ten, kterým se píše: přiletí
-    právě ten, ostatní protějšek nemají a odejdou s řádkem. Ověřeno na Foldu záznamem obrazovky
+    právě ten, ostatní protějšek nemají a odejdou s řádkem.
+  - **Letící odznak musí být v hromádce NAVRCHU** (`AccountBadges`: odznak účtu kolem má
+    `zIndex`, místo v řadě zůstává podle pořadí účtů). Ležel-li pod jiným, horní při otevření
+    zmizel s řádkem a vepředu skočila jiná fotka; při návratu dosedl letící a horní mu po doletu
+    vyskočil přes něj. Při sbalení do sloupce letí všechny, horní i v překryvu výš
+    (`collapseBadgeFlight(front)`), jinak by se za letu prohodily. Ověřeno na Foldu záznamem obrazovky
     (`screenrecord --display-id`, po snímcích; série `screencap` po půl vteřině je na let moc
     řídká a z posunutých výřezů se zdálo, že odznak ujíždí nahoru).
   - **Klíč tečky nese slot účtu**, jako `chatAvatarKey`: soukromý chat s týmž člověkem je ve
