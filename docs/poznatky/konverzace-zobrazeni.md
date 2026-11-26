@@ -1426,9 +1426,16 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
   obrázku, který k němu server přiložil — žádné připojení k cizí stránce z aplikace.
 - **Obrázek jen z druhů, které nesou fotku**: článek, fotka, obal videa, náhled vloženého
   přehrávače, a u odkazu na Telegram profilovka chatu (kanál, skupina, člověk, bot, boost) nebo
-  obrázek mini aplikace (`previewPhoto` v `MessageContent.kt`). Ostatní druhy (hlasovka,
-  dokument…) zůstanou textové. **Úplně prázdný náhled se zahodí** — rámeček bez obsahu vypadá
-  jako chyba načítání.
+  obrázek mini aplikace (`previewPhoto` v `MessageContent.kt`). **GIF, soubor a album** berou
+  rastrový náhled, který k nim server posílá (`Thumbnail.toPreviewPhoto`: jen JPEG, WebP a PNG —
+  GIF a MPEG4 náhled Coil v kartě nekreslí), album první snímek a jeho text místo chybějícího
+  popisu; video bez obalu náhled videa. GIF v náhledu stojí, animace by běžela v každé zprávě
+  s odkazem. Ostatní druhy (hlasovka, kolečko, skladba…) zůstanou textové. **Úplně prázdný
+  náhled se zahodí** — rámeček bez obsahu vypadá jako chyba načítání.
+  - **Kdy server tyhle druhy pošle, se z vnějšku vyvolat nedá**: odkaz na GIF z Giphy přišel
+    jako článek (stránka GIPHY), přímý odkaz na PDF bez náhledu vůbec. Jsou to hlavně odkazy
+    `t.me/kanál/123` na příspěvek s médiem. Větve pokrývá `LinkPreviewTargetTest`, na zařízení
+    ověřené nejsou.
 - **Odkaz na Telegram (`t.me/…`) říká, kam vede** (`LinkPreview.target`, `LinkPreviewTarget`,
   testy `LinkPreviewTargetTest`). Je to v Telegramu nejčastější odkaz a jeho náhled byl dřív jen
   text — `toDomain()` bral obrázek z pěti druhů stránek a profilovku chatu (`ChatPhoto`) zahodil.

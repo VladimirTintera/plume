@@ -74,6 +74,11 @@ import dev.g000sha256.tdl.dto.LinkPreviewTypeStory
 import dev.g000sha256.tdl.dto.LinkPreviewTypeSupergroupBoost
 import dev.g000sha256.tdl.dto.LinkPreviewTypeUser
 import dev.g000sha256.tdl.dto.LinkPreviewTypeWebApp
+import dev.g000sha256.tdl.dto.LinkPreviewTypeAlbum
+import dev.g000sha256.tdl.dto.LinkPreviewTypeAnimation
+import dev.g000sha256.tdl.dto.LinkPreviewTypeDocument
+import dev.g000sha256.tdl.dto.LinkPreviewAlbumMediaPhoto
+import dev.g000sha256.tdl.dto.LinkPreviewAlbumMediaVideo
 import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.ChatPhoto as TdlChatPhoto
 import dev.g000sha256.tdl.dto.DiceStickers
@@ -1490,7 +1495,8 @@ internal fun TdlLinkPreview.toDomain(): LinkPreview? {
         url = preview.url,
         siteName = previewText(preview.siteName),
         title = previewText(preview.title),
-        description = previewText(preview.description.text),
+        // Album popis nemívá, jen text alba (`caption`) — ten se ukáže místo něj.
+        description = previewText(preview.description.text) ?: (preview.type as? LinkPreviewTypeAlbum)?.caption?.let(::previewText),
         photo = photo,
         largePhoto = preview.showLargeMedia,
         showAboveText = preview.showAboveText,
@@ -1516,7 +1522,18 @@ internal fun TdlLinkPreview.toDomain(): LinkPreview? {
 internal fun LinkPreviewType.previewPhoto(): MessageMedia.Photo? = when (this) {
     is LinkPreviewTypeArticle -> photo?.toMedia()
     is LinkPreviewTypePhoto -> photo?.toMedia()
-    is LinkPreviewTypeVideo -> cover?.toMedia()
+    // Bez obalu aspoň náhled videa (snímek, který server k videu má).
+    is LinkPreviewTypeVideo -> cover?.toMedia() ?: video.thumbnail?.toPreviewPhoto(video.minithumbnail)
+    // GIF, soubor a album (odkaz na zprávu s médiem, přímý odkaz na soubor): náhled, který k nim
+    // server posílá. GIF zůstane stát — animace by běžela v každé zprávě s odkazem.
+    is LinkPreviewTypeAnimation -> animation.thumbnail?.toPreviewPhoto(animation.minithumbnail)
+    is LinkPreviewTypeDocument -> document.thumbnail?.toPreviewPhoto(document.minithumbnail)
+    is LinkPreviewTypeAlbum -> media.filterNotNull().firstNotNullOfOrNull { item ->
+        when (item) {
+            is LinkPreviewAlbumMediaPhoto -> item.photo.toMedia()
+            is LinkPreviewAlbumMediaVideo -> item.video.thumbnail?.toPreviewPhoto(item.video.minithumbnail)
+        }
+    }
     is LinkPreviewTypeEmbeddedVideoPlayer -> thumbnail?.toMedia()
     is LinkPreviewTypeEmbeddedAnimationPlayer -> thumbnail?.toMedia()
     is LinkPreviewTypeChat -> photo?.toMedia()
@@ -1526,6 +1543,23 @@ internal fun LinkPreviewType.previewPhoto(): MessageMedia.Photo? = when (this) {
     is LinkPreviewTypeWebApp -> photo?.toMedia()
     is LinkPreviewTypeApp -> photo?.toMedia()
     else -> null
+}
+
+/**
+ * Náhled souboru (`Thumbnail`) jako obrázek náhledu odkazu. Jen rastrový — JPEG, WebP a PNG;
+ * GIF a MPEG4 náhled (u animací bývá) Coil v kartě nekreslí, takže pak obrázek žádný.
+ */
+internal fun Thumbnail.toPreviewPhoto(minithumbnail: dev.g000sha256.tdl.dto.Minithumbnail?): MessageMedia.Photo? {
+    val raster = format is ThumbnailFormatJpeg || format is ThumbnailFormatWebp || format is ThumbnailFormatPng
+    if (!raster || width <= 0 || height <= 0) return null
+    return MessageMedia.Photo(
+        fileId = file.id,
+        thumbnailFileId = null,
+        fullFileId = file.id,
+        width = width,
+        height = height,
+        minithumbnail = minithumbnail?.toDomain(),
+    )
 }
 
 private fun TdlChatPhoto.toMedia(): MessageMedia.Photo? = photoMedia(sizes = sizes.filterNotNull(), minithumbnail = minithumbnail)
