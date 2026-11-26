@@ -73,7 +73,7 @@ import kotlin.time.Clock
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun GiveawayCard(giveaway: MessageMedia.Giveaway, accent: Color, onAction: (MessageAction) -> Unit) {
-    val contentAccent = accent.takeIf { it != Color.Unspecified } ?: LocalContentColor.current
+    val contentAccent = accent.orContentColor()
     val muted = LocalContentColor.current.copy(alpha = MUTED_ALPHA)
     val results = giveaway.results
     Column(

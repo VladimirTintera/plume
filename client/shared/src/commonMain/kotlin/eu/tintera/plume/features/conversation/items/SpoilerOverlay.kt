@@ -13,6 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.telegram.RevealedSpoilers
+import eu.tintera.plume.core.telegram.SelfDestructTimers
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import eu.tintera.plume.core.ui.contextClickable
@@ -131,9 +133,8 @@ internal fun SensitiveBox(
     coveredShape: Shape? = null,
     content: @Composable (blur: Modifier) -> Unit,
 ) {
-    val revealedSpoilers = koinInject<RevealedSpoilers>()
-    val revealedIds by revealedSpoilers.revealed.collectAsState()
-    val covered = hidden && messageId !in revealedIds
+    val reveal = rememberMediaReveal(messageId, hasSpoiler = hidden)
+    val covered = !reveal.revealed
     val style = rememberSpoilerBlurStyle()
     Box(modifier, contentAlignment = Alignment.Center) {
         val clip = if (covered && coveredShape != null) Modifier.clip(coveredShape) else Modifier
@@ -153,7 +154,7 @@ internal fun SensitiveBox(
                         interactionSource = null,
                         indication = null,
                         onLongClick = onLongClick,
-                        onClick = { revealedSpoilers.reveal(messageId) },
+                        onClick = reveal::reveal,
                     ),
             )
         }
@@ -163,3 +164,49 @@ internal fun SensitiveBox(
 private val SPOILER_BLUR_RADIUS = 48.dp
 private const val SPOILER_TINT_ALPHA = 0.25f
 private const val SPOILER_FALLBACK_ALPHA = 0.6f
+
+/**
+ * Jestli je skrytí média odkryté a co udělá ťuknutí — spoiler a mizející médium na jednom místě.
+ *
+ * Dřív si to každé místo skládalo samo (fotka, video, GIF, dvě dlaždice alba, reklama): stejné
+ * `koinInject<RevealedSpoilers>`, sběr odkrytých id a podmínka „první ťuknutí odkryje, druhé
+ * otevře", u fotky a videa ještě zvlášť spotřebované mizející médium.
+ */
+@Stable
+internal class MediaReveal(
+    /** Médium je vidět: nemá spoiler, nebo ho uživatel odkryl. */
+    val revealed: Boolean,
+    /** Mizející médium (časovač, jednou zobrazit, tajný chat) — kreslí se rozostřené vždycky. */
+    val selfDestruct: Boolean,
+    /** Mizející médium, které tenhle proces už spotřeboval: místo snímku oznámení o vypršení. */
+    val expired: Boolean,
+    private val onReveal: () -> Unit,
+) {
+    /** Kreslí se rozostřené? Mizející vždycky, spoiler do odkrytí. */
+    val blurred: Boolean get() = selfDestruct || !revealed
+
+    /** Ťuknutí: skrytý spoiler odkryje, jinak [open]. Mizející médium otevírá rovnou — odpočet dělá prohlížeč. */
+    fun tap(open: () -> Unit) {
+        if (!selfDestruct && !revealed) onReveal() else open()
+    }
+
+    /** Jen odkrýt spoiler (GIF má ťuknutí vlastní, `AnimationBubble`). */
+    fun reveal() = onReveal()
+}
+
+@Composable
+internal fun rememberMediaReveal(messageId: Long, hasSpoiler: Boolean, selfDestruct: Boolean = false): MediaReveal {
+    val spoilers = koinInject<RevealedSpoilers>()
+    val revealedIds by spoilers.revealed.collectAsState()
+    val expired = if (selfDestruct) {
+        val timers = koinInject<SelfDestructTimers>()
+        val consumedIds by timers.consumedIds.collectAsState()
+        messageId in consumedIds || timers.isConsumed(messageId)
+    } else {
+        false
+    }
+    val revealed = !hasSpoiler || messageId in revealedIds
+    return remember(messageId, revealed, selfDestruct, expired, spoilers) {
+        MediaReveal(revealed = revealed, selfDestruct = selfDestruct, expired = expired, onReveal = { spoilers.reveal(messageId) })
+    }
+}

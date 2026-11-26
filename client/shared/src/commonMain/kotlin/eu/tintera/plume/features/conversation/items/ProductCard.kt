@@ -54,7 +54,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun ProductCard(product: MessageMedia.Product, accent: Color) {
-    val contentAccent = accent.takeIf { it != Color.Unspecified } ?: LocalContentColor.current
+    val contentAccent = accent.orContentColor()
     val photo = product.photo
     if (photo == null) {
         ProductText(product, contentAccent, width = null)

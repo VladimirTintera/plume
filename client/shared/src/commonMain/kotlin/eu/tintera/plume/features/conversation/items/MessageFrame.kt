@@ -93,6 +93,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
@@ -983,7 +984,7 @@ private fun MessageFrame(
             }
 
             // Podpis autora nese řádek pod příspěvkem i tam, kde počty nejsou.
-            (frame.postStats ?: PostStats(views = 0, forwards = 0, comments = null).takeIf { message.authorSignature != null })?.let { stats ->
+            (frame.postStats ?: SIGNATURE_ONLY.takeIf { message.authorSignature != null })?.let { stats ->
                 PostFooter(
                     stats = stats,
                     signature = message.authorSignature,
@@ -1575,6 +1576,21 @@ internal fun MessageBodyScope.CardHeader(withName: Boolean) {
 internal val MessageBodyScope.surfaceAccent: Color
     @Composable get() = MaterialTheme.colorScheme.primary
 
+/**
+ * Akcent předaný kartě, a když žádný není ([Color.Unspecified] — karta mimo bublinu, třeba
+ * v nabídce), barva popředí plochy. Dřív to stálo opsané v každé kartě (hovor, kontakt, soutěž,
+ * produkt).
+ */
+@Composable
+internal fun Color.orContentColor(): Color = takeIf { it.isSpecified } ?: LocalContentColor.current
+
+/**
+ * Barva ikony na tlačítku přehrát u hlasovky a skladby: kolečko má barvu akcentu, ikona barvu,
+ * která na něm vynikne — v odchozí bublině je akcentem barva popředí, takže ikona bere bublinu.
+ */
+internal val MessageBodyScope.voiceOnAccent: Color
+    @Composable get() = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary
+
 /** Ukáže se u téhle zprávy jméno odesílatele? Jen u první zprávy bloku a jen tam, kde ho TDLib vyplní. */
 internal val MessageBodyScope.showsSenderName: Boolean get() = !continuesAbove && message.senderName != null
 
@@ -1759,7 +1775,7 @@ internal fun MessageBodyScope.Attachment(
             onSeek = { fraction -> act(MessageAction.SeekVoice(fraction)) },
             onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
             accent = accent,
-            onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
+            onAccent = voiceOnAccent,
             transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
         ),
         onAction = { action -> act(action) },
@@ -1946,6 +1962,9 @@ private const val HIGHLIGHT_SCALE = 1.06f
 
 /** Průhlednost odesílané zprávy, než ji server potvrdí. */
 private const val SENDING_ALPHA = 0.65f
+
+/** Řádek pod příspěvkem bez počtů — jen s podpisem autora (kanál s podpisy, počty nemá). */
+private val SIGNATURE_ONLY = PostStats(views = 0, forwards = 0, comments = null)
 
 /** Po jaké době odesílání se zpráva ztlumí (viz `sendingAlpha`). */
 private const val SENDING_DIM_DELAY_SECONDS = 1L

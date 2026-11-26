@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.conversation.items.rememberMediaReveal
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -146,15 +148,14 @@ private fun SponsoredMedia(media: MessageMedia, messageId: Long, onClick: () -> 
     val shape = ShapeDefaults.Medium
     if (media is MessageMedia.Animation) {
         BoxWithConstraints {
-            val revealedSpoilers = koinInject<RevealedSpoilers>()
-            val revealedIds by revealedSpoilers.revealed.collectAsState()
+            val reveal = rememberMediaReveal(messageId, media.hasSpoiler)
             AnimationBubble(
                 animation = media,
                 shape = shape,
                 onRequestMenu = {},
                 modifier = Modifier.size(photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth = true)),
-                revealed = !media.hasSpoiler || messageId in revealedIds,
-                onReveal = { revealedSpoilers.reveal(messageId) },
+                revealed = reveal.revealed,
+                onReveal = reveal::reveal,
                 onOpen = onClick,
             )
         }

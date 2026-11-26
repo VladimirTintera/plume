@@ -36,7 +36,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun ContactCard(contact: MessageMedia.Contact, accent: Color, onWrite: () -> Unit, onAddContact: () -> Unit) {
-    val contentAccent = accent.takeIf { it != Color.Unspecified } ?: LocalContentColor.current
+    val contentAccent = accent.orContentColor()
     Column(Modifier.padding(vertical = 4.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
