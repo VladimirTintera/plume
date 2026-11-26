@@ -1136,6 +1136,14 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       byla. Spolehlivé napříč účty, které mohou mít mezi zprávami jiné předěly (nepřečtené).
     - **Přečtení po přepnutí** se drží stejně jako po skoku (`releaseReads(jumped = true)`):
       zprávy z první stránky dole, které uživatel neviděl, se nehlásí.
+    - **„Viditelná" = pod hlavičkou.** Seznam zasahuje pod průsvitnou hlavičku (horní odsazení
+      obsahu, při `reverseLayout` `afterContentPadding`) a zpráva schovaná pod ní se pro seznam
+      vejde do okna celá. První verze ji brala za nejvyšší viditelnou a druhý účet začal o dvě
+      zprávy výš (Pozice 4 místo 6).
+    - **Ověřeno na emulátoru Fold** (složený, anglicky, 20 očíslovaných zpráv od Notifikátora
+      v „Plume test triaze"): hlavní účet odscrollovaný s „Pozice 7" nahoře → VT začne s
+      „Pozice 7" nahoře, bez zvýraznění; VT dole u „Pozice 20" → hlavní účet se otevře dole.
+      **Neověřené:** zpráva, kterou druhý účet nemá, téma a vlákno komentářů, desktop.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.

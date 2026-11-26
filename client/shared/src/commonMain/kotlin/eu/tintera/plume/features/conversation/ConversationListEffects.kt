@@ -441,12 +441,17 @@ internal fun ConversationViewReporting(
      * (`ConversationViewModel.positionForAccountSwitch`): nejvyšší CELÁ viditelná zpráva (při
      * `reverseLayout` je nahoře nejvyšší index), jinak ta nahoře useknutá. Klíč zprávy je její id;
      * jiné položky (reklama, předěl) id nemají.
+     *
+     * „Viditelná" = pod hlavičkou. Seznam zasahuje pod průsvitnou hlavičku (horní odsazení obsahu,
+     * při `reverseLayout` je to `afterContentPadding`) a zpráva schovaná pod ní se pro seznam vejde
+     * do okna celá. Bez odečtení začal druhý účet o dvě zprávy výš (ověřeno na Foldu).
      */
     LaunchedEffect(listState) {
         snapshotFlow {
             val info = listState.layoutInfo
             val messages = info.visibleItemsInfo.filter { it.key is Long }
-            val top = messages.lastOrNull { it.offset + it.size <= info.viewportEndOffset } ?: messages.lastOrNull()
+            val top = messages.lastOrNull { it.offset + it.size <= info.viewportEndOffset - info.afterContentPadding }
+                ?: messages.lastOrNull()
             (top?.key as Long?) to (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0)
         }
             .distinctUntilChanged()
