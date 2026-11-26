@@ -577,17 +577,35 @@ class ChatsViewModel(
     /** Odloží chat na [option]. */
     fun snooze(chat: ChatSummary, option: SnoozeOption) {
         val snoozes = snoozes ?: return
-        snoozes.snooze(chat.id, snoozeUntil(option, Clock.System.now(), TimeZone.currentSystemDefault()), chat.title)
+        val until = snoozeUntil(option, Clock.System.now(), TimeZone.currentSystemDefault())
+        snoozes.snooze(chat.id, until, chat.title)
+        snoozesElsewhere(chat.id) { snooze(it, until, chat.title) }
     }
 
     /** Zruší odložení. */
     fun unsnooze(chat: ChatSummary) {
         snoozes?.clear(chat.id)
+        snoozesElsewhere(chat.id) { clear(it) }
     }
 
     /** Chat otevřený ze seznamu: vynořená připomínka splnila účel. */
     fun opened(chatId: Long) {
         snoozes?.opened(chatId)
+        // Spojený řádek by jinak zůstal nahoře kvůli připomínce v druhém účtu.
+        snoozesElsewhere(chatId) { opened(it) }
+    }
+
+    /**
+     * Odložení spojeného řádku i v ostatních účtech ([SharedChats.inOthers]): každý účet má
+     * odložení vlastní (`ChatSnoozes` v kontejneru účtu), řádek je ale jeden.
+     */
+    private fun snoozesElsewhere(chatId: Long, change: ChatSnoozes.(Long) -> Unit) {
+        val slot = slot ?: return
+        if (snoozes == null) return
+        sharedChats?.inOthers(slot, chatId) { account, id ->
+            account.koin.getOrNull<ChatSnoozes>()?.change(id)
+            Result.success(Unit)
+        }
     }
 
     /** Co dělá tah chatem doprava a doleva (Nastavení → Chaty). */
@@ -855,7 +873,7 @@ class ChatsViewModel(
     }
 
     fun togglePinned(chat: ChatSummary) = run(chat.id) {
-        repository.setPinned(chat.id, chat.folder, !chat.isPinned)
+        everywhere(chat.id) { repository, id -> repository.setPinned(id, chat.folder, !chat.isPinned) }
     }
 
     private val _reorder = MutableStateFlow<PinnedReorder?>(null)
@@ -918,7 +936,7 @@ class ChatsViewModel(
         run(chat.id, onSuccess = {
             _actions.update { it.copy(archived = ArchiveChange(chat.id, archived)) }
         }) {
-            repository.setArchived(chat.id, archived)
+            everywhere(chat.id) { repository, id -> repository.setArchived(id, archived) }
         }
     }
 
@@ -935,8 +953,8 @@ class ChatsViewModel(
             ChatSwipeEffect.MarkUnread -> run(chat.id) { repository.setMarkedAsUnread(chat.id, true) }
             ChatSwipeEffect.Mute -> mute(chat, duration = null)
             ChatSwipeEffect.Unmute -> unmute(chat)
-            ChatSwipeEffect.Pin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, true) }
-            ChatSwipeEffect.Unpin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, false) }
+            ChatSwipeEffect.Pin -> run(chat.id) { everywhere(chat.id) { repository, id -> repository.setPinned(id, chat.folder, true) } }
+            ChatSwipeEffect.Unpin -> run(chat.id) { everywhere(chat.id) { repository, id -> repository.setPinned(id, chat.folder, false) } }
             // Doba se vybírá v sheetu; ten otevírá seznam (`ChatSheets.snooze`), sem tah nedojde.
             ChatSwipeEffect.Snooze -> Unit
             ChatSwipeEffect.Unsnooze -> unsnooze(chat)
@@ -952,8 +970,8 @@ class ChatsViewModel(
     fun undoArchive(change: ArchiveChange) {
         _actions.value = ChatActionsState()
         viewModelScope.launch {
-            val failure = change.chatIds.firstNotNullOfOrNull { id ->
-                repository.setArchived(id, !change.archived).exceptionOrNull()
+            val failure = change.chatIds.firstNotNullOfOrNull { chatId ->
+                everywhere(chatId) { repository, id -> repository.setArchived(id, !change.archived) }.exceptionOrNull()
             }
             failure?.let {
                 logger.w(it) { "Vrácení archivace chatů ${change.chatIds} selhalo." }
@@ -964,12 +982,27 @@ class ChatsViewModel(
 
     /** Ztlumení na dobu; `null` = navždy. */
     fun mute(chat: ChatSummary, duration: Duration?) = run(chat.id) {
-        if (duration == null) repository.setMuted(chat.id, true) else repository.muteFor(chat.id, duration)
+        everywhere(chat.id) { repository, id -> if (duration == null) repository.setMuted(id, true) else repository.muteFor(id, duration) }
     }
 
     fun unmute(chat: ChatSummary) = run(chat.id) {
-        repository.setMuted(chat.id, false)
+        everywhere(chat.id) { repository, id -> repository.setMuted(id, false) }
     }
+
+    /**
+     * Akce nad řádkem [chatId] v tomhle účtu, a když proběhla, i nad týmž chatem v ostatních
+     * účtech ([SharedChats.inOthers]): ve společném seznamu je spojený řádek jeden (krok 26
+     * návrhu). Výsledek je výsledek tohohle účtu — chyba jinde se jen zaloguje. Mimo režim
+     * Všechny účty jen tenhle účet.
+     *
+     * Jen vratné akce, které patří řádku jako celku (ztlumení, archiv, připnutí). Smazání,
+     * opuštění, zablokování a vymazání historie zůstávají v účtu řádku: opustit skupinu oběma
+     * účty kvůli jednomu ťuknutí by bylo moc.
+     */
+    private suspend fun everywhere(chatId: Long, action: suspend (ChatRepository, Long) -> Result<Unit>): Result<Unit> =
+        action(repository, chatId).onSuccess {
+            slot?.let { slot -> sharedChats?.inOthers(slot, chatId) { account, id -> action(account.koin.get(), id) } }
+        }
 
     /**
      * Přečtené přes [ChatRepository.readChat], ne shozením ručního příznaku: ten nechá
