@@ -100,30 +100,47 @@ fun AccountBadge(account: AccountInfo, rim: Color, modifier: Modifier = Modifier
 }
 
 /**
+ * Účet odznaku: jméno a fotka, a [session], ve kterém se fotka kreslí. Fotka je `fileId`
+ * z TDLib JEHO účtu — v kontejneru jiného účtu znamená totéž číslo jiný soubor (na Foldu se
+ * místo fotky VT ukázala samolepka dárku). `null` = kreslí se v účtu kolem ([LocalAccount]),
+ * u odznaku řádku, který patří témuž účtu.
+ */
+@Immutable
+data class BadgeAccount(val info: AccountInfo, val session: AccountSession? = null)
+
+/**
  * Odznaky víc účtů přes sebe ([AccountBadge] pro každý): řádek spojené společné skupiny
  * ve společném seznamu. Každý další leží o kus vpravo nad předchozím, s obroučkou [rim], takže
  * se od sebe odliší i stejně barevné fotky. S jedním účtem je to [AccountBadge], s žádným nic.
  */
 @Composable
-fun AccountBadges(accounts: List<AccountInfo>, rim: Color, modifier: Modifier = Modifier, size: Dp = 18.dp) {
+fun AccountBadges(accounts: List<BadgeAccount>, rim: Color, modifier: Modifier = Modifier, size: Dp = 18.dp) {
     when (accounts.size) {
         0 -> Unit
-        1 -> AccountBadge(accounts.single(), rim, modifier, size)
+        1 -> InAccount(accounts.single().session) { AccountBadge(accounts.single().info, rim, modifier, size) }
         else -> Box(modifier.offset(x = (-4).dp, y = 4.dp)) {
             accounts.take(MAX_STACKED_BADGES).forEachIndexed { index, account ->
-                Avatar(
-                    chatId = account.id,
-                    title = account.displayName,
-                    avatarFileId = account.photoFileId,
-                    size = size,
-                    modifier = Modifier
-                        .padding(start = size * STACKED_BADGE_STEP * index)
-                        .background(rim, CircleShape)
-                        .padding(2.dp),
-                )
+                InAccount(account.session) {
+                    Avatar(
+                        chatId = account.info.id,
+                        title = account.info.displayName,
+                        avatarFileId = account.info.photoFileId,
+                        size = size,
+                        modifier = Modifier
+                            .padding(start = size * STACKED_BADGE_STEP * index)
+                            .background(rim, CircleShape)
+                            .padding(2.dp),
+                    )
+                }
             }
         }
     }
+}
+
+/** [content] v účtu [session] ([AccountScope]), nebo v tom kolem, když je `null`. */
+@Composable
+fun InAccount(session: AccountSession?, content: @Composable () -> Unit) {
+    if (session == null || session == LocalAccount.current) content() else AccountScope(session, content)
 }
 
 /** Víc odznaků by přes avatar chatu přerostlo; tolik účtů ve spojené skupině skoro nebývá. */

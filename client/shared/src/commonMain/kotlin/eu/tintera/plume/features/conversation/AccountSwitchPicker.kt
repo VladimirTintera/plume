@@ -24,6 +24,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountSession
+import eu.tintera.plume.core.accounts.InAccount
+import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.accounts.SharedChats
@@ -43,7 +46,13 @@ import org.koin.compose.koinInject
 
 /** Účet, kterým se dá psát do spojené společné skupiny ([rememberChatAccounts]). */
 @Immutable
-internal data class ChatAccount(val slot: AccountSlot, val info: AccountInfo)
+internal data class ChatAccount(val slot: AccountSlot, val info: AccountInfo, val session: AccountSession) {
+    /** Fotka účtu: `fileId` z jeho TDLib, kreslí se proto v jeho kontejneru ([InAccount]). */
+    @Composable
+    fun Photo(size: Dp) {
+        InAccount(session) { Avatar(chatId = info.id, title = info.displayName, avatarFileId = info.photoFileId, size = size) }
+    }
+}
 
 /**
  * Účty, které jsou ve společné skupině nebo kanálu [chatId] (i ten konverzace), v pořadí účtů
@@ -65,7 +74,7 @@ internal fun rememberChatAccounts(chatId: Long, enabled: Boolean): List<ChatAcco
             // `me()` je dotaz do místní databáze TDLib, ne na síť.
             (listOf(account) + others)
                 .sortedBy { session -> signedIn.indexOfFirst { it.slot == session.slot } }
-                .mapNotNull { session -> session.session.me().getOrNull()?.let { ChatAccount(session.slot, it) } }
+                .mapNotNull { session -> session.session.me().getOrNull()?.let { ChatAccount(session.slot, it, session) } }
         }
     }
     return accounts
@@ -91,7 +100,7 @@ internal fun AccountSwitchButton(
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.conversation_account_switch_current, me.info.displayName)
     IconButton(onClick = { open = true }, modifier = modifier.semantics { contentDescription = label }) {
-        Avatar(chatId = me.info.id, title = me.info.displayName, avatarFileId = me.info.photoFileId, size = 32.dp)
+        me.Photo(32.dp)
     }
     if (open) {
         AccountSwitchSheet(
@@ -135,9 +144,7 @@ private fun AccountSwitchSheet(
                         index = index,
                         count = accounts.size,
                         onClick = { onChoose(account.slot) },
-                        leading = {
-                            Avatar(chatId = account.info.id, title = account.info.displayName, avatarFileId = account.info.photoFileId, size = 40.dp)
-                        },
+                        leading = { account.Photo(40.dp) },
                     )
                 }
             }

@@ -43,9 +43,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
 import eu.tintera.plume.core.accounts.AccountBadges
+import eu.tintera.plume.core.accounts.BadgeAccount
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountSession
-import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -345,7 +345,7 @@ private fun MergedCollapsedChats(accounts: CollapsedAccounts, listState: LazyLis
                     selectionMark = null,
                     onClick = { accounts.onOpen(slot, merged.chat) },
                     onLongClick = { source.sheets.actions = merged.chat },
-                    accounts = merged.accounts(sources) ?: listOfNotNull(source.info),
+                    accounts = merged.accounts(sources) ?: listOfNotNull(source.info?.let(::BadgeAccount)),
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -451,7 +451,7 @@ private fun CollapsedChat(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     /** Účty chatu ve společném seznamu víc účtů (spojená skupina jich má víc): odznaky vlevo dole. */
-    accounts: List<AccountInfo> = emptyList(),
+    accounts: List<BadgeAccount> = emptyList(),
 ) {
     val title = chatTitle(chat.id, chat.title)
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface

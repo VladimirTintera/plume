@@ -1,8 +1,8 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.accounts.AccountBadges
+import eu.tintera.plume.core.accounts.BadgeAccount
 import androidx.compose.foundation.shape.CircleShape
-import eu.tintera.plume.core.telegram.AccountInfo
 import androidx.compose.runtime.Immutable
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -460,7 +460,7 @@ internal data class ChatRowMarks(
      * společná skupina jich má víc. Fotka účtu, ne barva: barvy už nesou chaty (`ChatColors`)
      * a pletly by se.
      */
-    val accounts: List<AccountInfo> = emptyList(),
+    val accounts: List<BadgeAccount> = emptyList(),
 )
 
 @Composable

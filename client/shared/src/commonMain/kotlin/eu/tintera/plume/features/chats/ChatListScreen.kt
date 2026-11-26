@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.BadgeAccount
 import eu.tintera.plume.core.settings.AccountSettings
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.Animatable
@@ -1260,7 +1261,7 @@ internal fun LazyItemScope.ChatListItem(
     onOpen: (ChatSummary) -> Unit,
     onOpenStories: ((Long) -> Unit)?,
     /** Odznaky účtů spojené společné skupiny; `null` = účet z [rows]. */
-    accounts: List<AccountInfo>? = null,
+    accounts: List<BadgeAccount>? = null,
 ) {
     // Ve výběru zvýrazňuje řádek výběr, ne chat otevřený v detailu vedle —
     // dvě různé barvy pro „vybraný" by se v jednom seznamu pletly.
@@ -1327,7 +1328,7 @@ internal fun LazyItemScope.ChatListItem(
                 // zpráva ho schová, dokud se neposoudí znovu.
                 awaitingReply = chat.unreadCount > 0 &&
                     chat.lastMessageId != null && rows.awaitingReply[chat.id] == chat.lastMessageId,
-                accounts = accounts ?: listOfNotNull(rows.account),
+                accounts = accounts ?: listOfNotNull(rows.account?.let(::BadgeAccount)),
                 stories = rows.storyRings[chat.id]?.let {
                     // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
                     // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.

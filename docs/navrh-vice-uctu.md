@@ -1044,6 +1044,17 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - **Akce nad řádkem patří účtu, kterým se otevírá** (ztlumení, archiv, připnutí, smazání):
       jen „přečteno" platí za všechny. Archivace v jednom účtu proto řádek rozdělí — v hlavním
       seznamu zůstane druhý účet, v archivu ten první.
+    - **Fotky odznaků a výběru účtu se kreslí v kontejneru SVÉHO účtu** (`BadgeAccount.session`,
+      `InAccount`): řádek stojí v kontejneru účtu, kterým se otevírá, a `photoFileId` druhého
+      účtu tam znamená jiný soubor — na Foldu se místo fotky VT ukázala samolepka dárku.
+    - **Ověřeno na emulátoru Fold** (Android, anglicky, hlavní účet a VT, VT přidaný do
+      „Plume test triaze"): spojený řádek s oběma odznaky, nepřečtené podle VT; výběr účtu
+      u pole s fotkami obou účtů, přepnutí na VT (hlavička, „Message as VT", historie z pohledu
+      VT, zpět vede do seznamu) a řádek se pak otevírá za VT. Zpráva od Notifikátora přes
+      Bot API: v liště JEDNA notifikace (od VT), log „1 notifikací ukazuje jiný účet."; po
+      přečtení za VT zmizel odznak nepřečtených řádku i notifikace a v seznamu jen hlavního
+      účtu je skupina přečtená. Soukromý chat s Notifikátorem zůstal dvakrát. **Neověřené:**
+      desktop, sbalený sloupec, archiv, „Označit jako přečtené" a přečtení z notifikace.
     - **Zbývá:** Uložené zprávy a soukromé chaty jako jeden řádek s přepínačem historie
       (druhá fáze), přenos pozice v historii při přepnutí účtu, akce nad řádkem za všechny účty.
 

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.BadgeAccount
 import org.koin.core.parameter.parametersOf
 import androidx.compose.material3.SnackbarHostState
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -436,8 +437,8 @@ internal fun MergedChat.isOpen(sources: List<ChatSource>, selected: Pair<Account
     selected != null && selected.second == chat.id && this.sources.any { sources[it].account.slot == selected.first }
 
 /** Odznaky účtů spojeného řádku; `null` = řádek jednoho účtu, odznak dá jeho [ChatRowsContext]. */
-internal fun MergedChat.accounts(sources: List<ChatSource>): List<AccountInfo>? =
-    if (alsoIn.isEmpty()) null else this.sources.mapNotNull { sources[it].info }
+internal fun MergedChat.accounts(sources: List<ChatSource>): List<BadgeAccount>? =
+    if (alsoIn.isEmpty()) null else this.sources.mapNotNull { index -> sources[index].let { s -> s.info?.let { BadgeAccount(it, s.account) } } }
 
 /** [ChatRowsContext] jednoho účtu společného seznamu, s odznakem účtu. */
 @Composable
