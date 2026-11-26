@@ -131,7 +131,6 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Modifier
-import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import eu.tintera.plume.core.adaptive.Panes
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.adaptive.PANE_SPACING
@@ -141,7 +140,6 @@ import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.PROFILE_CARD_MARGINS
 import eu.tintera.plume.core.adaptive.RESERVE_BESIDE_LIST
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
-import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
 import eu.tintera.plume.core.adaptive.shownExtras
 import eu.tintera.plume.core.adaptive.LocalProfilePaneResize
 import eu.tintera.plume.core.adaptive.LocalListPaneResize
@@ -156,8 +154,6 @@ import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
 import eu.tintera.plume.core.adaptive.THREE_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.paneInfo
-import eu.tintera.plume.core.adaptive.threePane
-import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.NavEntry
@@ -170,8 +166,6 @@ import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
 import eu.tintera.plume.features.calls.CallBackHost
 import eu.tintera.plume.features.calls.CallOverlay
-import eu.tintera.plume.core.adaptive.singlePane
-import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.navigation.ChatOpenRequests
@@ -467,8 +461,8 @@ fun AppShell(modifier: Modifier = Modifier) {
 /**
  * Vlastní navigační plocha.
  *
- * `directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — scaffold
- * má rozhodovat podle místa, které opravdu dostane.
+ * Rozvržení panelů se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna —
+ * scéna má rozhodovat podle místa, které opravdu dostane.
  */
 @Composable
 private fun ShellContent(
@@ -549,7 +543,7 @@ private fun ShellContent(
 
         val twoPane = wide && !nothingToPick
 
-        // Chaty na široké ploše kreslí vlastní scéna (`ChatScene.kt`), ne třípanel z knihovny.
+        // Chaty na široké ploše kreslí vlastní scéna (`PaneScene.kt`), ne třípanel z knihovny.
         val sideBesideList = maxWidth >= THREE_PANE_MIN_WIDTH
 
         /*
@@ -566,7 +560,7 @@ private fun ShellContent(
         /*
          * Role panelu se čte z metadat položky (`Panes`), a ty zná jen poskytovatel položek.
          * Ptá se na ni i on sám (seznam chatů: je konverzace vidět?), proto odkaz přes proměnnou.
-         * Šířky panelů v metadatech nejsou: Chaty rozvrhuje scéna Chatů (`ChatSceneLayout`).
+         * Šířky panelů v metadatech nejsou: Chaty rozvrhuje scéna Chatů (`PaneSceneLayout`).
          */
         lateinit var entryProvider: (NavKey) -> NavEntry<NavKey>
         val paneOf: (NavKey) -> PaneInfo? = { entryProvider(it).paneInfo }
@@ -599,26 +593,19 @@ private fun ShellContent(
         }
 
         /*
-         * Třetí panel jen tehdy, když v něm něco je: scaffold se třemi oddíly by ho rozbalil
-         * i prázdný. Rozhoduje poslední položka scény — obrazovka přes celou plochu (prohlížeč
-         * nad profilem) roli nemá a pod ní se má scéna kreslit tak, jak ji uživatel nechal.
-         * Pod THREE_PANE_MIN_WIDTH zůstanou dva oddíly a scaffold podle historie ukáže
-         * konverzaci s profilem (sekci s podstránkou), seznam schová. Platí pro zásobník
-         * vybrané sekce aplikace: v Chatech profil, v Nastavení podstránka sekce.
+         * Tři panely vedle sebe (seznam | detail | boční sloupec) jen s boční položkou navrchu
+         * a od THREE_PANE_MIN_WIDTH; pod ní boční sloupec seznam vytlačí (`PaneScene`). Rozhoduje
+         * poslední položka s rolí — obrazovka přes celou plochu (prohlížeč nad profilem) roli nemá.
+         * Platí pro zásobník vybrané sekce aplikace: v Chatech profil, v Nastavení podstránka sekce.
          */
         val shownStack = if (navigation.section == SettingsRoute) settingsDisplayed else chatsDisplayed
         val extraShown = shownStack.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
         val threePane = twoPane && extraShown && maxWidth >= THREE_PANE_MIN_WIDTH
-        val directive = when {
-            !twoPane -> base.singlePane()
-            threePane -> base.threePane()
-            else -> base.twoPane()
-        }
 
         /*
          * Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací. Archiv, nová zpráva a Nastavení
          * mají svou výchozí šířku: sbalený archiv by byl jen sloupec avatarů bez vysvětlení,
-         * co je to za seznam. Šířku seznamu i profilu dostává scéna Chatů (`ChatSceneLayout`).
+         * co je to za seznam. Šířku seznamu i profilu dostává scéna Chatů (`PaneSceneLayout`).
          */
         val listExpansion = rememberListPaneExpansion()
         // Pilulka ↔ pole hledání (`SearchMorph`): kde stála pilulka, a návrat z hledání.
@@ -756,15 +743,9 @@ private fun ShellContent(
                      * ta si je pamatuje jen podle klíčů, a šířka seznamu ve třech panelech je v jeho
                      * METADATECH — po změně kotvy by zůstala stará.
                      */
-                    /*
-                     * Zavřená podstránka Nastavení (třetí panel) ještě chvíli ve scéně, ať odjede
-                     * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
-                     * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
-                     */
-                    val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
-                    // Chaty: odjezd bočního sloupce drží scéna Chatů sama.
+                    // Odjezd bočního sloupce drží scéna panelů sama (`PaneScene`).
                     val chatsDrawn = chatsDisplayed + chatsSheets
-                    val settingsDrawn = (if (twoPane) settingsWithLeaving else settingsDisplayed) + settingsSheets
+                    val settingsDrawn = settingsDisplayed + settingsSheets
                     val chatsEntries = remember(chatsDrawn.toList()) { chatsDrawn.map(entryProvider) }
                     /*
                      * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
@@ -789,45 +770,38 @@ private fun ShellContent(
                         sceneStrategies = listOf(
                             // Sheet navrchu se kreslí nad scénou, kterou z položek pod ním spočítá list-detail.
                             remember { SheetSceneStrategy() },
-                            // Chaty a archiv na široké ploše vlastní scénou; na telefonu vrací null.
-                            ChatSceneStrategy(
-                                layout = ChatSceneLayout(
-                                    twoPane = twoPane,
-                                    sideBesideList = sideBesideList,
-                                    // Archiv a ostatní seznamy táhlo nemají, stojí na výchozí šířce.
-                                    listWidth = if (mainListShown) listResize.width else base.defaultPanePreferredWidth,
-                                    sideWidth = profileResize.width + PROFILE_CARD_MARGINS,
-                                    instant = instantPaneBounds,
-                                ).takeIf { wide },
-                                isChatScene = { it != SETTINGS_SCENE },
-                                detailPlaceholder = ChatDetailPlaceholder,
-                            ),
-                            // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
-                            // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
-                            // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
-                            rememberListDetailSceneStrategy(
-                                shouldHandleSinglePaneLayout = wide,
-                                /*
-                                 * Zpět v Chatech zavře konverzaci a vrátí placeholder. Výchozí
-                                 * `PopUntilScaffoldValueChange` přeskakuje položky, které nemění
-                                 * rozložení panelů — a „seznam + placeholder" i „seznam + chat" jsou
-                                 * oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace.
-                                 * V Nastavení je výchozí chování správné: sekce je v dvoupanelu
-                                 * otevřená vždycky, takže zpět vede ze Nastavení pryč, do Chatů.
-                                 * Výjimka je úprava profilu a seznam blokovaných nad sekcí: dvoupanel
-                                 * zůstává dvoupanelem, takže by zpět přeskočilo i sekci pod ní a odešlo
-                                 * z Nastavení.
-                                 */
-                                backNavigationBehavior = if (
-                                    navigation.section == ChatsRoute ||
-                                    settingsStack.lastOrNull().isOverSettingsSection()
-                                ) {
-                                    BackNavigationBehavior.PopUntilContentChange
-                                } else {
-                                    BackNavigationBehavior.PopUntilScaffoldValueChange
-                                },
-                                directive = directive,
-                            ),
+                            // Chaty, archiv i Nastavení na široké ploše kreslí scéna panelů; na telefonu
+                            // vrací null a NavDisplay vyměňuje obrazovky (`SinglePaneScene`).
+                            PaneSceneStrategy { scene ->
+                                when {
+                                    !wide -> null
+                                    scene == SETTINGS_SCENE -> PaneSceneSpec(
+                                        // Seznam sekcí a podstránka mají výchozí šířku panelu, bez táhla.
+                                        layout = PaneSceneLayout(
+                                            twoPane = true,
+                                            sideBesideList = sideBesideList,
+                                            listWidth = base.defaultPanePreferredWidth,
+                                            sideWidth = base.defaultPanePreferredWidth,
+                                            instant = false,
+                                        ),
+                                        // Sekce je v širokém Nastavení otevřená vždycky (`ensureSettingsSection`).
+                                        detailPlaceholder = null,
+                                        conversationActions = false,
+                                    )
+                                    else -> PaneSceneSpec(
+                                        layout = PaneSceneLayout(
+                                            twoPane = twoPane,
+                                            sideBesideList = sideBesideList,
+                                            // Archiv a ostatní seznamy táhlo nemají, stojí na výchozí šířce.
+                                            listWidth = if (mainListShown) listResize.width else base.defaultPanePreferredWidth,
+                                            sideWidth = profileResize.width + PROFILE_CARD_MARGINS,
+                                            instant = instantPaneBounds,
+                                        ),
+                                        detailPlaceholder = ChatDetailPlaceholder,
+                                        conversationActions = true,
+                                    )
+                                }
+                            },
                         ),
                     )
                     // Vlastní táhla nad panely (seznam ve třech panelech, profil) — viz `PaneResize`.
@@ -2182,7 +2156,9 @@ private fun shellEntryProvider(
      * se otevírá z karty v seznamu; změna čísla nad ní je zase podstránka.
      */
     entry<SettingsSectionRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        // Zpět ze sekce vede z Nastavení pryč: v širokém okně se sekce otevírá sama a obyčejné
+        // zpět by ji efekt hned vrátil (`PaneSceneStrategy`). Na telefonu nemá metadata vliv.
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading) + Panes.backLeavesScene(),
     ) { route ->
         // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
         // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.

@@ -53,7 +53,7 @@ val LIST_CONTENT_INSET = 16.dp
 
 /**
  * Táhlo mezi panely scény Chatů: seznam | konverzace a konverzace | boční sloupec. Šířku dostává
- * scéna (`ChatSceneLayout`) a tah ji mění. Dřív to bylo táhlo navíc k knihovnímu
+ * scéna (`PaneSceneLayout`) a tah ji mění. Dřív to bylo táhlo navíc k knihovnímu
  * (`paneExpansionDragHandle`), které ve třech panelech `ThreePaneScaffold` nekreslil vůbec.
  *
  * **Táhlo se kreslí nad panely, ne v panelu.** Obsah panelu se ořezává na jeho okraj, takže

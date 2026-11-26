@@ -1,36 +1,26 @@
 package eu.tintera.plume.core.adaptive
 
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.ui.unit.Dp
 import androidx.navigation3.runtime.NavEntry
 
-/** Panel list-detail scény, do kterého obrazovka patří. */
+/** Panel scény panelů (`PaneScene`), do kterého obrazovka patří. */
 enum class PaneRole { List, Detail, Extra }
 
 /** Role a scéna položky zásobníku; scéna odlišuje hlavní seznam chatů od archivu a Nastavení. */
 data class PaneInfo(val role: PaneRole, val scene: Any)
 
 /**
- * Metadata panelů list-detail scény: obalují `ListDetailSceneStrategy.listPane` / `detailPane`
- * / `extraPane` a přidávají k nim roli a scénu, kterou si knihovna drží pro sebe (klíč i hodnoty
- * má `internal`). Shell podle nich srovnává zásobník ([coveredExtras]) a volí počet panelů.
+ * Metadata panelů: role a scéna položky. Podle nich scéna panelů (`PaneScene`) vybírá, co kreslí,
+ * a shell srovnává zásobník ([coveredExtras]). Dřív obalovala i metadata knihovního
+ * `ListDetailSceneStrategy`; od scény panelů pro Chaty i Nastavení knihovna nic nekreslí.
  */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 object Panes {
-    /**
-     * Seznam. Placeholder detailu tu není: knihovní list-detail kreslí jen Nastavení, kde je sekce
-     * otevřená vždycky, a Chaty mají placeholder ve scéně Chatů (`ChatScene`).
-     */
-    fun list(sceneKey: Any = Unit): Map<String, Any> =
-        ListDetailSceneStrategy.listPane(sceneKey) + info(PaneRole.List, sceneKey)
+    fun list(sceneKey: Any = Unit): Map<String, Any> = info(PaneRole.List, sceneKey)
 
-    fun detail(sceneKey: Any = Unit): Map<String, Any> =
-        ListDetailSceneStrategy.detailPane(sceneKey) + info(PaneRole.Detail, sceneKey)
+    fun detail(sceneKey: Any = Unit): Map<String, Any> = info(PaneRole.Detail, sceneKey)
 
-    /** Třetí panel — profil a obrazovky, které se z něj otevírají. Patří k detailu pod sebou. */
-    fun extra(sceneKey: Any = Unit): Map<String, Any> =
-        ListDetailSceneStrategy.extraPane(sceneKey) + info(PaneRole.Extra, sceneKey)
+    /** Boční sloupec — profil a obrazovky, které se z něj otevírají. Patří k detailu pod sebou. */
+    fun extra(sceneKey: Any = Unit): Map<String, Any> = info(PaneRole.Extra, sceneKey)
 
     /**
      * Obsah panelu nejvýš [maxWidth] široký, na širším panelu vycentrovaný (`PaneCard`). Pro
@@ -53,8 +43,34 @@ object Panes {
      */
     fun headerOutside(): Map<String, Any> = mapOf(HEADER_OUTSIDE_KEY to true)
 
+    /**
+     * Zpět z téhle položky opouští celou scénu (`PaneSceneStrategy`), ne jen ji: sekce Nastavení,
+     * která se v širokém okně otevírá sama a obyčejné zpět by ji hned vrátilo.
+     */
+    fun backLeavesScene(): Map<String, Any> = mapOf(BACK_LEAVES_SCENE_KEY to true)
+
     private fun info(role: PaneRole, sceneKey: Any): Map<String, Any> = mapOf(PANE_INFO_KEY to PaneInfo(role, sceneKey))
 }
+
+/**
+ * Boční položky navrchu zásobníku (profil, podstránka Nastavení) — tedy to, co je v bočním
+ * sloupci vidět. Položka přes celou plochu (prohlížeč nad profilem) se přeskočí: sloupec pod ní
+ * pořád je.
+ */
+fun <K> List<K>.shownExtras(paneOf: (K) -> PaneInfo?): List<K> {
+    val shown = ArrayList<K>()
+    for (index in indices.reversed()) {
+        val info = paneOf(this[index]) ?: continue
+        if (info.role != PaneRole.Extra) break
+        shown += this[index]
+    }
+    return shown.asReversed()
+}
+
+private const val BACK_LEAVES_SCENE_KEY = "eu.tintera.plume.backLeavesScene"
+
+/** Položka z [Panes.backLeavesScene]. */
+val NavEntry<*>.backLeavesScene: Boolean get() = metadata[BACK_LEAVES_SCENE_KEY] == true
 
 private const val PANE_INFO_KEY = "eu.tintera.plume.paneInfo"
 

@@ -13,12 +13,12 @@ import androidx.window.core.layout.computeWindowSizeClass
 /**
  * [PaneScaffoldDirective] odvozený z rozměrů **content-oblasti**, ne celého okna.
  *
- * List-detail strategie defaultně rozhoduje single/two-pane podle [currentWindowAdaptiveInfoV2],
- * tedy podle celého okna. Jenže obsah může běžet v menší ploše (padding, kdysi rail). Strategie by pak počítala se šířkou, kterou reálně nemá, a rozhodla špatně. Tahle funkce
- * spočítá directive z naměřené šířky content-oblasti (typicky z `BoxWithConstraints`).
+ * Scéna panelů (`PaneScene`) z něj bere výchozí šířku panelu (`defaultPanePreferredWidth`, na XL
+ * širší) — počet panelů rozhoduje shell sám podle šířky ([TWO_PANE_MIN_WIDTH],
+ * [THREE_PANE_MIN_WIDTH]). Velikostní třída se počítá z naměřené šířky content-oblasti (typicky
+ * z `BoxWithConstraints`), ne z [currentWindowAdaptiveInfoV2] celého okna.
  *
- * Pozn.: posture (hinge) se přebírá z okna — hinge bounds jsou v souřadnicích okna, takže u skládaček
- * jde o aproximaci; primární cíl je správný počet panelů podle šířky.
+ * Pozn.: posture (pant) se přebírá z okna; scéna ho zatím nepoužívá (`docs/navrh-scena-chatu.md`).
  */
 @Composable
 fun contentPaneScaffoldDirective(width: Dp, height: Dp): PaneScaffoldDirective {
@@ -32,31 +32,6 @@ fun contentPaneScaffoldDirective(width: Dp, height: Dp): PaneScaffoldDirective {
         WindowAdaptiveInfo(contentSizeClass, windowInfo.windowPosture),
     )
 }
-
-/**
- * Directive vynucená na **jeden** horizontální panel.
- *
- * Dvoupanelový režim rezervuje detail-pane i bez vybraného detailu a vyplní ho placeholderem —
- * seznam chatů by pak zůstal zbytečně úzký. Když v zásobníku detail není, použij tuhle variantu;
- * po otevření konverzace se vrať k [twoPane].
- */
-fun PaneScaffoldDirective.singlePane(): PaneScaffoldDirective = withHorizontalPartitions(1)
-
-/**
- * Directive vynucená na **dva** horizontální panely (seznam + konverzace vedle sebe).
- *
- * Standardní dvoupanelový breakpoint je až 840 dp. U seznamu chatů dávají dva panely smysl dřív,
- * proto máme vlastní (nižší) práh [TWO_PANE_MIN_WIDTH] a dvoupanel si vynutíme sami.
- */
-fun PaneScaffoldDirective.twoPane(): PaneScaffoldDirective = withHorizontalPartitions(2)
-
-/**
- * Directive vynucená na **tři** horizontální panely (seznam, konverzace a profil vedle sebe).
- *
- * Jen když je co dát do třetího panelu: scaffold se třemi oddíly rozbalí třetí panel vždycky,
- * i prázdný (`tertiaryPane ?: {}` v `ThreePaneScaffold`), a vzal by konverzaci místo.
- */
-fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPartitions(3)
 
 /**
  * Okraj karty (`PaneCard`: konverzace, profil) od seznamu, od sousední karty i od kraje okna.
@@ -95,21 +70,3 @@ val TWO_PANE_MIN_WIDTH = LIST_PANE_WIDTH + PANE_SPACING * 2 + MIN_CONVERSATION_W
  * konverzaci zbyde 480 dp.
  */
 val THREE_PANE_MIN_WIDTH = WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND.dp
-
-private fun PaneScaffoldDirective.withHorizontalPartitions(n: Int): PaneScaffoldDirective =
-    PaneScaffoldDirective(
-        maxHorizontalPartitions = n,
-        // Mezeru mezi panely si dělá karta sama (`PaneCard`): tahle by rozdělila i konverzaci
-        // od profilu. Táhlo stojí na hranici panelů, tedy v mezeře před kartou.
-        horizontalPartitionSpacerSize = 0.dp,
-        maxVerticalPartitions = maxVerticalPartitions,
-        verticalPartitionSpacerSize = verticalPartitionSpacerSize,
-        defaultPanePreferredWidth = defaultPanePreferredWidth,
-        defaultPanePreferredHeight = defaultPanePreferredHeight,
-        excludedBounds = excludedBounds,
-        // Scaffold jinak při každé změně aktuálního panelu (otevření konverzace vedle seznamu)
-        // zavolá na panel `requestFocus()`. Fokus propadne na první fokusovatelný prvek, tedy
-        // vstupní pole konverzace, a vyjede klávesnice, aniž by uživatel do pole ťukl. Na
-        // compactu se to nedělo, protože jeden panel scaffold nekreslí.
-        shouldAutoFocusCurrentDestination = false,
-    )

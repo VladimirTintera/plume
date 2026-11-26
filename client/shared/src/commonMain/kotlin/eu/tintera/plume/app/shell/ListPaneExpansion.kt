@@ -67,7 +67,7 @@ internal class ListPaneWidth(
 
 /**
  * Táhlo seznamu ve scéně Chatů (`PaneResize`), ve dvou i třech panelech. Šířku dostává scéna
- * (`ChatSceneLayout.listWidth`); po puštění dojede pružinou na nejbližší kotvu ([DraggedWidth])
+ * (`PaneSceneLayout.listWidth`); po puštění dojede pružinou na nejbližší kotvu ([DraggedWidth])
  * a uloží se jako `AppSettings.listPaneAnchor`. Do stavu se kotva zapíše hned (`settled`), ne až
  * z toku nastavení, jinak by seznam na snímek skočil zpátky.
  */

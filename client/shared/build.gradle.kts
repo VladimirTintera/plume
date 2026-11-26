@@ -377,7 +377,6 @@ kotlin {
 
             implementation(libs.androidx.adaptive)
             implementation(libs.androidx.adaptive.layout)
-            implementation(libs.androidx.adaptive.navigation3)
             implementation(libs.navigation)
 
             implementation(libs.androidx.lifecycle.viewmodelCompose)

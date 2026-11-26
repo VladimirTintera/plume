@@ -5,7 +5,9 @@
 > Lišta: `PaneHeader` ve scéně posílá hlavičku do lišty scény (`SceneBar`) se zachyceným kontextem
 > položky, obrazovky beze změny; akce konverzace stojí na konci lišty (`PaneBandEnd`). Úklid (krok 4)
 > odstranil knihovní šířky a táhlo pro Chaty, měření pásu v okně i poslední cestu, kudy Chaty
-> kreslila knihovna. Zbývá volitelně Nastavení (krok 5) a kontrola zdrojáků (krok 6). Poznatky:
+> kreslila knihovna. Krok 5: stejná scéna kreslí i Nastavení
+> (sekce | podstránka) a knihovna adaptive-navigation3 z projektu zmizela. Zbývá kontrola zdrojáků
+> (krok 6). Poznatky:
 > `docs/poznatky/navigace.md`, „Vlastní scéna Chatů". Rozhodnutí jít směrem „dva panely, druhý je sám dvousloupcový" padlo 25. 11. 2026.
 
 Chaty dnes stojí na třípanelovém `ThreePaneScaffold` z knihovny (`adaptive-navigation3`):
@@ -89,7 +91,7 @@ nakreslí naše scéna. Výhody C (scéna má oblast chatu celou pod sebou) bez 
 
 ### Strategie a scéna
 
-- **`ChatSceneStrategy`** stojí v `sceneStrategies` před `rememberListDetailSceneStrategy`
+- **`PaneSceneStrategy`** stojí v `sceneStrategies` před `rememberListDetailSceneStrategy`
   (za `SheetSceneStrategy`, sheet se dál kreslí nad scénou). Vrací scénu jen pro položky Chatů
   a Archivu na širokém okně; Nastavení a telefon propadnou dál, ke knihovně a standardní výměně
   obrazovek. Nastavení může později přejít na stejnou scénu (sekce | podstránka), ale není to
@@ -195,7 +197,7 @@ test výběru položek scény.
 
 ## Co ověřit prototypem
 
-Jen Chaty, konverzace s profilem a úpravou, za přepínačem (`ChatSceneStrategy` vrací `null`, když
+Jen Chaty, konverzace s profilem a úpravou, za přepínačem (`PaneSceneStrategy` vrací `null`, když
 je vypnutý — návrat ke knihovně je jeden řádek):
 
 1. **Gesto zpět**: z podstránky v bočním sloupci, z profilu (sloupec se během tahu zavírá),
