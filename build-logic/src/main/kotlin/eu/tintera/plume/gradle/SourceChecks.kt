@@ -51,6 +51,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyCoreLayering", VerifyCoreLayering::class.java, withTests = true)
         register("verifyParameterCount", VerifyParameterCount::class.java)
         register("verifyWindowControls", VerifyWindowControls::class.java)
+        register("verifyPaneHeaders", VerifyPaneHeaders::class.java)
     }
 }
 
@@ -592,5 +593,96 @@ abstract class VerifyWindowControls : SourceCheckTask() {
             }
         }
         return offenders
+    }
+}
+
+/**
+ * Hlídá dvě pravidla lišty scény panelů (`PaneScene`, `SceneBar`, `docs/poznatky/navigace.md`,
+ * „Vlastní scéna Chatů"), která dřív stála jen v dokumentaci:
+ *
+ * 1. **Lišta v `PaneHeader` nechá místo pro akce konverzace** (`PaneBandActions()` nebo
+ *    `PaneBandSpace()` v argumentech každého `…TopAppBar(`). Akce konverzace kreslí scéna na
+ *    pevném místě u pravého okraje (`PaneBandEnd`); lišta bočního sloupce bez místa by pod ně
+ *    schovala vlastní akce (Uložit v úpravě kanálu, přepínač roku v kalendáři).
+ * 2. **Obrazovka, která počítá s hlavičkou nad kartou** (`PaneBody`, `paneScaffoldColor`), kreslí
+ *    hlavičku přes `PaneHeader` nebo `ProfileSubpageTopBar`. Jinak by hlavička zůstala v kartě
+ *    pod lištou scény a byly by dvě horní lišty pod sebou — tak dopadla úprava kanálu a kalendář
+ *    (VladimirTintera/plume#67).
+ *
+ * Hledá se v kódu bez komentářů: `PaneHeader` se v KDoc zmiňuje všude, kde se o hlavičkách píše.
+ * Soubor s definicemi (`PaneHeader.kt`) se přeskočí. Lišta, která do `PaneHeader` jde z jiného
+ * souboru (`ConversationTopBar` z `ConversationScreen`), pravidlem 1 nepokrytá — konverzace je
+ * detail, ne boční sloupec, a místo nechává přes `PaneBandSpace()` (viz `PaneBand.kt`).
+ */
+abstract class VerifyPaneHeaders : SourceCheckTask() {
+    init {
+        description = "Ověří, že lišty v PaneHeader nechávají místo pro akce konverzace a hlavičky nad kartou jdou přes PaneHeader."
+    }
+
+    override fun failureMessage() =
+        "Lišta scény panelů (core/adaptive/PaneBand.kt, PaneHeader.kt): lišta v PaneHeader musí mít v actions PaneBandActions() " +
+            "(nebo PaneBandSpace()) před WindowControlsEndSpace(), a obrazovka s PaneBody / paneScaffoldColor musí kreslit hlavičku " +
+            "přes PaneHeader nebo ProfileSubpageTopBar."
+
+    private val bars = listOf(
+        "TopAppBar", "LargeFlexibleTopAppBar", "MediumFlexibleTopAppBar", "CenterAlignedTopAppBar",
+        "LargeTopAppBar", "MediumTopAppBar",
+    )
+    private val barCall = Regex("""(?<![\w.])(${bars.joinToString("|")})\(""")
+    private val paneHeaderCall = Regex("""(?<![\w.])PaneHeader\s*[({]""")
+    private val outsideBody = Regex("""(?<![\w.])(PaneBody|paneScaffoldColor)\(""")
+    private val headerHost = Regex("""(?<![\w.])(PaneHeader\s*[({]|ProfileSubpageTopBar\()""")
+    private val bandRoom = Regex("""\bPaneBand(Actions|Space)\(\)""")
+    private val declaration = Regex("""\bfun\s+$""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        if (file.name == "PaneHeader.kt") return emptyList()
+        val text = codeOnly(file.readText())
+        val offenders = mutableListOf<String>()
+        if (paneHeaderCall.containsMatchIn(text)) {
+            barCall.findAll(text).forEach { match ->
+                val name = match.groupValues[1]
+                if ("import androidx.compose.material3.$name\n" !in text) return@forEach
+                val lineStart = text.lastIndexOf('\n', match.range.first) + 1
+                if (declaration.containsMatchIn(text.substring(lineStart, match.range.first))) return@forEach
+                val arguments = text.substring(match.range.last + 1, argumentsEnd(text, match.range.last))
+                if (!bandRoom.containsMatchIn(arguments)) {
+                    offenders += "$path:${lineOf(text, match.range.first)}: $name v PaneHeader bez PaneBandActions()"
+                }
+            }
+        }
+        outsideBody.find(text)?.let { match ->
+            if (!headerHost.containsMatchIn(text)) {
+                offenders += "$path:${lineOf(text, match.range.first)}: ${match.groupValues[1]} bez PaneHeader / ProfileSubpageTopBar"
+            }
+        }
+        return offenders
+    }
+
+    /**
+     * Text bez komentářů, se zachovanými konci řádků (čísla řádků v hlášce sedí). Řetězce se
+     * neřeší: `//` v řetězci by zbytek řádku zahodilo, což tu nevadí — hledaná volání v řetězcích nejsou.
+     */
+    private fun codeOnly(text: String): String {
+        val out = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            when {
+                text.startsWith("/*", i) -> {
+                    val end = text.indexOf("*/", i + 2).let { if (it < 0) text.length else it + 2 }
+                    text.substring(i, end).forEach { if (it == '\n') out.append('\n') }
+                    i = end
+                }
+                text.startsWith("//", i) -> {
+                    val end = text.indexOf('\n', i).let { if (it < 0) text.length else it }
+                    i = end
+                }
+                else -> {
+                    out.append(text[i])
+                    i++
+                }
+            }
+        }
+        return out.toString()
     }
 }

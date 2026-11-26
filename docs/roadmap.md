@@ -1679,13 +1679,13 @@ seznam". Zbývá:
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení
    s modelem) a hovor. Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe se tam
    nevejde.
-5. **Seznam | oblast chatu: vlastní scéna Chatů s jednou lištou.** Boční panel (profil,
-   úprava, kalendář) je podčást konverzace, ne třetí panel: Chaty mají být dvoupanelové a oblast
-   chatu jedna scéna nad plochým zásobníkem, která kreslí konverzaci, boční sloupec a jednu
-   lištu nad nimi; obrazovky lištu jen popíšou. Nahradí knihovní třípanel i obcházky kolem něj
-   (odjezd panelu, zakrytý profil, pás hlavičky z VladimirTintera/plume#67). Rozbor, varianty
-   a postup v [navrh-scena-chatu.md](navrh-scena-chatu.md); první krok je prototyp za
-   přepínačem (gesto zpět, Fold).
+5. **Scéna panelů: zbývá ověřit a pant.** Chaty, archiv i Nastavení kreslí vlastní scéna s jednou
+   lištou (VladimirTintera/plume#70, #72, #74, kontrola `verifyPaneHeaders`;
+   [navrh-scena-chatu.md](navrh-scena-chatu.md)). Neověřené: Windows (pevné akce konverzace vlevo
+   od tlačítek okna), skutečný Fold a iPad. **Pant v pozici kniha scéna nerespektuje** — hranice
+   panelů neleží na pantu (na emulátoru stejně jako dřív knihovna; `excludedBounds` z direktivy se
+   nepoužívají). Po zavření bočního panelu přes Esc se v Chatech jedno další Esc ztratí (řeší se
+   zvlášť).
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna

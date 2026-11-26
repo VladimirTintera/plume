@@ -6,8 +6,10 @@
 > položky, obrazovky beze změny; akce konverzace stojí na konci lišty (`PaneBandEnd`). Úklid (krok 4)
 > odstranil knihovní šířky a táhlo pro Chaty, měření pásu v okně i poslední cestu, kudy Chaty
 > kreslila knihovna. Krok 5: stejná scéna kreslí i Nastavení
-> (sekce | podstránka) a knihovna adaptive-navigation3 z projektu zmizela. Zbývá kontrola zdrojáků
-> (krok 6). Poznatky:
+> (sekce | podstránka) a knihovna adaptive-navigation3 z projektu zmizela. Krok 6: kontrola
+> `verifyPaneHeaders` hlídá místo pro akce konverzace v lištách `PaneHeader` a že hlavička nad
+> kartou jde přes `PaneHeader`. Návrh je tím hotový; `PaneTopBar` jako API se ukázal zbytečný,
+> stačilo přesměrovat `PaneHeader` do lišty scény. Poznatky:
 > `docs/poznatky/navigace.md`, „Vlastní scéna Chatů". Rozhodnutí jít směrem „dva panely, druhý je sám dvousloupcový" padlo 25. 11. 2026.
 
 Chaty dnes stojí na třípanelovém `ThreePaneScaffold` z knihovny (`adaptive-navigation3`):

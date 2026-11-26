@@ -357,7 +357,15 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
       - **Každá lišta, kterou může mít boční panel v Chatech, musí volat `PaneBandActions()`**
         před `WindowControlsEndSpace()`: lišta profilu, kalendáře a `ProfileSubpageTopBar`.
         Nekreslí akce, jen jim nechá místo (kreslí je scéna, `PaneBandEnd`); lišta bez něj by
-        vlastní akce schovala pod akce konverzace. Kontrola to nehlídá.
+        vlastní akce schovala pod akce konverzace. Hlídá to `verifyPaneHeaders`
+        (každé `…TopAppBar(` v souboru s `PaneHeader`).
+      - **Obrazovka s hlavičkou nad kartou** (`PaneBody`, `paneScaffoldColor`) **kreslí hlavičku přes
+        `PaneHeader` nebo `ProfileSubpageTopBar`**, jinak skončí v kartě pod lištou scény a jsou dvě
+        lišty pod sebou (původní chyba úpravy kanálu, VladimirTintera/plume#67). Hlídá to taky
+        `verifyPaneHeaders`. Ověřeno sondami: kalendář bez `PaneBandActions()` i úprava kanálu bez
+        `ProfileSubpageTopBar` kontrolu rozsvítí na správném řádku. Kontrola čte kód bez komentářů
+        (`PaneHeader` se v KDoc zmiňuje všude) a lištu konverzace (`ConversationTopBar`, jde do
+        `PaneHeader` z jiného souboru) nepokrývá — ta je detail a místo nechává `PaneBandSpace()`.
       - **Kořen profilu vedle vlastní konverzace má lištu jen s místem pro akce konverzace**
         (`besideOwnConversation`): jméno je v hlavičce konverzace, akce nad chatem i Upravit jsou
         v jejím ⋮ (`ChatActions`). Profil člena nad konverzací skupiny je jiný chat a v liště má
