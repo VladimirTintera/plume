@@ -587,6 +587,38 @@ knihovny ve dvou panelech).
   pryč) a s opravou ověřeno, že zůstanou. Týž mechanismus hrozil u skoku mezi archivem
   (`ARCHIVE_SCENE`) a hlavními Chaty, ten ověřený není.
 
+### Vlastní scéna Chatů (prototyp)
+
+Za přepínačem Vzhled → Chaty → „Zkušební rozvržení chatů" (`AppSettings.chatScene`, výchozí
+vypnuto) kreslí Chaty a archiv na široké ploše vlastní scéna (`ChatScene.kt`, návrh
+`docs/navrh-scena-chatu.md`), ne `ThreePaneScaffold` z knihovny. Nastavení a telefon zůstávají
+na knihovně a `SinglePaneScene`.
+
+- **Strategie stojí za `SheetSceneStrategy` a před knihovní list-detail** a vypnutá vrací `null`;
+  návrat ke knihovně je tedy jeden řádek. Scénu staví jen se seznamem v souvislém konci zásobníku:
+  konverzace otevřená nad prohlížečem (`chats, conv, media, conv`) seznam nemá a nakreslí ji
+  knihovna přes celou šířku, jako dosud.
+- **Boční sloupec je poslední boční položka NAD posledním detailem** (`selectChatPanes`, test
+  `ChatScenePanesTest`). Zakrytý profil jiného chatu se nekreslí, ať je v zásobníku cokoli;
+  `followProfile` zůstává kvůli zpět a ukládání, ne kvůli obrazu.
+- **Výměna obsahu místa jde po `contentKey`, ne po položce** (`PaneSlot`). Dekorovaná položka je
+  v každé kompozici nový objekt (`rememberDecoratedNavEntries` → `decorateEntry`) a `NavEntry.equals`
+  porovnává i lambdu obsahu; `AnimatedContent` nad položkou by „přecházel" mezi dvěma kopiemi
+  téže obrazovky. Odcházející položku jde kreslit dál, i když už v zásobníku není: Nav3 zavolá
+  `onPop` (úklid ViewModelů a stavu) až ve chvíli, kdy obsah opustí kompozici.
+- **Odjezd sloupce drží scéna** (`AnimatedVisibility` s poslední položkou), proto se Chatům ve
+  scéně nepodává `rememberWithLeavingExtras`.
+- **Zpět, po kterém zůstane táž scéna, obslouží scéna sama** (`NavigationBackHandler`, jako
+  `ThreePaneScaffoldScene`): `NavDisplay` by mezi dvěma stavy téže scény (stejný klíč) nic
+  neanimoval. Během gesta se sloupec zužuje o čtvrtinu šířky, po dokončení odjíždí z té šířky.
+- **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
+  `RESERVE_BESIDE_LIST`), knihovní `PaneExpansionState` se nepoužije. Kotva je táž
+  (`AppSettings.listPaneAnchor`), takže přepnutí přepínače šířku seznamu nezmění.
+- **Ověřeno jen na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
+  a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu. **Neověřeno:** gesto
+  zpět dotykem (Android), Fold (rozložení, pant v pozici kniha — scéna ho zatím nerespektuje),
+  okno pod `THREE_PANE_MIN_WIDTH`, Windows, archiv.
+
 ### Obsah přesouvaný mezi scénami
 
 Při rozložení a složení Foldu (jeden panel ↔ list-detail) NavDisplay obsah položky do jiné
