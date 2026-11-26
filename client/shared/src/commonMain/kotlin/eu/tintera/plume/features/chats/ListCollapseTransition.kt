@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.AccountInfo
+
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -78,7 +80,7 @@ internal val LocalCollapseFlights = staticCompositionLocalOf<CollapseFlights?> {
  */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun Modifier.collapseFlight(key: Any): Modifier {
+internal fun Modifier.collapseFlight(key: Any, zIndexInOverlay: Float = 1f): Modifier {
     val flights = LocalCollapseFlights.current ?: return this
     val scope = LocalListCollapseScope.current ?: return this
     val side = LocalCollapseSide.current
@@ -101,7 +103,7 @@ internal fun Modifier.collapseFlight(key: Any): Modifier {
     val overlay = LocalSharedTransitionScope.current?.let { shared ->
         with(shared) {
             Modifier.renderInSharedTransitionScopeOverlay(
-                zIndexInOverlay = 1f,
+                zIndexInOverlay = zIndexInOverlay,
                 renderInOverlay = { from != null && transition.isRunning },
             )
         }
@@ -138,6 +140,23 @@ internal fun Modifier.collapseFlight(key: Any): Modifier {
 /** Klíč avataru chatu pro [collapseFlight]: s účtem, ve společném seznamu víc účtů může mít totéž id chat ve dvou účtech. */
 @Composable
 internal fun collapseAvatarKey(chatId: Long): String = "avatar-${LocalAccount.current.slot}-$chatId"
+
+/**
+ * Klíč odznaku účtu [accountId] na avataru chatu pro [collapseFlight]. Odznak letí sám, ne
+ * s avatarem: ten se do sloupce posouvá a zvětšuje ručně a odznak vedle něj zůstával v řádku,
+ * pak problikl a naskočil až na dosednutý avatar. Id účtu odznaku, ne slot kolem: spojená
+ * společná skupina má odznaků víc přes sebe a každý letí na své místo. Nad avatarem
+ * ([COLLAPSE_BADGE_Z]), jinak by ho letící avatar mohl přikrýt.
+ */
+internal fun collapseBadgeKey(chatId: Long, accountId: Long): String = "badge-$accountId-$chatId"
+
+/** Pořadí odznaku účtu v překryvu během letu: nad avatarem chatu (`1f`). */
+internal const val COLLAPSE_BADGE_Z = 2f
+
+/** Let odznaku účtu [account] na avataru chatu [chatId] při sbalení seznamu ([collapseBadgeKey]). */
+@Composable
+internal fun collapseBadgeFlight(chatId: Long, account: AccountInfo): Modifier =
+    Modifier.collapseFlight(collapseBadgeKey(chatId, account.id), zIndexInOverlay = COLLAPSE_BADGE_Z)
 
 /**
  * Klíč prvního celého chatu, který je v [state] vidět — kotva, na kterou dojede seznam na druhé

@@ -89,10 +89,18 @@ fun rememberConversationAccount(chatId: Long): ConversationAccount? {
  *
  * S [chatId] odznak letí spolu s avatarem mezi seznamem a hlavičkou konverzace
  * ([chatAccountBadgeKey]); nad avatarem v překryvu, jinak by ho přikryl. Předává se jen tam,
- * kde letí i avatar.
+ * kde letí i avatar. [flight] je další let, který odznak nese s avatarem (sbalení seznamu do
+ * sloupce, `collapseFlight`); patří na odznak sám, ne na [modifier] se zarovnáním v rodiči.
  */
 @Composable
-fun AccountBadge(account: AccountInfo, rim: Color, modifier: Modifier = Modifier, size: Dp = 18.dp, chatId: Long? = null) {
+fun AccountBadge(
+    account: AccountInfo,
+    rim: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 18.dp,
+    chatId: Long? = null,
+    flight: Modifier = Modifier,
+) {
     Avatar(
         chatId = account.id,
         title = account.displayName,
@@ -100,6 +108,7 @@ fun AccountBadge(account: AccountInfo, rim: Color, modifier: Modifier = Modifier
         size = size,
         modifier = modifier
             .offset(x = (-4).dp, y = 4.dp)
+            .then(flight)
             .badgeFlight(chatId, account)
             .background(rim, CircleShape)
             .padding(2.dp),
@@ -120,12 +129,22 @@ data class BadgeAccount(val info: AccountInfo, val session: AccountSession? = nu
  * ve společném seznamu. Každý další leží o kus vpravo nad předchozím, s obroučkou [rim], takže
  * se od sebe odliší i stejně barevné fotky. S jedním účtem je to [AccountBadge], s žádným nic.
  * [chatId] jako u [AccountBadge]: do hlavičky konverzace přiletí odznak účtu, kterým se otevřela.
+ * [flight] dostane účet odznaku, ať má každý z odznaků přes sebe vlastní let.
  */
 @Composable
-fun AccountBadges(accounts: List<BadgeAccount>, rim: Color, modifier: Modifier = Modifier, size: Dp = 18.dp, chatId: Long? = null) {
+fun AccountBadges(
+    accounts: List<BadgeAccount>,
+    rim: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 18.dp,
+    chatId: Long? = null,
+    flight: @Composable (AccountInfo) -> Modifier = { Modifier },
+) {
     when (accounts.size) {
         0 -> Unit
-        1 -> InAccount(accounts.single().session) { AccountBadge(accounts.single().info, rim, modifier, size, chatId) }
+        1 -> InAccount(accounts.single().session) {
+            AccountBadge(accounts.single().info, rim, modifier, size, chatId, flight(accounts.single().info))
+        }
         else -> Box(modifier.offset(x = (-4).dp, y = 4.dp)) {
             accounts.take(MAX_STACKED_BADGES).forEachIndexed { index, account ->
                 InAccount(account.session) {
@@ -136,6 +155,7 @@ fun AccountBadges(accounts: List<BadgeAccount>, rim: Color, modifier: Modifier =
                         size = size,
                         modifier = Modifier
                             .padding(start = size * STACKED_BADGE_STEP * index)
+                            .then(flight(account.info))
                             .badgeFlight(chatId, account.info)
                             .background(rim, CircleShape)
                             .padding(2.dp),

@@ -476,6 +476,14 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     (`scrollToChat`, jen jeden účet). Bez toho sloupec začínal nahoře a z odrolovaného seznamu
     neměl kam doletět žádný avatar. Obě podoby mají tytéž klíče položek (`chat.id`,
     ve společném seznamu `MergedChat.key`), avatary pro let nesou i účet (`collapseAvatarKey`).
+  - **Odznak účtu na avataru letí sám** (`collapseBadgeFlight`, klíč `collapseBadgeKey` s id
+    účtu odznaku). S avatarem nejde: let posouvá a zvětšuje jen prvek, na kterém je modifikátor,
+    a odznak vedle něj zůstával v řádku a naskočil až na dosednutý avatar. V překryvu nad
+    avatarem (`COLLAPSE_BADGE_Z`), stejný rozměr na obou stranách, takže se jen posouvá. Spojená
+    společná skupina má odznaky přes sebe a každý letí na své místo. `AccountBadges` dostává let
+    zvenku (`flight`), protože `collapseFlight` je interní v `features/chats`.
+    Ověřeno na Foldu (rozložený, režim Všechny účty) tlačítkem sbalení tam i zpět, sérií snímků
+    se zpomalenými animacemi.
   - **S letem avataru do hlavičky konverzace se nepere**: sbalený sloupec je jen vedle panelů
     a tam `sharedNavElement` nesdílí.
   - **Během přechodu jsou složené oba seznamy a snímky jsou delší** (v logu průběhu letu
