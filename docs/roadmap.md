@@ -2101,8 +2101,36 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
 - ~~**Vlákno odpovědí ve skupině bez témat**~~ — hotovo jako sheet: nabídka nad zprávou →
   „Zobrazit vlákno", řetěz citací ke kořeni a odpovědi z historie od kořene po kolech
   (`docs/poznatky/konverzace-pohyb.md`, „Vlákno odpovědí"). Zbývá: ověřit ve skutečně rušné
-  skupině (rychlost prvního kola, kořen z minulého měsíce) a zvážit vlákno jako filtr přímo
-  v konverzaci (plné bubliny, odpověď z vlákna) místo seznamu.
+  skupině (rychlost prvního kola, kořen z minulého měsíce).
+- **Vlákna jako v Google Chatu** (L, odložené 26. 11. 2026). Uživatel by to rád („troška
+  pořádku do toho chaosu"), ale teď to důležité není. Rozhovor uvnitř konverzace: zpráva v hlavním
+  proudu s čipem „3 odpovědi", vlákno jako vlastní konverzace, ve které se píše.
+  - **Proč to musí stavět klient:** skutečná vlákna vede server jen u komentářů kanálu
+    (diskusní skupina, `replyInfo`, `getMessageThread`; obrazovku pro ně už máme,
+    `ThreadConversationRepository`) a u témat ve skupinách. V obyčejné skupině je jen
+    `replyTo` — ověřeno v API wrapperu 17.0.0 a v `docs/poznatky/typy-zprav.md` („Komentáře jen
+    v kanálu").
+  - **Fáze, jak by šly po sobě:**
+    1. Vlákno jako konverzace místo sheetu: plné bubliny, reakce, psaní do vlákna. Odeslaná
+       zpráva jde jako odpověď na poslední zprávu vlákna, takže ostatní v oficiálním klientovi
+       vidí běžnou odpověď a řetěz se nepřetrhne. Vzor obalu je `ThreadConversationRepository`.
+       Pod kořenem čip „N odpovědí" s tvářemi posledních (jako u komentářů).
+    2. Index odpovědí v zařízení (kdo na co odpovídá) z updatů a načtené historie — vlákno se
+       otevře hned a počty na čipu sedí i u starších zpráv; procházení historie zůstane jako
+       záloha.
+    3. Režim „sbalená vlákna" pro jeden chat: v hlavním proudu jen začátky vláken
+       a samostatné zprávy, odpovědi pod čipem; nová odpověď ve starém vlákně dole jako řádek
+       „Petr odpověděl ve vlákně: …".
+    4. Přehled vláken napříč chaty (kde píšu, kde jsou nové odpovědi).
+  - **Hlavní obava, kvůli které se to odložilo:** funguje to jen tam, kde lidé opravdu
+    odpovídají přes „Odpovědět". Kdo napíše bez citace (a v oficiálním klientovi to dělá většina),
+    do vlákna se nedostane — ve sbaleném režimu by se půlka rozhovoru ztrácela a místo pořádku
+    by vznikl zmatek. Struktura je navíc jen naše, ostatní ji nevidí. Než se začne, rozmyslet,
+    jak zprávy bez citace neztratit: nechat je v hlavním proudu vždy viditelné, sbalovat jen
+    v chatech, kde se citace opravdu používá (měřit podíl odpovědí), nebo je k vláknu přiřadit
+    modelem v zařízení (nejisté, jen jako návrh).
+  - Fáze 1 dává smysl i bez ostatních (je to rozšíření dnešního sheetu); obava se týká hlavně
+    fáze 3.
 - **Statistika chatu** (M). Kdo kolik píše, aktivita podle hodin a dnů v týdnu (heatmapa),
   nejčastější reakce, nejdelší série dnů, kdy jste si psali — „Wrapped" pro jeden chat,
   počítané lokálně. Grafy jsou ze statistik kanálu (`StatGraphCard`); počty po dnech dává
