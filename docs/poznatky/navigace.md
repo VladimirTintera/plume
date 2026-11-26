@@ -613,7 +613,10 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
   - Ověřeno na desktopu (macOS, Notifikátor, „AI BL"): klik na přepínač s viditelnou bublinou,
     Esc zavře sloupec a druhý konverzaci; ⌥⌘I s Esc, Esc; úprava kanálu → profil → zavřeno →
     placeholder; Nastavení podstránka → sekce → Chaty. Na Androidu Esc bere `MainActivity` dřív
-    a gesto zpět jde mimo klávesy, oprava se ho netýká; Fold znovu ověřený není.
+    a gesto zpět jde mimo klávesy, oprava se ho netýká. Na emulátoru Fold (rozložený,
+    `input motionevent` od levého okraje) s opravou ověřeno: panel otevřený přepínačem → gesto
+    zavře panel → další gesto konverzaci; úprava kanálu → profil → zavřeno → placeholder, každé
+    gesto jeden krok, týž pid.
 - **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
   `RESERVE_BESIDE_LIST`). Kotva je táž jako u dřívějšího knihovního táhla
   (`AppSettings.listPaneAnchor`), takže uživatelům šířka seznamu zůstala.
