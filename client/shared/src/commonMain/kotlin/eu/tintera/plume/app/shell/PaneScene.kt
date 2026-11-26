@@ -312,9 +312,11 @@ private fun PaneSceneContent(
             visible = listShown,
             enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +
                 fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            // K nule bez překmitu (CLAUDE.md, „Animace nechávej na MotionScheme").
-            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastEffectsSpec(), shrinkTowards = Alignment.Start) +
-                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            // K nule bez překmitu (CLAUDE.md, „Animace nechávej na MotionScheme"). Výchozí, ne rychlý
+            // effects spec: s rychlým (tuhost 10 000) panel zmizel za dva tři snímky a odjezd nebyl
+            // vidět, viz „Odjezd sloupce drží scéna" v docs/poznatky/navigace.md.
+            exit = shrinkHorizontally(MaterialTheme.motionScheme.defaultEffectsSpec(), shrinkTowards = Alignment.Start) +
+                fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
         ) {
             Box(Modifier.width(listWidth).fillMaxHeight()) { PaneSlot(panes.list, placeholder = null) }
         }
@@ -351,8 +353,9 @@ private fun PaneSceneContent(
                     visible = panes.side != null,
                     enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +
                         fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastEffectsSpec(), shrinkTowards = Alignment.Start) +
-                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                    // Stejně jako seznam: bez překmitu, ale ne rychlým specem, jinak sloupec jen zmizí.
+                    exit = shrinkHorizontally(MaterialTheme.motionScheme.defaultEffectsSpec(), shrinkTowards = Alignment.Start) +
+                        fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 ) {
                     Box(Modifier.width(sideWidth * factor).fillMaxHeight()) {
                         if (side != null) {

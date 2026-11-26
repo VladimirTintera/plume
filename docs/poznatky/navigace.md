@@ -660,6 +660,12 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
   `onPop` (úklid ViewModelů a stavu) až ve chvíli, kdy obsah opustí kompozici.
 - **Odjezd sloupce drží scéna** (`AnimatedVisibility` s poslední položkou), proto se Chatům
   nepodává `rememberWithLeavingExtras` (zůstává pro podstránky Nastavení v knihovním třípanelu).
+  - **Odjezd jede na `defaultEffectsSpec`, ne `fastEffectsSpec`** — boční sloupec i seznam, který
+    pod Large ustoupí profilu. Pružina bez překmitu být musí (šířka jde k nule), ale rychlá
+    (tuhost 10 000) urazila 90 % cesty za ~40 ms: sloupec se otevíral znatelně (prostorová
+    pružina, tuhost 400, dosedne ~300 ms) a zavíral za dva tři snímky, takže to vypadalo jako
+    zmizení bez animace (hlášeno uživatelem). Výchozí effects (tuhost 1 500) dosedne za ~220 ms,
+    tedy pořád o něco kratší odchod než příchod. Čísla jsou spočítaná z konstant `AppMotion`.
 - **Zpět, po kterém zůstane táž scéna, obslouží scéna sama** (`NavigationBackHandler`, jako
   `ThreePaneScaffoldScene`): `NavDisplay` by mezi dvěma stavy téže scény (stejný klíč) nic
   neanimoval. Během gesta se sloupec zužuje o čtvrtinu šířky, po dokončení odjíždí z té šířky.
