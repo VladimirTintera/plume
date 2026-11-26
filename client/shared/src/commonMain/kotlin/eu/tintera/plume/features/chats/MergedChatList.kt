@@ -207,7 +207,7 @@ internal data class MergedChat(
     /** Čím se výskyty poznaly jako tentýž chat ([mergeKey]); `null` u řádku jednoho účtu. */
     val mergeKey: String? = null,
 ) {
-    val key: String get() = mergeKey?.let { "shared:$it" } ?: "$source:${chat.id}"
+    val key: String get() = mergeKey?.let { "$SHARED_ROW_PREFIX$it" } ?: "$source:${chat.id}"
 
     /** Účty řádku: ten, kterým se otevře, a pak ostatní. */
     val sources: List<Int> get() = listOf(source) + others.map { it.source }
@@ -215,6 +215,17 @@ internal data class MergedChat(
     /** Výskyty řádku (účet a id chatu v něm), v pořadí [sources]. */
     val instances: List<MergedInstance> get() = listOf(MergedInstance(source, chat.id)) + others
 }
+
+/**
+ * Je [key] klíč řádku společného seznamu ([MergedChat.key])? Hlavičky a karty nad seznamem mají
+ * vlastní klíče. Tvar klíče zná jen tenhle soubor; kotva sbalení seznamu (`firstVisibleChatKey`)
+ * se ptá tady. Dřív si tvar „zdroj:id" opisovala sama, a když přibyly spojené řádky
+ * (`shared:…`), přeskakovala je — sloupec po sbalení dojel až na první nespojený chat.
+ */
+internal fun isMergedChatKey(key: String): Boolean = key.startsWith(SHARED_ROW_PREFIX) || key.matches(SINGLE_ROW_KEY)
+
+private const val SHARED_ROW_PREFIX = "shared:"
+private val SINGLE_ROW_KEY = Regex("""\d+:-?\d+""")
 
 /** Výskyt spojeného chatu: pořadí účtu a id chatu v tom účtu. */
 internal data class MergedInstance(val source: Int, val chatId: Long)

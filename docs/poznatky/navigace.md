@@ -496,6 +496,10 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     (`scrollToChat`, jen jeden účet). Bez toho sloupec začínal nahoře a z odrolovaného seznamu
     neměl kam doletět žádný avatar. Obě podoby mají tytéž klíče položek (`chat.id`,
     ve společném seznamu `MergedChat.key`), avatary pro let nesou i účet (`collapseAvatarKey`).
+    **Jestli je klíč řádkem, rozhoduje `isMergedChatKey` vedle `MergedChat.key`**, ne opsaný
+    tvar: kotva znala jen „zdroj:id" a spojené řádky (`shared:…`, od spojování chatů víc účtů)
+    přeskakovala — sloupec dojel až na první nespojený chat a spojené nad ním zůstaly mimo obraz
+    (test `klicKazdehoRadkuJeKotvou`; ověřeno na Foldu tahem táhla se spojeným řádkem nahoře).
   - **Odznak účtu na avataru letí sám** (`collapseBadgeFlight`, klíč `collapseBadgeKey` s id
     účtu odznaku). S avatarem nejde: let posouvá a zvětšuje jen prvek, na kterém je modifikátor,
     a odznak vedle něj zůstával v řádku a naskočil až na dosednutý avatar. V překryvu nad

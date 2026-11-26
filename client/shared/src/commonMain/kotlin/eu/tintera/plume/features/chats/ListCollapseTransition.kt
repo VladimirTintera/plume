@@ -162,15 +162,14 @@ internal fun collapseBadgeFlight(chatId: Long, account: AccountInfo, layer: Int)
 /**
  * Klíč prvního celého chatu, který je v [state] vidět — kotva, na kterou dojede seznam na druhé
  * straně přechodu, aby avatary měly kam doletět (sloupec by jinak začínal nahoře a z odrolovaného
- * seznamu by nedoletěl žádný). Chat je `Long` (id), ve společném seznamu víc účtů `"zdroj:id"`
- * (`MergedChat.key`); obě podoby seznamu mají tytéž klíče. Hlavičky a karty kotvou nejsou.
+ * seznamu by nedoletěl žádný). Chat je `Long` (id), ve společném seznamu víc účtů klíč řádku
+ * (`MergedChat.key`, [isMergedChatKey]); obě podoby seznamu mají tytéž klíče. Hlavičky a karty
+ * kotvou nejsou.
  */
 internal fun firstVisibleChatKey(state: LazyListState): Any? {
     val info = state.layoutInfo
     val top = info.viewportStartOffset + info.beforeContentPadding
     return info.visibleItemsInfo.firstOrNull { item ->
-        item.offset >= top && (item.key is Long || (item.key as? String)?.matches(MERGED_KEY) == true)
+        item.offset >= top && (item.key is Long || (item.key as? String)?.let(::isMergedChatKey) == true)
     }?.key
 }
-
-private val MERGED_KEY = Regex("""\d+:-?\d+""")
