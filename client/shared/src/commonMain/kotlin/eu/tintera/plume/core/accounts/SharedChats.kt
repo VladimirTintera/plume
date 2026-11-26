@@ -4,10 +4,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -46,16 +43,28 @@ class SharedChats(
     /** Spojuje se: režim Všechny účty a víc než jeden účet. */
     val active: Boolean get() = settings.chatListAllAccounts.value && accounts.all.value.size > 1
 
-    private val _preferred = MutableStateFlow<Map<Long, AccountSlot>>(emptyMap())
-
     /**
-     * Kterým účtem uživatel ve spojeném chatu naposledy psal (výběr v poli zprávy): tím se chat
-     * ze seznamu otevře příště. Jen do konce procesu — volba patří rozhovoru, ne nastavení.
+     * Kterým účtem se do chatu, který má víc účtů, naposledy psalo ([wroteWith]) nebo který se
+     * pro něj naposledy vybral ve výběru účtu ([prefer]): tím se chat ze seznamu i z hledání
+     * otevře příště. Uložené natrvalo v [AppSettings.chatAccounts] — dřív jen v paměti a po zabití
+     * procesu (na Androidu běžné) se skupina otevírala zase výchozím účtem.
      */
-    val preferred: StateFlow<Map<Long, AccountSlot>> = _preferred.asStateFlow()
+    val preferred: StateFlow<Map<Long, AccountSlot>> get() = settings.chatAccounts
 
     fun prefer(chatId: Long, slot: AccountSlot) {
-        _preferred.update { it + (chatId to slot) }
+        settings.recordChatAccount(chatId, slot)
+    }
+
+    /**
+     * Účet [slot] odeslal do chatu [chatId] zprávu: zapíše se jako jeho účet ([preferred]), má-li
+     * chat i jiný účet ([counterparts]). Chaty jednoho účtu se nezapisují — mapa by rostla
+     * o všechno, kam kdo píše, a stejně by nebylo co vybírat. Když už zapsaný je, nic.
+     */
+    fun wroteWith(slot: AccountSlot, chatId: Long) {
+        if (!active || preferred.value[chatId] == slot) return
+        scope.launch {
+            if (counterparts(slot, chatId).isNotEmpty()) prefer(chatId, slot)
+        }
     }
 
     /**

@@ -154,6 +154,17 @@ interface AppSettings {
     fun setSavedMessagesAsChats(asChats: Boolean)
 
     /**
+     * Kterým účtem se do chatu, který má víc účtů, naposledy psalo nebo který se pro něj naposledy
+     * vybral (`SharedChats.preferred`): id chatu → účet, od nejnovějšího, nejvýš
+     * [MAX_CHAT_ACCOUNTS]. Uložené natrvalo, ať volba přežije zabití procesu. Patří zařízení
+     * (sloty jsou místní), takže se nesynchronizuje.
+     */
+    val chatAccounts: StateFlow<Map<Long, AccountSlot>> get() = NO_CHAT_ACCOUNTS
+
+    /** Zapíše [slot] jako účet chatu [chatId] ([chatAccounts]). Neblokuje, jako [recordRecentEmoji]. */
+    fun recordChatAccount(chatId: Long, slot: AccountSlot) {}
+
+    /**
      * Ukazuje seznam chatů chaty všech účtů naráz (režim Vše), nebo jen výchozího účtu? Výchozí
      * `false`: s jedním účtem je to totéž a s druhým účtem je to, co uživatel znal.
      * Viz `docs/navrh-vice-uctu.md`, „Společný seznam chatů".
@@ -529,6 +540,14 @@ const val STICKER_SIZE_STEP = 20
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
 const val MAX_RECENT_EMOJIS = 40
 
+/**
+ * Kolik chatů si [AppSettings.chatAccounts] pamatuje. Víc chatů, do kterých se píše z víc účtů,
+ * skoro nikdo nemá; nejstarší volba vypadne a chat se pak otevře jako bez ní.
+ */
+const val MAX_CHAT_ACCOUNTS = 200
+
+private val NO_CHAT_ACCOUNTS: StateFlow<Map<Long, AccountSlot>> = MutableStateFlow(emptyMap())
+
 /** Část výběru: emoji se vkládají do textu, samolepky se posílají. */
 enum class ExpressionMode { Emoji, Stickers, Gifs }
 
@@ -698,6 +717,23 @@ class DataStoreAppSettings(
     override fun setSavedMessagesAsChats(asChats: Boolean) {
         scope.launch {
             edit { preferences -> preferences[SAVED_MESSAGES_AS_CHATS] = asChats }
+        }
+    }
+
+    override val chatAccounts: StateFlow<Map<Long, AccountSlot>> = value(emptyMap()) { preferences ->
+        preferences[CHAT_ACCOUNTS]?.decodeChatAccounts().orEmpty()
+    }
+
+    override fun recordChatAccount(chatId: Long, slot: AccountSlot) {
+        scope.launch {
+            edit { preferences ->
+                val current = preferences[CHAT_ACCOUNTS]?.decodeChatAccounts().orEmpty()
+                if (current.entries.firstOrNull()?.let { it.key == chatId && it.value == slot } == true) return@edit
+                val updated = (listOf(chatId to slot) + current.filterKeys { it != chatId }.toList()).take(MAX_CHAT_ACCOUNTS)
+                preferences[CHAT_ACCOUNTS] = updated.joinToString(KEYBOARD_ENTRY_SEPARATOR) { (chat, account) ->
+                    "$chat$TONE_PAIR_SEPARATOR${account.id}"
+                }
+            }
         }
     }
 
@@ -1381,6 +1417,15 @@ class DataStoreAppSettings(
      */
     private fun String.decodeEmojis(): List<String> = split(EMOJI_SEPARATOR).filter { it.isNotEmpty() }
 
+    /** „id:slot id:slot" od nejnovějšího ([chatAccounts]); neplatná položka vypadne. */
+    private fun String.decodeChatAccounts(): Map<Long, AccountSlot> =
+        split(KEYBOARD_ENTRY_SEPARATOR).mapNotNull { entry ->
+            val parts = entry.split(TONE_PAIR_SEPARATOR, limit = 2)
+            val chat = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+            val slot = AccountSlot.parse(parts.getOrNull(1)) ?: return@mapNotNull null
+            chat to slot
+        }.toMap(LinkedHashMap())
+
     private companion object {
         /**
          * Volby synchronizované přes účet ([syncedPreferences]). Názvy skupin vede
@@ -1418,6 +1463,7 @@ class DataStoreAppSettings(
         val PROFILE_PANE_ANCHOR = stringPreferencesKey("profile_pane_anchor")
         val CHAT_ROW_GAPS = booleanPreferencesKey("chat_row_gaps")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
+        val CHAT_ACCOUNTS = stringPreferencesKey("chat_accounts")
         val CHAT_LIST_ALL_ACCOUNTS = booleanPreferencesKey("chat_list_all_accounts")
         val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")
         val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")
