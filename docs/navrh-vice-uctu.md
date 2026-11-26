@@ -1193,6 +1193,10 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - **Čte se jako dřív**: spojený řádek společné skupiny se otevře tímto účtem, u soukromého
       chatu a Uložených zpráv rozhoduje jen při shodě (přednost mají nepřečtené a nejnovější
       zpráva), ve výsledcích hledání určí účet výsledku.
+    - **Ověřeno na emulátoru Fold** („Plume test triaze", hlavní účet a VT): přepnutí na VT
+      zapsalo `chat_accounts` = `-1004345085150:63bf1a`; po `am force-stop` a novém startu je
+      u spojeného řádku první odznak VT (otevře se za VT). Zpráva odeslaná za hlavní účet volbu
+      přepsala na `-1004345085150:0`. **Neověřené:** desktop, soukromý chat a Uložené zprávy.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
