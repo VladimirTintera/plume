@@ -58,7 +58,7 @@ internal fun SuggestedPostCard(
     val content = MaterialTheme.colorScheme.onSecondaryContainer
     val accent = accentOn(background, MaterialTheme.colorScheme.secondary, content)
     Surface(
-        shape = RoundedCornerShape(SUGGESTED_POST_CORNER),
+        shape = RoundedCornerShape(BUBBLE_CORNER),
         color = background,
         contentColor = content,
         modifier = modifier,
@@ -128,4 +128,3 @@ internal fun formatTon(cents: Long): String {
     }
 }
 
-private val SUGGESTED_POST_CORNER = 16.dp

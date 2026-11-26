@@ -129,17 +129,16 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
  * rám, ze kterého konverzace ztěžkne. Stejně to dělá Google Messages. Popisek pod snímkem bublinu
  * naopak dostane vlastní: text na holé ploše by se ztratil.
  *
- * Podmínkou je, že na zprávě nevisí nic, co pozadí potřebuje:
- * - **citace** se bez pozadí ztratí (tentýž důvod, proč si bublinu drží i zpráva z pár emoji) —
- *   jen ta, která se opravdu kreslí ([showsQuote]),
- * - **náhled odkazu** má vlastní kartu (viz [showsLinkPreviewCard]).
+ * **Citace bublinu nevynutí**: je horním dílem karty snímku, nad značkou přeposlání (viz
+ * `MediaMessageItem`). Dřív si bublinu vynutila a snímek v ní ležel odsazený s vlastním
+ * zaoblením jako fotka v rámečku, zatímco přeposlaný snímek šel od kraje ke kraji.
+ * **Náhled odkazu** ano — u zprávy s přílohou zůstává v bublině (viz [showsLinkPreviewCard]).
  *
  * Ostatní přílohy bublinu potřebují dál: soubor, hlasovka i samolepkový popis jsou řádky s textem
- * a ikonou, ne obrázek. [album] nese zprávy alba, u samostatné zprávy `null`; [threadRootId] je
- * kořen otevřeného vlákna komentářů.
+ * a ikonou, ne obrázek. [album] nese zprávy alba, u samostatné zprávy `null`.
  */
-internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?, threadRootId: Long? = null): Boolean {
-    if (message.showsQuote(threadRootId) || message.linkPreview != null) return false
+internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Boolean {
+    if (message.linkPreview != null) return false
     // Obrázek nebo video poslané jako soubor jde na plochu jen samo — album souborů je seznam.
     if (album == null && (message.media as? MessageMedia.Document)?.showsLargePreview == true) return true
     val media = album?.map { it.media } ?: listOf(message.media)

@@ -512,12 +512,12 @@ class ConversationItemsTest {
     }
 
     @Test
-    fun videoKoleckoJeBezBubliny() {
+    fun videoKoleckoJeVlastniBlokBezBubliny() {
         val note = MessageMedia.VideoNote(
             fileId = 1, thumbnailFileId = null, durationSeconds = 5, sizeBytes = 1000, isViewed = false,
         )
-        assertIs<StickerMessageItem>(single(message(1, text = "", media = note)))
-        // Citace se bez pozadí ztratí, stejně jako u samolepky.
+        assertIs<VideoNoteMessageItem>(single(message(1, text = "", media = note)))
+        // Citace se bez pozadí ztratí, stejně jako u samolepky (přepis kreslí i bublina).
         assertIs<BubbleMessageItem>(single(message(1, text = "", media = note, replyToMessageId = 99)))
     }
 
@@ -527,6 +527,25 @@ class ConversationItemsTest {
         val origin = ForwardOrigin.User(userId = 5, name = "Jana")
         assertIs<BubbleMessageItem>(single(message(1, text = "", media = sticker, forwardOrigin = origin)))
         assertIs<BubbleMessageItem>(single(message(1, text = "🙂", forwardOrigin = origin)))
+    }
+
+    @Test
+    fun fotkaSCitaciZustavaNaPloseACitaciNese() {
+        // Citace je horní díl karty snímku, jako značka přeposlání — bublinu si nevynutí.
+        val result = items(message(2, text = "", media = photo, replyToMessageId = 1), message(1, text = "ahoj"))
+        val item = assertIs<MediaMessageItem>(result[0])
+        assertEquals(1L, item.quoted?.id)
+    }
+
+    @Test
+    fun smazanaCitovanaZpravaMaZastupnouCitaci() {
+        // Citovaná zpráva se nedohledala: místo prázdné bubliny karta se „Smazaná zpráva".
+        val state = ConversationState(deletedQuotes = setOf(1L))
+        val item = assertIs<MediaMessageItem>(items(message(2, text = "", media = photo, replyToMessageId = 1), state = state)[0])
+        assertTrue(item.quoted?.isDeletedQuote == true)
+        // Dokud se na ni ještě ptáme, nic nevymýšlí.
+        val pending = assertIs<MediaMessageItem>(single(message(2, text = "", media = photo, replyToMessageId = 1)))
+        assertNull(pending.quoted)
     }
 
     @Test

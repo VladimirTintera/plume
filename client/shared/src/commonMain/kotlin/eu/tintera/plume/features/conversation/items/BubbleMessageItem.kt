@@ -113,7 +113,12 @@ internal data class BubbleMessageItem(
             if (album != null) {
                 Album(members = album, accent = accent)
             } else {
-                message.media?.let { Attachment(media = it, accent = accent) }
+                when (val media = message.media) {
+                    null -> Unit
+                    // Kolečko s citací nebo přeposláním: i v bublině s přepisem, jako bez ní.
+                    is MessageMedia.VideoNote -> VideoNoteWithTranscript(media, accent)
+                    else -> Attachment(media = media, accent = accent)
+                }
             }
             (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }?.let {
                 LocationDetails(it, color = onBubbleColor, modifier = Modifier.padding(top = 6.dp), onStop = stopLiveLocation(), onProximityAlert = setProximityAlert())
@@ -462,7 +467,8 @@ internal fun MessageBodyScope.ReplyQuote(quote: ChatMessage, partnerName: String
         message = quote,
         partnerName = partnerName,
         // Citace z jiného chatu vede do toho chatu, stejně jako značka „Přeposláno od".
-        onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } }
+        // Na smazanou zprávu není kam skočit.
+        onClick = if (quote.isDeletedQuote) null else message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } }
             ?: message.externalReply?.target?.let { target -> { act(MessageAction.OpenForwardOrigin(target)) } }
             // Odpověď na příběh otevře příběh sám, ne chat jeho autora.
             ?: (message.externalReply?.quote?.media as? MessageMedia.Story)

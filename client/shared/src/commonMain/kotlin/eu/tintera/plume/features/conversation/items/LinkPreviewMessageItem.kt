@@ -73,10 +73,6 @@ internal data class LinkPreviewMessageItem(
             // Karta se srovnává ke straně odesílatele, stejně jako holá fotka s popiskem.
             horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
         ) {
-            // Karta jde až k hraně řádku jako ostatní bubliny, takže jméno si odsazení nese samo —
-            // i do strany, jinak by první písmeno ukouslo zaoblené nároží ořezu zprávy.
-            SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
-
             val photo = preview.photo
             if (preview.showsLargePhoto && photo != null) {
                 BoxWithConstraints {
@@ -106,8 +102,10 @@ internal data class LinkPreviewMessageItem(
      *
      * `showAboveText` znamená náhled NAD textem zprávy — a s ním se otáčí i to, který díl je
      * poslední (spodní odsazení nese ten, pod kterým už nic není; počítá se s místem na čipy
-     * reakcí). **Značka přeposlání zůstává nahoře vždycky**: je to údaj o zprávě, ne o odkazu,
-     * a dole by vypadala jako popisek náhledu.
+     * reakcí). **Jméno odesílatele a značka přeposlání zůstávají nahoře vždycky**: jsou to údaje
+     * o zprávě, ne o odkazu, a dole by vypadaly jako popisek náhledu. Jméno je uvnitř karty jako
+     * v bublině — dřív stálo nad kartou na ploše a blok začínající odkazem vypadal jinak než blok
+     * začínající textem.
      */
     @Composable
     private fun MessageBodyScope.CardParts(
@@ -115,7 +113,7 @@ internal data class LinkPreviewMessageItem(
         thumbnail: MessageMedia.Photo?,
     ) {
         if (preview.showAboveText) {
-            ForwardPart()
+            CardHeader(withName = true)
             largePhoto?.invoke()
             InfoPart(thumbnail = thumbnail, last = false)
             MessagePart(withForward = false, last = true)
@@ -137,22 +135,12 @@ internal data class LinkPreviewMessageItem(
         )
     }
 
-    /** Značka přeposlání jako samostatný díl — jen když náhled stojí nad textem. */
-    @Composable
-    private fun MessageBodyScope.ForwardPart() {
-        if (!message.hasOriginLabel) return
-        BubbleSurface(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
-                OriginLabel()
-            }
-        }
-    }
-
-    /** Text zprávy v barvě bubliny, se značkou přeposlání, když je díl první. */
+    /** Text zprávy v barvě bubliny, se jménem a značkou přeposlání, když je díl první. */
     @Composable
     private fun MessageBodyScope.MessagePart(withForward: Boolean, last: Boolean) {
         val forward = withForward && message.hasOriginLabel
-        if (message.text.isBlank() && !message.isEdited && !forward) return
+        val name = withForward && showsSenderName
+        if (message.text.isBlank() && !message.isEdited && !forward && !name) return
         BubbleSurface(modifier = Modifier.fillMaxWidth()) {
             Column(
                 Modifier.padding(
@@ -162,6 +150,7 @@ internal data class LinkPreviewMessageItem(
                     bottom = if (last) contentBottom else MESSAGE_PADDING_V,
                 ),
             ) {
+                if (name) SenderName(background = bubbleColor)
                 if (forward) OriginLabel()
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))

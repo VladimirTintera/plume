@@ -38,6 +38,10 @@ internal data class MediaMessageItem(
     override val frame: MessageFrameData,
     /** Zprávy alba od nejstarší; u samostatné fotky nebo videa `null`. */
     val album: List<ChatMessage>?,
+    /** Citovaná zpráva — horní díl karty, nad značkou přeposlání. */
+    val quoted: ChatMessage? = null,
+    /** Koho citace uvede v soukromém chatu, kde TDLib jméno odesílatele nevyplňuje. */
+    val partnerName: String? = null,
 ) : MessageItem {
 
     override fun containsMessage(messageId: Long): Boolean =
@@ -53,27 +57,36 @@ internal data class MediaMessageItem(
         val document = if (album == null) message.media as? MessageMedia.Document else null
         // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
         val edited = message.isEdited && !message.isLiveLocation
-        val hasCaption = message.text.isNotBlank() || edited || location != null || document != null || story != null
+        // „Upraveno" samo popisek nedělá: pruh v barvě bubliny jen s tímhle slovem vypadal jako
+        // useknutá zpráva. Bez popisku stojí pod snímkem na ploše, jako u samolepky.
+        val hasCaption = message.text.isNotBlank() || location != null || document != null || story != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
-        val forwarded = message.hasOriginLabel
-        val isCard = hasCaption || forwarded
-        // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní, ne k bublině.
-        val surfaceAccent = if (message.isOutgoing) LocalContentColor.current else MaterialTheme.colorScheme.primary
+        // Citace nad ní, stejně jako u odpovědi v bublině; jméno odesílatele s hlavičkou v ní.
+        val hasHeader = message.hasOriginLabel || quoted != null
+        val isCard = hasCaption || hasHeader
         // S popiskem nebo hlavičkou ořezává karta celá; snímek si přesto nese nároží karty, do
         // kterých sahá — kvůli letu do prohlížeče (viz [cardMediaShape]). Jinak nese tvar snímek.
-        val mediaShape = if (isCard) cardMediaShape(shape, hasHeader = forwarded, hasCaption = hasCaption) else shape
+        val mediaShape = if (isCard) cardMediaShape(shape, hasHeader = hasHeader, hasCaption = hasCaption) else shape
 
         Column(
             // Karta se srovnává ke straně odesílatele.
             horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
         ) {
             // Nad holým snímkem si jméno musí odsazení přinést samo — i do strany: zpráva je
-            // ořezaná tvarem bubliny a zaoblené nároží by jinak ukouslo první písmeno.
-            SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
+            // ořezaná tvarem bubliny a zaoblené nároží by jinak ukouslo první písmeno. S hlavičkou
+            // je jméno v ní (CardHeader).
+            if (!hasHeader) SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
 
             MediaWithCaption(
                 modifier = if (isCard) Modifier.clip(shape) else Modifier,
-                header = { if (forwarded) OriginHeader() },
+                header = {
+                    if (hasHeader) {
+                        Column {
+                            quoted?.let { QuotePart(it, partnerName) }
+                            CardHeader(withName = true)
+                        }
+                    }
+                },
                 media = {
                     if (album != null) {
                         Album(members = album, accent = surfaceAccent, shape = mediaShape)
@@ -81,6 +94,7 @@ internal data class MediaMessageItem(
                         message.media?.let {
                             Attachment(
                                 media = it,
+                                // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní.
                                 accent = surfaceAccent,
                                 mediaShape = mediaShape,
                                 // Popisek má šířku fotky; s ním využije celou nabízenou šířku.
@@ -112,6 +126,14 @@ internal data class MediaMessageItem(
                     }
                 },
             )
+            if (edited && !hasCaption) {
+                EditedLabel(
+                    color = LocalContentColor.current,
+                    // S reakcemi pod sebou místo na jejich čipy, které leží na spodní hraně zprávy.
+                    modifier = Modifier.align(Alignment.End).padding(horizontal = MESSAGE_PADDING_H)
+                        .padding(top = 2.dp, bottom = (contentBottom - MESSAGE_PADDING_V).coerceAtLeast(0.dp)),
+                )
+            }
         }
     }
 }

@@ -46,6 +46,7 @@ import eu.tintera.plume.resources.content_giveaway_winners
 import eu.tintera.plume.resources.content_game
 import eu.tintera.plume.resources.content_invoice
 import eu.tintera.plume.resources.conversation_reply
+import eu.tintera.plume.resources.quote_deleted
 import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_sticker
@@ -242,6 +243,24 @@ internal fun MessageMedia?.quoteThumbnail(): QuoteThumbnail? = when (this) {
  */
 @Composable
 private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color, quoteText: String?) {
+    if (message.isDeletedQuote) {
+        // Kdo psal a co, už nevíme — jeden řádek místo jména a textu, které by si vymýšlely.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painterResource(Res.drawable.format_quote_24dp),
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.padding(end = 4.dp).size(QUOTE_ICON_SIZE),
+            )
+            Text(
+                text = stringResource(Res.string.quote_deleted),
+                style = MaterialTheme.typography.labelLarge,
+                color = accent,
+                maxLines = 1,
+            )
+        }
+        return
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painterResource(Res.drawable.format_quote_24dp),
@@ -345,3 +364,32 @@ internal val QUOTE_CORNER = 8.dp
 
 /** Jak moc je kontejner citace tónovaný akcentem. Dost na odlišení, ne na soupeření s textem. */
 internal const val QUOTE_CONTAINER_ALPHA = 0.14f
+
+/**
+ * Zástupná citace za zprávu, která se dohledat nepodařila — smazanou (`ConversationState.deletedQuotes`).
+ * Bez ní si odpověď vynutila bublinu (citaci kreslí, `showsQuote`) a citace v ní chyběla: fotka
+ * ležela v prázdné bublině a nebylo poznat proč.
+ */
+internal fun deletedQuote(id: Long): ChatMessage = ChatMessage(
+    id = id,
+    isOutgoing = false,
+    senderName = null,
+    senderAvatarFileId = null,
+    senderId = 0,
+    text = "",
+    entities = emptyList(),
+    description = DELETED_QUOTE,
+    media = null,
+    linkPreview = null,
+    reactions = emptyList(),
+    sendState = null,
+    replyToMessageId = null,
+    isService = false,
+    timestamp = 0,
+    isEdited = false,
+)
+
+/** Je tohle zástupná citace za smazanou zprávu ([deletedQuote])? Na ni se neskáče. */
+internal val ChatMessage.isDeletedQuote: Boolean get() = description == DELETED_QUOTE && senderId == 0L
+
+private val DELETED_QUOTE = UiText(Res.string.quote_deleted)

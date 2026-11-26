@@ -45,7 +45,7 @@ internal data class LargeEmojiMessageItem(
         PaddedColumn {
             SenderName()
             MessageText(
-                linkColor = if (message.isOutgoing) onSurface else MaterialTheme.colorScheme.primary,
+                linkColor = surfaceAccent,
                 style = when (emojiCount) {
                     1 -> MaterialTheme.typography.displayLarge
                     2 -> MaterialTheme.typography.displayMedium
@@ -57,7 +57,7 @@ internal data class LargeEmojiMessageItem(
     }
 }
 
-/** Samolepka nebo animované emoji, bez bubliny. Ťuknutí na samolepku otevře její sadu. */
+/** Samolepka, animované emoji nebo kostka, bez bubliny. Ťuknutí na samolepku otevře její sadu. */
 @Immutable
 internal data class StickerMessageItem(
     override val frame: MessageFrameData,
@@ -66,17 +66,36 @@ internal data class StickerMessageItem(
 
     @Composable
     override fun MessageBodyScope.Body() {
-        val onSurface = LocalContentColor.current
-        val accent = if (message.isOutgoing) onSurface else MaterialTheme.colorScheme.primary
-        PaddedColumn {
-            SenderName()
-            if (media is MessageMedia.VideoNote) {
-                VideoNoteWithTranscript(media, accent)
-            } else {
-                Attachment(media = media, accent = accent)
-            }
-            EditedLabel(color = onSurface, modifier = Modifier.align(Alignment.End))
-        }
+        BareColumn { accent -> Attachment(media = media, accent = accent) }
+    }
+}
+
+/**
+ * Video kolečko bez bubliny, s přepisem pod sebou. Vlastní blok, ne větev samolepky. S citací
+ * nebo přeposláním jde kolečko do bubliny jako samolepka, ale i tam s přepisem
+ * ([VideoNoteWithTranscript] v `BubbleMessageItem`) — dřív se tam kreslilo holou přílohou a o
+ * přepis přišlo.
+ */
+@Immutable
+internal data class VideoNoteMessageItem(
+    override val frame: MessageFrameData,
+    val note: MessageMedia.VideoNote,
+) : MessageItem {
+
+    @Composable
+    override fun MessageBodyScope.Body() {
+        BareColumn { accent -> VideoNoteWithTranscript(note, accent) }
+    }
+}
+
+/** Jméno, obsah bez bubliny a „upraveno" v odsazeném sloupci; akcent patří ploše konverzace. */
+@Composable
+private fun MessageBodyScope.BareColumn(content: @Composable (accent: Color) -> Unit) {
+    val onSurface = LocalContentColor.current
+    PaddedColumn {
+        SenderName()
+        content(surfaceAccent)
+        EditedLabel(color = onSurface, modifier = Modifier.align(Alignment.End))
     }
 }
 
@@ -85,7 +104,7 @@ internal data class StickerMessageItem(
  * v barvě bubliny — holý text by se na ploše konverzace ztratil, stejně jako popisek u fotky.
  */
 @Composable
-private fun MessageBodyScope.VideoNoteWithTranscript(note: MessageMedia.VideoNote, accent: Color) {
+internal fun MessageBodyScope.VideoNoteWithTranscript(note: MessageMedia.VideoNote, accent: Color) {
     val transcript = rememberTranscript(note.transcript, note.durationSeconds)
     val button: @Composable () -> Unit = {
         if (transcript.hasButton) {

@@ -1544,17 +1544,39 @@ private fun MessageBodyScope.ViaBotLabel(username: String) {
 }
 
 /**
- * Hlavička holého snímku: údaje o původu v barvě bubliny, jako horní díl karty, jejíž spodní
- * díl je popisek. Přeposlání i „přes @bot" jsou údaj O ZPRÁVĚ, takže patří do téhož balíku jako
- * obsah — volně nad fotkou vypadala značka jako popisek něčeho jiného.
+ * Hlavička karty bez bubliny (holý snímek, karta odkazu s obrázkem nahoře): jméno odesílatele
+ * a údaje o původu v barvě bubliny, jako horní díl karty. Přeposlání i „přes @bot" jsou údaj
+ * O ZPRÁVĚ, takže patří do téhož balíku jako obsah — volně nad fotkou vypadala značka jako
+ * popisek něčeho jiného.
+ *
+ * **Jméno jde do hlavičky, jakmile karta nějakou má** ([withName]) — jako v bublině, kde je
+ * prvním řádkem. Dřív stálo i nad kartou s hlavičkou na ploše, takže blok začínající kartou
+ * vypadal jinak než blok začínající textem. Holý snímek bez hlavičky má jméno nad sebou dál:
+ * přidat hlavičku jen kvůli jménu by z fotky udělalo kartu.
  */
 @Composable
-internal fun MessageBodyScope.OriginHeader() {
-    if (!message.hasOriginLabel) return
+internal fun MessageBodyScope.CardHeader(withName: Boolean) {
+    val name = withName && showsSenderName
+    if (!name && !message.hasOriginLabel) return
     BubbleSurface {
-        OriginLabel(Modifier.fillMaxWidth().padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = 6.dp, bottom = 4.dp))
+        Column(Modifier.fillMaxWidth().padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = 6.dp, bottom = 4.dp)) {
+            if (name) SenderName(background = bubbleColor)
+            OriginLabel()
+        }
     }
 }
+
+/**
+ * Akcent obsahu bez bubliny (holý snímek, samolepka, velká emoji): leží na ploše konverzace,
+ * takže je to `primary` na obou stranách. Dřív měla odchozí strana barvu popředí plochy — zbytek
+ * z doby, kdy snímky ležely v bublině a v odchozí `primary` bublině akcentem být `primary`
+ * nemohl; bez bubliny se strany lišily jen tímhle omylem.
+ */
+internal val MessageBodyScope.surfaceAccent: Color
+    @Composable get() = MaterialTheme.colorScheme.primary
+
+/** Ukáže se u téhle zprávy jméno odesílatele? Jen u první zprávy bloku a jen tam, kde ho TDLib vyplní. */
+internal val MessageBodyScope.showsSenderName: Boolean get() = !continuesAbove && message.senderName != null
 
 /** Nese zpráva údaj o původu (přeposlání, inline bot)? Obsah s ním je karta, ne holý obsah. */
 internal val ChatMessage.hasOriginLabel: Boolean get() = forwardOrigin != null || viaBot != null

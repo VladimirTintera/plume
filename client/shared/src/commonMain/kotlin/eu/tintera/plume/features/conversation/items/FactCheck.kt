@@ -46,7 +46,7 @@ internal fun FactCheckCard(
     val background = MaterialTheme.colorScheme.tertiaryContainer
     val content = MaterialTheme.colorScheme.onTertiaryContainer
     Surface(
-        shape = RoundedCornerShape(FACT_CHECK_CORNER),
+        shape = RoundedCornerShape(BUBBLE_CORNER),
         color = background,
         contentColor = content,
         modifier = modifier,
@@ -97,6 +97,5 @@ internal fun FactCheckCard(
 /** Mezera mezi kartou kontroly faktů a tlačítky bota pod ní. */
 internal val FACT_CHECK_GAP = 4.dp
 
-private val FACT_CHECK_CORNER = 16.dp
 
 private const val FACT_CHECK_NOTE_ALPHA = 0.75f
