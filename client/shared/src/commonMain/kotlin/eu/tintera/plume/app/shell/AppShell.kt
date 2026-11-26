@@ -1282,7 +1282,11 @@ private fun shellEntryProvider(
                     // jiná konverzace, téma Uložených zpráv z prvního účtu tam nepatří.
                     onSwitchAccount = { target, chatId, position ->
                         sharedChats.prefer(chatId, target)
-                        chatsStack.replaceRoute(route, route.switchedTo(target, chatId, position))
+                        // Téma Uložených zpráv: id témat patří účtu, takže seznam témat druhého
+                        // účtu místo celé větve (`switchSavedTopicsBelow`).
+                        if (route.savedTopicId == null || !chatsStack.switchSavedTopicsBelow(route, target, chatId)) {
+                            chatsStack.replaceRoute(route, route.switchedTo(target, chatId, position))
+                        }
                     },
                 ),
             )
@@ -1295,6 +1299,7 @@ private fun shellEntryProvider(
      */
     entry<SavedTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
+        val sharedChats = koinInject<SharedChats>()
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             SavedTopicsScreen(
                 viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -1305,6 +1310,11 @@ private fun shellEntryProvider(
                     }
                 },
                 onViewAsMessages = { chatsStack.openConversation(slot, route.chatId) },
+                // Uložené zprávy jiného účtu (jiné id) na místě téhle větve.
+                onSwitchAccount = { target, chatId ->
+                    sharedChats.prefer(chatId, target)
+                    chatsStack.switchSavedTopics(route, target, chatId)
+                },
             )
         }
     }
@@ -2729,3 +2739,28 @@ private fun ConversationRoute.switchedTo(slot: AccountSlot, chatId: Long, positi
         savedTopicId = savedTopicId.takeIf { chatId == this.chatId },
         restoreMessageId = position,
     )
+
+/**
+ * Seznam témat Uložených zpráv [route] nahradí seznam témat účtu [slot] (Uložené zprávy mají id
+ * [chatId]) a co leží nad ním (téma vedle ve sloupci) zmizí: patřilo prvnímu účtu.
+ */
+private fun MutableList<NavKey>.switchSavedTopics(route: SavedTopicsRoute, slot: AccountSlot, chatId: Long) {
+    val index = lastIndexOf(route)
+    if (index < 0) return
+    while (lastIndex > index) removeAt(lastIndex)
+    set(index, SavedTopicsRoute(slot, chatId))
+}
+
+/**
+ * Přepnutí účtu v tématu Uložených zpráv [conversation]: je-li pod ním seznam témat téhož účtu,
+ * vymění se za seznam témat účtu [slot] a téma odejde (`switchSavedTopics`). Témata mají id
+ * v každém účtu jiná, takže stejné téma v druhém účtu najít nejde. `false` = seznam témat pod
+ * konverzací není (otevřená zvenčí), pak se vymění jen konverzace.
+ */
+private fun MutableList<NavKey>.switchSavedTopicsBelow(conversation: ConversationRoute, slot: AccountSlot, chatId: Long): Boolean {
+    val index = lastIndexOf(conversation)
+    val topics = take(index.coerceAtLeast(0)).lastOrNull { it == SavedTopicsRoute(conversation.slot, conversation.chatId) } as? SavedTopicsRoute
+        ?: return false
+    switchSavedTopics(topics, slot, chatId)
+    return true
+}

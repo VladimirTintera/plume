@@ -1079,8 +1079,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
     - **Přečtení se nepřenáší**, jen „Označit jako přečtené" v seznamu přečte oba výskyty
       (řádek ukazuje součet). V konverzaci se nepřenáší ani tohle: přečetlo by zprávy druhého
       účtu, které uživatel neviděl. Notifikace zůstávají dvě — jsou to dvě různé zprávy.
-    - **Uložené zprávy zobrazené jako chaty** (`SavedTopicsRoute`) výběr účtu nemají: ten je
-      u pole zprávy a seznam témat žádné nemá. Otevřou se účtem řádku.
+    - **Uložené zprávy zobrazené jako chaty** (`SavedTopicsRoute`) mají výběr účtu v liště
+      (krok 28).
     - **Ověřeno na emulátoru Fold** (rozložený, anglicky, hlavní účet a VT): Notifikátor,
       služební chat Telegram a „Pixel 7 Pro" jsou jedním řádkem s oběma odznaky; chat „VT"
       (hlavní účet s VT) a „Já" (VT s hlavním účtem) zůstaly zvlášť a chat s VT výběr účtu nemá.
@@ -1144,6 +1144,24 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       v „Plume test triaze"): hlavní účet odscrollovaný s „Pozice 7" nahoře → VT začne s
       „Pozice 7" nahoře, bez zvýraznění; VT dole u „Pozice 20" → hlavní účet se otevře dole.
       **Neověřené:** zpráva, kterou druhý účet nemá, téma a vlákno komentářů, desktop.
+
+28. **Výběr účtu u Uložených zpráv jako chatů** — hotovo (`SavedTopicsScreen.onSwitchAccount`,
+    `switchSavedTopics`, `switchSavedTopicsBelow` v `AppShell`):
+    - **Seznam témat nemá pole zprávy**, takže výběr účtu (fotka účtu, tentýž sheet jako
+      v konverzaci, `AccountSwitchButton`) stojí v liště před ⋮. Ukazuje se za stejných podmínek
+      jako v konverzaci (`rememberChatAccounts`: režim Všechny účty, víc účtů).
+    - **Přepnutí vymění seznam témat za seznam témat Uložených zpráv druhého účtu** (jeho id)
+      a co leží nad ním (téma ve vedlejším sloupci), zmizí — patřilo prvnímu účtu.
+    - **Přepnutí v tématu** (konverzace se `savedTopicId`) vymění celou větev za seznam témat
+      druhého účtu, není-li pod tématem seznam témat téhož účtu, jen konverzaci. Dřív se nad
+      seznamem témat prvního účtu otevřely celé Uložené zprávy druhého a zpět vedlo do témat
+      prvního. Stejné téma v druhém účtu se nehledá: id témat patří účtu a téma podle
+      zdrojového chatu tam být nemusí.
+    - **Ověřeno na emulátoru Fold** (složený, anglicky): Uložené zprávy hlavního účtu → „View as
+      chats" → v liště fotka hlavního účtu → výběr VT → seznam témat VT („My Notes" s jeho
+      odkazem, fotka VT). Téma „My Notes" za VT → výběr hlavního účtu u pole → seznam témat
+      hlavního účtu (My Notes, Notifikator…), zpět vede do seznamu chatů. **Neověřené:** téma
+      ve vedlejším sloupci na rozloženém displeji, desktop.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.

@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.saved
 
+import eu.tintera.plume.features.conversation.rememberChatAccounts
+import eu.tintera.plume.features.conversation.AccountSwitchButton
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -126,6 +130,11 @@ fun SavedTopicsScreen(
     onOpenTopic: (topicId: Long) -> Unit,
     /** Uložené zprávy jako jedna konverzace; volba se pamatuje. */
     onViewAsMessages: () -> Unit,
+    /**
+     * Výběr účtu v liště (režim Všechny účty, víc účtů): Uložené zprávy jiného účtu, s jejich
+     * id. Seznam témat nemá pole zprávy, kde výběr stojí v konverzaci. `null` = nenabízet.
+     */
+    onSwitchAccount: ((slot: AccountSlot, chatId: Long) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -202,6 +211,11 @@ fun SavedTopicsScreen(
                     }
                 },
                 actions = {
+                    // Tentýž výběr jako u pole zprávy v konverzaci (`AccountSwitchButton`).
+                    val accounts = rememberChatAccounts(viewModel.chatId, enabled = onSwitchAccount != null)
+                    if (onSwitchAccount != null && accounts.size > 1) {
+                        AccountSwitchButton(accounts, LocalAccount.current.slot, { target -> onSwitchAccount(target.slot, target.chatId) })
+                    }
                     var expanded by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { expanded = true }, shapes = IconButtonDefaults.shapes()) {
