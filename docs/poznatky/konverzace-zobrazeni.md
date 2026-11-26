@@ -215,6 +215,11 @@ a postup přestavby: [docs/architektura-konverzace.md](../architektura-konverzac
 - **Lambdy v datech bloku nejsou** — rozbily by `equals` a tím přeskakování nezměněných položek.
   Obsluhu a rychle se měnící hodnoty (pozice hlasovky, průběh stahování, odkrývání časů) dává
   `ConversationItemScope`, a to jako funkce čtené až v UI, které je kreslí.
+- **`ConversationItemScope` je rozdělený do skupin a nemá výchozí implementace** (`playback`,
+  `insights`, `menuHost`, `motion`, `chat`; `onAction` a reklama zůstaly v něm). Dřív ~45 členů
+  s prázdnými výchozími hodnotami: nový člen, na který implementace zapomněla, tiše nedělal nic
+  (a `contentTop()` takhle přežil, ač ho žádný blok nečetl). Nový člen patří do skupiny podle
+  toho, čeho se týká; kopie v nabídce (`InertItemScope`) přebíjí jen to, co v ní má mlčet.
 - **`Content` je nad `LazyItemScope`**, takže si blok sám volí `animateItem` — cíl letu odeslané
   zprávy se nesmí zjevovat prolnutím, sponzorovaná karta se neanimuje vůbec.
 - **Zprávy sdílejí rám, obsah si kreslí samy.** `MessageItem` implementuje `Content` jednou

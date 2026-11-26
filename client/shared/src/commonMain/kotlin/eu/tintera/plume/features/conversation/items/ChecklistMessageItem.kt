@@ -85,7 +85,7 @@ internal data class ChecklistMessageItem(
 private fun MessageBodyScope.ChecklistContent(checklist: ChatChecklist) {
     val haptics = LocalHapticFeedback.current
     val muted = onBubbleColor.copy(alpha = MUTED_ALPHA)
-    val pending = items.pendingChecklistMarks(message.id)
+    val pending = items.chat.pendingChecklistMarks(message.id)
     val done = checklist.tasks.count { it.shownDone(pending) }
 
     Column(Modifier.widthIn(max = CHECKLIST_MAX_WIDTH).fillMaxWidth()) {

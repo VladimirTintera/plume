@@ -520,9 +520,8 @@ Velikost: S / M / L.
   `SideMarks` / `MessageFooter`; `docs/poznatky/konverzace-zobrazeni.md`, „Bloky seznamu").
 - **Kolečko a samolepka jsou pořád dva bloky v `BareMessageItems.kt`** — v pořádku, jen poznámka:
   `StickerMessageItem` už kolečko nenese (má `VideoNoteMessageItem`).
-- **`ConversationItemScope` rozdělit (M).** ~45 členů, většina s prázdnou výchozí implementací,
-  takže zapomenutá implementace se neozve. Menší rozhraní (přehrávání, AI, nabídka, efekty);
-  sahá do `ScreenItemScope` i všech bloků, proto zvlášť.
+- ~~**`ConversationItemScope` rozdělit**~~ — hotovo: skupiny `ItemPlayback`, `ItemInsights`,
+  `ItemMenuHost`, `ItemMotion`, `ItemChat`, bez výchozích implementací; mrtvý `contentTop()` pryč.
 - **Poměr stran `width / height`** se počítá na třech místech (fotka, GIF, obrázek náhledu
   odkazu) — `photoFrame` si s nulou poradí, takže jen kosmetika.
 

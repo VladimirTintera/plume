@@ -89,61 +89,89 @@ internal fun LazyItemScope.ConversationItemContent(item: ConversationItem, scope
  *
  * Hodnoty jsou funkce, ne vlastnosti: čtou se až v tom kusu UI, který je kreslí, takže změna
  * pozice hlasovky překreslí jen ji, ne celou položku.
+ *
+ * **Je rozdělený do skupin** ([ItemPlayback], [ItemInsights], [ItemMenuHost], [ItemMotion],
+ * [ItemChat]) a **bez výchozích implementací**. Dřív to bylo ~45 členů v jednom rozhraní, většina
+ * s prázdnou výchozí hodnotou — zapomenutá implementace se neozvala, jen něco tiše nefungovalo.
+ * Teď ji ohlásí překladač. Kopie zprávy v nabídce (`InertItemScope`) přebíjí jen to, co v ní má
+ * mlčet, delegací na skupinu.
  */
 @Stable
 internal interface ConversationItemScope {
-    /** Posun odkrývání časů tahem doleva; čte se až při kreslení vrstvy. */
-    val timeReveal: () -> Float
+    val playback: ItemPlayback
+    val insights: ItemInsights
+    val menuHost: ItemMenuHost
+    val motion: ItemMotion
+    val chat: ItemChat
 
+    /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
+    fun onAction(messageId: Long, action: MessageAction)
+
+    /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
+    fun openSponsored(sponsored: SponsoredMessage)
+
+    /** Nahlásit reklamu (průvodce s důvody od serveru). */
+    fun reportSponsored(sponsored: SponsoredMessage)
+
+    /**
+     * Ťuknutí na médium reklamy: fotka a GIF otevřou odkaz, video jde na celou obrazovku
+     * ([SponsoredMessage.mediaOpensLink]). Obojí se hlásí jako kliknutí na médium.
+     */
+    fun openSponsoredMedia(sponsored: SponsoredMessage)
+
+    /** Tlačítko Zastavit u rozepsané odpovědi bota ([PendingReplyItem]); ta taky není zpráva chatu. */
+    fun stopPendingReply()
+}
+
+/** Přehrávání ze zpráv: hlasovky, skladby, kolečka se zvukem a přepis záznamu. Část [ConversationItemScope]. */
+@Stable
+internal interface ItemPlayback {
     /** Co hraje ze zprávy; [part] je pořadí zvuku v článku (`VoiceKey.NO_PART` = příloha zprávy). */
     fun voicePlayback(messageId: Long, part: Int = VoiceKey.NO_PART): VoicePlayback?
-
-    /** Hraje video kolečko téhle zprávy se zvukem? Nejvýš jedno v konverzaci. */
-    fun videoNoteSounding(messageId: Long): Boolean = false
-
-    /** Přehrávač kolečka téhle zprávy, když hraje se zvukem; drží ho obrazovka, ne položka. */
-    fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
 
     /** Zvolená rychlost přehrávání hlasovek; jedna pro celou aplikaci. */
     fun voiceSpeed(): VoiceSpeed
 
+    /** Hraje video kolečko téhle zprávy se zvukem? Nejvýš jedno v konverzaci. */
+    fun videoNoteSounding(messageId: Long): Boolean
+
+    /** Přehrávač kolečka téhle zprávy, když hraje se zvukem; drží ho obrazovka, ne položka. */
+    fun soundingVideoNote(messageId: Long): SoundingVideoNote?
+
     /** Jestli a jak nabídnout přepis záznamu té délky (Premium a zkušební přepisy účtu). */
-    fun transcribeOffer(durationSeconds: Int): TranscribeOffer = TranscribeOffer.Hidden
+    fun transcribeOffer(durationSeconds: Int): TranscribeOffer
 
     /** Přepis záznamu z modelu v telefonu (`LocalTranscripts`); server ho nese ve zprávě. */
-    fun localTranscript(messageId: Long): SpeechTranscript? = null
+    fun localTranscript(messageId: Long): SpeechTranscript?
+}
 
+/** Posudky nad textem zprávy: varování před podvodem a akce z textu (termín, účet, zásilka). Část [ConversationItemScope]. */
+@Stable
+internal interface ItemInsights {
     /**
      * Varování před podvodem u zprávy (`ScamWarnings`), nebo `null`. Skládací, protože tok čte
      * až položka — `ConversationScreen` je v dexu na hraně a další `collectAsState` mu nepřidáme.
      */
     @Composable
-    fun scamWarning(messageId: Long): ScamKind? = null
+    fun scamWarning(messageId: Long): ScamKind?
 
     /** Uživatel varování před podvodem skryl. */
-    fun dismissScamWarning(messageId: Long) {}
+    fun dismissScamWarning(messageId: Long)
 
     /**
      * Co se dá s textem zprávy udělat (termín, účet, zásilka — `findMessageContext`), nebo prázdný
      * seznam. Skládací ze stejného důvodu jako [scamWarning]: posudky modelu čte až položka.
      */
     @Composable
-    fun messageContext(message: ChatMessage): List<ContextFinding> = emptyList()
+    fun messageContext(message: ChatMessage): List<ContextFinding>
 
     /** Ťuknutí na ikonku akcí u zprávy. */
-    fun openMessageContext(messageId: Long, findings: List<ContextFinding>) {}
+    fun openMessageContext(messageId: Long, findings: List<ContextFinding>)
+}
 
-    fun documentProgress(fileId: Int): Float?
-
-    /** Dočítá se useknutý článek téhle zprávy („Číst dál")? */
-    fun articleLoading(messageId: Long): Boolean = false
-
-    /**
-     * Horní hrana seznamu v souřadnicích okna — spodek hlavičky chatu. Nabídka nad zprávou nad ni
-     * nesmí, aby hlavička zůstala vidět. `null`, dokud není změřená.
-     */
-    fun contentTop(): Float?
-
+/** Nabídka nad zprávou: kde zpráva v okně je a jestli ji právě kreslí nabídka. Část [ConversationItemScope]. */
+@Stable
+internal interface ItemMenuHost {
     /**
      * Zpráva hlásí při dlouhém stisku, jak zjistit, kde v okně je — nabídka z toho místa vyjede.
      * Funkce, ne hodnota: po otevření nabídky se schová klávesnice, seznam se posune a nabídka
@@ -156,6 +184,13 @@ internal interface ConversationItemScope {
      * nabídka a v seznamu po ní zůstane prázdné místo. Čte se až při kreslení.
      */
     fun isInMenu(key: Long): Boolean
+}
+
+/** Pohyb a jednorázové efekty: odkrývání časů, příjezd zprávy, hod kostkou, efekt, výbuch emoji, sjetí po přeskoku a let tváře do profilu. Část [ConversationItemScope]. */
+@Stable
+internal interface ItemMotion {
+    /** Posun odkrývání časů tahem doleva; čte se až při kreslení vrstvy. */
+    val timeReveal: () -> Float
 
     /**
      * Má zpráva s tímhle klíčem pružně naskočit? Jen jednou a jen když přišla (podle [timestamp])
@@ -174,7 +209,7 @@ internal interface ConversationItemScope {
      * až po otevření konverzace, nebo u NEPŘEČTENÉ příchozí ([effectAutoplays]). Z přečtené
      * historie se přehraje ťuknutím na značku.
      */
-    fun claimEffect(key: Long, message: ChatMessage, unreadBoundary: Long?): Boolean = false
+    fun claimEffect(key: Long, message: ChatMessage, unreadBoundary: Long?): Boolean
 
     /**
      * Hranice nepřečtených zachycená při otevření chatu (`unreadBoundaryId`); dorazí až po
@@ -182,87 +217,78 @@ internal interface ConversationItemScope {
      * v kompozici invalidovala položku s každou změnou stavu konverzace, i když se hranice
      * nezměnila a obrazovka ji podává přes `derivedStateOf`.
      */
-    fun unreadBoundary(): Long? = null
+    fun unreadBoundary(): Long?
 
     /**
      * Efekty animovaných emoji, které vidí obě strany (ťuknutí, efekt od protějšku); `null` =
      * emoji na ťuknutí nereaguje — kopie v nabídce nad zprávou, kde se nic neposílá.
      */
-    fun emojiBursts(): EmojiBursts? = null
+    fun emojiBursts(): EmojiBursts?
 
-    /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
-    fun onAction(messageId: Long, action: MessageAction)
+    /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
+    fun gatherShift(key: Any): Float
 
-    /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
-    fun openSponsored(sponsored: SponsoredMessage)
-
-    /** Nahlásit reklamu (průvodce s důvody od serveru). */
-    fun reportSponsored(sponsored: SponsoredMessage) {}
+    /** Průhlednost položky při příjezdu po přeskoku; čte se až při kreslení. */
+    fun gatherAlpha(key: Any): Float
 
     /**
-     * Ťuknutí na médium reklamy: fotka a GIF otevřou odkaz, video jde na celou obrazovku
-     * ([SponsoredMessage.mediaOpensLink]). Obojí se hlásí jako kliknutí na médium.
+     * Nese tvář odesílatele u téhle zprávy sdílený prvek do profilu? Jen ta ŤUKNUTÁ: tentýž
+     * člověk má ve skupině tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
      */
-    fun openSponsoredMedia(sponsored: SponsoredMessage) = openSponsored(sponsored)
+    fun isProfileFlight(messageId: Long): Boolean
+}
 
-    /** Tlačítko Zastavit u rozepsané odpovědi bota ([PendingReplyItem]); ta taky není zpráva chatu. */
-    fun stopPendingReply() {}
+/** Stav chatu, který bloky čtou: průběh stahování, hledání, práva psát, nastavení reakcí, výběr textu, čekající tlačítka bota a úkoly. Část [ConversationItemScope]. */
+@Stable
+internal interface ItemChat {
+    fun documentProgress(fileId: Int): Float?
+
+    /** Dočítá se useknutý článek téhle zprávy („Číst dál")? */
+    fun articleLoading(messageId: Long): Boolean
 
     /**
      * Co se hledá v chatu (dotaz, ke kterému patří výsledky); `null` mimo hledání. Bubliny ho
      * v textu zvýrazní. Čte se v kompozici textu, takže ho obrazovka podává přes `derivedStateOf`
      * — jinak by každá změna stavu konverzace překreslila text všech bublin.
      */
-    fun searchHighlight(): String? = null
+    fun searchHighlight(): String?
 
     /**
      * Ťuknutí na předěl dne (nebo plovoucí datum) otevře kalendář na tom dni ([timestamp]);
      * `null`, kde skok na datum nejde (vlákno komentářů, téma skupiny — viz `canJumpToDate`).
      */
-    fun datePicker(): ((timestamp: Int) -> Unit)? = null
-
-    /**
-     * Nese tvář odesílatele u téhle zprávy sdílený prvek do profilu? Jen ta ŤUKNUTÁ: tentýž
-     * člověk má ve skupině tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
-     */
-    fun isProfileFlight(messageId: Long): Boolean = false
+    fun datePicker(): ((timestamp: Int) -> Unit)?
 
     /**
      * Jde ťuknutím na `/příkaz` v textu poslat příkaz? Jen v chatu, do kterého se smí psát —
      * jinde zůstane příkaz obyčejným textem. Čte se v kompozici textu.
      */
-    fun canSendCommands(): Boolean = false
+    fun canSendCommands(): Boolean
+
+    /** Jde na zprávu odpovědět — smí se do chatu psát? Tlačítko Odpovědět po najetí myší jen tehdy. */
+    fun canReply(): Boolean
 
     /** Přidá dvojité ťuknutí na zprávu rychlou reakci (Nastavení → Chaty)? */
-    fun doubleTapReaction(): Boolean = false
+    fun doubleTapReaction(): Boolean
 
     /**
      * Rychlá reakce (Nastavení → Chaty) jako obyčejné emoji, kvůli popisku akce pro čtečku
      * („Reagovat ❤️"); `null` = vlastní emoji nebo nezjištěno, popisek je pak bez něj.
      */
-    fun quickReactionEmoji(): String? = null
-
-    /** Jde na zprávu odpovědět — smí se do chatu psát? Tlačítko Odpovědět po najetí myší jen tehdy. */
-    fun canReply(): Boolean = false
+    fun quickReactionEmoji(): String?
 
     /**
      * Vybírá se text zprávy přímo v bublině myší (`bubbleTextSelectable`, desktop)? Ne v kopii
      * v nabídce — ta má výběr vlastní — a ne v chatu s chráněným obsahem, odkud se nesmí
      * kopírovat.
      */
-    fun selectableText(): Boolean = false
+    fun selectableText(): Boolean
 
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
-    fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
+    fun pressingBotButton(messageId: Long): Pair<Int, Int>?
 
     /** Odškrtnutí úkolů v seznamu zprávy, která čekají na server (viz `PendingChecklistMark`). */
-    fun pendingChecklistMarks(messageId: Long): List<PendingChecklistMark> = emptyList()
-
-    /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
-    fun gatherShift(key: Any): Float = 0f
-
-    /** Průhlednost položky při příjezdu po přeskoku; čte se až při kreslení. */
-    fun gatherAlpha(key: Any): Float = 1f
+    fun pendingChecklistMarks(messageId: Long): List<PendingChecklistMark>
 }
 
 /**
@@ -270,8 +296,8 @@ internal interface ConversationItemScope {
  * Patří na KOŘEN každého bloku, za `animateItem`; čte se až ve vrstvě, takže nic nerekomponuje.
  */
 internal fun Modifier.gathered(key: Any, scope: ConversationItemScope): Modifier = graphicsLayer {
-    translationY = scope.gatherShift(key)
-    alpha = scope.gatherAlpha(key)
+    translationY = scope.motion.gatherShift(key)
+    alpha = scope.motion.gatherAlpha(key)
 }
 
 /**
@@ -285,7 +311,7 @@ internal fun Modifier.gathered(key: Any, scope: ConversationItemScope): Modifier
 internal data class DayDividerItem(val timestamp: Int, override val key: String) : ConversationItem {
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        DayDivider(timestamp, Modifier.animateItem().gathered(key, scope), onClick = scope.datePicker())
+        DayDivider(timestamp, Modifier.animateItem().gathered(key, scope), onClick = scope.chat.datePicker())
     }
 
     companion object {
@@ -381,7 +407,7 @@ private fun LazyItemScope.NoticeFrame(
     contentModifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem().gathered(key, scope)) {
+    RevealingTime(message.timestamp, scope.motion.timeReveal, Modifier.animateItem().gathered(key, scope)) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Box(
                 contentModifier.contextClickable(
@@ -434,7 +460,7 @@ internal data class SponsoredItem(val sponsored: SponsoredMessage) : Conversatio
             onReport = { scope.reportSponsored(sponsored) },
             modifier = Modifier
                 .gathered(key, scope)
-                .graphicsLayer { translationX = -scope.timeReveal() }
+                .graphicsLayer { translationX = -scope.motion.timeReveal() }
                 .padding(vertical = 8.dp),
         )
     }

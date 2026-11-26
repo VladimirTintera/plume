@@ -261,14 +261,14 @@ internal interface MessageItem : ConversationItem {
         // změnou stavu konverzace (viz `docs/poznatky/vykon.md`, „Výkon a paměť").
         LaunchedEffect(frame.key, effect?.id) {
             if (effect?.animationFileId == null) return@LaunchedEffect
-            snapshotFlow { scope.unreadBoundary() }
-                .first { boundary -> scope.claimEffect(frame.key, frame.message, boundary) }
+            snapshotFlow { scope.motion.unreadBoundary() }
+                .first { boundary -> scope.motion.claimEffect(frame.key, frame.message, boundary) }
             effectPlayback.play()
         }
         // Příchozí zpráva při odkrývání časů stojí, čas se vejde vedle ní (viz RevealAnchor).
         val anchor = remember(frame.message.isOutgoing) { if (frame.message.isOutgoing) null else RevealAnchor() }
         // Efekty, které zprávu přesahují, kreslí vrstva nad konverzací (`EffectLayer`), ne položka.
-        RevealingTime(frame.message.timestamp, scope.timeReveal, modifier, anchor = anchor) {
+        RevealingTime(frame.message.timestamp, scope.motion.timeReveal, modifier, anchor = anchor) {
             MessageFrame(frame, scope, maxWidthFraction, effectPlayback, anchor) { Body() }
         }
     }
@@ -329,19 +329,19 @@ internal class MessageBodyScope(
      * citace, fotka) ho k rámu nepustí, takže ho musí zopakovat sami — proto je tu, ne v rámu.
      */
     fun requestMenu() {
-        items.onMenuAnchor(anchor)
+        items.menuHost.onMenuAnchor(anchor)
         act(MessageAction.ShowMenu(frame.menuActions, selection = textSelection.current()))
     }
 
     /** Dlouhý stisk na odpovědi ankety, kterou jde smazat — nabídka pak nabídne i to. */
     fun requestMenuForPollOption(optionId: String) {
-        items.onMenuAnchor(anchor)
+        items.menuHost.onMenuAnchor(anchor)
         act(MessageAction.ShowMenu(frame.menuActions, pollOptionId = optionId))
     }
 
     /** Dlouhý stisk na KONKRÉTNÍ zprávě bloku (fotka alba) — odpověď pak míří na ni. */
     fun requestMenuFor(pressed: Long) {
-        items.onMenuAnchor(anchor)
+        items.menuHost.onMenuAnchor(anchor)
         act(MessageAction.ShowMenu(frame.menuActions, pressed = pressed))
     }
 }
@@ -564,7 +564,7 @@ private fun MessageFrame(
     }
     // Dokud zprávu kreslí nabídka, drží se reakce z doby před jejím otevřením — nová reakce pak
     // naskočí, až se zpráva vrátí na místo, a je ji vidět.
-    val reactions = heldReactions(frame.message.reactions, hold = scope.isInMenu(frame.key))
+    val reactions = heldReactions(frame.message.reactions, hold = scope.menuHost.isInMenu(frame.key))
     val bodyScope = rememberMessageBodyScope(frame, scope, anchor, hasReactions = reactions.isNotEmpty())
 
     val coroutineScope = rememberCoroutineScope()
@@ -754,10 +754,10 @@ private fun MessageFrame(
                  * Do `MessageBox` nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad
                  * zprávou — a pod holou fotkou žádná bublina, do které by se daly vložit, není.
                  */
-                val scam = scope.scamWarning(message.id)
+                val scam = scope.insights.scamWarning(message.id)
                 // Akce u zprávy, před kterou se varuje, nejsou: QR platba k podvodu je přesně to, co
                 // podvodník chce. V režimu výběru ťuknutí patří výběru.
-                val context = if (scam == null && frame.selected == null) scope.messageContext(message) else emptyList()
+                val context = if (scam == null && frame.selected == null) scope.insights.messageContext(message) else emptyList()
                 WithBelowMessage(
                     hasBelow = message.keyboard != null || message.factCheck != null || scam != null ||
                         message.suggestedPost != null,
@@ -767,13 +767,13 @@ private fun MessageFrame(
                 ) {
                     // Zpráva pro čtečku obrazovky jedním uzlem (`MessageA11y.kt`): kdo, kdy, stav, akce.
                     val optionsLabel = stringResource(Res.string.conversation_message_options)
-                    val reactLabel = scope.quickReactionEmoji()?.let { stringResource(Res.string.conversation_react_with, it) }
+                    val reactLabel = scope.chat.quickReactionEmoji()?.let { stringResource(Res.string.conversation_react_with, it) }
                         ?: stringResource(Res.string.conversation_react)
                     val a11y = MessageA11y(
                         sender = a11ySender(message, frame.continuesAbove),
                         state = listOfNotNull(message.timestamp.asTimeOfDay(), frame.delivery?.let { stringResource(it.label) })
                             .joinToString(", "),
-                        replyLabel = stringResource(Res.string.menu_reply).takeIf { scope.canReply() && frame.selected == null },
+                        replyLabel = stringResource(Res.string.menu_reply).takeIf { scope.chat.canReply() && frame.selected == null },
                         reactLabel = reactLabel.takeIf { frame.selected == null },
                         onReply = { scope.onAction(currentMessageId, MessageAction.SwipeReply) },
                         onReact = { bodyScope.act(MessageAction.QuickReact) },
@@ -795,7 +795,7 @@ private fun MessageFrame(
                             // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
                             .graphicsLayer {
                                 alpha = when {
-                                    scope.isInMenu(frame.key) -> 0f
+                                    scope.menuHost.isInMenu(frame.key) -> 0f
                                     // Cíl letu čeká na start u pole (`MessageFlight.launched`): na místě
                                     // se ukázat nesmí, jinak by se bublina na snímek vykreslila dole
                                     // a teprve pak přiletěla.
@@ -845,7 +845,7 @@ private fun MessageFrame(
                             // Čtečka obrazovky dlouhý stisk nabízí jako akci; bez popisku zněla „podržet".
                             onLongClickLabel = optionsLabel,
                             onLongClick = bodyScope::requestMenu,
-                            onDoubleClick = if (scope.doubleTapReaction()) {
+                            onDoubleClick = if (scope.chat.doubleTapReaction()) {
                                 { bodyScope.act(MessageAction.QuickReact) }
                             } else {
                                 null
@@ -880,7 +880,7 @@ private fun MessageFrame(
                             effectPlayback = effectPlayback,
                             hovered = hovered,
                             row = { rowCoordinates[0] },
-                            onReply = if (scope.canReply()) {
+                            onReply = if (scope.chat.canReply()) {
                                 { scope.onAction(currentMessageId, MessageAction.SwipeReply) }
                             } else {
                                 null
@@ -950,7 +950,7 @@ private fun SenderAvatarSlot(frame: MessageFrameData, scope: ConversationItemSco
                 modifier = Modifier
                     .padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE)
                     .then(
-                        if (userId != null && scope.isProfileFlight(message.id)) {
+                        if (userId != null && scope.motion.isProfileFlight(message.id)) {
                             Modifier.sharedNavElement(chatAvatarKey(userId))
                         } else {
                             Modifier
@@ -983,7 +983,7 @@ private fun BelowMessageCards(frame: MessageFrameData, scope: ConversationItemSc
         // Varování první: je nejdůležitější a tlačítka bota pod ním jsou to,
         // před čím varuje.
         scam?.let { kind ->
-            ScamWarningCard(kind = kind, onDismiss = { scope.dismissScamWarning(message.id) })
+            ScamWarningCard(kind = kind, onDismiss = { scope.insights.dismissScamWarning(message.id) })
         }
         message.suggestedPost?.let { post ->
             SuggestedPostCard(
@@ -1002,7 +1002,7 @@ private fun BelowMessageCards(frame: MessageFrameData, scope: ConversationItemSc
         message.keyboard?.let { keyboard ->
             BotKeyboardView(
                 keyboard = keyboard,
-                pressing = scope.pressingBotButton(message.id),
+                pressing = scope.chat.pressingBotButton(message.id),
                 onPress = { row, column -> bodyScope.act(MessageAction.PressBotButton(row, column)) },
             )
         }
@@ -1046,14 +1046,14 @@ private fun BoxScope.SideMarks(
         reach += CONTEXT_MARK_SIZE + EFFECT_MARK_GAP
         MessageContextMark(
             findings = context,
-            onClick = { scope.openMessageContext(message.id, context) },
+            onClick = { scope.insights.openMessageContext(message.id, context) },
             modifier = Modifier.align(side).offset(x = reach * sign),
         )
     }
 
     // Čas, Odpovědět a ⋮ po najetí myší, za ostatními značkami.
     MessageHoverActions(
-        visible = hovered && frame.selected == null && !scope.isInMenu(frame.key),
+        visible = hovered && frame.selected == null && !scope.menuHost.isInMenu(frame.key),
         timestamp = message.timestamp,
         delivery = frame.delivery,
         onReply = onReply,
@@ -1262,7 +1262,7 @@ internal fun MessageBox(
 private fun rememberVoicePlaying(message: ChatMessage, scope: ConversationItemScope): Boolean {
     if (message.media !is MessageMedia.VoiceNote) return false
     val playing by remember(scope, message.id) {
-        derivedStateOf { scope.voicePlayback(message.id)?.playing == true }
+        derivedStateOf { scope.playback.voicePlayback(message.id)?.playing == true }
     }
     return playing
 }
@@ -1687,13 +1687,13 @@ internal fun MessageBodyScope.MessageText(
      */
     segment: ArticleSegment.Text? = null,
 ) {
-    val query = items.searchHighlight()
+    val query = items.chat.searchHighlight()
     // Zpráva bez vlastního textu (anketa, neznámý typ) nese náš popis; ten se překládá TADY,
     // ne při převodu zprávy — převedená zpráva přežije změnu jazyka. Entity patří jen vlastnímu textu.
     val description = message.description?.takeIf { message.text.isBlank() && segment == null }?.resolve()
     val text = segment?.text ?: description ?: message.text
     val highlights = remember(text, query) { query?.let { highlightRanges(text, it) }.orEmpty() }
-    val selectable = description == null && items.selectableText()
+    val selectable = description == null && items.chat.selectableText()
     val richText = @Composable {
         RichText(
             highlights = TextHighlights(ranges = highlights, color = bubbleColor, background = onBubbleColor),
@@ -1730,7 +1730,7 @@ internal fun MessageBodyScope.MessageText(
                     else -> Unit
                 }
             },
-            commandsClickable = items.canSendCommands(),
+            commandsClickable = items.chat.canSendCommands(),
             timestampsClickable = true,
             // S výběrem myší (desktop) nemá odkaz vlastní podržení ani pravé tlačítko: pravé
             // tlačítko na odkazu ukáže tutéž textovou nabídku jako zbytek textu.
@@ -1794,7 +1794,7 @@ internal fun MessageBodyScope.Attachment(
         file = FileTransfer(
             uploading = message.sendState == SendState.Sending,
             onCancelUpload = { act(MessageAction.CancelUpload) },
-            documentProgress = items::documentProgress,
+            documentProgress = items.chat::documentProgress,
             onOpenDocument = { act(MessageAction.OpenDocument) },
         ),
         accent = accent,
@@ -1803,20 +1803,20 @@ internal fun MessageBodyScope.Attachment(
         emoji = EmojiPlay(
             // Rozhoduje se jednou za život položky: po odscrollování a návratu už je vidět výsledek.
             diceThrow = remember(frame.key) {
-                media is MessageMedia.Dice && items.claimDiceThrow(frame.key, message.timestamp)
+                media is MessageMedia.Dice && items.motion.claimDiceThrow(frame.key, message.timestamp)
             },
             diceCelebrate = message.isOutgoing,
-            bursts = items.emojiBursts(),
+            bursts = items.motion.emojiBursts(),
             isOutgoing = message.isOutgoing,
         ),
         videoNote = VideoNoteHandlers(
-            sounding = { items.videoNoteSounding(id) },
+            sounding = { items.playback.videoNoteSounding(id) },
             onToggleSound = { act(MessageAction.ToggleVideoNoteSound) },
-            shared = { items.soundingVideoNote(id) },
+            shared = { items.playback.soundingVideoNote(id) },
         ),
         voice = VoiceHandlers(
-            playback = { items.voicePlayback(id) },
-            speed = { items.voiceSpeed() },
+            playback = { items.playback.voicePlayback(id) },
+            speed = { items.playback.voiceSpeed() },
             onToggle = { act(MessageAction.ToggleVoice) },
             onSeek = { fraction -> act(MessageAction.SeekVoice(fraction)) },
             onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
@@ -1834,8 +1834,8 @@ internal fun MessageBodyScope.rememberTranscript(transcript: SpeechTranscript?, 
     rememberTranscriptState(
         key = message.id,
         // Přepis od serveru nese zpráva; z telefonu leží zvlášť (`LocalTranscripts`).
-        transcript = transcript ?: items.localTranscript(message.id),
-        offer = items.transcribeOffer(durationSeconds),
+        transcript = transcript ?: items.playback.localTranscript(message.id),
+        offer = items.playback.transcribeOffer(durationSeconds),
         onTranscribe = { act(MessageAction.Transcribe) },
         onDownloadLanguage = { act(MessageAction.DownloadSpeechLanguage) },
     )
@@ -1849,7 +1849,7 @@ internal fun MessageBodyScope.Album(members: List<ChatMessage>, accent: Color, s
         onOpen = { id -> act(MessageAction.OpenMedia, id) },
         onRequestMenu = ::requestMenuFor,
         onCancelUpload = { id -> act(MessageAction.CancelUpload, id) },
-        documentProgress = items::documentProgress,
+        documentProgress = items.chat::documentProgress,
         onOpenDocument = { id -> act(MessageAction.OpenDocument, id) },
         accent = accent,
         shape = shape,
@@ -1985,7 +1985,7 @@ private fun Modifier.maxWidthFraction(fraction: Float): Modifier =
 @Composable
 private fun Modifier.arrival(frame: MessageFrameData, scope: ConversationItemScope): Modifier {
     val start = remember(frame.key) {
-        if (frame.flight == null && scope.claimArrival(frame.key, frame.message.timestamp)) ARRIVAL_SCALE else 1f
+        if (frame.flight == null && scope.motion.claimArrival(frame.key, frame.message.timestamp)) ARRIVAL_SCALE else 1f
     }
     if (start == 1f) return this
     val scale = remember(frame.key) { Animatable(start) }

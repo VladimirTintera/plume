@@ -112,6 +112,8 @@ import eu.tintera.plume.core.ui.distinctOnBoth
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
+import eu.tintera.plume.features.conversation.items.ItemMotion
+import eu.tintera.plume.features.conversation.items.ItemPlayback
 import eu.tintera.plume.features.conversation.items.bubbleColorFor
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.slot
@@ -688,16 +690,20 @@ private fun MaybeSelectable(
 private class InertItemScope(scope: ConversationItemScope) : ConversationItemScope by scope {
     override fun onAction(messageId: Long, action: MessageAction) = Unit
 
-    // Hod v kopii neproběhne znovu, ukáže výsledek — házelo se v seznamu.
-    override fun claimDiceThrow(key: Long, timestamp: Int): Boolean = false
-
     // Kolečko se zvukem kreslí jen jedna plocha (bublina, nebo dock); kopie hraje potichu.
-    override fun videoNoteSounding(messageId: Long): Boolean = false
+    override val playback: ItemPlayback = object : ItemPlayback by scope.playback {
+        override fun videoNoteSounding(messageId: Long): Boolean = false
 
-    override fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
+        override fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
+    }
 
-    // Ťuknutí na emoji v kopii efekt neposílá (akce kopie nikam nevedou) a efekt vybuchne v seznamu.
-    override fun emojiBursts(): EmojiBursts? = null
+    override val motion: ItemMotion = object : ItemMotion by scope.motion {
+        // Hod v kopii neproběhne znovu, ukáže výsledek — házelo se v seznamu.
+        override fun claimDiceThrow(key: Long, timestamp: Int): Boolean = false
+
+        // Ťuknutí na emoji v kopii efekt neposílá (akce kopie nikam nevedou) a efekt vybuchne v seznamu.
+        override fun emojiBursts(): EmojiBursts? = null
+    }
 }
 
 /**

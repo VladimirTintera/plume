@@ -288,7 +288,6 @@ fun ConversationScreen(
             voicePlayback = voicePlayback,
             voiceSpeed = voiceSpeed,
             transcribeContext = transcribeContext,
-            contentTop = contentTop,
             onMenuAnchor = { menuAnchor = it },
             menuKey = menuKey,
             timeReveal = { timeReveal.value },
