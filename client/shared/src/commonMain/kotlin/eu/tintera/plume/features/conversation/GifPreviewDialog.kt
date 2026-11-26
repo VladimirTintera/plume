@@ -142,11 +142,7 @@ internal fun GifPreviewDialog(
 @Composable
 private fun LargeGif(gif: GifItem) {
     val animation = gif.animation
-    val ratio = if (animation.width > 0 && animation.height > 0) {
-        (animation.width.toFloat() / animation.height).coerceIn(MIN_RATIO, MAX_RATIO)
-    } else {
-        1f
-    }
+    val ratio = aspectRatio(animation.width, animation.height).coerceIn(MIN_RATIO, MAX_RATIO)
     val path = (rememberFileState(animation.fileId) as? FileState.Ready)?.path
 
     Box(

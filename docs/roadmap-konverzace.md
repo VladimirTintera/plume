@@ -523,8 +523,9 @@ Velikost: S / M / L.
   `StickerMessageItem` už kolečko nenese (má `VideoNoteMessageItem`).
 - ~~**`ConversationItemScope` rozdělit**~~ — hotovo: skupiny `ItemPlayback`, `ItemInsights`,
   `ItemMenuHost`, `ItemMotion`, `ItemChat`, bez výchozích implementací; mrtvý `contentTop()` pryč.
-- **Poměr stran `width / height`** se počítá na třech místech (fotka, GIF, obrázek náhledu
-  odkazu) — `photoFrame` si s nulou poradí, takže jen kosmetika.
+- ~~**Poměr stran `width / height`**~~ — hotovo: jeden `aspectRatio(width, height, fallback)`
+  v `MediaFrame.kt` místo jedenácti kopií (fotka, GIF, samolepka, náhled odkazu, album, reklama,
+  produkt, placené médium, výběr GIFů, karta bota).
 
 ## Nápady z průchodu aplikací (27. 10. 2026)
 

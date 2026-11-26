@@ -153,7 +153,7 @@ private fun SponsoredMedia(media: MessageMedia, messageId: Long, onClick: () -> 
                 animation = media,
                 shape = shape,
                 onRequestMenu = {},
-                modifier = Modifier.size(photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth = true)),
+                modifier = Modifier.size(photoFrame(maxWidth, aspectRatio(media.width, media.height), fillWidth = true)),
                 revealed = reveal.revealed,
                 onReveal = reveal::reveal,
                 onOpen = onClick,

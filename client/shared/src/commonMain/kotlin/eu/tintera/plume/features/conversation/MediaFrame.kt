@@ -17,6 +17,16 @@ internal val MAX_PHOTO_HEIGHT = 320.dp
 internal val MIN_PHOTO_WIDTH = 140.dp
 
 /**
+ * Poměr stran (šířka / výška) z metadat zprávy; [fallback], když rozměry neznáme (nula).
+ *
+ * Bere se z metadat, ne z načteného obrázku — jinak by seznam poskočil, až se soubor dotáhne.
+ * Dřív si to každé místo počítalo samo a nulu ošetřovalo jinak, nebo vůbec (fotku zachránil až
+ * `photoFrame`, který NaN bere jako čtverec).
+ */
+internal fun aspectRatio(width: Int, height: Int, fallback: Float = 1f): Float =
+    if (width > 0 && height > 0) width.toFloat() / height.toFloat() else fallback
+
+/**
  * Rámeček fotky nebo videa v bublině: [available] je šířka, kterou bublina nabízí, [ratio] poměr
  * stran přílohy (šířka / výška).
  *
