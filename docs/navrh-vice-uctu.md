@@ -1110,6 +1110,14 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       chaty toho účtu, takže spojený řádek tam není.
     - **Výsledek akce je výsledek účtu řádku**: chyba v druhém účtu (třeba limit připnutých) se
       jen zaloguje, akci uživatel už viděl proběhnout.
+    - **Ověřeno na emulátoru Fold** (rozložený, anglicky, „Plume test triaze" s hlavním účtem
+      a VT): archivace z nabídky → řádek zmizel z hlavního seznamu celý a v archivu je jedním
+      řádkem s oběma odznaky; „Move to chats" ho vrátil celý. „Mute for 1 hour" → ztlumená
+      i v seznamu samotného VT; „Unmute" → odtlumená i tam. **Neověřené:** připnutí, odložení,
+      tah do strany, „Vrátit" ve snackbaru, Uložené zprávy a soukromý chat, desktop.
+    - **Nabídka nad řádkem se na Foldu po podržení ještě posouvá**: ťuknutí podle souřadnic ze
+      snímku trefilo o dvě položky níž („Add to home screen" místo „Move to chats"). Položky se
+      ťukají podle čerstvého `uiautomator dump`, ne podle snímku.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
