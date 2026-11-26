@@ -62,7 +62,9 @@ v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
   další značku, která je v seznamu i v hlavičce, dá jí vlastní klíč taky.
   - **Klíč odznaku nese id účtu, který odznak UKAZUJE**, ne slot kolem. Spojená společná
     skupina má v řádku odznaky víc účtů přes sebe a hlavička jen ten, kterým se píše: přiletí
-    právě ten, ostatní protějšek nemají a odejdou s řádkem.
+    právě ten, ostatní protějšek nemají a odejdou s řádkem. Ověřeno na Foldu záznamem obrazovky
+    (`screenrecord --display-id`, po snímcích; série `screencap` po půl vteřině je na let moc
+    řídká a z posunutých výřezů se zdálo, že odznak ujíždí nahoru).
   - **Klíč tečky nese slot účtu**, jako `chatAvatarKey`: soukromý chat s týmž člověkem je ve
     společném seznamu z každého účtu jednou a dvě tečky s jedním klíčem by letěly jako jedna.
 
