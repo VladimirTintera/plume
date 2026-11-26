@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
  * Dřív šířka za tahu skákala po krocích a knihovna každý krok animovala vlastní pružinou panelů
  * (`AnimatedPane`), takže panely prst dotahovaly a cukaly; po puštění pak skočila na kotvu bez
  * animace. Proto za tahu i za dojezdu ([active]) scéna Chatů animaci šířek vypíná
- * (`ChatSceneLayout.instant`) a pohyb řídí jen tahle šířka.
+ * (`PaneSceneLayout.instant`) a pohyb řídí jen tahle šířka.
  */
 @Stable
 internal class DraggedWidth(private val scope: CoroutineScope, private val spec: () -> AnimationSpec<Float>) {

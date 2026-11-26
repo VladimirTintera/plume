@@ -61,13 +61,16 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
+import eu.tintera.plume.core.adaptive.Panes
+import eu.tintera.plume.core.adaptive.backLeavesScene
 import eu.tintera.plume.core.adaptive.paneInfo
 
 /*
- * Vlastní scéna Chatů: seznam | oblast chatu (`docs/navrh-scena-chatu.md`, varianta D).
+ * Scéna panelů: seznam | oblast detailu s bočním sloupcem (`docs/navrh-scena-chatu.md`, varianta D).
  *
- * Na široké ploše kreslí Chaty a archiv vždycky ona; knihovní list-detail (`rememberListDetailSceneStrategy`)
- * zůstává Nastavení a telefon má standardní výměnu obrazovek.
+ * Na široké ploše kreslí Chaty, archiv i Nastavení (sekce | podstránka); na telefonu strategie
+ * vrací `null` a `NavDisplay` obrazovky vyměňuje. Knihovní `ThreePaneScaffold` (adaptive-navigation3)
+ * aplikace nepoužívá.
  *
  * Co scéna dělá jinak než `ThreePaneScaffoldScene`:
  * - **Boční sloupec patří k detailu pod sebou.** Kreslí se jen boční položka NAD posledním
@@ -83,7 +86,7 @@ import eu.tintera.plume.core.adaptive.paneInfo
  */
 
 /** Co scéna Chatů z položek kreslí. */
-internal class ChatPanes<E>(
+internal class ScenePanes<E>(
     /** Klíč scény z metadat (`PaneInfo.scene`): hlavní seznam, nebo archiv. */
     val sceneKey: Any,
     /** Všechny položky téže scény v pořadí zásobníku, i ty, které se nekreslí (zakryté). */
@@ -96,9 +99,9 @@ internal class ChatPanes<E>(
 )
 
 /**
- * Položky scény Chatů: z celého zásobníku položky téže scény jako poslední položka. Scénu vrací
- * jen pro scénu, kterou [isChatScene] uzná (ne Nastavení), jen se seznamem a jen když poslední
- * položka roli panelu má (obrazovka přes celou plochu navrchu je scéna sama pro sebe).
+ * Položky scény panelů: z celého zásobníku položky téže scény jako poslední položka. Scénu vrací
+ * jen pro scénu, kterou [isScene] uzná, jen se seznamem a jen když poslední položka roli panelu
+ * má (obrazovka přes celou plochu navrchu je scéna sama pro sebe).
  *
  * **Obrazovky přes celou plochu uprostřed se přeskakují**, ne že by scénu ukončily jako
  * v knihovně (`ListDetailSceneStrategy`). Konverzace otevřená z prohlížeče médií
@@ -109,14 +112,14 @@ internal class ChatPanes<E>(
  * **Boční sloupec je poslední boční položka NAD posledním detailem.** Boční položka pod ním
  * patří k jinému chatu (profil, nad který se otevřela jiná konverzace) a nekreslí se.
  */
-internal fun <E> selectChatPanes(
+internal fun <E> selectScenePanes(
     entries: List<E>,
     paneOf: (E) -> PaneInfo?,
-    isChatScene: (Any) -> Boolean,
-): ChatPanes<E>? {
+    isScene: (Any) -> Boolean,
+): ScenePanes<E>? {
     val top = entries.lastOrNull() ?: return null
     val sceneKey = paneOf(top)?.scene ?: return null
-    if (!isChatScene(sceneKey)) return null
+    if (!isScene(sceneKey)) return null
     val scene = ArrayList<E>()
     val roles = ArrayList<PaneRole>()
     for (index in entries.indices.reversed()) {
@@ -131,7 +134,7 @@ internal fun <E> selectChatPanes(
     if (listIndex < 0) return null
     val detailIndex = roles.lastIndexOf(PaneRole.Detail)
     val sideIndex = roles.lastIndexOf(PaneRole.Extra).takeIf { it > detailIndex }
-    return ChatPanes(
+    return ScenePanes(
         sceneKey = sceneKey,
         sceneEntries = scene,
         list = scene[listIndex],
@@ -142,7 +145,7 @@ internal fun <E> selectChatPanes(
 
 /** Rozměry, které scéně dává shell (táhla, šířka okna). */
 @Immutable
-internal data class ChatSceneLayout(
+internal data class PaneSceneLayout(
     /** `false` = jen seznam přes celou plochu: není z čeho vybrat (prázdný archiv), viz `nothingToPick`. */
     val twoPane: Boolean,
     /** Boční sloupec se vejde vedle seznamu i konverzace; jinak seznam při otevřeném sloupci ustoupí. */
@@ -155,91 +158,115 @@ internal data class ChatSceneLayout(
     val instant: Boolean,
 )
 
+/** Jak se kreslí jedna scéna panelů (Chaty, archiv, Nastavení). */
+@Immutable
+internal data class PaneSceneSpec(
+    val layout: PaneSceneLayout,
+    /** Pravý panel bez otevřeného detailu; `null` = nic (Nastavení mají sekci otevřenou vždycky). */
+    val detailPlaceholder: (@Composable () -> Unit)?,
+    /** Na konci lišty akce konverzace (`PaneBandEnd`) — jen Chaty a archiv. */
+    val conversationActions: Boolean,
+)
+
 /**
- * Scéna Chatů na široké ploše. [layout] `null` = úzké okno (telefon): rozhoduje další
- * strategie. Stojí za `SheetSceneStrategy` (sheet se kreslí nad ní) a před knihovní list-detail,
- * která dál kreslí Nastavení.
+ * Scény panelů na široké ploše. [specs] dává popis pro klíč scény (`PaneInfo.scene`); `null` =
+ * tahle scéna se tu nekreslí (úzké okno, telefon) a rozhoduje další strategie, standardní výměna
+ * obrazovek. Stojí za `SheetSceneStrategy`, sheet se kreslí nad ní.
+ *
+ * **Zpět z položky s [Panes.backLeavesScene] scénu opouští celou** (sekce Nastavení): předchozí
+ * položky jsou zásobník pod první položkou scény a `NavDisplay` zavolá zpět tolikrát, o kolik je
+ * kratší. Sekce se v širokém Nastavení otevírá sama (`ensureSettingsSection`), takže obyčejné zpět
+ * by ji odebralo a efekt hned vrátil. Tak to dělala i knihovna (`PopUntilScaffoldValueChange`).
  */
-internal class ChatSceneStrategy(
-    private val layout: ChatSceneLayout?,
-    private val isChatScene: (Any) -> Boolean,
-    private val detailPlaceholder: @Composable () -> Unit,
+internal class PaneSceneStrategy(
+    private val specs: (scene: Any) -> PaneSceneSpec?,
 ) : SceneStrategy<NavKey> {
     override fun SceneStrategyScope<NavKey>.calculateScene(entries: List<NavEntry<NavKey>>): Scene<NavKey>? {
-        val layout = layout ?: return null
-        val panes = selectChatPanes(entries, { it.paneInfo }, isChatScene) ?: return null
-        val previousEntries = entries.dropLast(1)
-        // Zpět, po kterém zůstane táž scéna, obslouží scéna sama (viz ChatScene.content).
-        val previous = selectChatPanes(previousEntries, { it.paneInfo }, isChatScene)
-            ?.takeIf { it.sceneKey == panes.sceneKey }
-        return ChatScene(
-            key = ChatSceneKey(panes.sceneKey),
+        val isScene = { scene: Any -> specs(scene) != null }
+        val panes = selectScenePanes(entries, { it.paneInfo }, isScene) ?: return null
+        val spec = specs(panes.sceneKey) ?: return null
+        val leaves = entries.last().backLeavesScene
+        val previousEntries = scenePreviousEntries(entries, panes.sceneEntries, leaves)
+        // Zpět, po kterém zůstane táž scéna, obslouží scéna sama (viz PaneSceneContent).
+        val previous = if (leaves) {
+            null
+        } else {
+            selectScenePanes(previousEntries, { it.paneInfo }, isScene)?.takeIf { it.sceneKey == panes.sceneKey }
+        }
+        return PaneScene(
+            key = PaneSceneKey(panes.sceneKey),
             panes = panes,
             previous = previous,
             allEntries = entries,
-            layout = layout,
-            detailPlaceholder = detailPlaceholder,
+            previousEntries = previousEntries,
+            spec = spec,
             onBack = onBack,
         )
     }
 }
 
 /**
+ * Co zůstane v zásobníku po zpět: bez poslední položky, a když poslední položka scénu opouští
+ * ([leaves], [Panes.backLeavesScene]), bez celé scény — zásobník pod její první položkou.
+ */
+internal fun <E> scenePreviousEntries(entries: List<E>, sceneEntries: List<E>, leaves: Boolean): List<E> =
+    if (leaves) entries.subList(0, entries.indexOf(sceneEntries.first())).toList() else entries.dropLast(1)
+
+/**
  * Jeden klíč pro všechny stavy téže scény (jen seznam, s placeholderem, s chatem, s bočním
  * sloupcem): `NavDisplay` mezi nimi nepřechází jako mezi obrazovkami, mění se jen obsah scény.
  */
-private data class ChatSceneKey(val scene: Any)
+private data class PaneSceneKey(val scene: Any)
 
-private class ChatScene(
+private class PaneScene(
     override val key: Any,
-    private val panes: ChatPanes<NavEntry<NavKey>>,
+    private val panes: ScenePanes<NavEntry<NavKey>>,
     /** Stav po zpět, zůstane-li táž scéna; `null` = zpět scénu opouští a řeší ho `NavDisplay`. */
-    private val previous: ChatPanes<NavEntry<NavKey>>?,
+    private val previous: ScenePanes<NavEntry<NavKey>>?,
     private val allEntries: List<NavEntry<NavKey>>,
-    private val layout: ChatSceneLayout,
-    private val detailPlaceholder: @Composable () -> Unit,
+    override val previousEntries: List<NavEntry<NavKey>>,
+    private val spec: PaneSceneSpec,
     private val onBack: () -> Unit,
 ) : Scene<NavKey> {
     override val entries: List<NavEntry<NavKey>> = panes.sceneEntries
-    override val previousEntries: List<NavEntry<NavKey>> = allEntries.dropLast(1)
 
     override val content: @Composable () -> Unit = {
-        ChatSceneContent(key, panes, previous, layout, detailPlaceholder, onBack)
+        PaneSceneContent(key, panes, previous, spec, onBack)
     }
 
     // Scéna se porovnává při každém přepočtu (`SceneState`), jako knihovní: táž položka = táž scéna.
     override fun equals(other: Any?): Boolean =
         this === other || (
-            other is ChatScene &&
+            other is PaneScene &&
                 key == other.key &&
-                layout == other.layout &&
+                spec == other.spec &&
                 allEntries == other.allEntries &&
                 panes.sceneEntries == other.panes.sceneEntries &&
                 (previous == null) == (other.previous == null)
             )
 
-    override fun hashCode(): Int = ((key.hashCode() * 31 + layout.hashCode()) * 31 + allEntries.hashCode()) * 31 +
+    override fun hashCode(): Int = ((key.hashCode() * 31 + spec.hashCode()) * 31 + allEntries.hashCode()) * 31 +
         panes.sceneEntries.hashCode()
 }
 
 /** Gesto zpět uvnitř scény se hlásí pod klíčem scény a jejími položkami (jako `ThreePaneScaffoldSceneInfo`). */
-private data class ChatSceneInfo(val key: Any, val entries: List<Any>) : NavigationEventInfo()
+private data class PaneSceneInfo(val key: Any, val entries: List<Any>) : NavigationEventInfo()
 
 @Composable
-private fun ChatSceneContent(
+private fun PaneSceneContent(
     key: Any,
-    panes: ChatPanes<NavEntry<NavKey>>,
-    previous: ChatPanes<NavEntry<NavKey>>?,
-    layout: ChatSceneLayout,
-    detailPlaceholder: @Composable () -> Unit,
+    panes: ScenePanes<NavEntry<NavKey>>,
+    previous: ScenePanes<NavEntry<NavKey>>?,
+    spec: PaneSceneSpec,
     onBack: () -> Unit,
 ) {
+    val layout = spec.layout
     /*
      * Zpět, po kterém zůstane táž scéna (zavřít sloupec, podstránka sloupce → profil, konverzace →
      * placeholder), obslouží scéna sama, stejně jako knihovní: `NavDisplay` by mezi dvěma stavy
      * téže scény nic animovat neuměl. Za tahu se sloupec zužuje k zavření, konverzace slábne.
      */
-    val gestureInfo = remember(key, panes.sceneEntries) { ChatSceneInfo(key, panes.sceneEntries.map { it.contentKey }) }
+    val gestureInfo = remember(key, panes.sceneEntries) { PaneSceneInfo(key, panes.sceneEntries.map { it.contentKey }) }
     val gestureState = rememberNavigationEventState(currentInfo = gestureInfo)
     NavigationBackHandler(
         state = gestureState,
@@ -294,7 +321,7 @@ private fun ChatSceneContent(
                         .graphicsLayer { if (detailChanges) alpha = 1f - backProgress.value },
                 ) {
                     CompositionLocalProvider(LocalSceneBar provides sceneBar) {
-                        PaneSlot(panes.detail, placeholder = detailPlaceholder, bar = sceneBar)
+                        PaneSlot(panes.detail, placeholder = spec.detailPlaceholder, bar = sceneBar)
                     }
                 }
                 // Zavíraný sloupec odjíždí s poslední položkou, kterou ukazoval.
@@ -327,7 +354,7 @@ private fun ChatSceneContent(
             }
             // Akce konverzace (přepínač panelu, ⋮) na pevném místě u pravého okraje: s otevřeným
             // i zavřeným sloupcem, i během jeho animace (`PaneBandEnd`).
-            val band = LocalPaneBand.current
+            val band = LocalPaneBand.current.takeIf { spec.conversationActions }
             if (band != null) {
                 val controls = LocalWindowControls.current
                 val controlsAtStart = (controls.side == WindowControlsSide.Left) != (LocalLayoutDirection.current == LayoutDirection.Rtl)

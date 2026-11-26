@@ -7,10 +7,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Co scéna Chatů z položek kreslí ([selectChatPanes]): seznam, detail a boční sloupec, který
+ * Co scéna Chatů z položek kreslí ([selectScenePanes]): seznam, detail a boční sloupec, který
  * patří k detailu pod sebou. Zakrytý profil jiného chatu se nekreslí, ať je v zásobníku cokoli.
  */
-class ChatScenePanesTest {
+class PaneScenePanesTest {
 
     private val archive = "archive"
     private val settings = "settings"
@@ -30,7 +30,7 @@ class ChatScenePanesTest {
         // "media" je přes celou plochu a metadata panelu nemá.
     )
 
-    private fun select(vararg stack: String) = selectChatPanes(stack.toList(), { pane[it] }, { it != settings })
+    private fun select(vararg stack: String) = selectScenePanes(stack.toList(), { pane[it] }, { it != settings })
 
     @Test
     fun jenSeznamMaPlaceholder() {
@@ -79,7 +79,8 @@ class ChatScenePanesTest {
     }
 
     @Test
-    fun nastaveniNechavaKnihovne() {
+    fun scenaKteruStrategieNeznaSeNekresli() {
+        // Popis scény (`PaneSceneSpec`) jen pro Chaty: Nastavení pak rozhoduje další strategie.
         assertNull(select("settings", "section"))
     }
 
@@ -97,5 +98,21 @@ class ChatScenePanesTest {
         assertEquals("convB", panes.detail)
         assertNull(panes.side)
         assertEquals(listOf("chats", "convA", "convB"), panes.sceneEntries)
+    }
+
+    @Test
+    fun zpetZeSekceNastaveniOpoustiNastaveni() {
+        // Sekce Nastavení (backLeavesScene): zpět vede pod celé Nastavení, ne na seznam sekcí,
+        // který by sekci hned znovu otevřel.
+        val stack = listOf("chats", "convA", "settings", "section")
+        val panes = selectScenePanes(stack, { pane[it] }, { true })!!
+        assertEquals(settings, panes.sceneKey)
+        assertEquals(listOf("chats", "convA"), scenePreviousEntries(stack, panes.sceneEntries, leaves = true))
+    }
+
+    @Test
+    fun zpetZPodstrankyJenJiZavre() {
+        val stack = listOf("chats", "settings", "section", "blocked")
+        assertEquals(listOf("chats", "settings", "section"), scenePreviousEntries(stack, listOf("settings", "section", "blocked"), leaves = false))
     }
 }

@@ -64,7 +64,7 @@ fun nearestListAnchorBesideProfile(width: Dp, total: Dp, defaultWidth: Dp, gap: 
  * Šířka seznamu na kotvě [anchor], když vedle něj musí zůstat [reserve]: konverzace (a profil
  * vedle ní) i s okraji karet. Sbalený zůstane sbalený, širší se zúží na místo, které zbývá.
  *
- * Obecná podoba [listWidthBesideProfile] pro scénu Chatů (`ChatScene`), která má vlastní táhlo
+ * Obecná podoba [listWidthBesideProfile] pro scénu Chatů (`PaneScene`), která má vlastní táhlo
  * seznamu i ve dvou panelech: tam se rezervuje jen nejužší konverzace s okraji.
  */
 fun listWidth(anchor: ListPaneAnchor, total: Dp, defaultWidth: Dp, reserve: Dp): Dp {

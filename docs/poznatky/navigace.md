@@ -204,10 +204,10 @@ kde zpět řídí stránka.
 
 Co zbývá (táhlo, kotvy, vzhled panelů), je v `docs/roadmap.md`, „Velká plocha".
 
-**Chaty na široké ploše kreslí vlastní scéna** („Vlastní scéna Chatů" níž), knihovní
-`ThreePaneScaffold` jen Nastavení. Body o třetím panelu knihovny (prázdný třetí oddíl, odjezd
-přes `rememberWithLeavingExtras`, gesto zpět s toutéž direktivou) proto platí už jen pro podstránky
-Nastavení; v Chatech je řeší scéna.
+**Chaty i Nastavení na široké ploše kreslí vlastní scéna panelů** („Vlastní scéna Chatů" níž),
+knihovní `ThreePaneScaffold` (adaptive-navigation3) aplikace nepoužívá vůbec. Body o třetím panelu
+knihovny (prázdný třetí oddíl, odjezd přes `rememberWithLeavingExtras`, gesto zpět s toutéž
+direktivou, direktivy `singlePane`/`twoPane`/`threePane`) jsou historie: proč scéna vznikla.
 
 - **Počet panelů určuje shell, ne knihovna** (`core/adaptive/PaneDirective.kt`): pod
   `TWO_PANE_MIN_WIDTH` (720 dp) jeden, nad ním dva, od `THREE_PANE_MIN_WIDTH` (Large,
@@ -416,7 +416,7 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 - **Šířka ze kotvy se omezí podle toho, co musí zůstat vedle** (`listWidth` s rezervou, testy
   `ListWidthBesideProfileTest`): sbalený zůstane sbalený, širší se zúží, aby konverzaci zbylo
   aspoň 360 dp — s profilem vedle (`reserveBesideProfile`) i bez něj (`RESERVE_BESIDE_LIST`).
-  Šířku dostává scéna (`ChatSceneLayout.listWidth`), metadata položek ji nenesou.
+  Šířku dostává scéna (`PaneSceneLayout.listWidth`), metadata položek ji nenesou.
 - **V obsahu položek se nesmí spoléhat na hodnoty zachycené při stavbě poskytovatele** (`wide`):
   `rememberDecoratedNavEntries` si položky pamatuje podle klíčů, takže po změně šířky okna bez
   navigace zůstanou staré. Co závisí na šířce, čte `LocalPanesSideBySide` uvnitř obsahu
@@ -534,7 +534,7 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 v `AppSettings.profilePaneAnchor`. Stejným mechanismem má táhlo i seznam
 (`rememberListPaneResize`, kotvy seznamu, `AppSettings.listPaneAnchor`).
 
-- **Šířky dostává scéna Chatů** (`ChatSceneLayout.listWidth`, `sideWidth`), táhla jsou vlastní
+- **Šířky dostává scéna Chatů** (`PaneSceneLayout.listWidth`, `sideWidth`), táhla jsou vlastní
   (`PaneResize`). Dřív šly metadaty položek (`Panes.width`) do knihovního `ThreePaneScaffold`,
   jehož táhlo ve třech panelech nebylo a ve dvou (konverzace | profil) měnilo šířku PRVNÍHO
   panelu, tedy konverzace.
@@ -548,7 +548,7 @@ v `AppSettings.profilePaneAnchor`. Stejným mechanismem má táhlo i seznam
   výchozí šířce; seznam: od sbaleného sloupce po místo vedle profilu), po puštění dosedne na
   nejbližší kotvu. Kotva se zapíše do stavu hned, ne až z toku nastavení — ten přijde o snímek
   později a panel by skočil zpátky. Seznam má přednost: širší profil se zúží on.
-- **Za tahu a dojezdu šířky NEanimuje scéna** (`DraggedWidth`, `ChatSceneLayout.instant`).
+- **Za tahu a dojezdu šířky NEanimuje scéna** (`DraggedWidth`, `PaneSceneLayout.instant`).
   S knihovnou šířka za tahu skákala po krocích a její pružina (`AnimatedPane`) každý krok
   animovala znovu: panely prst dotahovaly a cukaly. Teď šířka jde přímo za prstem, po puštění
   dojede na kotvu jednou pružinou (`MotionScheme`, prostorová) a po tu dobu scéna šířky nastavuje
@@ -567,18 +567,29 @@ v `AppSettings.profilePaneAnchor`. Stejným mechanismem má táhlo i seznam
 
 ### Vlastní scéna Chatů
 
-Chaty a archiv na široké ploše kreslí vlastní scéna (`ChatScene.kt`, návrh
-`docs/navrh-scena-chatu.md`), ne `ThreePaneScaffold` z knihovny. Nastavení a telefon zůstávají
-na knihovně a `SinglePaneScene`. Prototyp měl přepínač ve Vzhledu; po ověření na desktopu
+Chaty a archiv na široké ploše kreslí vlastní scéna (`PaneScene.kt`, návrh
+`docs/navrh-scena-chatu.md`), ne `ThreePaneScaffold` z knihovny; od kroku 5 návrhu stejná scéna
+kreslí i Nastavení (níž). Telefon má `SinglePaneScene`. Prototyp měl přepínač ve Vzhledu; po ověření na desktopu
 a emulátoru Fold zmizel ještě před sloučením (VladimirTintera/plume#70), aby do vydání nešla dvě
 rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se daly uklidit.
 
-- **Strategie stojí za `SheetSceneStrategy` a před knihovní list-detail** a na úzkém okně vrací
-  `null`; návrat ke knihovně je tedy jeden řádek (`.takeIf { wide }`). Scénu staví jen se seznamem v souvislém konci zásobníku:
-  konverzace otevřená nad prohlížečem (`chats, conv, media, conv`) seznam nemá a nakreslí ji
-  knihovna přes celou šířku, jako dosud.
-- **Boční sloupec je poslední boční položka NAD posledním detailem** (`selectChatPanes`, test
-  `ChatScenePanesTest`). Zakrytý profil jiného chatu se nekreslí, ať je v zásobníku cokoli;
+- **Strategie stojí za `SheetSceneStrategy`** a na úzkém okně vrací `null`. Scénu staví jen se
+  seznamem; obrazovky přes celou plochu uprostřed zásobníku přeskakuje (viz níž).
+- **Nastavení jsou táž scéna s jiným popisem** (`PaneSceneSpec`): seznam sekcí a podstránka na
+  výchozí šířce panelu bez táhel, bez placeholderu (sekce je v širokém okně otevřená vždycky,
+  `ensureSettingsSection`) a bez akcí konverzace na konci lišty. Podstránka je boční sloupec, pod
+  `THREE_PANE_MIN_WIDTH` seznam sekcí ustoupí, jako profil v Chatech.
+  - **Zpět ze sekce opouští celé Nastavení** (`Panes.backLeavesScene` na `SettingsSectionRoute`,
+    `scenePreviousEntries`): předchozí položky jsou zásobník pod Nastaveními a `NavDisplay` zavolá
+    zpět dvakrát (odebere sekci, pak přepne do Chatů). Obyčejné zpět by sekci odebralo a efekt
+    `ensureSettingsSection` ji hned vrátil. Knihovna to dělala přes `PopUntilScaffoldValueChange`
+    (seznam bez sekce měl stejný stav scaffoldu, protože placeholder rozbalil detail taky).
+    Úprava profilu z karty účtu a obrazovky nad sekcí (`isOverSettingsSection`) zpět jen odeberou.
+  - Ověřeno na desktopu: podstránka (třetí sloupec, otevření i odjezd), Esc z podstránky a hned
+    další Esc ze sekce do Chatů, přepnutí sekce, úprava profilu a zpět do sekce, užší okno
+    (sekce | podstránka). Fold neověřený.
+- **Boční sloupec je poslední boční položka NAD posledním detailem** (`selectScenePanes`, test
+  `PaneScenePanesTest`). Zakrytý profil jiného chatu se nekreslí, ať je v zásobníku cokoli;
   `followProfile` zůstává kvůli zpět a ukládání, ne kvůli obrazu.
 - **Výměna obsahu místa jde po `contentKey`, ne po položce** (`PaneSlot`). Dekorovaná položka je
   v každé kompozici nový objekt (`rememberDecoratedNavEntries` → `decorateEntry`) a `NavEntry.equals`
@@ -621,7 +632,7 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
   - **Měření pásu v okně zmizelo** (`PaneBand.detailCardTop`, `LocalPaneHeaderMinHeight`):
     hlavička bočního panelu se natahovala do výšky hlavičky konverzace změřené v okně. V liště
     scény lícují úseky rozvržením, takže by vycházelo na nulu.
-- **Obrazovky přes celou plochu se při výběru položek přeskakují** (`selectChatPanes`): konverzace
+- **Obrazovky přes celou plochu se při výběru položek přeskakují** (`selectScenePanes`): konverzace
   otevřená z prohlížeče médií (`chats, conv, media, conv2`) stojí vedle seznamu zpod prohlížeče.
   Knihovna scénu u takové položky ukončí, takže by konverzaci kreslila přes celou šířku — jediná
   cesta, kudy by se knihovní třípanel (a s ním pás s měřením) do Chatů vracel.
