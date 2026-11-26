@@ -636,6 +636,9 @@ na knihovně a `SinglePaneScene`.
     jely s rostoucí šířkou. Ve scéně proto konverzace posílá akce do `PaneBand` vždycky, nejen
     s otevřeným sloupcem, i s kontextem své hlavičky (`actionsContext`). Na Windows je u nich
     místo pro tlačítka okna (`endClearance` z `LocalWindowControls`).
+    Ověřeno na desktopu i na emulátoru Fold: záznam otevření a zavření panelu (`adb shell
+    screenrecord --display-id …`, snímky přes `ffmpeg -fps_mode passthrough`) má ikony ve všech
+    66 snímcích na témže místě. Jeden `screencap` je na animaci panelu příliš pomalý.
   - Měření pásu (`detailCardTop`, `LocalPaneHeaderMinHeight`) ve scéně vychází na nulu.
 - **Ověřeno na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
   a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu.
