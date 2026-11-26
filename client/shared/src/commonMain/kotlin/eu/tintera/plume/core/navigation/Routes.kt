@@ -219,6 +219,8 @@ data class ArchiveConversationRoute(
     val topicId: Int? = null,
     /** Vlákno přímých zpráv kanálu (viz [ArchiveDirectTopicsRoute]); `null` = celý chat. */
     val directTopicId: Long? = null,
+    /** Vlákno komentářů v bočním sloupci vedle kanálu, viz [ConversationRoute.beside]. */
+    val beside: Boolean = false,
 ) : AccountRoute
 
 /** Témata skupiny otevřené z archivu — obdoba [ForumTopicsRoute] v archivní větvi. */
@@ -289,6 +291,12 @@ data class ConversationRoute(
     val savedTopicId: Long? = null,
     /** Vlákno přímých zpráv kanálu (viz [DirectTopicsRoute]); `null` = celý chat. */
     val directTopicId: Long? = null,
+    /**
+     * Vlákno komentářů ([threadId]) otevřené čipem pod příspěvkem na široké ploše: stojí
+     * v bočním sloupci vedle kanálu (role Extra), ne na jeho místě. Na telefonu se nezakládá.
+     * Viz „Komentáře v bočním sloupci" v `docs/poznatky/navigace.md`.
+     */
+    val beside: Boolean = false,
 ) : AccountRoute
 
 /**

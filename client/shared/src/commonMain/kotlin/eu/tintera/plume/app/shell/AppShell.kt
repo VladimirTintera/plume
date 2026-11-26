@@ -1154,7 +1154,12 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ConversationRoute>(metadata = Panes.detail() + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata) { route ->
+    // Vlákno komentářů vedle kanálu je boční sloupec (`ConversationRoute.beside`), jinak detail.
+    entry<ConversationRoute>(
+        metadata = { route ->
+            (if (route.beside) Panes.extra() else Panes.detail()) + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata
+        },
+    ) { route ->
         val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             val settings = koinInject<AppSettings>()
@@ -1201,7 +1206,8 @@ private fun shellEntryProvider(
                     // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
                     // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
                     // a skupina s tématy do seznamu témat (`openTarget`).
-                    onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = false) },
+                    // Na široké ploše jdou komentáře do bočního sloupce vedle kanálu (`openCommentsBeside`).
+                    onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = false, from = route, beside = twoPane) },
                     onSearch = { query -> navigation.openSearch(slot, query, keepConversation = twoPane) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                     // Kalendář zpráv jako třetí panel (na telefonu přes celou obrazovku) — tam, kde jde
@@ -1586,7 +1592,12 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata) { route ->
+    entry<ArchiveConversationRoute>(
+        metadata = { route ->
+            (if (route.beside) Panes.extra(ARCHIVE_SCENE) else Panes.detail(ARCHIVE_SCENE)) + Panes.ownSurface() + Panes.headerOutside() +
+                ChatScreenMetadata
+        },
+    ) { route ->
         val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }, onBack = { chatsStack.pop(route) }) {
             val sideBySide = LocalPanesSideBySide.current
@@ -1624,7 +1635,7 @@ private fun shellEntryProvider(
                         chatsStack.add(ForwardRoute(slot, route.chatId, messageIds))
                     },
                     onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(slot, route.chatId, messageId)) },
-                    onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = true) },
+                    onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = true, from = route, beside = twoPane) },
                     onSearch = { query -> navigation.openSearch(slot, query, keepConversation = false) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                     onOpenCalendar = if (route.threadId == null && route.topicId == null) {
@@ -2385,7 +2396,7 @@ private fun shellEntryProvider(
  * ze hledání, a rovnost celé routy by pak přidala tutéž konverzaci podruhé.
  */
 private fun List<NavKey>.isOpenConversation(slot: AccountSlot, chatId: Long): Boolean =
-    (lastOrNull() as? ConversationRoute)?.let { it.slot == slot && it.chatId == chatId } == true
+    (lastOrNull() as? ConversationRoute)?.let { it.slot == slot && it.chatId == chatId && !it.beside } == true
 
 /**
  * Rychlý přepínač v konverzaci: chat jako po ťuknutí v seznamu — i s Uloženými zprávami po

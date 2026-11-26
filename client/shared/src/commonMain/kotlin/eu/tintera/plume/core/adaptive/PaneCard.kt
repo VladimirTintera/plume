@@ -197,6 +197,7 @@ fun PaneCard(
                                 LocalPanePlaneScheme provides planeScheme,
                                 LocalWindowControlsClearance provides clearance,
                                 LocalPaneBandActions provides bandActions,
+                                LocalPaneRole provides role.takeIf { sideBySide },
                                 LocalSceneBarTarget provides sceneBarTarget,
                             ) {
                                 content()
