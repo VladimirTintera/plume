@@ -410,11 +410,36 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   desktopu zpracuje událost synchronně uvnitř posluchače AWT, ze kterého se JBR ptá — stejně to
   dělal Jewel, než přešel na ručně hlášené oblasti (`clientRegion`). Ruční oblasti by tu
   znamenaly označit každé tlačítko v hlavičkách.
+- **Na Macu JBR rozhoduje podle PŘEDCHOZÍ odpovědi, ne podle stisku.** Tah začíná
+  v `AWTWindowDragView` (`AWTWindow.m`): při prvním `mouseDragged` přečte pole
+  `Window.customTitleBarHitTest` na vlákně AppKitu, jenže stisk v tu chvíli často ještě čeká ve
+  frontě AWT. Pole tak drží odpověď na poslední ZPRACOVANOU událost. Když to byl pohyb nad
+  obsahem (frontu zdrželo otevření chatu, pohyb do pruhu se nestihl zpracovat), tah se odmítl
+  a celý šel obsahu — „oknem nejde hýbat", hlavně hned po otevření chatu. Pole se ale čte jen
+  pohledem v pruhu titulku (pod ním leží obsahová vrstva, kam tah nikdy nejde), takže pod
+  pruhem se na Macu hlásí titulek a zastaralá odpověď tah nezablokuje. Na Windows zůstává obsah
+  (tam JBR podle všeho čte `customTitleBarHitTestQuery`; neověřeno). Zdroj čten
+  z větve `jbr25` JetBrainsRuntime; ladicí log odpovědí ukázal stisk správně jako titulek,
+  a okno se přesto nehnulo.
+- **Tah oknem obsah nevidí** (průchod `Initial` na kořeni, po stisku v pruhu, který si nic
+  nevzalo, až do puštění). Na Macu během tahu chodí pohyby myši dál i do Compose — okno jede
+  za kurzorem, ale ne přesně — a lišta s hledáním v seznamu chatů (`enterAlways`, táhnout jde
+  i za ni) se tahem odsunula. Nad vyscrollovaným seznamem se pak už nevrátila: nad seznamem
+  nebylo za co chytit a semafory ležely přes první chat.
+- **Syntetický tah na pozadí okno neposune ani tam, kde to funguje** (computer-use `app_drag`,
+  událost poslaná procesu): `performWindowDragWithEvent` chce skutečnou myš. Ověřuje se přes
+  celou obrazovku (`left_mouse_down` / `mouse_move` / `left_mouse_up`), a táhnout DOLŮ — tah
+  nahoru nad plochu computer-use zastaví s ještě stisknutým tlačítkem.
 - **Popup a dialog jsou jiná vrstva** a přes kořen nejdou: JBR pak nedostane odpověď a bere
   místo jako obsah, což je správně (nabídka u horního kraje okna jde normálně kliknout).
 - Ověřeno na macOS 26.6 v ladicím běhu: tah za prázdnou část hlavičky konverzace posune oknem,
   ⋮ v témže řádku otevře nabídku, zelený semafor přepne na celou obrazovku a zpět, zúžení
   a rozšíření okna přes práh dvou panelů (`osascript`, dvě kola) bez chyby.
+  Oprava zastaralé odpovědi a lišty s hledáním ověřena na macOS 27.2 v ladicím běhu skutečnou
+  myší: otevření chatu a hned tah za hlavičku konverzace posune oknem (dřív ne), tah za mezeru
+  v hlavičce seznamu posune oknem a lišta s hledáním zůstane (dřív odjela a nevrátila se), tah
+  za název chatu oknem nehne, přepínač bočního panelu v pruhu jde kliknout. Dvojklik na pruh
+  po opravě nezkoušen.
   **Windows ověřené není** — tlačítka okna, jejich barvy podle motivu (`controls.dark`)
   a klik do pilulky hledání, která tam leží v pruhu titulku. Rozložení hlaviček vpravo je
   ověřené jen náhledem na Macu (`-PwindowControlsPreview=windows`).

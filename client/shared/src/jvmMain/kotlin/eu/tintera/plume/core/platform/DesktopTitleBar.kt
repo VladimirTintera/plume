@@ -16,6 +16,7 @@ import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalPlatformWindowInsets
 import androidx.compose.ui.platform.PlatformInsets
@@ -144,21 +145,45 @@ object DesktopTitleBar {
      * Co si stisk vzalo, drží obsah až do puštění (tah po posuvníku přes pruh titulku nesmí
      * přejít v tah oknem). Odpověď platí pro tutéž událost, protože Compose ji na desktopu
      * zpracuje synchronně uvnitř posluchače AWT, ze kterého se JBR ptá.
+     *
+     * - **Na Macu JBR rozhoduje podle PŘEDCHOZÍ odpovědi.** Tah začne pohledem do pole
+     *   `customTitleBarHitTest` při prvním `mouseDragged` (`AWTWindowDragView` v `AWTWindow.m`),
+     *   a to na vlákně AppKitu, zatímco stisk teprve čeká ve frontě AWT. Byla-li poslední
+     *   zpracovaná událost nad obsahem (právě otevřený chat zdržel frontu a pohyb do pruhu se
+     *   nestihl zpracovat), tah se odmítl a stisk šel obsahu. Pohled do pole ale dělá jen
+     *   pohled v pruhu titulku, takže pod pruhem na odpovědi nezáleží: na Macu se tam hlásí
+     *   titulek a zastaralá odpověď tah nezablokuje. Obsah je jen to, co si v pruhu vzal prvek.
+     * - **Tah oknem obsah nevidí.** Při tahu na Macu chodí pohyby myši dál i obsahu (okno se
+     *   hýbe za kurzorem, ale ne přesně), takže lišta s hledáním v seznamu chatů se tahem
+     *   odsunula (`enterAlways`) a zůstala schovaná — nad seznamem pak nebylo za co chytit
+     *   a semafory ležely přes první chat. Po stisku v pruhu, který si nic nevzalo, proto kořen
+     *   pohyby spotřebuje v průchodu `Initial`, dřív než je uvidí lišta, až do puštění.
      */
     private fun Modifier.hitTest(titleBar: WindowDecorations.CustomTitleBar, heightPx: Int): Modifier =
         pointerInput(titleBar, heightPx) {
             awaitPointerEventScope {
                 var inControl = false
+                var windowDrag = false
                 while (true) {
+                    val initial = awaitPointerEvent(PointerEventPass.Initial)
+                    if (windowDrag) initial.changes.forEach { if (it.positionChanged()) it.consume() }
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     // Kolečko a odchod z okna se podle JBR neodpovídají.
                     if (event.type == PointerEventType.Scroll || event.type == PointerEventType.Exit) continue
-                    val consumed = event.changes.any { it.isConsumed }
-                    if (event.type == PointerEventType.Press && consumed) inControl = true
                     val y = event.changes.firstOrNull()?.position?.y ?: continue
                     val inTitle = y < heightPx
-                    titleBar.forceHitTest(!inTitle || consumed || inControl)
-                    if (event.type == PointerEventType.Release) inControl = false
+                    // Pohyby spotřebované kvůli tahu oknem si nevzal prvek.
+                    val consumed = !windowDrag && event.changes.any { it.isConsumed }
+                    if (event.type == PointerEventType.Press) {
+                        if (consumed) inControl = true else if (inTitle) windowDrag = true
+                    }
+                    val control = inTitle && (consumed || inControl)
+                    // Na Windows pod pruhem obsah jako dřív — jak se tam JBR ptá, ověřené není.
+                    titleBar.forceHitTest(control || (!mac && !inTitle))
+                    if (event.type == PointerEventType.Release) {
+                        inControl = false
+                        windowDrag = false
+                    }
                 }
             }
         }
