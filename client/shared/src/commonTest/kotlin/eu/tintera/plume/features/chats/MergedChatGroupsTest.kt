@@ -34,8 +34,8 @@ class MergedChatGroupsTest {
     }
 
     /**
-     * Soukromý chat (i s botem, třeba Notifikátor) a obyčejná skupina jsou v každém účtu jiná
-     * konverzace: dvakrát, s jiným klíčem.
+     * Dokud účty neznají svá id (Uložené zprávy), nejde chat s vlastním účtem poznat: soukromý
+     * chat ve dvou účtech je dvakrát, s jiným klíčem.
      */
     @Test
     fun stejnyChatVeDvouUctechDvakrat() {
@@ -92,7 +92,7 @@ class MergedChatGroupsTest {
         )
 
         assertEquals(listOf(listOf("0:1", "shared:$SUPERGROUP", "1:2")), groups.keys())
-        val merged = groups.flatten().single { it.alsoIn.isNotEmpty() }
+        val merged = groups.flatten().single { it.others.isNotEmpty() }
         assertEquals(listOf(0, 1), merged.sources)
     }
 
@@ -124,7 +124,6 @@ class MergedChatGroupsTest {
         assertEquals(true, merged.chat.isPinned)
     }
 
-    /** Nepřečtené jsou tytéž zprávy: nejvyšší z účtů, ne součet. */
     /** Otevírá-li se podle preference účtem, kde připnutá není, připínáček i místo zůstanou. */
     @Test
     fun pripnutaPodlePreferenceZustavaNahore() {
@@ -138,6 +137,7 @@ class MergedChatGroupsTest {
         assertEquals(true, merged.chat.isPinned)
     }
 
+    /** Nepřečtené jsou tytéž zprávy: nejvyšší z účtů, ne součet. */
     @Test
     fun neprectenePodleNejvyssiho() {
         val first = chat(SUPERGROUP, time = 5).copy(unreadCount = 3, unreadMentionCount = 0)
@@ -157,6 +157,82 @@ class MergedChatGroupsTest {
         assertEquals(listOf(listOf("0:$SUPERGROUP")), groups.keys())
     }
 
+    /**
+     * Soukromý chat (i s botem, třeba Notifikátor) ve dvou účtech je jednou: nepřečtené se
+     * sčítají (jiné zprávy) a otevře se účtem, kde nepřečtené jsou, i když je jeho zpráva starší.
+     */
+    @Test
+    fun soukromyChatJednouSNeprectenymi() {
+        val first = chat(BOT, time = 9)
+        val second = chat(BOT, time = 5).copy(unreadCount = 2)
+
+        val merged = mergedChatGroups(listOf(own(FIRST, first), own(SECOND, second))).flatten().single { it.chat.id == BOT }
+
+        assertEquals("shared:$BOT", merged.key)
+        assertEquals(1, merged.source)
+        assertEquals(listOf(MergedInstance(1, BOT), MergedInstance(0, BOT)), merged.instances)
+        assertEquals(2, merged.chat.unreadCount)
+        assertEquals(5, merged.chat.lastMessageTimestamp)
+    }
+
+    /** Bez nepřečtených se soukromý chat otevře účtem s nejnovější zprávou; sčítá se i zmínka. */
+    @Test
+    fun soukromyChatPodleNejnovejsiZpravy() {
+        val first = chat(BOT, time = 3).copy(unreadMentionCount = 0)
+        val second = chat(BOT, time = 8)
+
+        val merged = mergedChatGroups(listOf(own(FIRST, first), own(SECOND, second))).flatten().single { it.chat.id == BOT }
+
+        assertEquals(1, merged.source)
+        assertEquals(8, merged.chat.lastMessageTimestamp)
+    }
+
+    /** Při shodě rozhodne účet, kterým se do chatu psalo naposledy. */
+    @Test
+    fun soukromyChatPriShodePodlePreference() {
+        val merged = mergedChatGroups(
+            listOf(own(FIRST, chat(BOT, time = 4)), own(SECOND, chat(BOT, time = 4))),
+            preferred = mapOf(BOT to 1),
+        ).flatten().single { it.chat.id == BOT }
+
+        assertEquals(1, merged.source)
+    }
+
+    /**
+     * Chat s druhým vlastním účtem se nespojuje: v tom účtu je totéž id jeho Uložených zpráv.
+     * Uložené zprávy se tu neukazují (nepřipnuté), takže zbude jen chat prvního účtu.
+     */
+    @Test
+    fun chatSVlastnimUctemSeNespojuje() {
+        val groups = mergedChatGroups(listOf(own(FIRST, chat(SECOND, time = 4)), own(SECOND, chat(SECOND, time = 4))))
+
+        assertEquals(listOf(listOf("0:$SECOND")), groups.keys())
+    }
+
+    /**
+     * Uložené zprávy obou účtů jsou jedním řádkem, i když je druhý účet neukazuje (nepřipnuté):
+     * každý účet je má pod svým id.
+     */
+    @Test
+    fun ulozeneZpravyJednou() {
+        val first = own(FIRST, chat(FIRST, pinned = true, time = 2))
+        val second = own(SECOND, chat(SECOND, time = 7))
+
+        val merged = mergedChatGroups(listOf(first, second)).flatten().single()
+
+        assertEquals("shared:saved", merged.key)
+        assertEquals(listOf(MergedInstance(1, SECOND), MergedInstance(0, FIRST)), merged.instances)
+        assertEquals(true, merged.chat.isPinned)
+    }
+
+    /** Uložené zprávy, které neukazuje ani jeden účet, se neukážou ani spojené. */
+    @Test
+    fun skryteUlozeneZpravyObouUctu() {
+        val groups = mergedChatGroups(listOf(own(FIRST, chat(FIRST, time = 2)), own(SECOND, chat(SECOND, time = 7))))
+
+        assertEquals(emptyList(), groups)
+    }
+
     @Test
     fun prazdnySeznam() {
         assertEquals(emptyList(), mergedChatGroups(listOf(MergeSource(emptyList()), MergeSource(emptyList()))))
@@ -165,7 +241,18 @@ class MergedChatGroupsTest {
     private companion object {
         /** Id supergroupy, jak ho dává TDLib (`-100…`). */
         const val SUPERGROUP = -1_001_234_567_890L
+
+        /** User id účtů, tedy i id jejich Uložených zpráv. */
+        const val FIRST = 669_883_193L
+        const val SECOND = 8_898_237_146L
+
+        /** Soukromý chat s botem (Notifikátor). */
+        const val BOT = 8_875_105_705L
     }
+
+    /** Účet s vlastním id [userId]: Uložené zprávy, které se ukazují jen připnuté, jako v aplikaci. */
+    private fun own(userId: Long, vararg chats: ChatSummary) =
+        MergeSource(chats.toList(), hiddenSavedMessagesChatId = userId, savedMessagesChatId = userId)
 
     private fun List<List<MergedChat>>.keys() = map { group -> group.map { it.key } }
 

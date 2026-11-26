@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.accounts.SharedChats
+import eu.tintera.plume.core.accounts.isSharedHistoryChat
 import kotlin.time.Duration
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.GifRepository
@@ -2186,7 +2187,9 @@ class ConversationViewModel(
         playback.discreetListened.clear()
         viewModelScope.launch {
             chatRepository.readChat(chatId)
-                .onSuccess { sharedChats?.readAll(slot, chatId) }
+                // Jen společná historie: v soukromém chatu jsou v druhém účtu jiné zprávy, které
+                // uživatel v téhle konverzaci neviděl.
+                .onSuccess { if (isSharedHistoryChat(chatId)) sharedChats?.readAll(slot, chatId) }
                 .onFailure { failure -> logger.w(failure) { "Chat se nepodařilo označit jako přečtený." } }
             listened.forEach { messageId ->
                 repository.openContent(chatId, messageId).onFailure { failure ->

@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountSession
+import eu.tintera.plume.core.accounts.ChatCounterpart
+import eu.tintera.plume.core.accounts.isSharedHistoryChat
 import eu.tintera.plume.core.accounts.InAccount
 import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.core.accounts.AccountSlot
@@ -40,13 +42,17 @@ import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_account_switch_current
 import eu.tintera.plume.resources.conversation_account_switch_text
+import eu.tintera.plume.resources.conversation_account_switch_text_separate
 import eu.tintera.plume.resources.conversation_account_switch_title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Účet, kterým se dá psát do spojené společné skupiny ([rememberChatAccounts]). */
+/**
+ * Účet, kterým se dá psát do spojeného chatu ([rememberChatAccounts]), a id toho chatu v něm:
+ * Uložené zprávy mají v každém účtu jiné id (vlastní id účtu), ostatní totéž.
+ */
 @Immutable
-internal data class ChatAccount(val slot: AccountSlot, val info: AccountInfo, val session: AccountSession) {
+internal data class ChatAccount(val slot: AccountSlot, val info: AccountInfo, val session: AccountSession, val chatId: Long) {
     /** Fotka účtu: `fileId` z jeho TDLib, kreslí se proto v jeho kontejneru ([InAccount]). */
     @Composable
     fun Photo(size: Dp) {
@@ -55,10 +61,10 @@ internal data class ChatAccount(val slot: AccountSlot, val info: AccountInfo, va
 }
 
 /**
- * Účty, které jsou ve společné skupině nebo kanálu [chatId] (i ten konverzace), v pořadí účtů
- * aplikace. Prázdné, když je tam jen účet konverzace, mimo režim Všechny účty a u chatu, který
- * se přes účty nespojuje ([SharedChats], `isSharedHistoryChat`). [enabled] = `false` u míst,
- * odkud se účet přepnout nedá (bublina konverzace).
+ * Účty, které chat [chatId] mají taky ([SharedChats.counterparts]: společná skupina nebo kanál,
+ * soukromý chat, Uložené zprávy), i ten konverzace, v pořadí účtů aplikace. Prázdné, když ho má
+ * jen účet konverzace, a mimo režim Všechny účty. [enabled] = `false` u míst, odkud se účet
+ * přepnout nedá (bublina konverzace).
  */
 @Composable
 internal fun rememberChatAccounts(chatId: Long, enabled: Boolean): List<ChatAccount> {
@@ -67,14 +73,14 @@ internal fun rememberChatAccounts(chatId: Long, enabled: Boolean): List<ChatAcco
     val signedIn by koinInject<Accounts>().all.collectAsStateWithLifecycle()
     val allAccounts by koinInject<AppSettings>().chatListAllAccounts.collectAsStateWithLifecycle()
     val accounts by produceState(emptyList<ChatAccount>(), chatId, account.slot, signedIn, allAccounts, enabled) {
-        val others = if (enabled) shared.othersIn(account.slot, chatId) else emptyList()
+        val others = if (enabled) shared.counterparts(account.slot, chatId) else emptyList()
         value = if (others.isEmpty()) {
             emptyList()
         } else {
             // `me()` je dotaz do místní databáze TDLib, ne na síť.
-            (listOf(account) + others)
-                .sortedBy { session -> signedIn.indexOfFirst { it.slot == session.slot } }
-                .mapNotNull { session -> session.session.me().getOrNull()?.let { ChatAccount(session.slot, it, session) } }
+            (listOf(ChatCounterpart(account, chatId)) + others)
+                .sortedBy { counterpart -> signedIn.indexOfFirst { it.slot == counterpart.account.slot } }
+                .mapNotNull { (session, id) -> session.session.me().getOrNull()?.let { ChatAccount(session.slot, it, session, id) } }
         }
     }
     return accounts
@@ -92,7 +98,7 @@ internal fun rememberChatAccounts(chatId: Long, enabled: Boolean): List<ChatAcco
 internal fun AccountSwitchButton(
     accounts: List<ChatAccount>,
     current: AccountSlot,
-    onSwitch: (AccountSlot) -> Unit,
+    onSwitch: (ChatAccount) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val me = accounts.firstOrNull { it.slot == current } ?: return
@@ -106,9 +112,9 @@ internal fun AccountSwitchButton(
         AccountSwitchSheet(
             accounts = accounts,
             current = current,
-            onChoose = { slot ->
+            onChoose = { account ->
                 open = false
-                if (slot != current) onSwitch(slot)
+                if (account.slot != current) onSwitch(account)
             },
             onDismiss = { open = false },
         )
@@ -121,9 +127,12 @@ internal fun AccountSwitchButton(
 private fun AccountSwitchSheet(
     accounts: List<ChatAccount>,
     current: AccountSlot,
-    onChoose: (AccountSlot) -> Unit,
+    onChoose: (ChatAccount) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // Společná skupina má jednu historii a mění se jen to, kdo píše; soukromý chat a Uložené
+    // zprávy jsou v každém účtu jiná konverzace a přepnutí ukáže jiné zprávy.
+    val sharedHistory = accounts.firstOrNull()?.chatId?.let(::isSharedHistoryChat) == true
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberRestoringScrollState()).padding(bottom = 16.dp)) {
             SheetTitle(
@@ -131,7 +140,9 @@ private fun AccountSwitchSheet(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 8.dp),
             )
             Text(
-                stringResource(Res.string.conversation_account_switch_text),
+                stringResource(
+                    if (sharedHistory) Res.string.conversation_account_switch_text else Res.string.conversation_account_switch_text_separate,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 16.dp),
@@ -143,7 +154,7 @@ private fun AccountSwitchSheet(
                         selected = account.slot == current,
                         index = index,
                         count = accounts.size,
-                        onClick = { onChoose(account.slot) },
+                        onClick = { onChoose(account) },
                         leading = { account.Photo(40.dp) },
                     )
                 }

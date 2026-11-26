@@ -1277,11 +1277,12 @@ private fun shellEntryProvider(
                     // Spravované přímé zprávy kanálu: konverzaci nahradí seznam vláken na TÉMŽE místě.
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, DirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
-                    // Spojená společná skupina jiným účtem: táž konverzace na TÉMŽE místě (bez skoku
-                    // na zprávu z hledání) a seznam ji tím účtem otevře příště.
-                    onSwitchAccount = { target ->
-                        sharedChats.prefer(route.chatId, target)
-                        chatsStack.replaceRoute(route, route.copy(slot = target, messageId = null))
+                    // Spojený chat jiným účtem: táž konverzace na TÉMŽE místě (bez skoku na zprávu
+                    // z hledání) a seznam ji tím účtem otevře příště. Jiné id (Uložené zprávy) =
+                    // jiná konverzace, téma Uložených zpráv z prvního účtu tam nepatří.
+                    onSwitchAccount = { target, chatId ->
+                        sharedChats.prefer(chatId, target)
+                        chatsStack.replaceRoute(route, route.switchedTo(target, chatId))
                     },
                 ),
             )
@@ -1701,9 +1702,9 @@ private fun shellEntryProvider(
                     onViewAsTopics = { chatsStack.openArchiveForum(slot, route.chatId) },
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
-                    onSwitchAccount = { target ->
-                        sharedChats.prefer(route.chatId, target)
-                        chatsStack.replaceRoute(route, route.copy(slot = target, messageId = null))
+                    onSwitchAccount = { target, chatId ->
+                        sharedChats.prefer(chatId, target)
+                        chatsStack.replaceRoute(route, route.copy(slot = target, chatId = chatId, messageId = null))
                     },
                 ),
             )
@@ -2713,3 +2714,11 @@ private fun MutableList<NavKey>.replaceSettingsDetail(detail: NavKey) {
     removeAll { it is SettingsSectionRoute || it.isOverSettingsSection() }
     add(detail)
 }
+
+/**
+ * Konverzace [this] otevřená účtem [slot], ve kterém má chat id [chatId] (`onSwitchAccount`).
+ * Bez skoku na zprávu; u jiného id (Uložené zprávy) i bez tématu Uložených zpráv — témata patří
+ * účtu a v druhém by to id znamenalo jiné téma nebo žádné.
+ */
+private fun ConversationRoute.switchedTo(slot: AccountSlot, chatId: Long): ConversationRoute =
+    copy(slot = slot, chatId = chatId, messageId = null, savedTopicId = savedTopicId.takeIf { chatId == this.chatId })

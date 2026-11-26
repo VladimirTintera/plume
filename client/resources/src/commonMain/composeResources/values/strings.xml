@@ -856,6 +856,7 @@
     <string name="conversation_account_switch_current">Writing as %1$s. Change account</string>
     <string name="conversation_account_switch_title">Write as</string>
     <string name="conversation_account_switch_text">You are in this chat with more than one account. Messages, reactions and replies go from the one you choose.</string>
+    <string name="conversation_account_switch_text_separate">Each account has its own conversation here. Switching shows the messages of the account you choose, and you write from it.</string>
     <string name="conversation_input_caption">Caption</string>
     <string name="conversation_save_edit">Save the edit</string>
     <string name="conversation_record_voice">Record a voice message</string>

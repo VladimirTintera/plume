@@ -27,10 +27,11 @@ private const val SUPERGROUP_MAX_ID = -1_000_000_000_001L
 private const val SUPERGROUP_MIN_ID = -2_000_000_000_000L + (1L shl 31)
 
 /**
- * Společné skupiny a kanály víc účtů v režimu Všechny účty (`docs/navrh-vice-uctu.md`,
- * „Spojené společné skupiny"): jeden řádek v seznamu, výběr účtu v poli zprávy, přečtení za
- * všechny účty a jedna notifikace na zprávu. Mimo režim (nebo s jedním účtem) nedělá nic —
- * spojení je vlastnost společného seznamu.
+ * Chaty, které má víc účtů, v režimu Všechny účty (`docs/navrh-vice-uctu.md`, kroky 24 a 25):
+ * jeden řádek v seznamu a výběr účtu v poli zprávy. U společné skupiny nebo kanálu (tatáž
+ * historie) navíc přečtení za všechny účty a jedna notifikace na zprávu; u soukromého chatu
+ * a Uložených zpráv (v každém účtu jiná historie) jen „Označit jako přečtené" za všechny.
+ * Mimo režim (nebo s jedním účtem) nedělá nic — spojení je vlastnost společného seznamu.
  *
  * Jedno na proces: přenáší mezi kontejnery účtů, které o sobě nevědí.
  */
@@ -58,31 +59,60 @@ class SharedChats(
     }
 
     /**
-     * Ostatní účty, které jsou v chatu [chatId] taky (člen skupiny, odběratel kanálu); prázdné
-     * mimo režim a u chatu bez společné historie. Jen místní databáze TDLib, bez sítě.
+     * Tentýž chat v ostatních účtech: účet a id chatu v něm. Prázdné mimo režim. Jen místní
+     * databáze TDLib, bez sítě.
+     *
+     * - **Uložené zprávy** ([chatId] je vlastní id účtu [slot]): Uložené zprávy ostatních účtů,
+     *   tedy JINÉ id chatu (vlastní id toho účtu).
+     * - **Chat s jiným vlastním účtem** (id je user id jiného přihlášeného účtu): žádný. V tom
+     *   druhém účtu je totéž id jeho Uložených zpráv, ne chat s námi.
+     * - **Supergroupa a kanál** ([isSharedHistoryChat]) a **soukromý chat** (kladné id, i bot):
+     *   ostatní účty, které v chatu jsou (`ChatRepository.takesPartIn`), s týmž id.
+     * - Ostatní (obyčejná skupina, tajný chat): žádný.
      */
-    suspend fun othersIn(slot: AccountSlot, chatId: Long): List<AccountSession> {
-        if (!active || !isSharedHistoryChat(chatId)) return emptyList()
-        return accounts.all.value.filter { other ->
-            other.slot != slot && other.koin.getOrNull<ChatRepository>()?.takesPartIn(chatId) == true
+    suspend fun counterparts(slot: AccountSlot, chatId: Long): List<ChatCounterpart> {
+        if (!active) return emptyList()
+        val all = accounts.all.value
+        val own = all.firstOrNull { it.slot == slot } ?: return emptyList()
+        val others = all.filter { it.slot != slot }
+        val ownIds = all.mapNotNull { it.userId.value }
+        return when {
+            chatId == own.userId.value -> others.mapNotNull { other -> other.userId.value?.let { ChatCounterpart(other, it) } }
+            chatId in ownIds -> emptyList()
+            // Dokud není známé id všech účtů, nejde chat s vlastním účtem poznat: nic.
+            ownIds.size < all.size -> emptyList()
+            isSharedHistoryChat(chatId) || chatId > 0 -> others
+                .filter { other -> other.koin.getOrNull<ChatRepository>()?.takesPartIn(chatId) == true }
+                .map { ChatCounterpart(it, chatId) }
+            else -> emptyList()
         }
     }
 
-    /** Uživatel v účtu [from] přečetl chat [chatId] po zprávu [messageId]: přečte se i v ostatních. */
+    /**
+     * Uživatel v účtu [from] přečetl chat [chatId] po zprávu [messageId]: přečte se i v ostatních.
+     * Jen u společné historie ([isSharedHistoryChat]) — v soukromém chatu jsou v každém účtu jiné
+     * zprávy a „po zprávu X" tam nic neznamená.
+     */
     fun readUpTo(from: AccountSlot, chatId: Long, messageId: Long) {
-        spread(from, chatId) { it.readUpTo(chatId, messageId) }
+        if (!isSharedHistoryChat(chatId)) return
+        spread(from, chatId) { repository, _ -> repository.readUpTo(chatId, messageId) }
     }
 
-    /** „Označit jako přečtené" v účtu [from]: chat se přečte celý i v ostatních. */
+    /**
+     * „Označit jako přečtené" v účtu [from]: chat se přečte celý i v ostatních. Platí pro každý
+     * spojený řádek, i soukromý chat a Uložené zprávy: řádek ukazuje nepřečtené všech účtů,
+     * takže „přečteno" musí platit za všechny.
+     */
     fun readAll(from: AccountSlot, chatId: Long) {
-        spread(from, chatId) { it.readChat(chatId) }
+        spread(from, chatId) { repository, counterpart -> repository.readChat(counterpart) }
     }
 
-    private fun spread(from: AccountSlot, chatId: Long, read: suspend (ChatRepository) -> Result<Unit>) {
-        if (!active || !isSharedHistoryChat(chatId)) return
+    private fun spread(from: AccountSlot, chatId: Long, read: suspend (ChatRepository, Long) -> Result<Unit>) {
+        if (!active) return
         scope.launch {
-            othersIn(from, chatId).forEach { other ->
-                read(other.koin.get()).onFailure { logger.w(it) { "Přečtení společného chatu se do druhého účtu nepřeneslo." } }
+            counterparts(from, chatId).forEach { counterpart ->
+                read(counterpart.account.koin.get(), counterpart.chatId)
+                    .onFailure { logger.w(it) { "Přečtení spojeného chatu se do druhého účtu nepřeneslo." } }
             }
         }
     }
@@ -99,6 +129,9 @@ class SharedChats(
         return claims.claim(slot, chatId, messageId)
     }
 }
+
+/** Tentýž chat v jiném účtu ([SharedChats.counterparts]): Uložené zprávy tam mají jiné id. */
+data class ChatCounterpart(val account: AccountSession, val chatId: Long)
 
 /**
  * Kdo první ohlásil kterou zprávu ([SharedChats.mayNotify]). Pamatuje si posledních [capacity]
