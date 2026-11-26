@@ -270,6 +270,11 @@ v `ChatMessage.postStats`). Čísla jsou zkrácená („12 tis.", „1.2K";
 - **Reakce a počty chodí JEDNÍM updatem** (`UpdateMessageInteractionInfo`), proto je z dřívějšího
   `reactionUpdates` `interactionUpdates` a nese obojí (`MessageInteractions`). Dva odběry téhož
   updatu by jen čekaly, až se rozejdou.
+- **Počty nepočítáme my, jen ukazujeme, co pošle TDLib** (`replyInfo.replyCount`, `viewCount`).
+  TDLib je ale znovu načte (`getMessagesViews`) jen u zpráv, které mu hlásíme jako zhlédnuté,
+  a hlášení přečtení vlastní zprávy filtruje. Ve vlastním kanálu jsou příspěvky odchozí, takže
+  počet komentářů po smazání jednoho zůstal na „2", zatímco oficiální klient ukazoval 1. Vlastní
+  zpráva s počty se proto hlásí taky (`messagesToView`, test `vlastniPrispevekSPoctySeHlasi`).
 - **Pod zprávou, ne v ní, a na protější straně než čipy reakcí.** Ty visí přes dolní nároží na
   straně odesílatele, takže u příchozího příspěvku jsou počty vpravo. Barva patří ploše
   konverzace, jako u odznaku doručení. Když řádek reakcí přesahuje bublinu, zarovnají se počty

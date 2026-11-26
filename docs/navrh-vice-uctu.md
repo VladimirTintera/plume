@@ -254,9 +254,10 @@ jednomu účtu podle řádku.
   Barva účtu by se pletla s barvami chatů (`ChatColors`), proto fotka.
 - **Společná supergroupa nebo kanál je jeden řádek s odznaky všech účtů** (krok 24): historie
   i id zpráv jsou v obou účtech stejné, liší se jen tím, kdo píše. Účet se vybírá u pole zprávy.
-- **Ostatní chat ve dvou účtech se ukáže dvakrát.** Chat s Petrem (i s botem, třeba
-  Notifikátor) a Uložené zprávy jsou v každém účtu jiná konverzace, obyčejná skupina má
-  v každém účtu jiná id zpráv. Odznak účtu je rozliší.
+- **Soukromý chat a Uložené zprávy obou účtů jsou taky jeden řádek** (krok 25), ale jako
+  rozcestník: v každém účtu je to jiná konverzace a přepnutí účtu u pole ukáže jinou historii.
+- **Obyčejná skupina ve dvou účtech se ukáže dvakrát**: má v každém účtu jiná id zpráv. Stejně
+  tak chat s druhým vlastním účtem — v něm je to id jeho Uložených zpráv. Odznak účtu je rozliší.
 - **Řazení podle data poslední zprávy.** `ChatPosition.order` z TDLib je číslo uvnitř jednoho
   účtu a mezi účty se porovnat nedá.
 - **Připnuté chaty všech účtů jsou nahoře i v režimu Vše** (rozhodnuto): napřed připnuté
@@ -1055,8 +1056,41 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       přečtení za VT zmizel odznak nepřečtených řádku i notifikace a v seznamu jen hlavního
       účtu je skupina přečtená. Soukromý chat s Notifikátorem zůstal dvakrát. **Neověřené:**
       desktop, sbalený sloupec, archiv, „Označit jako přečtené" a přečtení z notifikace.
-    - **Zbývá:** Uložené zprávy a soukromé chaty jako jeden řádek s přepínačem historie
-      (druhá fáze), přenos pozice v historii při přepnutí účtu, akce nad řádkem za všechny účty.
+    - **Zbývá:** přenos pozice v historii při přepnutí účtu, akce nad řádkem za všechny účty.
+
+25. **Spojené Uložené zprávy a soukromé chaty** — hotovo (`mergeKey`, `SharedChats.counterparts`,
+    testy v `MergedChatGroupsTest`):
+    - **V každém účtu jiná konverzace.** Řádek je rozcestník: přepnutí účtu u pole otevře
+      konverzaci druhého účtu s jeho zprávami (sheet to říká jinou větou než u skupiny,
+      `conversation_account_switch_text_separate`). Prolínat dvě historie do jedné by mátlo —
+      odpověď by šla do jiného chatu, než ve kterém zpráva je.
+    - **Co se spojí** (`mergeKey`): soukromý chat s týmž člověkem nebo botem (kladné id, v obou
+      účtech stejné) a Uložené zprávy (id = vlastní id účtu, v každém jiné; klíč `saved`). **Ne
+      chat s druhým vlastním účtem**: jeho id je v tom druhém účtu id Uložených zpráv. Dokud
+      některý účet nezná své id, soukromé chaty se nespojují vůbec — chat s vlastním účtem by
+      nešlo poznat.
+    - **Uložené zprávy se spojí i se skrytými** (seznam je ukazuje jen připnuté): stačí, že je
+      vidět jeden výskyt. Nepřipnuté v obou účtech se neukážou ani spojené.
+    - **Řádek ukazuje a otevírá výskyt s nepřečtenými**, jinak ten s nejnovější zprávou (při
+      shodě účet, kterým se psalo naposledy). Náhled, čas i akce patří tomu výskytu, takže
+      řádek nikdy neukazuje zprávu z jiného účtu, než ve kterém se otevře. Nepřečtené se
+      sčítají — každý účet má jiné zprávy.
+    - **Přepnutí s jiným id** (`ConversationRoute.switchedTo`): routa dostane id chatu v cílovém
+      účtu a zahodí téma Uložených zpráv (patří účtu). Výběr účtu bere protějšky z
+      `SharedChats.counterparts`, který Uložené zprávy mapuje na id druhého účtu.
+    - **Přečtení se nepřenáší**, jen „Označit jako přečtené" v seznamu přečte oba výskyty
+      (řádek ukazuje součet). V konverzaci se nepřenáší ani tohle: přečetlo by zprávy druhého
+      účtu, které uživatel neviděl. Notifikace zůstávají dvě — jsou to dvě různé zprávy.
+    - **Uložené zprávy zobrazené jako chaty** (`SavedTopicsRoute`) výběr účtu nemají: ten je
+      u pole zprávy a seznam témat žádné nemá. Otevřou se účtem řádku.
+    - **Ověřeno na emulátoru Fold** (rozložený, anglicky, hlavní účet a VT): Notifikátor,
+      služební chat Telegram a „Pixel 7 Pro" jsou jedním řádkem s oběma odznaky; chat „VT"
+      (hlavní účet s VT) a „Já" (VT s hlavním účtem) zůstaly zvlášť a chat s VT výběr účtu nemá.
+      Notifikátor za hlavní účet → výběr s větou o oddělených konverzacích → VT ukáže historii
+      VT a „Message as VT". Uložené zprávy hlavního účtu → VT otevře Uložené zprávy VT (jiné id,
+      jiný obsah). **Neověřené:** spojený řádek Uložených zpráv v seznamu (na Foldu je oba účty
+      nemají připnuté, takže se neukazují — pokrývá test), „Označit jako přečtené" nad spojeným
+      soukromým chatem, desktop.
 
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.

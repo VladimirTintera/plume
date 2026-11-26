@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.UnreadMarks
@@ -21,6 +22,7 @@ class UnreadMarksTest {
         unreadReactions: Boolean = false,
         unreadPollVotes: Boolean = false,
         album: Long = 0L,
+        postStats: PostStats? = null,
     ) = ChatMessage(
         id = id,
         isOutgoing = outgoing,
@@ -40,6 +42,7 @@ class UnreadMarksTest {
         mediaAlbumId = album,
         hasUnreadReactions = unreadReactions,
         hasUnreadPollVotes = unreadPollVotes,
+        postStats = postStats,
     )
 
     @Test
@@ -113,6 +116,19 @@ class UnreadMarksTest {
             ),
         )
         assertEquals(listOf(14L, 13L, 12L), state.messagesToView(setOf(11L, 12L, 13L, 14L)))
+    }
+
+    @Test
+    fun vlastniPrispevekSPoctySeHlasi() {
+        // Ve vlastním kanálu jsou příspěvky odchozí. TDLib jim počty (i komentáře) obnoví jen
+        // po zhlédnutí — bez hlášení zůstal po smazání komentáře starý počet.
+        val state = ConversationState(
+            messages = listOf(
+                message(14, outgoing = true, postStats = PostStats(views = 1, forwards = 0, comments = 2)),
+                message(13, outgoing = true),
+            ),
+        )
+        assertEquals(listOf(14L), state.messagesToView(setOf(13L, 14L)))
     }
 
     @Test

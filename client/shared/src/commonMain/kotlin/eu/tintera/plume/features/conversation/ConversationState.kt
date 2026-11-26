@@ -503,23 +503,29 @@ data class PendingReply(val message: PendingBotMessage, val stopped: Boolean = f
     val canStop: Boolean get() = message.canStop && !stopped
 }
 
+/** Zprávy, jejichž zhlédnutí něco přečte — nepřečtená reakce nebo hlas v anketě. */
+internal fun ConversationState.unreadMarkedIds(): Set<Long> =
+    messages.filter { it.hasUnreadReactions || it.hasUnreadPollVotes }.mapTo(HashSet()) { it.id }
+
 /**
  * Které zprávy z viditelných položek ([visibleKeys] jsou KLÍČE, ne id) se hlásí jako zhlédnuté.
  *
  * Cizí zprávy vždycky; album celé, protože je v seznamu jednou položkou s klíčem nejstarší
  * zprávy a ostatní fotky by jinak zůstaly v počtu nepřečtených napořád. Vlastní zprávu tehdy,
- * když nese nepřečtené reakce nebo hlasy v anketě — přečte je právě zhlédnutí —, **a když leží
- * nad hranicí nepřečtených** ([ConversationState.unreadBoundaryId]).
+ * když nese nepřečtené reakce nebo hlasy v anketě — přečte je právě zhlédnutí —, **když leží
+ * nad hranicí nepřečtených** ([ConversationState.unreadBoundaryId]), **nebo když nese počty
+ * příspěvku** ([ChatMessage.postStats]).
  *
- * To poslední je kvůli tématům: server v tématu počítá jako nepřečtené i VLASTNÍ zprávy nad
+ * Hranice je kvůli tématům: server v tématu počítá jako nepřečtené i VLASTNÍ zprávy nad
  * hranicí (servisní „přibyli členové" po přidání, zpráva poslaná z jiného zařízení). Cizí zpráva
  * nad hranicí žádná nebyla, takže se nehlásilo nic, hranice stála a odznak „2" u tématu zůstal
  * napořád, i když v něm uživatel četl a psal. Nahlášená vlastní zpráva hranici posune přes ni.
+ *
+ * Počty příspěvku (zhlédnutí, přeposlání, komentáře) TDLib obnovuje jen u zpráv, které mu
+ * hlásíme jako zhlédnuté (`getMessagesViews` za `viewMessages`). Ve VLASTNÍM kanálu jsou
+ * příspěvky odchozí, takže se nehlásily a počet zůstal, jak ho TDLib znal naposledy: po smazání
+ * komentáře svítilo „2 komentáře" u příspěvku s jedním, zatímco oficiální klient ukazoval 1.
  */
-/** Zprávy, jejichž zhlédnutí něco přečte — nepřečtená reakce nebo hlas v anketě. */
-internal fun ConversationState.unreadMarkedIds(): Set<Long> =
-    messages.filter { it.hasUnreadReactions || it.hasUnreadPollVotes }.mapTo(HashSet()) { it.id }
-
 internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long> {
     val albums = messages
         .filter { keyOf(it) in visibleKeys }
@@ -528,7 +534,10 @@ internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long
         .toSet()
     return messages
         .filter {
-            (!it.isOutgoing || it.hasUnreadReactions || it.hasUnreadPollVotes || it.id > (unreadBoundaryId ?: Long.MAX_VALUE)) &&
+            (
+                !it.isOutgoing || it.hasUnreadReactions || it.hasUnreadPollVotes || it.postStats != null ||
+                    it.id > (unreadBoundaryId ?: Long.MAX_VALUE)
+                ) &&
                 (keyOf(it) in visibleKeys || it.mediaAlbumId in albums)
         }
         .map { it.id }
