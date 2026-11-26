@@ -18,6 +18,8 @@ import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountBadge
+import eu.tintera.plume.core.accounts.rememberBadgeAccounts
+import eu.tintera.plume.core.accounts.AccountBadges
 import androidx.compose.foundation.interaction.DragInteraction
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.more_vert_24dp
@@ -664,6 +666,7 @@ internal fun SearchResults(
                     archived = chat.isArchived,
                     onClick = { onPickLatest(chat.id, chat.slot) },
                     slot = chat.slot,
+                    accounts = chat.slot?.let { search.resultAccounts[it to chat.id] },
                     // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                     modifier = Modifier.animateItem().groupedItem(index + savedRows, chatRows, rowColor),
                     avatarShape = chat.kind.avatarShape(),
@@ -1111,6 +1114,8 @@ private fun ChatResultRow(
     onRemove: (() -> Unit)? = null,
     /** Účet chatu při hledání přes víc účtů; `null` = účet obrazovky. */
     slot: AccountSlot? = null,
+    /** Spojený výsledek (`ChatSearchState.resultAccounts`): všechny jeho účty, [slot] první. */
+    accounts: List<AccountSlot>? = null,
 ) {
     ResultAccountScope(slot) {
     ListItem(
@@ -1122,7 +1127,7 @@ private fun ChatResultRow(
             null
         },
         leadingContent = {
-            ResultAvatar(slot) {
+            ResultAvatar(slot, accounts) {
                 Avatar(chatId = avatarColorId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
             }
         },
@@ -1156,13 +1161,23 @@ private fun ResultAccountScope(slot: AccountSlot?, content: @Composable () -> Un
     koinInject<Accounts>().find(slot)?.let { AccountScope(it, content) }
 }
 
-/** Avatar výsledku s odznakem účtu, když je výsledek z hledání přes víc účtů. */
+/**
+ * Avatar výsledku s odznakem účtu, když je výsledek z hledání přes víc účtů; u spojeného výsledku
+ * ([accounts]) odznaky všech jeho účtů přes sebe, jako ve společném seznamu.
+ */
 @Composable
-private fun ResultAvatar(slot: AccountSlot?, avatar: @Composable () -> Unit) {
+private fun ResultAvatar(slot: AccountSlot?, accounts: List<AccountSlot>? = null, avatar: @Composable () -> Unit) {
     Box {
         avatar()
-        if (slot != null) {
-            rememberShownAccount()?.let { account ->
+        when {
+            slot == null -> Unit
+            accounts != null && accounts.size > 1 -> AccountBadges(
+                rememberBadgeAccounts(accounts),
+                rim = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.align(Alignment.BottomStart),
+                size = 14.dp,
+            )
+            else -> rememberShownAccount()?.let { account ->
                 AccountBadge(account, rim = MaterialTheme.colorScheme.surface, modifier = Modifier.align(Alignment.BottomStart), size = 14.dp)
             }
         }

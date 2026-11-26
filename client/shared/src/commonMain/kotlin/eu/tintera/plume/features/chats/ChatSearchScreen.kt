@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.accounts.SharedChats
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
@@ -144,7 +146,9 @@ internal fun ChatSearchScreen(
     val savedMessagesBySlot = sources.mapNotNull { (accountSlot, source) ->
         key(accountSlot) { source.savedMessagesChatId.collectAsStateWithLifecycle().value }?.let { accountSlot to it }
     }.toMap()
-    val search = if (sources.isEmpty()) screenSearch else mergedSearchState(screenSearch, searchSources, savedMessagesBySlot)
+    // Kterým účtem otevírat spojený výsledek: tím, kterým se do chatu psalo naposledy.
+    val preferred by koinInject<SharedChats>().preferred.collectAsStateWithLifecycle()
+    val search = if (sources.isEmpty()) screenSearch else mergedSearchState(screenSearch, searchSources, savedMessagesBySlot, preferred)
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val naturalSearchAvailable by viewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()

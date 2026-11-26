@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.isSharedHistoryChat
 import eu.tintera.plume.core.accounts.AccountSlot
 
 import co.touchlab.kermit.Logger
@@ -304,6 +305,11 @@ data class ChatSearchState(
     val messages: List<FoundMessage> = emptyList(),
     val messagesNextOffset: String? = null,
     val messagesLoading: Boolean = false,
+    /**
+     * Hledání přes víc účtů: účty spojeného výsledku mezi [results] (`mergedSearchState`), podle
+     * účtu a id výsledku. První je účet výsledku, pak ostatní. Výsledek jen jednoho účtu tu není.
+     */
+    val resultAccounts: Map<Pair<AccountSlot, Long>, List<AccountSlot>> = emptyMap(),
 ) {
     /**
      * Veřejné výsledky bez chatů, které jsou už mezi [results] — server je vynechává jen
@@ -371,10 +377,14 @@ data class PickerChats(val chats: List<ChatSummary>, val loading: Boolean)
  * prázdným dotazem (lidé, historie, hashtagy, doporučené kanály) a reklamy jsou z hledání účtu
  * obrazovky ([screen]); patří jednomu účtu a míchat je nemá smysl.
  *
- * - **Vlastní chaty** účet po účtu; stejný chat ve dvou účtech je tam dvakrát, jako v seznamu.
+ * - **Vlastní chaty** účet po účtu; chat, který má víc účtů, je jednou jako ve společném seznamu
+ *   (`mergeKey`: společná skupina nebo kanál, soukromý chat; ne obyčejná skupina ani chat
+ *   s vlastním účtem). Stojí na místě prvního výskytu, otevře se účtem z [preferred] (kterým se do
+ *   něj psalo naposledy), jinak tím prvním, a účty nese [ChatSearchState.resultAccounts].
  * - **Veřejné chaty** jen jednou: kanál najdou oba účty a otevřít ho jde kterýmkoli, bere se
  *   účet, který je v pořadí první.
- * - **Zprávy** podle data, nejnovější nahoře, napříč účty.
+ * - **Zprávy** podle data, nejnovější nahoře, napříč účty. Zpráva ve společné skupině nebo kanálu
+ *   ([isSharedHistoryChat]) je jednou — najdou ji oba účty pod týmž id.
  * - **Uložené zprávy** ([savedMessages], id podle účtu) mezi vlastními chaty nejsou: TDLib je
  *   najde pod jménem účtu, takže by hledání „Jan" vrátilo Uložené zprávy každého Janova účtu.
  *   Řádek Uložených zpráv přidává hledání samo, jako u jednoho účtu. Vyřazuje je merge, ne
@@ -384,21 +394,47 @@ fun mergedSearchState(
     screen: ChatSearchState,
     sources: List<Pair<AccountSlot, ChatSearchState>>,
     savedMessages: Map<AccountSlot, Long> = emptyMap(),
+    preferred: Map<Long, AccountSlot> = emptyMap(),
 ): ChatSearchState {
     val first = sources.firstOrNull()?.second ?: return screen
     val global = LinkedHashMap<Long, ChatSummary>()
     sources.forEach { (slot, state) -> state.global.forEach { chat -> global.getOrPut(chat.id) { chat.copy(slot = slot) } } }
+
+    // Vlastní chaty: výskyty téhož chatu v různých účtech pod jedním klíčem, v pořadí účtů.
+    val ownIds = savedMessages.values.toSet()
+    val ownIdsKnown = sources.all { savedMessages[it.first] != null }
+    val instances = LinkedHashMap<String, MutableList<ChatSummary>>()
+    sources.forEach { (slot, state) ->
+        state.results.filter { it.id != savedMessages[slot] }.forEach { chat ->
+            val key = mergeKey(chat, savedMessages[slot], ownIds, ownIdsKnown) ?: "${slot.id}:${chat.id}"
+            instances.getOrPut(key) { mutableListOf() } += chat.copy(slot = slot)
+        }
+    }
+    val results = mutableListOf<ChatSummary>()
+    val resultAccounts = mutableMapOf<Pair<AccountSlot, Long>, List<AccountSlot>>()
+    instances.values.forEach { found ->
+        val opener = found.firstOrNull { it.slot == preferred[it.id] } ?: found.first()
+        results += opener
+        val slot = opener.slot
+        if (found.size > 1 && slot != null) {
+            resultAccounts[slot to opener.id] = listOf(slot) + found.filter { it !== opener }.mapNotNull { it.slot }
+        }
+    }
+
     return screen.copy(
         query = first.query,
         filter = first.filter,
-        results = sources.flatMap { (slot, state) ->
-            state.results.filter { it.id != savedMessages[slot] }.map { it.copy(slot = slot) }
-        },
+        results = results,
+        resultAccounts = resultAccounts,
         searching = sources.any { it.second.searching },
         global = global.values.toList(),
         messages = sources
             .flatMap { (slot, state) -> state.messages.map { found -> found.copy(chat = found.chat.copy(slot = slot)) } }
-            .sortedByDescending { it.date },
+            .sortedByDescending { it.date }
+            // Táž zpráva ve společné skupině z obou účtů: stačí jednou (první účet v pořadí).
+            .distinctBy { found ->
+                if (isSharedHistoryChat(found.chat.id)) "${found.chat.id}:${found.messageId}" else "${found.chat.slot?.id}:${found.chat.id}:${found.messageId}"
+            },
         // Další stránka je, má-li ji kterýkoli účet; dotažení jde všem a kdo nemá, nic neudělá.
         messagesNextOffset = sources.firstNotNullOfOrNull { it.second.messagesNextOffset },
         messagesLoading = sources.any { it.second.messagesLoading },

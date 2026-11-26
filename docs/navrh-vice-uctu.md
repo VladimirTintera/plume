@@ -1163,5 +1163,21 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       hlavního účtu (My Notes, Notifikator…), zpět vede do seznamu chatů. **Neověřené:** téma
       ve vedlejším sloupci na rozloženém displeji, desktop.
 
+29. **Spojené výsledky hledání** — hotovo (`mergedSearchState`, `ChatSearchState.resultAccounts`,
+    testy v `MergedSearchStateTest`):
+    - **Vlastní chaty ve výsledcích** se spojují stejně jako ve společném seznamu (`mergeKey`):
+      společná skupina nebo kanál a soukromý chat jsou jednou, obyčejná skupina a chat s vlastním
+      účtem dvakrát. Uložené zprávy mezi výsledky nejsou (řádek přidává hledání samo).
+    - **Výsledek stojí na místě prvního výskytu** (účty jdou od účtu obrazovky) a otevře se účtem,
+      kterým se do chatu psalo naposledy (`SharedChats.preferred`), jinak tím prvním. Řádek nese
+      odznaky všech jeho účtů přes sebe (`ResultAvatar`, `rememberBadgeAccounts`).
+    - **Zpráva ve společné skupině nebo kanálu** je mezi nalezenými zprávami jednou: oba účty ji
+      najdou pod týmž id. Zprávy ze soukromého chatu se nespojují, jsou to různé zprávy.
+    - Našlo se to na desktopu: „Plume test triaze" byla ve výsledcích dvakrát, každá s jedním
+      odznakem, přitom v seznamu je jednou.
+    - **Ověřeno na desktopu** (hlavní účet a VT): „Plume test triaze" i Notifikátor jsou ve
+      výsledcích jednou s oběma odznaky; dvě zprávy „…jedna notifikace" ze společné skupiny jsou
+      mezi zprávami každá jednou. **Neověřené:** Android, otevření podle `preferred`.
+
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
