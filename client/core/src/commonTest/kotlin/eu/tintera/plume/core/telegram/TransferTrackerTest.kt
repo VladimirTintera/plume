@@ -66,10 +66,10 @@ class TransferTrackerTest {
 
     @Test
     fun activitiesOfAccountsAddUp() {
-        val first = TransferActivity(files = 1, transferredBytes = 10, totalBytes = 100, started = 3)
+        val first = TransferActivity(files = 1, transferredBytes = 10, totalBytes = 100, started = 3, cancellable = 1)
         val second = TransferActivity(files = 2, transferredBytes = 30, totalBytes = 100, started = 2)
 
-        assertEquals(TransferActivity(files = 3, transferredBytes = 40, totalBytes = 200, started = 5), first + second)
+        assertEquals(TransferActivity(files = 3, transferredBytes = 40, totalBytes = 200, started = 5, cancellable = 1), first + second)
         assertEquals(first, first + TransferActivity.Idle)
     }
 
@@ -122,5 +122,18 @@ class TransferTrackerTest {
         assertEquals(1, resumed.files)
         // Obnovené stahování je nový přenos: na Androidu znovu naplánuje úlohu.
         assertEquals(2, resumed.started)
+    }
+
+    @Test
+    fun activeFilesAreTheOnesInTheSummary() {
+        val tracker = TransferTracker(onlyListed = true)
+        tracker.update(fileId = 1, transferring = true, transferredBytes = 10, totalBytes = 100)
+        tracker.listed(fileId = 2, listed = true)
+        tracker.update(fileId = 2, transferring = true, transferredBytes = 10, totalBytes = 100)
+
+        // Soubor mimo seznam se stahuje, ale do souhrnu (a tedy ke zrušení) nepatří.
+        assertEquals(setOf(2), tracker.activeFileIds)
+        assertEquals(tracker.summary(), tracker.summary())
+        assertEquals(1, tracker.summary().started)
     }
 }

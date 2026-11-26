@@ -18,6 +18,13 @@ interface TransferMonitor {
      * v konverzaci ani streamované video se nepočítají — proces by držel každý přehrávaný klip.
      */
     val downloads: StateFlow<TransferActivity>
+
+    /**
+     * Zruší odesílání: smaže rozesílané zprávy, jejichž soubory se právě nahrávají — totéž jako
+     * křížek u zprávy. Zprávy z minulého běhu, které TDLib rozesílá po startu, nezná (nepřišly
+     * updatem), viz [TransferActivity.cancellable].
+     */
+    suspend fun cancelUploads()
 }
 
 /** Souhrn přenášených souborů jednoho účtu, nebo součet přes účty ([plus]). */
@@ -32,6 +39,8 @@ data class TransferActivity(
      * další začal) nebo když v něm visí soubor, o jehož konci TDLib neřekl.
      */
     val started: Long,
+    /** Kolik z nahrávaných souborů patří zprávě, kterou jde zrušit ([TransferMonitor.cancelUploads]). */
+    val cancellable: Int = 0,
 ) {
     val isIdle: Boolean get() = files == 0
 
@@ -44,6 +53,7 @@ data class TransferActivity(
         transferredBytes = transferredBytes + other.transferredBytes,
         totalBytes = totalBytes + other.totalBytes,
         started = started + other.started,
+        cancellable = cancellable + other.cancellable,
     )
 
     companion object {
@@ -80,23 +90,29 @@ class TransferTracker(private val onlyListed: Boolean = false) {
         } else {
             active.remove(fileId)
         }
-        return summary()
+        return summarize()
     }
 
     /** Soubor přibyl do seznamu Stahování, nebo z něj (či z rozestahovaných) odešel. */
     fun listed(fileId: Int, listed: Boolean): TransferActivity {
         if (listed) inList += fileId else inList -= fileId
-        return summary()
+        return summarize()
     }
+
+    /** Soubory v posledním souhrnu. */
+    val activeFileIds: Set<Int> get() = counted
+
+    /** Poslední souhrn, bez změny stavu. */
+    fun summary(): TransferActivity = summarize()
 
     /** Zapomene všechno (výměna klienta: `fileId` platí jen v jedné databázi). */
     fun clear(): TransferActivity {
         active.clear()
         inList.clear()
-        return summary()
+        return summarize()
     }
 
-    private fun summary(): TransferActivity {
+    private fun summarize(): TransferActivity {
         val files = if (onlyListed) active.filterKeys { it in inList } else active
         started += files.keys.count { it !in counted }
         counted = files.keys.toSet()

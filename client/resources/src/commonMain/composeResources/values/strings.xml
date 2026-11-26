@@ -2660,6 +2660,7 @@
     </plurals>
     <string name="transfer_notification_both">%1$s, %2$s</string>
     <string name="transfer_notification_progress">%1$s of %2$s</string>
+    <string name="transfer_notification_cancel_uploads">Cancel sending</string>
     <string name="transfer_notification_pause_downloads">Pause downloads</string>
     <string name="model_download_notification_waiting">Waiting for connection</string>
     <string name="model_download_notification_stop">Stop</string>

@@ -23,6 +23,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.download_notification_title
 import eu.tintera.plume.resources.download_notification_title_after_upload
 import eu.tintera.plume.resources.transfer_notification_both
+import eu.tintera.plume.resources.transfer_notification_cancel_uploads
 import eu.tintera.plume.resources.transfer_notification_pause_downloads
 import eu.tintera.plume.resources.transfer_notification_progress
 import eu.tintera.plume.resources.upload_notification_title
@@ -140,9 +141,13 @@ class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : Corout
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_DEFERRED)
             .setContentIntent(openApp())
             .apply {
-                // Nahrávání pozastavit nejde (TDLib to neumí), stahování ano — jako ve Stahování.
+                // Nahrávání pozastavit nejde (TDLib ho umí jen zrušit smazáním zprávy), stahování
+                // ano — jako ve Stahování. Zrušit jde jen nahrávání, jehož zprávu známe.
+                if (transfers.uploads.cancellable > 0) {
+                    addAction(0, getString(Res.string.transfer_notification_cancel_uploads), TransferActionsReceiver.cancelUploads(applicationContext))
+                }
                 if (!transfers.downloads.isIdle) {
-                    addAction(0, getString(Res.string.transfer_notification_pause_downloads), PauseDownloadsReceiver.intent(applicationContext))
+                    addAction(0, getString(Res.string.transfer_notification_pause_downloads), TransferActionsReceiver.pauseDownloads(applicationContext))
                 }
             }
             .build()

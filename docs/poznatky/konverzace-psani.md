@@ -330,9 +330,23 @@ v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces
   jde službu v popředí spustit jen tehdy. Proto se `setForeground` volá HNED, ne až při odchodu
   do pozadí: tam už by systém spuštění odmítl (`ForegroundServiceStartNotAllowedException`).
 - **Notifikace je jedna pro oba směry**: „Odesílám 1 soubor, stahuji 2 soubory", průběh jednou
-  lištou přes součet bajtů. Při stahování má „Pozastavit stahování" (`PauseDownloadsReceiver`,
-  `toggleAllDownloadsArePaused` ve všech účtech, jako „Pozastavit vše" ve Stahování); úloha pak
-  skončí sama, protože pozastavené se nestahuje. Nahrávání pozastavit nejde. Kanál zůstal
+  lištou přes součet bajtů. Tlačítka obsluhuje `TransferActionsReceiver`, vždy ve všech účtech:
+  - **„Pozastavit stahování"** (`toggleAllDownloadsArePaused`, jako „Pozastavit vše" ve
+    Stahování); úloha pak skončí sama, protože pozastavené se nestahuje.
+  - **„Zrušit odesílání"** (`TransferMonitor.cancelUploads`). Nahrávání pozastavit nejde a zrušit
+    ho TDLib umí jen smazáním rozesílané zprávy — totéž, co dělá křížek u zprávy. Monitor proto
+    vede rozesílané zprávy a jejich soubory (`updateNewMessage` se stavem odesílání, konec
+    `updateMessageSendSucceeded` / `…Failed` / `updateDeleteMessages`) a smaže ty, jejichž
+    soubor se právě nahrává.
+  - **Zprávy z minulého běhu monitor nezná**: TDLib je po startu rozesílá znovu, ale
+    `updateNewMessage` o nich nepošle. Tlačítko se proto ukáže jen u nahrávání, jehož zprávu
+    zná (`TransferActivity.cancellable`); jinak by nic nedělalo. Zrušit je jde dál křížkem.
+  - **Ověřeno na emulátoru** (Fold, Android 17): soubor 250 MB do Uložených, Domů, po 10 s
+    rozbalit notifikaci a „Cancel sending". Zpráva zmizela a úloha skončila za 5 s, dvakrát
+    po sobě (log `Transfers`). Po restartu aplikace s rozeslanou zprávou z minulého běhu se
+    tlačítko neukázalo. Notifikace se obnovuje každou vteřinu a ťuknutí v notifikační liště
+    emulátoru jednou nic neudělalo (bez stopy v logu) — kdyby se to stávalo i na telefonu,
+    je to první podezřelé. Kanál zůstal
   `uploads` (jiné id = nový kanál a ztracené nastavení uživatele), změnil se jen jeho název.
 - **Notifikace je `FOREGROUND_SERVICE_DEFERRED`**: Android 12+ ji ukáže až po deseti vteřinách,
   takže u fotky, která se nahraje hned, žádná nevyskočí. Do Androidu 11 odklad systém nedělá;
