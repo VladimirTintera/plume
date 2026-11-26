@@ -9,7 +9,7 @@ import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 
 /**
- * Extra položky, které jsou navrchu zásobníku (profil, podstránka Nastavení) — tedy to, co je ve
+ * Extra položky, které jsou navrchu zásobníku (podstránka Nastavení) — tedy to, co je ve
  * třetím panelu vidět. Položka přes celou plochu (prohlížeč nad profilem) se přeskočí: panel
  * pod ní pořád je.
  */
@@ -36,6 +36,8 @@ fun <K> List<K>.shownExtras(paneOf: (K) -> PaneInfo?): List<K> {
  *
  * Jen pro kreslení: skutečný zásobník (zpět, ukládání) ji už nemá. Znovu otevřený panel
  * odcházející položky hned zahodí.
+ *
+ * Jen Nastavení: Chaty kreslí scéna Chatů (`ChatScene`), která odjezd bočního sloupce drží sama.
  */
 @Composable
 fun <K : Any> rememberWithLeavingExtras(stack: List<K>, paneOf: (K) -> PaneInfo?): List<K> {

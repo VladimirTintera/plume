@@ -89,9 +89,13 @@ class ChatScenePanesTest {
     }
 
     @Test
-    fun konverzaceNadProhlizecemBezSeznamuNechavaKnihovne() {
-        // Scéna končí u obrazovky přes celou plochu; bez seznamu nad ní scénu Chatů nestaví
-        // a konverzaci nakreslí knihovna přes celou šířku, jako dosud.
-        assertNull(select("chats", "convA", "media", "convB"))
+    fun konverzaceNadProhlizecemMaSeznamZpodNej() {
+        // Prohlížeč uprostřed se přeskočí: konverzace nad ním stojí vedle seznamu zpod něj,
+        // knihovní třípanel se do Chatů nevrací.
+        val panes = select("chats", "convA", "media", "convB")!!
+        assertEquals("chats", panes.list)
+        assertEquals("convB", panes.detail)
+        assertNull(panes.side)
+        assertEquals(listOf("chats", "convA", "convB"), panes.sceneEntries)
     }
 }

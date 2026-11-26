@@ -1,30 +1,15 @@
 package eu.tintera.plume.app.shell
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.VerticalDragHandle
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.layout.PaneExpansionAnchor
-import androidx.compose.material3.adaptive.layout.PaneExpansionState
-import androidx.compose.material3.adaptive.layout.ThreePaneScaffoldScope
-import androidx.compose.material3.adaptive.layout.defaultDragHandleSemantics
-import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
-import eu.tintera.plume.core.adaptive.listPaneAnchors
 import eu.tintera.plume.core.adaptive.PANE_SPACING
 import eu.tintera.plume.core.adaptive.PROFILE_CARD_MARGINS
 import eu.tintera.plume.core.adaptive.PaneEdge
@@ -37,88 +22,38 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.list_pane_width
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.settings.AppSettings
-import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-/** Táhlo mezi seznamem chatů a konverzací: stav knihovny, zvolená kotva a rozbalení. */
-internal class ListPaneExpansion @OptIn(ExperimentalMaterial3AdaptiveApi::class) constructor(
-    val state: PaneExpansionState,
-    /** Kotva, kterou si uživatel zvolil; platí i ve třech panelech, kde se táhlo nekreslí. */
+/**
+ * Kotva seznamu chatů, kterou si uživatel zvolil (`AppSettings.listPaneAnchor`), a ta, na kterou
+ * se sbalený seznam rozbalí. Šířku z ní počítá táhlo seznamu ([rememberListPaneResize]).
+ */
+internal class ListPaneExpansion(
     val anchor: ListPaneAnchor,
     /** Poslední nesbalená kotva — na tu se sbalený seznam rozbalí, ne vždy na výchozí šířku. */
     val expandedAnchor: ListPaneAnchor,
-    /** Dojet táhlem knihovny na [ListPaneAnchor] (dva panely; ve třech řídí šířku [ListPaneWidth]). */
-    val animateTo: (ListPaneAnchor) -> Unit,
-) {
-    /** Rozbalit sbalený seznam na [expandedAnchor] (hledání, karty nad seznamem). */
-    val expand: () -> Unit = { animateTo(expandedAnchor) }
-}
+)
 
 /**
- * Stav táhla s kotvami [listPaneAnchors] a zapamatovanou kotvou z `AppSettings`.
+ * Zvolená kotva z `AppSettings`; dokud se nastavení nenačte, výchozí. Ukládá ji táhlo
+ * ([rememberListPaneResize]), výchozí kotva se neukládá (shoduje se s `null`).
  *
- * - **Ukládá se jen kotva, kterou zvolil uživatel.** Stav začíná na uložené kotvě; dokud se
- *   nastavení nenačte, je to výchozí, a ta se neukládá (shoduje se s `null`), takže uloženou
- *   nepřepíše. Načtená kotva se pak do stavu jen promítne.
- * - **Kotvy závisí na výchozí šířce panelu** (na XL je širší), a když se změní, knihovna kotvu
- *   stavu ztratí; efekt ji podle uložené obnoví.
+ * Dřív tu žil i stav knihovního táhla (`PaneExpansionState`) pro dva panely. Chaty kreslí scéna
+ * Chatů s vlastním táhlem i ve dvou panelech, takže zbyla jen kotva.
  */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-internal fun rememberListPaneExpansion(defaultWidth: Dp): ListPaneExpansion {
+internal fun rememberListPaneExpansion(): ListPaneExpansion {
     val settings = koinInject<AppSettings>()
     val saved by settings.listPaneAnchor.collectAsStateWithLifecycle()
     val chosen = saved ?: ListPaneAnchor.Default
-    val anchors = remember(defaultWidth) { listPaneAnchors(defaultWidth) }
-    val state = rememberPaneExpansionState(
-        anchors = anchors,
-        initialAnchoredIndex = remember { chosen.ordinal },
-    )
-
-    LaunchedEffect(state, anchors, chosen) {
-        val target = anchors[chosen.ordinal]
-        if (state.currentAnchor != target) {
-            // Kotvy do stavu dává efekt knihovny spuštěný dřív (`restore`); kdyby přesto ještě
-            // neplatily, `animateTo` vyhodí — kotva se pak promítne při příští změně.
-            state.animateToIfAnchored(target)
-        }
-    }
-    LaunchedEffect(state, anchors) {
-        snapshotFlow { state.currentAnchor }.collect { current ->
-            val anchor = ListPaneAnchor.entries.getOrNull(anchors.indexOf(current)) ?: return@collect
-            if (anchor != (settings.listPaneAnchor.value ?: ListPaneAnchor.Default)) settings.setListPaneAnchor(anchor)
-        }
-    }
-
     // Jen v paměti: po spuštění se sbaleným seznamem se rozbalí na výchozí šířku.
     var expandedAnchor by remember { mutableStateOf(ListPaneAnchor.Default) }
     SideEffect { if (chosen != ListPaneAnchor.Collapsed) expandedAnchor = chosen }
-
-    val scope = rememberCoroutineScope()
-    return remember(state, chosen, anchors, expandedAnchor) {
-        ListPaneExpansion(
-            state = state,
-            anchor = chosen,
-            expandedAnchor = expandedAnchor,
-            animateTo = { target -> scope.launch { state.animateToIfAnchored(anchors[target.ordinal]) } },
-        )
-    }
+    return remember(chosen, expandedAnchor) { ListPaneExpansion(anchor = chosen, expandedAnchor = expandedAnchor) }
 }
 
 /**
- * `animateTo`, které kotvu mimo seznam kotev stavu jen přeskočí. `runCatching` by spolkl
- * i zrušení korutiny, proto výslovně jen `IllegalArgumentException` z jeho `require`.
- */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-private suspend fun PaneExpansionState.animateToIfAnchored(anchor: PaneExpansionAnchor) {
-    try {
-        animateTo(anchor)
-    } catch (_: IllegalArgumentException) {
-    }
-}
-
-/**
- * Šířka seznamu ve třech panelech a táhlo, které ji mění; [resizing] viz [DraggedWidth].
+ * Šířka seznamu vedle konverzace a táhlo, které ji mění; [resizing] viz [DraggedWidth].
  * [anchor] je kotva, na které seznam stojí nebo na kterou právě dojíždí, [settleTo] na ni dojede
  * stejně jako po puštění táhla (přepínač sbalení).
  */
@@ -131,11 +66,10 @@ internal class ListPaneWidth(
 )
 
 /**
- * Táhlo seznamu ve třech panelech (seznam | konverzace | profil), kde to knihovní nekreslí
- * (`PaneResize`). Šířka jde metadaty seznamu ([listWidthBesideProfile]); po puštění dojede
- * pružinou na nejbližší kotvu ([DraggedWidth]) a uloží se jako `AppSettings.listPaneAnchor` —
- * tatáž kotva pak platí i ve dvou panelech s táhlem knihovny. Do stavu se kotva zapíše hned
- * (`settled`), ne až z toku nastavení, jinak by seznam na snímek skočil zpátky.
+ * Táhlo seznamu ve scéně Chatů (`PaneResize`), ve dvou i třech panelech. Šířku dostává scéna
+ * (`ChatSceneLayout.listWidth`); po puštění dojede pružinou na nejbližší kotvu ([DraggedWidth])
+ * a uloží se jako `AppSettings.listPaneAnchor`. Do stavu se kotva zapíše hned (`settled`), ne až
+ * z toku nastavení, jinak by seznam na snímek skočil zpátky.
  */
 @Composable
 internal fun rememberListPaneResize(
