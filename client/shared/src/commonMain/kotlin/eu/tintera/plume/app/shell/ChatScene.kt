@@ -13,6 +13,18 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.runtime.CompositionLocalProvider
+import eu.tintera.plume.core.adaptive.LocalSceneBar
+import eu.tintera.plume.core.adaptive.SceneBar
+import eu.tintera.plume.core.adaptive.SceneBarSlot
+import eu.tintera.plume.core.adaptive.rememberSceneBar
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -245,6 +257,8 @@ private fun ChatSceneContent(
     val listWidth by animateDpAsState(layout.listWidth, if (layout.instant) snap() else spatial, label = "chat-scene-list")
     val sideWidth by animateDpAsState(layout.sideWidth, if (layout.instant) snap() else spatial, label = "chat-scene-side")
 
+    // Jedna lišta oblasti chatu: hlavičky detailu a bočního sloupce kreslí scéna (`SceneBar`).
+    val sceneBar = rememberSceneBar()
     Row(Modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = listShown,
@@ -262,7 +276,9 @@ private fun ChatSceneContent(
                 .fillMaxHeight()
                 .graphicsLayer { if (detailChanges) alpha = 1f - backProgress.value },
         ) {
-            PaneSlot(panes.detail, placeholder = detailPlaceholder)
+            CompositionLocalProvider(LocalSceneBar provides sceneBar) {
+                PaneSlot(panes.detail, placeholder = detailPlaceholder, bar = sceneBar)
+            }
         }
         // Zavíraný sloupec odjíždí s poslední položkou, kterou ukazoval.
         val lastSide = remember { mutableStateOf<NavEntry<NavKey>?>(null) }
@@ -284,7 +300,11 @@ private fun ChatSceneContent(
                 fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         ) {
             Box(Modifier.width(sideWidth * factor).fillMaxHeight()) {
-                if (side != null) PaneSlot(side, placeholder = null)
+                if (side != null) {
+                    CompositionLocalProvider(LocalSceneBar provides sceneBar) {
+                        PaneSlot(side, placeholder = null, bar = sceneBar)
+                    }
+                }
             }
         }
     }
@@ -299,7 +319,12 @@ private fun ChatSceneContent(
  * podle klíče; odcházející se kreslí svou poslední kopií, dokud nedojede.
  */
 @Composable
-private fun PaneSlot(entry: NavEntry<NavKey>?, placeholder: (@Composable () -> Unit)?) {
+private fun PaneSlot(
+    entry: NavEntry<NavKey>?,
+    placeholder: (@Composable () -> Unit)?,
+    /** Lišta scény: nad kartou položky se kreslí její úsek; `null` = seznam, hlavička je v něm. */
+    bar: SceneBar? = null,
+) {
     val known = remember { HashMap<Any, NavEntry<NavKey>>() }
     val target: Any = entry?.contentKey ?: NoEntry
     if (entry != null) known[entry.contentKey] = entry
@@ -312,6 +337,17 @@ private fun PaneSlot(entry: NavEntry<NavKey>?, placeholder: (@Composable () -> U
     ) { key ->
         val shown = known[key]
         when {
+            shown != null && bar != null -> Column(Modifier.fillMaxSize()) {
+                SceneBarSlot(bar, key)
+                // Pod lištou už stavová lišta není: karta horní inset dostat nesmí. Popis insetů je
+                // konstantní, podmínka modifikátor jen celý přidá nebo odebere (Gotchas v CLAUDE.md).
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .then(if (bar.has(key)) Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)) else Modifier),
+                ) { shown.Content() }
+            }
             shown != null -> shown.Content()
             key == NoEntry -> placeholder?.invoke()
         }

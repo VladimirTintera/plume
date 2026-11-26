@@ -159,6 +159,14 @@ fun PaneCard(
         0.dp
     }
     val outside = card && headerOutside
+    // Scéna Chatů kreslí hlavičku karty ve své liště ([SceneBar]); karta vedle seznamu i boční sloupec.
+    val sceneBar = LocalSceneBar.current
+    // Horní inset lišty jako karty: kde ho karta konzumuje (tlačítka okna v řádku s hlavičkou,
+    // panel, nad kterým nejsou), nesmí ho lišta započítat znovu.
+    val consumeTop = top == PaneEdgeInsets.Consume
+    val sceneBarTarget = remember(sceneBar, entryKey, outside, consumeTop) {
+        if (sceneBar != null && entryKey != null && outside) SceneBarTarget(sceneBar, entryKey, consumeTop) else null
+    }
     // Karta s hlavičkou venku jde až pod spodní kraj okna.
     val flushBottom = card && headerOutside
     val spacing = if (card) PANE_SPACING else 0.dp
@@ -209,7 +217,9 @@ fun PaneCard(
                                 LocalPanePlaneScheme provides planeScheme,
                                 LocalWindowControlsClearance provides clearance,
                                 LocalPaneBandActions provides bandActions,
-                                LocalPaneHeaderMinHeight provides bandHeight,
+                                // V liště scény lícují úseky rozvržením, měření pásu tam nepatří.
+                                LocalPaneHeaderMinHeight provides if (sceneBarTarget != null) 0.dp else bandHeight,
+                                LocalSceneBarTarget provides sceneBarTarget,
                             ) {
                                 content()
                             }

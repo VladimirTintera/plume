@@ -2,7 +2,9 @@
 
 > **Stav:** krok 1 (prototyp scény) je v kódu za přepínačem Vzhled → Chaty → „Zkušební
 > rozvržení chatů" (`ChatScene.kt`, poznatky v `docs/poznatky/navigace.md`, „Vlastní scéna
-> Chatů"). Lišta (krok 3) zatím ne: hlavičky skládá dál `PaneBand` z #67. Vychází z `main` po
+> Chatů"). Lišta (krok 3) je v prototypu taky: `PaneHeader` ve scéně posílá hlavičku do lišty scény
+> (`SceneBar`) se zachyceným kontextem položky, obrazovky beze změny. `PaneBand` zůstává pro akce
+> konverzace nad bočním sloupcem. Vychází z `main` po
 > VladimirTintera/plume#68 (první verze návrhu) a z opravy VladimirTintera/plume#67. 25. 11. 2026
 > padlo rozhodnutí jít směrem „dva panely, druhý je sám dvousloupcový".
 

@@ -614,6 +614,22 @@ na knihovně a `SinglePaneScene`.
 - **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
   `RESERVE_BESIDE_LIST`), knihovní `PaneExpansionState` se nepoužije. Kotva je táž
   (`AppSettings.listPaneAnchor`), takže přepnutí přepínače šířku seznamu nezmění.
+- **Lištu oblasti chatu kreslí scéna, ne obrazovky** (`SceneBar`, `SceneBarSlot`). `PaneHeader`
+  ve scéně hlavičku na místě nekreslí: pošle ji do lišty i s kompozičním kontextem položky
+  (`currentCompositionLocalContext`) a scéna ji složí v úseku nad kartou téže položky. Akce v ní
+  tak dál mají ViewModely, barvy a `PaneBand` své položky. Obrazovky se kvůli tomu neměnily —
+  `PaneHeader` volají konverzace, profil, kalendář i `ProfileSubpageTopBar`.
+  - **Úseky lícují rozvržením**: každý hlásí svou přirozenou výšku a všechny mají výšku nejvyššího
+    (`SceneBar.rowHeight`). Výška se hlásí z měření s `minHeight = 0`, jinak by řada nikdy neklesla.
+  - **Horní inset má lišta stejný jako karta položky** (`SceneBarTarget.consumeTop` z `PaneCard`).
+    Bez toho hlavička na desktopu sjela o výšku titulku okna: karta ho konzumuje (hlavička v řádku
+    s tlačítky okna), ale lišta leží mimo kartu a dostala ho celý. Karta pod lištou horní inset
+    zkonzumuje taky, jinak by obsah Scaffoldu bez lišty dostal odsazení pod stavovou lištou.
+  - **Při přechodu scéna ↔ jiné rozvržení hlavička vzniká znovu** (jiné místo v kompozici). Text
+    hledání v chatu přežije, drží ho ViewModel (`initialQuery`); fokus ne. Movable content by stav
+    přenesl, ale hlavička by se během přechodu `NavDisplay` volala ze dvou scén naráz.
+  - `PaneBand` dál přenáší akce konverzace nad boční sloupec; jeho měření (`detailCardTop`,
+    `LocalPaneHeaderMinHeight`) ve scéně nepotřebné vychází na nulu.
 - **Ověřeno na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
   a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu.
 - **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený je pod `THREE_PANE_MIN_WIDTH`):
@@ -628,6 +644,10 @@ na knihovně a `SinglePaneScene`.
 - **Pant v pozici kniha** (`adb shell cmd device_state state 1`, zpět `state reset`): hranice
   panelů na pantu neleží ani se scénou, ani s knihovnou, rozvržení je v obou režimech stejné.
   Jestli emulátor oddělující pant aplikaci vůbec hlásí, ověřené není; rozhodne skutečný Fold.
+- **Lišta ověřená** na desktopu (konverzace, profil, úprava kanálu i s rolováním, kalendář, Esc,
+  přepnutí chatu) a na emulátoru Fold (gesto zpět, osm cyklů skládání s profilem).
+  **Pozor na studený start emulátoru:** po něm v Plume chyběl mikrofon ve vstupním poli a část
+  avatarů, i s vypnutým přepínačem; po restartu aplikace bylo vše zpátky a znovu se to nestalo.
 - **Neověřeno:** okno mezi `TWO_PANE_MIN_WIDTH` a tři panely na desktopu, Windows, archiv.
 
 ### Obsah přesouvaný mezi scénami
