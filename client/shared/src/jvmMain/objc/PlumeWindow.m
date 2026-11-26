@@ -33,3 +33,27 @@ Java_eu_tintera_plume_core_platform_MacTitleBar_nativeApply(JNIEnv *env, jclass 
         }
     });
 }
+
+// Tah oknem, který začal v Compose (stisk na prvku v pruhu titulku a pohyb přes práh tahu),
+// ne v `AWTWindowDragView` z JBR — ten o tahu rozhoduje jen jednou, při prvním `mouseDragged`,
+// a stisk, který si vzal prvek, oknem nehne. Volá se po zpracování události ve frontě AWT,
+// tedy později, než přišla: bere se proto poslední událost aplikace (`currentEvent`), stejně
+// jako `drag_window` v knihovně tao (Tauri). Bez stisknutého tlačítka se nic nestane.
+JNIEXPORT void JNICALL
+Java_eu_tintera_plume_core_platform_MacTitleBar_nativeStartDrag(JNIEnv *env, jclass cls, jstring title) {
+    if (title == NULL) return;
+    const char *chars = (*env)->GetStringUTFChars(env, title, NULL);
+    NSString *windowTitle = [NSString stringWithUTF8String:chars];
+    (*env)->ReleaseStringUTFChars(env, title, chars);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSEvent *event = NSApp.currentEvent;
+        if (([NSEvent pressedMouseButtons] & 1) == 0) return;
+        if (event == nil) return;
+        if (event.type != NSEventTypeLeftMouseDragged && event.type != NSEventTypeLeftMouseDown) return;
+        for (NSWindow *window in NSApp.windows) {
+            if (![window.title isEqualToString:windowTitle]) continue;
+            [window performWindowDragWithEvent:event];
+            return;
+        }
+    });
+}

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.platform
 
+import co.touchlab.kermit.Logger
 import java.awt.Window
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -41,6 +42,19 @@ internal object MacTitleBar {
             }
         }
     }
+
+    /**
+     * Začne tah oknem za myší, dokud je stisknuté levé tlačítko. Pro tah, který začal na prvku
+     * v pruhu titulku (`DesktopTitleBar.hitTest`); na prázdném místě pruhu táhne JBR sám.
+     */
+    fun startDrag(window: java.awt.Frame) {
+        if (!MacNative.loaded) return
+        runCatching { nativeStartDrag(window.title) }
+            .onFailure { Logger.withTag("TitleBar").w(it) { "Tah oknem se nepodařilo začít" } }
+    }
+
+    @JvmStatic
+    private external fun nativeStartDrag(title: String)
 
     @JvmStatic
     private external fun nativeApply(title: String, dark: Boolean, red: Float, green: Float, blue: Float)

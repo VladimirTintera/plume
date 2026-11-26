@@ -13,6 +13,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -29,6 +33,9 @@ import com.jetbrains.WindowDecorations
 import eu.tintera.plume.core.adaptive.LocalWindowControls
 import eu.tintera.plume.core.adaptive.WindowControls
 import eu.tintera.plume.core.adaptive.WindowControlsSide
+import java.awt.Cursor
+import java.awt.Point
+import java.awt.event.MouseEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -131,7 +138,7 @@ object DesktopTitleBar {
                 else -> WindowControls(WindowControlsSide.Right, controlsWidth, height)
             },
         ) {
-            Box(Modifier.fillMaxSize().hitTest(titleBar, heightPx)) { content() }
+            Box(Modifier.fillMaxSize().hitTest(window, titleBar, heightPx)) { content() }
         }
     }
 
@@ -158,35 +165,90 @@ object DesktopTitleBar {
      *   odsunula (`enterAlways`) a zůstala schovaná — nad seznamem pak nebylo za co chytit
      *   a semafory ležely přes první chat. Po stisku v pruhu, který si nic nevzalo, proto kořen
      *   pohyby spotřebuje v průchodu `Initial`, dřív než je uvidí lišta, až do puštění.
+     * - **Oknem jde táhnout i za prvky v pruhu** (tlačítka, avatar, název chatu), jako za
+     *   tlačítka v nástrojové liště aplikací pro Mac: stisk bez pohybu je klik, pohyb přes práh
+     *   tahu začne tah oknem a prvek o klik přijde (puštění se mu spotřebuje). Tah začíná náš
+     *   most ([MacTitleBar.startDrag]), protože JBR stisk, který si vzal prvek, oknem nehne.
+     *   Textové pole si tah nechá (výběr textu myší); pozná se podle kurzoru, viz [overTextField].
+     *   Podle toho, jestli pohyb spotřeboval prvek, to nejde: lišta s hledáním v seznamu chatů
+     *   ho spotřebuje taky (táhnout jde i za ni), a ikona hledání v ní by pak oknem nehnula.
+     *   Týž most dotáhne i prázdné místo, když JBR tah přesto odmítl a okno stojí.
      */
-    private fun Modifier.hitTest(titleBar: WindowDecorations.CustomTitleBar, heightPx: Int): Modifier =
-        pointerInput(titleBar, heightPx) {
+    private fun Modifier.hitTest(window: ComposeWindow, titleBar: WindowDecorations.CustomTitleBar, heightPx: Int): Modifier =
+        pointerInput(window, titleBar, heightPx) {
+            // Vlastní tah oknem umí jen most na Macu; na Windows prvky v pruhu táhnout nejde.
+            val ownDragAvailable = mac && MacNative.loaded
             awaitPointerEventScope {
                 var inControl = false
+                // Stisk na prázdném místě pruhu: táhne JBR, obsah pohyby nevidí.
                 var windowDrag = false
+                // Stisk na prvku v pruhu: po prahu tahu se z něj stane tah oknem.
+                var controlDrag = false
+                // Tah oknem začal náš most: prvek už nedostane ani puštění.
+                var ownDrag = false
+                var pressPosition = Offset.Zero
+                var pressWindowLocation: Point? = null
                 while (true) {
                     val initial = awaitPointerEvent(PointerEventPass.Initial)
-                    if (windowDrag) initial.changes.forEach { if (it.positionChanged()) it.consume() }
+                    if (windowDrag || ownDrag) {
+                        initial.changes.forEach { if (it.positionChanged() || (ownDrag && it.changedToUp())) it.consume() }
+                    }
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     // Kolečko a odchod z okna se podle JBR neodpovídají.
                     if (event.type == PointerEventType.Scroll || event.type == PointerEventType.Exit) continue
-                    val y = event.changes.firstOrNull()?.position?.y ?: continue
-                    val inTitle = y < heightPx
+                    val change = event.changes.firstOrNull() ?: continue
+                    val inTitle = change.position.y < heightPx
                     // Pohyby spotřebované kvůli tahu oknem si nevzal prvek.
-                    val consumed = !windowDrag && event.changes.any { it.isConsumed }
-                    if (event.type == PointerEventType.Press) {
-                        if (consumed) inControl = true else if (inTitle) windowDrag = true
+                    val consumed = !windowDrag && !ownDrag && event.changes.any { it.isConsumed }
+                    when (event.type) {
+                        PointerEventType.Press -> {
+                            if (consumed) {
+                                inControl = true
+                                controlDrag = ownDragAvailable && inTitle && event.buttons.isPrimaryPressed &&
+                                    !event.overTextField()
+                            } else if (inTitle) {
+                                windowDrag = true
+                            }
+                            pressPosition = change.position
+                            pressWindowLocation = window.location
+                        }
+                        PointerEventType.Move -> if ((controlDrag || windowDrag) && change.pressed) {
+                            val beyondSlop = (change.position - pressPosition).getDistance() > viewConfiguration.touchSlop
+                            when {
+                                controlDrag && beyondSlop -> {
+                                    controlDrag = false
+                                    ownDrag = true
+                                    MacTitleBar.startDrag(window)
+                                }
+                                // Prázdné místo a okno stojí: JBR tah odmítl, dotáhne ho most.
+                                windowDrag && beyondSlop && ownDragAvailable && pressWindowLocation != null -> {
+                                    if (window.location == pressWindowLocation) MacTitleBar.startDrag(window)
+                                    pressWindowLocation = null
+                                }
+                            }
+                        }
                     }
-                    val control = inTitle && (consumed || inControl)
+                    val control = inTitle && (consumed || inControl) && !ownDrag
                     // Na Windows pod pruhem obsah jako dřív — jak se tam JBR ptá, ověřené není.
                     titleBar.forceHitTest(control || (!mac && !inTitle))
                     if (event.type == PointerEventType.Release) {
                         inControl = false
                         windowDrag = false
+                        controlDrag = false
+                        ownDrag = false
                     }
                 }
             }
         }
+
+    /**
+     * Je pod myší textové pole? Pole si nastavuje textový kurzor (`pointerHoverIcon`) už při
+     * najetí, takže při stisku ho má komponenta okna, které událost patří. Označovat pole
+     * v hlavičkách jednotlivě (hledání v konverzaci, hledání chatů, výběr chatu) by se
+     * u dalšího pole zapomnělo.
+     */
+    private fun PointerEvent.overTextField(): Boolean =
+        (nativeEvent as? MouseEvent)?.component?.cursor?.type == Cursor.TEXT_CURSOR
 
     private const val TAG = "TitleBar"
 
