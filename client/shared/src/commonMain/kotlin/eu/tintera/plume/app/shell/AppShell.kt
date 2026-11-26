@@ -1202,9 +1202,9 @@ private fun shellEntryProvider(
                 // té první — i se zprávami. Koin navíc u cachované instance ignoruje
                 // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
                 viewModel = koinViewModel(
-                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}-${route.directTopicId}",
+                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}-${route.directTopicId}-${route.restoreMessageId}",
                     parameters = {
-                        parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId, route.directTopicId)
+                        parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId, route.directTopicId, route.restoreMessageId)
                     },
                 ),
                 navigation = ConversationNavigation(
@@ -1280,9 +1280,9 @@ private fun shellEntryProvider(
                     // Spojený chat jiným účtem: táž konverzace na TÉMŽE místě (bez skoku na zprávu
                     // z hledání) a seznam ji tím účtem otevře příště. Jiné id (Uložené zprávy) =
                     // jiná konverzace, téma Uložených zpráv z prvního účtu tam nepatří.
-                    onSwitchAccount = { target, chatId ->
+                    onSwitchAccount = { target, chatId, position ->
                         sharedChats.prefer(chatId, target)
-                        chatsStack.replaceRoute(route, route.switchedTo(target, chatId))
+                        chatsStack.replaceRoute(route, route.switchedTo(target, chatId, position))
                     },
                 ),
             )
@@ -1643,10 +1643,10 @@ private fun shellEntryProvider(
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
                 viewModel = koinViewModel(
-                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.directTopicId}",
+                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.directTopicId}-${route.restoreMessageId}",
                     // Pátý parametr (téma Uložených zpráv) v archivu není — Uložené archivovat nejdou.
                     parameters = {
-                        parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, null, route.directTopicId)
+                        parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, null, route.directTopicId, route.restoreMessageId)
                     },
                 ),
                 navigation = ConversationNavigation(
@@ -1702,9 +1702,9 @@ private fun shellEntryProvider(
                     onViewAsTopics = { chatsStack.openArchiveForum(slot, route.chatId) },
                     onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
-                    onSwitchAccount = { target, chatId ->
+                    onSwitchAccount = { target, chatId, position ->
                         sharedChats.prefer(chatId, target)
-                        chatsStack.replaceRoute(route, route.copy(slot = target, chatId = chatId, messageId = null))
+                        chatsStack.replaceRoute(route, route.copy(slot = target, chatId = chatId, messageId = null, restoreMessageId = position))
                     },
                 ),
             )
@@ -2716,9 +2716,16 @@ private fun MutableList<NavKey>.replaceSettingsDetail(detail: NavKey) {
 }
 
 /**
- * Konverzace [this] otevřená účtem [slot], ve kterém má chat id [chatId] (`onSwitchAccount`).
- * Bez skoku na zprávu; u jiného id (Uložené zprávy) i bez tématu Uložených zpráv — témata patří
- * účtu a v druhém by to id znamenalo jiné téma nebo žádné.
+ * Konverzace [this] otevřená účtem [slot], ve kterém má chat id [chatId] (`onSwitchAccount`),
+ * na zprávě [position] (společná skupina: tatáž id zpráv). Bez skoku na zprávu; u jiného id
+ * (Uložené zprávy) i bez tématu Uložených zpráv — témata patří účtu a v druhém by to id
+ * znamenalo jiné téma nebo žádné.
  */
-private fun ConversationRoute.switchedTo(slot: AccountSlot, chatId: Long): ConversationRoute =
-    copy(slot = slot, chatId = chatId, messageId = null, savedTopicId = savedTopicId.takeIf { chatId == this.chatId })
+private fun ConversationRoute.switchedTo(slot: AccountSlot, chatId: Long, position: Long?): ConversationRoute =
+    copy(
+        slot = slot,
+        chatId = chatId,
+        messageId = null,
+        savedTopicId = savedTopicId.takeIf { chatId == this.chatId },
+        restoreMessageId = position,
+    )

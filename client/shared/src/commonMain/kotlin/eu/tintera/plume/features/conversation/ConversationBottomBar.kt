@@ -531,7 +531,7 @@ internal fun ConversationBottomBar(
         serverAiAllowed = state.info?.isSecret != true,
         senderSlot = senderSlot(
             accounts = chatAccounts.takeIf { it.size > 1 && switchAccount != null }?.let { accounts ->
-                { modifier -> AccountSwitchButton(accounts, currentSlot, { target -> switchAccount?.invoke(target.slot, target.chatId) }, modifier) }
+                { modifier -> AccountSwitchButton(accounts, currentSlot, { target -> switchAccount?.invoke(target.slot, target.chatId, viewModel.positionForAccountSwitch().takeIf { target.chatId == viewModel.chatId }) }, modifier) }
             },
             sender = state.messageSender?.let { choice ->
                 { modifier ->

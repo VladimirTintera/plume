@@ -108,10 +108,11 @@ data class ConversationNavigation(
     val onSwitchChat: ((ChatSummary) -> Unit)? = null,
     /**
      * Výběr účtu u pole ve spojeném chatu (`SharedChats`): tentýž chat otevře jiným účtem, na
-     * místě téhle konverzace. Id chatu v tom účtu se může lišit (Uložené zprávy). `null` =
-     * nenabízet (bublina konverzace).
+     * místě téhle konverzace. Id chatu v tom účtu se může lišit (Uložené zprávy). [position]
+     * = zpráva, na které má konverzace druhého účtu začít (jen společná skupina, viz
+     * [ConversationViewModel.positionForAccountSwitch]). `null` = nenabízet (bublina konverzace).
      */
-    val onSwitchAccount: ((slot: AccountSlot, chatId: Long) -> Unit)? = null,
+    val onSwitchAccount: ((slot: AccountSlot, chatId: Long, position: Long?) -> Unit)? = null,
 )
 
 /**
