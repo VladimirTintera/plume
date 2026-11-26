@@ -5,6 +5,8 @@ import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Společný seznam chatů víc účtů (režim Vše): pořadí skupin a řazení mezi účty. Položky jsou
@@ -236,6 +238,24 @@ class MergedChatGroupsTest {
     @Test
     fun prazdnySeznam() {
         assertEquals(emptyList(), mergedChatGroups(listOf(MergeSource(emptyList()), MergeSource(emptyList()))))
+    }
+
+    /**
+     * Kotva sbalení seznamu do sloupce (`firstVisibleChatKey`) bere jen klíče řádků: i spojený
+     * řádek (`shared:…`), nejen řádek jednoho účtu. Dřív ho přeskakovala a sloupec dojel až na
+     * první nespojený chat pod ním.
+     */
+    @Test
+    fun klicKazdehoRadkuJeKotvou() {
+        val first = own(FIRST, chat(SUPERGROUP, time = 9), chat(BOT, time = 8), chat(3, time = 7))
+        val second = own(SECOND, chat(SUPERGROUP, time = 9), chat(BOT, time = 8))
+
+        val keys = mergedChatGroups(listOf(first, second)).flatten().map { it.key }
+
+        assertTrue(keys.any { it.startsWith("shared:") }, "v seznamu má být spojený řádek: $keys")
+        assertTrue(keys.any { !it.startsWith("shared:") }, "v seznamu má být řádek jednoho účtu: $keys")
+        keys.forEach { assertTrue(isMergedChatKey(it), "klíč řádku $it kotvou není") }
+        listOf("birthdays", "top-anchor", "update-card").forEach { assertFalse(isMergedChatKey(it), "$it kotvou být nemá") }
     }
 
     private companion object {
