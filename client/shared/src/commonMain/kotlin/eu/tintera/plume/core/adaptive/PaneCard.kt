@@ -13,9 +13,6 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -143,21 +140,12 @@ fun PaneCard(
     // Barvy plochy okna pro hlavičku nad kartou — tady jsou ještě barvy aplikace, ne chatu.
     val planeScheme = MaterialTheme.colorScheme
     val header = remember { PaneHeaderHost() }
-    // Pás hlavičky ([PaneBand]): boční panel vedle konverzace má hlavičku nad kartou, v jedné
-    // řadě s hlavičkou konverzace, a na její konec přidá akce konverzace ([PaneBandActions]).
-    // Jen karta zobrazené položky — odjíždějící by akce zdvojila.
+    // Pás hlavičky ([PaneBand]): boční panel vedle konverzace nechá na konci své hlavičky místo pro
+    // akce konverzace, které kreslí scéna ([PaneBandActions], [PaneBandEnd]). Jen karta zobrazené
+    // položky — odjíždějící by místo zdvojila.
     val band = LocalPaneBand.current
     val shown = entryKey != null && entryKey in LocalPaneResizeOwners.current
     val bandActions = band?.actions.takeIf { extra && neighbours.extraCard && shown }
-    val detailCardTop = band?.detailCardTop
-    var ownTop by remember { mutableFloatStateOf(0f) }
-    // Hlavička panelu sahá až k hornímu okraji karty konverzace, ať karty lícují, ať je hlavička
-    // konverzace vysoká, jak chce (místo pro tlačítka okna, stavová lišta).
-    val bandHeight = if (bandActions != null && detailCardTop != null) {
-        with(LocalDensity.current) { (detailCardTop - ownTop).coerceAtLeast(0f).toDp() }
-    } else {
-        0.dp
-    }
     val outside = card && headerOutside
     // Scéna Chatů kreslí hlavičku karty ve své liště ([SceneBar]); karta vedle seznamu i boční sloupec.
     val sceneBar = LocalSceneBar.current
@@ -194,20 +182,12 @@ fun PaneCard(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .edge(if (card && !flushBottom) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom)
-                            .then(if (extra && band != null) Modifier.onGloballyPositioned { ownTop = it.boundsInWindow().top } else Modifier),
+                            .edge(if (card && !flushBottom) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom),
                     ) {
                         Box(
                             Modifier
                                 .fillMaxSize()
                                 .padding(start = startSpacing, end = endSpacing, top = topSpacing, bottom = if (flushBottom) 0.dp else spacing)
-                                .then(
-                                    if (detail && band != null) {
-                                        Modifier.onGloballyPositioned { band.detailCardTop = it.boundsInWindow().top + header.height }
-                                    } else {
-                                        Modifier
-                                    },
-                                )
                                 .clip(clipShape)
                                 .then(if (sideBySide && ownSurface) Modifier.background(MaterialTheme.colorScheme.surface, surfaceShape) else Modifier),
                         ) {
@@ -217,8 +197,6 @@ fun PaneCard(
                                 LocalPanePlaneScheme provides planeScheme,
                                 LocalWindowControlsClearance provides clearance,
                                 LocalPaneBandActions provides bandActions,
-                                // V liště scény lícují úseky rozvržením, měření pásu tam nepatří.
-                                LocalPaneHeaderMinHeight provides if (sceneBarTarget != null) 0.dp else bandHeight,
                                 LocalSceneBarTarget provides sceneBarTarget,
                             ) {
                                 content()

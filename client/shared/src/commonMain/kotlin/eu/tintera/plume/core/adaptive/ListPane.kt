@@ -1,7 +1,5 @@
 package eu.tintera.plume.core.adaptive
 
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.layout.PaneExpansionAnchor
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.unit.Dp
@@ -35,14 +33,6 @@ val COLLAPSED_LIST_WIDTH = 96.dp
  * se tudy prochází, takže se seznam přepne uprostřed tahu, ne až po puštění.
  */
 val COLLAPSED_LIST_MAX_WIDTH = 200.dp
-
-/** Kotvy táhla v pořadí [ListPaneAnchor]. [defaultWidth] je výchozí šířka panelu z direktivy. */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-fun listPaneAnchors(defaultWidth: Dp): List<PaneExpansionAnchor> = listOf(
-    PaneExpansionAnchor.Offset.fromStart(COLLAPSED_LIST_WIDTH),
-    PaneExpansionAnchor.Offset.fromStart(defaultWidth),
-    PaneExpansionAnchor.Proportion(0.5f),
-)
 
 /**
  * Šířka seznamu ve třech panelech (seznam | konverzace | profil). Táhlo tam knihovna nekreslí

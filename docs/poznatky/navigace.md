@@ -204,6 +204,11 @@ kde zpět řídí stránka.
 
 Co zbývá (táhlo, kotvy, vzhled panelů), je v `docs/roadmap.md`, „Velká plocha".
 
+**Chaty na široké ploše kreslí vlastní scéna** („Vlastní scéna Chatů" níž), knihovní
+`ThreePaneScaffold` jen Nastavení. Body o třetím panelu knihovny (prázdný třetí oddíl, odjezd
+přes `rememberWithLeavingExtras`, gesto zpět s toutéž direktivou) proto platí už jen pro podstránky
+Nastavení; v Chatech je řeší scéna.
+
 - **Počet panelů určuje shell, ne knihovna** (`core/adaptive/PaneDirective.kt`): pod
   `TWO_PANE_MIN_WIDTH` (720 dp) jeden, nad ním dva, od `THREE_PANE_MIN_WIDTH` (Large,
   1200 dp) tři — ale jen s profilem navrchu. Výsledek `calculatePaneScaffoldDirective` se
@@ -340,41 +345,25 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     - **Obsah pod hlavičkou potřebuje vlastní horní odstup**: dřív ho dělala lišta nad ním.
       Fotka profilu (16 dp) a čipy kalendáře (12 dp) jinak narážely na hranu karty; seznamy
       podstránek si 8 dp nad prvním blokem přidávají samy.
-    - **Konverzace a boční panel mají jeden pás hlavičky** (`PaneBand` v `core/adaptive`): jedna
-      řada „← konverzace | nadpis panelu · akce panelu · akce konverzace". Vlevo je konverzace
-      (šipka, avatar, název přes celou šířku jejího panelu). Boční panel má hlavičku NAD kartou
-      v téže řadě a na konec svých akcí přidá akce konverzace (hovor, přepínač panelu, ⋮):
-      konverzace je pošle (`publishToPaneBand`), ve své liště je vynechá a lišta panelu je
-      vykreslí přes `PaneBandActions()`.
-      - **Proč akce u okraje okna:** se zavřeným panelem tam stojí taky (konverzace je poslední
-        panel), takže s otevřeným panelem zůstanou na místě. Dřív uskočily doprostřed okna, i to
-        tlačítko, kterým se panel právě otevřel. Dvě lišty vedle sebe navíc opakovaly jméno chatu
-        a profil měl druhé ⋮ nad týmž chatem.
-      - **Boční panel NEMÁ druhou lištu v kartě.** Dřív pás nesl jen akce konverzace a lišta panelu
-        (nadpis podstránky, Uložit, přepínač roku v kalendáři) ležela v kartě pod ním — úprava
-        kanálu, kalendář i podstránky profilu tak měly dvě horní lišty pod sebou a uživatel to
-        hlásil jako chybu. Teď je hlavička panelu nad kartou (`LocalPaneHeaderOutside` = `true`
-        i v pásu) a v úzkém panelu se nadpis zkrátí (výpustka); šířku panelu jde táhlem zvětšit.
+    - **Konverzace a boční panel mají jednu lištu** (lišta scény `SceneBar`, akce `PaneBand`):
+      jedna řada „← konverzace | nadpis panelu · akce panelu · akce konverzace". Podrobnosti
+      v „Vlastní scéna Chatů" níž; tady jen pravidla pro obrazovky.
+      - **Boční panel NEMÁ druhou lištu v kartě.** Dřív ležela lišta panelu (nadpis podstránky,
+        Uložit, přepínač roku v kalendáři) v kartě pod pásem — úprava kanálu, kalendář
+        i podstránky profilu měly dvě horní lišty pod sebou a uživatel to hlásil jako chybu.
       - **Boční panel v pásu nemá šipku zpět** (`inPaneBand()`), ani podstránka nad profilem
         (úprava, pozvánky) nebo profil člena: je to boční panel a zavírá ho přepínač panelu.
-        Zpátky v panelu jde dál gestem / Esc. Mimo pás (telefon, panel bez konverzace) šipka zůstává.
+        Zpátky v panelu jde dál gestem / Esc. Mimo pás (telefon) šipka zůstává.
       - **Každá lišta, kterou může mít boční panel v Chatech, musí volat `PaneBandActions()`**
         před `WindowControlsEndSpace()`: lišta profilu, kalendáře a `ProfileSubpageTopBar`.
-        Kontrola to nehlídá — panel s vlastní lištou bez nich by akce konverzace (přepínač
-        panelu, ⋮) schoval.
-      - **Kořen profilu vedle vlastní konverzace má lištu jen s akcemi konverzace**
+        Nekreslí akce, jen jim nechá místo (kreslí je scéna, `PaneBandEnd`); lišta bez něj by
+        vlastní akce schovala pod akce konverzace. Kontrola to nehlídá.
+      - **Kořen profilu vedle vlastní konverzace má lištu jen s místem pro akce konverzace**
         (`besideOwnConversation`): jméno je v hlavičce konverzace, akce nad chatem i Upravit jsou
         v jejím ⋮ (`ChatActions`). Profil člena nad konverzací skupiny je jiný chat a v liště má
         jméno a svoje ⋮ vedle akcí konverzace.
-      - **Akce se skládají v kompozici bočního panelu**, takže co v nich bere ViewModel, dostane
-        ho hotový od konverzace: `koinViewModel` uvnitř by sáhl do úložiště ViewModelů panelu
-        a vrátil jinou instanci (ořez navrhované fotky by se pak neukázal).
-      - **Hlavička panelu sahá až k horní hraně karty konverzace**, změřené v okně
-        (`PaneBand.detailCardTop`, `LocalPaneHeaderMinHeight`), ne pevným číslem: hlavička
-        konverzace nese podle platformy místo pro tlačítka okna nebo stavovou lištu. Lišta sedí
-        dole, v řadě s hlavičkou konverzace. Akce předává jen karta zobrazené položky
-        (`LocalPaneResizeOwners`), odjíždějící panel by je zdvojil i s jejich efekty (zkratka
-        přepínače panelu by se přepnula dvakrát).
+      - **Místo pro akce nechává jen karta zobrazené položky** (`LocalPaneResizeOwners`),
+        odjíždějící panel by ho zdvojil.
       - **`verifyWindowControls` čte TEXT volání lišty**: sdílená lambda s `WindowControlsSpace`
         předaná do `navigationIcon` neprojde, místa pro tlačítka okna musí stát přímo v argumentech
         každého `…TopAppBar(`.
@@ -416,25 +405,22 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     v užším okně; táhlo profilu stojí uprostřed mezery. Původní rozvržení i v tmavém motivu.
     **Tmavý motiv s okraji, tablet a Fold (insety lišt, rozložení) ověřené nejsou** — emulátor
     při ověřování kreslil jen bílou plochu.
-- **Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací** (`ListPaneExpansion.kt`). Stav táhla
-  (`PaneExpansionState`) počítá šířku PRVNÍHO rozbaleného panelu, takže mezi konverzací
-  a profilem (pod Large) by konverzaci zmáčkl na šířku sbaleného seznamu. Archiv, nová zpráva
-  a Nastavení mají výchozí šířku. Kde táhlo není, dostane scaffold `paneExpansionState = null`
-  a vytvoří si vlastní výchozí.
+- **Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací** (`rememberListPaneResize`, vlastní
+  `PaneResize`, ve dvou i třech panelech scény Chatů). Archiv, nová zpráva a Nastavení mají výchozí
+  šířku. Knihovní táhlo (`PaneExpansionState`, `paneExpansionDragHandle`) se od scény Chatů
+  nepoužívá: počítalo šířku PRVNÍHO rozbaleného panelu a ve třech panelech ho knihovna nekreslila.
 - **Kotvy** (`ListPaneAnchor`): sbalený sloupec 96 dp (šířka railu M3 Expressive), výchozí šířka
   z direktivy (360, na XL 412) a polovina plochy. Po puštění se seznam dorovná na nejbližší.
-- **Zvolená kotva se ukládá jen po akci uživatele.** Stav začíná na uložené kotvě; dokud se
-  `AppSettings` nenačte, je to výchozí, a ta se neukládá (shoduje se s `null`), takže uloženou
-  nepřepíše. `animateTo` kotvy, kterou stav ještě nezná, vyhodí `IllegalArgumentException`
-  (`require` v knihovně) — chytá se jen ta, `runCatching` by spolkl i zrušení korutiny.
-- **Ve třech panelech je táhlo seznamu vlastní** (`rememberListPaneResize`, viz „Táhlo profilu"; knihovna tam žádné nekreslí) a šířka jde metadaty seznamu
-  (`listWidthBesideProfile`, testy `ListWidthBesideProfileTest`): sbalený zůstane sbalený, širší
-  se zúží, aby konverzaci vedle profilu zbylo aspoň 360 dp. **Metadata položky se ale počítají
-  jen při změně zásobníku** (`rememberDecoratedNavEntries(zásobník, …)` si položky pamatuje podle
-  klíčů), takže si položky Chatů shell staví sám s šířkou v klíči. Ze stejného důvodu se
-  v obsahu položek nesmí spoléhat na hodnoty zachycené při stavbě poskytovatele (`wide`):
-  po změně šířky okna bez navigace zůstanou staré. Co závisí na šířce, čte
-  `LocalPanesSideBySide` uvnitř obsahu (✕ v profilu, chování šipky zpět v konverzaci).
+- **Zvolená kotva se ukládá jen po akci uživatele** (puštění táhla, přepínač sbalení); dokud se
+  `AppSettings` nenačte, platí výchozí, a ta se neukládá (shoduje se s `null`).
+- **Šířka ze kotvy se omezí podle toho, co musí zůstat vedle** (`listWidth` s rezervou, testy
+  `ListWidthBesideProfileTest`): sbalený zůstane sbalený, širší se zúží, aby konverzaci zbylo
+  aspoň 360 dp — s profilem vedle (`reserveBesideProfile`) i bez něj (`RESERVE_BESIDE_LIST`).
+  Šířku dostává scéna (`ChatSceneLayout.listWidth`), metadata položek ji nenesou.
+- **V obsahu položek se nesmí spoléhat na hodnoty zachycené při stavbě poskytovatele** (`wide`):
+  `rememberDecoratedNavEntries` si položky pamatuje podle klíčů, takže po změně šířky okna bez
+  navigace zůstanou staré. Co závisí na šířce, čte `LocalPanesSideBySide` uvnitř obsahu
+  (✕ v profilu, chování šipky zpět v konverzaci).
 - **Sbalený seznam (`CollapsedChatList`) se zapíná podle ŠÍŘKY, ne kotvy** (pod 200 dp): během
   tahu se prochází všemi šířkami a řádek s názvem by byl nečitelný dávno před sbalenou kotvou.
   Hledání ze sloupce seznam napřed rozbalí (`LocalExpandListPane`) a požadavek na hledání počká,
@@ -495,9 +481,7 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   - **Směr přepínače je zvolená kotva, podoba tlačítka je místo, kde stojí**: plný seznam má
     vždy „Sbalit", sloupec „Rozbalit". Za tahu táhlem se podoba přepne podle šířky dřív, než
     seznam dosedne na kotvu, a tlačítko podle kotvy by slibovalo opak.
-  - **Ve dvou panelech dojede táhlo knihovny** (`PaneExpansionState.animateTo`, kotvu zapíše hned
-    a uloží ji tentýž `snapshotFlow` jako po tahu), **ve třech vlastní** (`ListPaneWidth.settleTo`,
-    stejný dojezd jako po puštění táhla).
+  - **Dojede táhlo seznamu** (`ListPaneWidth.settleTo`, stejný dojezd jako po puštění táhla).
   - Ověřeno na desktopu (macOS, ladicí běh): tlačítko za semafory, sbalení kliknutím, rozbalení
     a sbalení ⌃⌘S i položkou nabídky „Chaty", po restartu se sbaleným seznamem; let ikony
     ověřil uživatel. Tři panely,
@@ -547,14 +531,13 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 
 Šířka profilu vedle konverzace se mění táhlem na předělu s konverzací (stav
 `rememberProfilePaneResize`), kotvy výchozí (360/412) / 480 / 600 dp, zvolená
-v `AppSettings.profilePaneAnchor`. Stejným mechanismem má táhlo i seznam ve třech panelech
-(`rememberListPaneResize`, kotvy seznamu, ukládá se tatáž `listPaneAnchor` jako z táhla
-knihovny ve dvou panelech).
+v `AppSettings.profilePaneAnchor`. Stejným mechanismem má táhlo i seznam
+(`rememberListPaneResize`, kotvy seznamu, `AppSettings.listPaneAnchor`).
 
-- **Táhlo knihovny na to nejde.** Ve třech panelech ho `ThreePaneScaffold` nekreslí vůbec
-  a ve dvou (konverzace | profil) nastavuje šířku PRVNÍHO panelu, tedy konverzace. Šířka
-  proto jde metadaty (`Panes.width` u profilu a obrazovek z něj, v Chatech i archivu, a u
-  seznamu) a táhla jsou vlastní (`PaneResize`).
+- **Šířky dostává scéna Chatů** (`ChatSceneLayout.listWidth`, `sideWidth`), táhla jsou vlastní
+  (`PaneResize`). Dřív šly metadaty položek (`Panes.width`) do knihovního `ThreePaneScaffold`,
+  jehož táhlo ve třech panelech nebylo a ve dvou (konverzace | profil) měnilo šířku PRVNÍHO
+  panelu, tedy konverzace.
 - **Táhla se kreslí NAD panely** (`PaneHandleOverlay` přes celou scénu), ne v panelu. Obsah
   panelu se ořezává na jeho okraj: táhlo na předělu by bylo napůl uříznuté a první pokus ho
   proto dal dovnitř profilu — leželo přes dlaždici „Ztlumit" (snímek od uživatele). Panel jen
@@ -565,16 +548,11 @@ knihovny ve dvou panelech).
   výchozí šířce; seznam: od sbaleného sloupce po místo vedle profilu), po puštění dosedne na
   nejbližší kotvu. Kotva se zapíše do stavu hned, ne až z toku nastavení — ten přijde o snímek
   později a panel by skočil zpátky. Seznam má přednost: širší profil se zúží on.
-- **Položky Chatů se za tahu staví znovu** (šířky jsou v klíči `chatsEntries`), obsah ne: drží
-  ho `contentKey`.
-- **Za tahu a dojezdu panely NEanimuje knihovna** (`DraggedWidth`, `Panes.instantBounds`).
-  Napřed šířka za tahu skákala po krocích a knihovní pružina (`AnimatedPane`) každý krok
-  animovala znovu: panely prst dotahovaly a cukaly, a po puštění šířka skočila na kotvu bez
-  animace — vedle hladkého táhla knihovny ve dvou panelech to působilo trhaně. Teď šířka jde
-  přímo za prstem, po puštění dojede na kotvu jednou pružinou (`MotionScheme`, prostorová)
-  a po tu dobu mají panely rozměry bez animace (`snap()`). **Animaci rozměrů DETAILU scéna
-  bere z položky SEZNAMU** (`lastList.boundsAnimationSpec()` v `ThreePaneScaffoldScene`),
-  proto ji nese i seznam.
+- **Za tahu a dojezdu šířky NEanimuje scéna** (`DraggedWidth`, `ChatSceneLayout.instant`).
+  S knihovnou šířka za tahu skákala po krocích a její pružina (`AnimatedPane`) každý krok
+  animovala znovu: panely prst dotahovaly a cukaly. Teď šířka jde přímo za prstem, po puštění
+  dojede na kotvu jednou pružinou (`MotionScheme`, prostorová) a po tu dobu scéna šířky nastavuje
+  bez animace (`snap()`).
 - Jen Chaty; podstránky Nastavení ve třetím panelu mají výchozí šířku.
 - **Polohu táhlu hlásí jen karta položky, která je v Chatech opravdu vidět**
   (`LocalPaneResizeOwners`: profil navrchu zobrazeného zásobníku a hlavní seznam), a smaže ji
@@ -607,14 +585,14 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
   porovnává i lambdu obsahu; `AnimatedContent` nad položkou by „přecházel" mezi dvěma kopiemi
   téže obrazovky. Odcházející položku jde kreslit dál, i když už v zásobníku není: Nav3 zavolá
   `onPop` (úklid ViewModelů a stavu) až ve chvíli, kdy obsah opustí kompozici.
-- **Odjezd sloupce drží scéna** (`AnimatedVisibility` s poslední položkou), proto se Chatům ve
-  scéně nepodává `rememberWithLeavingExtras`.
+- **Odjezd sloupce drží scéna** (`AnimatedVisibility` s poslední položkou), proto se Chatům
+  nepodává `rememberWithLeavingExtras` (zůstává pro podstránky Nastavení v knihovním třípanelu).
 - **Zpět, po kterém zůstane táž scéna, obslouží scéna sama** (`NavigationBackHandler`, jako
   `ThreePaneScaffoldScene`): `NavDisplay` by mezi dvěma stavy téže scény (stejný klíč) nic
   neanimoval. Během gesta se sloupec zužuje o čtvrtinu šířky, po dokončení odjíždí z té šířky.
 - **Táhlo seznamu je ve scéně vlastní i ve dvou panelech** (`rememberListPaneResize` s rezervou
-  `RESERVE_BESIDE_LIST`), knihovní `PaneExpansionState` se nepoužije. Kotva je táž
-  (`AppSettings.listPaneAnchor`), takže přepnutí přepínače šířku seznamu nezmění.
+  `RESERVE_BESIDE_LIST`). Kotva je táž jako u dřívějšího knihovního táhla
+  (`AppSettings.listPaneAnchor`), takže uživatelům šířka seznamu zůstala.
 - **Lištu oblasti chatu kreslí scéna, ne obrazovky** (`SceneBar`, `SceneBarSlot`). `PaneHeader`
   ve scéně hlavičku na místě nekreslí: pošle ji do lišty i s kompozičním kontextem položky
   (`currentCompositionLocalContext`) a scéna ji složí v úseku nad kartou téže položky. Akce v ní
@@ -640,7 +618,13 @@ rozvržení s jiným chováním lišty a obcházky knihovního třípanelu se da
     Ověřeno na desktopu i na emulátoru Fold: záznam otevření a zavření panelu (`adb shell
     screenrecord --display-id …`, snímky přes `ffmpeg -fps_mode passthrough`) má ikony ve všech
     66 snímcích na témže místě. Jeden `screencap` je na animaci panelu příliš pomalý.
-  - Měření pásu (`detailCardTop`, `LocalPaneHeaderMinHeight`) ve scéně vychází na nulu.
+  - **Měření pásu v okně zmizelo** (`PaneBand.detailCardTop`, `LocalPaneHeaderMinHeight`):
+    hlavička bočního panelu se natahovala do výšky hlavičky konverzace změřené v okně. V liště
+    scény lícují úseky rozvržením, takže by vycházelo na nulu.
+- **Obrazovky přes celou plochu se při výběru položek přeskakují** (`selectChatPanes`): konverzace
+  otevřená z prohlížeče médií (`chats, conv, media, conv2`) stojí vedle seznamu zpod prohlížeče.
+  Knihovna scénu u takové položky ukončí, takže by konverzaci kreslila přes celou šířku — jediná
+  cesta, kudy by se knihovní třípanel (a s ním pás s měřením) do Chatů vracel.
 - **Ověřeno na desktopu (macOS)**: placeholder, otevření a zavření sloupce, profil → úprava
   a zpět přes Esc, profil jde za jiným chatem, obě táhla, sbalení seznamu.
 - **Ověřeno na emulátoru Fold** (`Plume_Galerie_Fold`, rozložený je pod `THREE_PANE_MIN_WIDTH`):

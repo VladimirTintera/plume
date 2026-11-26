@@ -96,9 +96,15 @@ internal class ChatPanes<E>(
 )
 
 /**
- * Položky scény Chatů z konce zásobníku, jako je bere knihovna (`ListDetailSceneStrategy`):
- * souvislý konec zásobníku s rolí panelu, z něj položky scény poslední položky. Scénu vrací jen
- * pro scénu, kterou [isChatScene] uzná (ne Nastavení), a jen se seznamem.
+ * Položky scény Chatů: z celého zásobníku položky téže scény jako poslední položka. Scénu vrací
+ * jen pro scénu, kterou [isChatScene] uzná (ne Nastavení), jen se seznamem a jen když poslední
+ * položka roli panelu má (obrazovka přes celou plochu navrchu je scéna sama pro sebe).
+ *
+ * **Obrazovky přes celou plochu uprostřed se přeskakují**, ne že by scénu ukončily jako
+ * v knihovně (`ListDetailSceneStrategy`). Konverzace otevřená z prohlížeče médií
+ * (`chats, conv, media, conv2`) by jinak neměla seznam a kreslila by ji knihovna přes celou
+ * šířku — jediná cesta, kudy by se knihovní třípanel do Chatů vrátil. Zpět z ní vede do
+ * prohlížeče: předchozí položky jsou celý zásobník bez poslední.
  *
  * **Boční sloupec je poslední boční položka NAD posledním detailem.** Boční položka pod ním
  * patří k jinému chatu (profil, nad který se otevřela jiná konverzace) a nekreslí se.
@@ -114,7 +120,7 @@ internal fun <E> selectChatPanes(
     val scene = ArrayList<E>()
     val roles = ArrayList<PaneRole>()
     for (index in entries.indices.reversed()) {
-        val info = paneOf(entries[index]) ?: break
+        val info = paneOf(entries[index]) ?: continue
         if (info.scene != sceneKey) continue
         scene += entries[index]
         roles += info.role

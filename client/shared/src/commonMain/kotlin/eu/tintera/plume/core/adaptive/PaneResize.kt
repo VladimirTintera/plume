@@ -52,9 +52,9 @@ enum class PaneEdge {
 val LIST_CONTENT_INSET = 16.dp
 
 /**
- * Vlastní táhlo mezi panely tam, kde táhlo knihovny (`paneExpansionDragHandle`) nestačí: ve
- * třech panelech ho `ThreePaneScaffold` nekreslí vůbec, a ve dvou počítá šířku PRVNÍHO panelu.
- * Šířka pak jde metadaty panelu (`Panes.width`) a tah ji mění.
+ * Táhlo mezi panely scény Chatů: seznam | konverzace a konverzace | boční sloupec. Šířku dostává
+ * scéna (`ChatSceneLayout`) a tah ji mění. Dřív to bylo táhlo navíc k knihovnímu
+ * (`paneExpansionDragHandle`), které ve třech panelech `ThreePaneScaffold` nekreslil vůbec.
  *
  * **Táhlo se kreslí nad panely, ne v panelu.** Obsah panelu se ořezává na jeho okraj, takže
  * táhlo na předělu by bylo napůl uříznuté — a uvnitř panelu leželo přes jeho obsah (dlaždice

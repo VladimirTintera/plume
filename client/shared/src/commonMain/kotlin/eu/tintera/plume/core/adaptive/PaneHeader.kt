@@ -14,7 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
@@ -71,12 +70,6 @@ internal val LocalPaneHeaderOutside = compositionLocalOf { false }
  */
 internal val LocalPanePlaneScheme = compositionLocalOf<ColorScheme?> { null }
 
-/**
- * Nejmenší výška hlavičky nad kartou (s mezerou ke kartě): v pásu ([PaneBand]) výška hlavičky
- * konverzace vedle, ať karty lícují. Lišta pak sedí dole, v řadě s hlavičkou konverzace.
- */
-internal val LocalPaneHeaderMinHeight = compositionLocalOf { 0.dp }
-
 /** Lišta v hlavičce nemá vlastní plochu: leží na ploše okna, nebo na skle ([PaneHeader]). */
 private val LocalInPaneHeader = staticCompositionLocalOf { false }
 
@@ -111,7 +104,6 @@ fun PaneHeader(glass: Modifier? = null, content: @Composable () -> Unit) {
                     Modifier
                         .then(shownGlass ?: Modifier)
                         .then(if (target == null) Modifier.onSizeChanged { host?.height = it.height } else Modifier)
-                        .heightIn(min = if (outside) LocalPaneHeaderMinHeight.current else 0.dp)
                         .padding(bottom = if (outside) PANE_HEADER_GAP else 0.dp),
                     contentAlignment = Alignment.BottomStart,
                 ) { content() }

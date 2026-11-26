@@ -32,21 +32,20 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 
 /**
- * Jeden pás hlavičky přes konverzaci a boční panel vedle ní (profil, kalendář, podstránky).
+ * Akce konverzace (hovor, přepínač panelu, ⋮) jako konec lišty scény Chatů.
  *
- * Konverzace v něm nechává vlevo sebe (šipka, avatar, název) a své akce (hovor, panel, ⋮) pošle
- * sem ([publishToPaneBand]). Boční panel má hlavičku NAD kartou, v téže řadě (`PaneCard` mu ji
- * natáhne do výšky hlavičky konverzace), a na konec svých akcí přidá akce konverzace
- * ([PaneBandActions]). Řada je tak jedna: „← konverzace | ← nadpis panelu · akce panelu · akce
- * konverzace". Akce konverzace stojí na STEJNÉM místě s panelem i bez něj — dřív s otevřeným
- * panelem uskočily doprostřed okna, i tlačítko, kterým se panel právě otevřel.
+ * Konverzace v liště nechává vlevo sebe (šipka, avatar, název) a své akce pošle sem
+ * ([publishToPaneBand]). Scéna je kreslí na pevném místě u pravého okraje oblasti chatu
+ * ([PaneBandEnd]) a hlavička, která tam končí (konverzace bez bočního sloupce, sloupec s ním),
+ * nechá na svém konci jen jejich místo ([PaneBandSpace], [PaneBandActions]). Řada je tak jedna:
+ * „← konverzace | nadpis sloupce · akce sloupce · akce konverzace" a akce konverzace se při
+ * otevření ani zavření sloupce nehnou.
  *
- * Šipku zpět boční panel v pásu nemá ([inPaneBand]): zavírá ho přepínač panelu.
+ * Šipku zpět boční sloupec v pásu nemá ([inPaneBand]): zavírá ho přepínač panelu.
  *
- * **Dřív měl boční panel lištu v kartě, pod pásem** (pás nesl jen akce konverzace): úprava
- * kanálu, kalendář i podstránky profilu tak měly dvě horní lišty pod sebou. Kořen profilu vedle
- * vlastní konverzace nadpis nemá (jméno je v hlavičce konverzace), jeho lišta nese jen akce
- * konverzace.
+ * **Dřív pás měřil karty v okně** (`detailCardTop`, nejmenší výška hlavičky sloupce), aby hlavička
+ * sloupce lícovala s hlavičkou konverzace, a akce kreslila hlavička sloupce. S lištou scény
+ * (`SceneBar`) lícují úseky rozvržením a měření zmizelo.
  *
  * Jen v Chatech ([PaneNeighbours.extraCard]) — podstránka Nastavení vedle sekce pás nemá.
  */
@@ -54,12 +53,6 @@ import eu.tintera.plume.core.ui.LocalPanesSideBySide
 class PaneBand internal constructor() {
     /** Akce konverzace pro pás; `null` = konverzace vedle bočního panelu teď není. */
     internal var actions by mutableStateOf<(@Composable () -> Unit)?>(null)
-
-    /**
-     * Horní hrana karty konverzace v okně (px): karta bočního panelu začne ve stejné výšce, ať
-     * jsou obě karty i pás nad nimi v jedné řadě, ať je hlavička konverzace vysoká, jak chce.
-     */
-    internal var detailCardTop by mutableStateOf<Float?>(null)
 
     /**
      * Kontext, ve kterém konverzace akce poslala (`currentCompositionLocalContext`): scéna Chatů
@@ -78,19 +71,17 @@ val LocalPaneBand = staticCompositionLocalOf<PaneBand?> { null }
 fun rememberPaneBand(): PaneBand = remember { PaneBand() }
 
 /**
- * Pošle [actions] do pásu nad bočním panelem, když konverzace vedle něj stojí. `true` = kreslí je
- * pás a volající je ve své liště vynechá; `false` = kreslí je volající sám jako dřív.
+ * Pošle [actions] na konec lišty scény Chatů. `true` = kreslí je scéna a volající nechá ve své liště
+ * jen jejich místo ([PaneBandSpace]); `false` = kreslí je volající sám (telefon, mimo scénu).
  *
- * Akce se skládají v kompozici bočního panelu: co v nich bere ViewModel (`koinViewModel`), musí ho
- * dostat hotový zvenku — uvnitř by sáhly do úložiště ViewModelů panelu a dostaly jinou instanci.
+ * Akce se skládají v kontextu hlavičky konverzace ([PaneBand.actionsContext]), takže `koinViewModel`
+ * v nich vrátí ViewModel konverzace.
  */
 @Composable
 fun publishToPaneBand(actions: @Composable () -> Unit): Boolean {
     val band = LocalPaneBand.current
-    val neighbours = LocalPaneNeighbours.current
-    // Ve scéně Chatů ([SceneBar]) vždycky: akce stojí na konci lišty scény s panelem i bez něj.
-    val inScene = LocalSceneBarTarget.current != null
-    val active = band != null && LocalPanesSideBySide.current && (inScene || neighbours.extraBeside && neighbours.extraCard)
+    // Jen ve scéně Chatů ([SceneBar]): tam akce stojí na konci lišty s panelem i bez něj.
+    val active = band != null && LocalPanesSideBySide.current && LocalSceneBarTarget.current != null
     val current by rememberUpdatedState(actions)
     val context = currentCompositionLocalContext
     if (active) {
@@ -110,20 +101,19 @@ fun publishToPaneBand(actions: @Composable () -> Unit): Boolean {
     return active
 }
 
-/** Akce konverzace pro hlavičku bočního panelu; `null` = panel v pásu není. */
+/** Akce konverzace, je-li boční sloupec v pásu vedle ní; `null` = není. Hlavička je nekreslí, jen podle nich pozná pás. */
 internal val LocalPaneBandActions = compositionLocalOf<(@Composable () -> Unit)?> { null }
 
 /**
- * Akce konverzace na konci lišty bočního panelu, který stojí v pásu vedle ní ([PaneBand]).
- * Patří do slotu `actions` KAŽDÉ lišty, kterou může panel v Chatech mít (profil, kalendář,
- * `ProfileSubpageTopBar`), za vlastní akce a před [WindowControlsEndSpace]. Lišta bez nich by
- * akce konverzace (přepínač panelu, ⋮) schovala. Mimo pás nedělá nic.
+ * Místo pro akce konverzace na konci lišty bočního sloupce, který stojí v pásu vedle ní
+ * ([PaneBand]); akce samotné kreslí scéna ([PaneBandEnd]). Patří do slotu `actions` KAŽDÉ lišty,
+ * kterou může sloupec v Chatech mít (profil, kalendář, `ProfileSubpageTopBar`), za vlastní akce
+ * a před [WindowControlsEndSpace]. Lišta bez něj by vlastní akce schovala pod akce konverzace.
+ * Mimo pás nedělá nic.
  */
 @Composable
 fun RowScope.PaneBandActions() {
-    val actions = LocalPaneBandActions.current ?: return
-    // Ve scéně Chatů kreslí akce scéna na konci lišty ([PaneBandEnd]); tady zůstane jen jejich místo.
-    if (LocalSceneBarTarget.current != null) PaneBandSpace() else actions()
+    if (LocalPaneBandActions.current != null) PaneBandSpace()
 }
 
 /**
