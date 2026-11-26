@@ -17,10 +17,14 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.UPLOADS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createUploadsChannel
-import eu.tintera.plume.core.telegram.UploadActivity
+import eu.tintera.plume.core.telegram.TransferActivity
 import eu.tintera.plume.core.ui.fileSizeString
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.upload_notification_progress
+import eu.tintera.plume.resources.download_notification_title
+import eu.tintera.plume.resources.download_notification_title_after_upload
+import eu.tintera.plume.resources.transfer_notification_both
+import eu.tintera.plume.resources.transfer_notification_pause_downloads
+import eu.tintera.plume.resources.transfer_notification_progress
 import eu.tintera.plume.resources.upload_notification_title
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -40,25 +44,27 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Drží proces naživu, dokud se nahrávají soubory ([ActiveUploads]) — úloha WorkManageru se
- * službou v popředí typu `dataSync`. Nahrává dál TDLib; úloha jen brání systému, aby proces
- * na pozadí zmrazil nebo zabil (`docs/poznatky/konverzace-psani.md`, „Nahrávání na pozadí").
+ * Drží proces naživu, dokud se nahrávají nebo stahují soubory ([ActiveTransfers]) — úloha
+ * WorkManageru se službou v popředí typu `dataSync`. Přenáší dál TDLib; úloha jen brání systému,
+ * aby proces na pozadí zmrazil nebo zabil (`docs/poznatky/konverzace-psani.md`, „Nahrávání
+ * a stahování na pozadí").
  *
  * **Jméno třídy se nesmí měnit** (ani balíček): WorkManager si ho pamatuje v naplánované úloze.
+ * Proto „Upload", i když hlídá i stahování — vyšla tak v `android-0.4.12`.
  */
 class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
-    private val logger = Logger.withTag("Uploads")
+    private val logger = Logger.withTag("Transfers")
 
     /** Úlohu se podařilo povýšit na službu v popředí; bez ní notifikace nemá smysl. */
     private var foreground = true
 
     override suspend fun doWork(): Result {
-        val activity = GlobalContext.getOrNull()?.getOrNull<ActiveUploads>()?.activity ?: return Result.success()
+        val activity = GlobalContext.getOrNull()?.getOrNull<ActiveTransfers>()?.activity ?: return Result.success()
         createUploadsChannel(applicationContext)
 
         // Do Androidu 11 jde služba v popředí spustit i z pozadí, takže se s ní dá chvíli počkat:
-        // fotka se nahraje za vteřinu a notifikace by jen problikla. Od 12 se musí spustit hned,
+        // fotka se přenese za vteřinu a notifikace by jen problikla. Od 12 se musí spustit hned,
         // dokud je aplikace vidět — notifikaci tam systém sám odloží o deset vteřin.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S &&
             withTimeoutOrNull(LEGACY_FOREGROUND_DELAY) { activity.first { it.isIdle } } != null
@@ -67,13 +73,13 @@ class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : Corout
         }
 
         var current = activity.value
-        // Po zabití procesu ji WorkManager spustí znovu, a TDLib rozeslané zprávy obnoví až po
-        // startu klienta; na první nahrávání se proto čeká déle než na další.
+        // Po zabití procesu ji WorkManager spustí znovu, a TDLib rozeslané zprávy i rozestahované
+        // soubory obnoví až po startu klienta; na první přenos se proto čeká déle než na další.
         var grace = START_GRACE
         while (true) {
             if (current.isIdle) {
                 // Soubory alba a zprávy odeslané rychle za sebou nenavazují: mezi koncem jednoho
-                // a začátkem dalšího bývá chvíle bez nahrávání.
+                // a začátkem dalšího bývá chvíle bez přenosu.
                 current = withTimeoutOrNull(grace) { activity.first { !it.isIdle } } ?: return Result.success()
                 continue
             }
@@ -83,15 +89,15 @@ class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : Corout
             delay(NOTIFICATION_INTERVAL)
             val shown = current
             current = withTimeoutOrNull(STALL_TIMEOUT) { activity.first { it != shown } } ?: run {
-                // Bez sítě nahrávání stojí a služba by jen pálila baterii. TDLib ho dokončí,
+                // Bez sítě přenos stojí a služba by jen pálila baterii. TDLib ho dokončí,
                 // až bude aplikace zase v popředí.
-                logger.i { "Nahrávání se ${STALL_TIMEOUT.inWholeMinutes} min nehnulo, proces už se nedrží." }
+                logger.i { "Přenos se ${STALL_TIMEOUT.inWholeMinutes} min nehnul, proces už se nedrží." }
                 return Result.success()
             }
         }
     }
 
-    private suspend fun show(activity: UploadActivity) {
+    private suspend fun show(activity: Transfers) {
         if (!foreground) return
         val info = foregroundInfo(activity)
         try {
@@ -102,21 +108,23 @@ class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : Corout
         } catch (e: IllegalStateException) {
             // `ForegroundServiceStartNotAllowedException` (Android 12+, úloha běží z pozadí —
             // typicky po zabití procesu). Úloha proces drží i tak, jen kratší dobu.
-            logger.i { "Nahrávání poběží bez služby v popředí: ${e.message}" }
+            logger.i { "Přenos poběží bez služby v popředí: ${e.message}" }
             foreground = false
         }
     }
 
-    private suspend fun foregroundInfo(activity: UploadActivity): ForegroundInfo {
+    private suspend fun foregroundInfo(transfers: Transfers): ForegroundInfo {
+        // Průběh jednou lištou přes oba směry: notifikace je jedna a dvě lišty neumí.
+        val activity = transfers.uploads + transfers.downloads
         val fraction = activity.fraction
         val notification = NotificationCompat.Builder(applicationContext, UPLOADS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(getPluralString(Res.plurals.upload_notification_title, activity.files, activity.files))
+            .setContentTitle(title(transfers))
             .setContentText(
                 if (fraction != null) {
                     getString(
-                        Res.string.upload_notification_progress,
-                        fileSizeString(activity.uploadedBytes),
+                        Res.string.transfer_notification_progress,
+                        fileSizeString(activity.transferredBytes),
                         fileSizeString(activity.totalBytes),
                     )
                 } else {
@@ -131,11 +139,31 @@ class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : Corout
             // Krátké nahrávání (fotka) skončí dřív, než by se notifikace vůbec ukázala.
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_DEFERRED)
             .setContentIntent(openApp())
+            .apply {
+                // Nahrávání pozastavit nejde (TDLib to neumí), stahování ano — jako ve Stahování.
+                if (!transfers.downloads.isIdle) {
+                    addAction(0, getString(Res.string.transfer_notification_pause_downloads), PauseDownloadsReceiver.intent(applicationContext))
+                }
+            }
             .build()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             ForegroundInfo(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private suspend fun title(transfers: Transfers): String {
+        val uploads = transfers.uploads.files
+        val downloads = transfers.downloads.files
+        return when {
+            downloads == 0 -> getPluralString(Res.plurals.upload_notification_title, uploads, uploads)
+            uploads == 0 -> getPluralString(Res.plurals.download_notification_title, downloads, downloads)
+            else -> getString(
+                Res.string.transfer_notification_both,
+                getPluralString(Res.plurals.upload_notification_title, uploads, uploads),
+                getPluralString(Res.plurals.download_notification_title_after_upload, downloads, downloads),
+            )
         }
     }
 
@@ -165,16 +193,16 @@ class UploadKeepAliveWorker(context: Context, params: WorkerParameters) : Corout
 }
 
 /**
- * Naplánuje [UploadKeepAliveWorker], kdykoli začne nahrávání v kterémkoli účtu. Nahrávání
- * začíná ťuknutím na Odeslat, tedy s aplikací v popředí — jen tehdy jde službu v popředí
- * spustit (Android 12+).
+ * Naplánuje [UploadKeepAliveWorker], kdykoli začne nahrávání nebo stahování v kterémkoli účtu.
+ * Přenos začíná ťuknutím (Odeslat, stáhnout soubor, Pokračovat ve Stahování), tedy s aplikací
+ * v popředí — jen tehdy jde službu v popředí spustit (Android 12+).
  */
-class UploadKeepAlive(
+class TransferKeepAlive(
     private val context: Context,
-    private val activity: StateFlow<UploadActivity>,
+    private val activity: StateFlow<Transfers>,
     private val scope: CoroutineScope,
 ) {
-    private val logger = Logger.withTag("Uploads")
+    private val logger = Logger.withTag("Transfers")
 
     fun start() {
         scope.launch {
@@ -200,6 +228,6 @@ class UploadKeepAlive(
         runCatching {
             // KEEP: běžící úloha si nový soubor všimne sama, druhá by jen čekala ve frontě.
             WorkManager.getInstance(context).enqueueUniqueWork(UploadKeepAliveWorker.WORK_NAME, ExistingWorkPolicy.KEEP, request)
-        }.onFailure { logger.w(it) { "Úlohu nahrávání nejde naplánovat." } }
+        }.onFailure { logger.w(it) { "Úlohu přenosu nejde naplánovat." } }
     }
 }

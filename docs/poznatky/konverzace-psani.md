@@ -293,26 +293,47 @@ album. Bublina ukazuje průběh nahrávání.
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
 
-### Nahrávání na pozadí
+### Nahrávání a stahování na pozadí
 
-Nahrává TDLib ve vlastních vláknech, takže pokračuje i na pozadí — ale jen dokud proces běží.
+Nahrává i stahuje TDLib ve vlastních vláknech, takže pokračuje i na pozadí — ale jen dokud proces běží.
 Android aplikaci bez služby v popředí brzy zmrazí (app freezer) a v dozu zavře sokety, iOS ji
-uspí za pár vteřin; nahrávání pak stojí, dokud se aplikace nevrátí do popředí (`setNetworkType`
+uspí za pár vteřin; přenos pak stojí, dokud se aplikace nevrátí do popředí (`setNetworkType`
 v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces proto drží naživu
-**úloha jen po dobu nahrávání**, nahrává pořád TDLib.
+**úloha jen po dobu přenosu**, přenáší pořád TDLib. Stahování AI modelů má vlastní úlohu
+(`docs/poznatky/ai-v-zarizeni.md`), tady jde o soubory z Telegramu.
 
-- **Co se nahrává, říká `UploadMonitor`** (`:client:core`, jeden na účet, eager): týž
-  `updateFile` jako průběh u zprávy, soubory s `remote.isUploadingActive`. Počítá se každé
-  nahrávání, nejen příloha zprávy (fotka profilu, příběh, samolepka). Přes všechny účty to
-  sčítá `ActiveUploads` (globální, jako `VideoChats`) — služba v popředí je v procesu jedna.
-- **Nové nahrávání se pozná podle `UploadActivity.started`**, ne podle přechodu z nuly.
-  Soubor, o jehož konci by TDLib neřekl, by jinak v počtu visel a další nahrávání by úlohu
-  nespustilo; plánuje se tak při každém novém souboru (`KEEP`, běžící úloha zůstane).
+- **Co se přenáší, říká `TransferMonitor`** (`:client:core`, jeden na účet, eager): týž
+  `updateFile` jako průběh u zprávy, `uploads` jsou soubory s `remote.isUploadingActive`,
+  `downloads` s `local.isDownloadingActive`. Počítá se každé nahrávání, nejen příloha zprávy
+  (fotka profilu, příběh, samolepka). Přes všechny účty to sčítá `ActiveTransfers` (globální,
+  jako `VideoChats`) — služba v popředí je v procesu jedna.
+- **Stahování jen ze seznamu Stahování** (`addFileToDownloads`: otevřít, sdílet, uložit soubor,
+  stáhnout video; viz „Stahování" v `docs/poznatky/prohlizec-medii.md`). Stahuje se pořád něco —
+  náhledy, fotky v konverzaci, streamované video — a služba by držela proces s každým
+  přehrávaným klipem. Členství v seznamu nese `updateFileAddedToDownloads` / `updateFileDownload`
+  (dokončený soubor v seznamu zůstává, ale nepočítá se) / `updateFileRemovedFromDownloads`.
+  - **Členství a průběh vede `TransferTracker(onlyListed = true)` zvlášť** a soubor počítá, až
+    platí obojí: update souboru a update seznamu jdou různými odběry a pořadí mezi nimi neplatí.
+  - **Pozastavený soubor zůstává v seznamu, ale TDLib ho nestahuje** (`isDownloadingActive`
+    je false), takže úlohu nedrží. Obnovení je nový přenos a úlohu naplánuje znovu.
+  - **Updaty seznamu chodí až po jeho prvním načtení**, a stahování, které TDLib po startu
+    obnoví samo, by nikdo neohlásil. Monitor proto po `AuthStage.Ready` načte rozestahované
+    (`searchFileDownloads(onlyActive = true)`) a jejich stav (`getFile`).
+- **Nový přenos se pozná podle `TransferActivity.started`**, ne podle přechodu z nuly.
+  Soubor, o jehož konci by TDLib neřekl, by jinak v počtu visel a další přenos by úlohu
+  nespustil; plánuje se tak při každém novém souboru (`KEEP`, běžící úloha zůstane).
 - **Android: `UploadKeepAliveWorker`** (WorkManager, služba v popředí `dataSync` přes
-  `SystemForegroundService`, kterou manifest už má kvůli stahování modelu). Plánuje ho
-  `UploadKeepAlive` z popředí, protože nahrávání začíná ťuknutím na Odeslat — od Androidu 12
+  `SystemForegroundService`, kterou manifest už má kvůli stahování modelu). **Jméno zůstalo
+  z doby, kdy hlídal jen nahrávání** — WorkManager si třídu pamatuje v naplánované úloze a ta
+  vyšla v `android-0.4.12`. Plánuje ho `TransferKeepAlive` z popředí, protože přenos začíná
+  ťuknutím (Odeslat, stáhnout soubor, Pokračovat ve Stahování) — od Androidu 12
   jde službu v popředí spustit jen tehdy. Proto se `setForeground` volá HNED, ne až při odchodu
   do pozadí: tam už by systém spuštění odmítl (`ForegroundServiceStartNotAllowedException`).
+- **Notifikace je jedna pro oba směry**: „Odesílám 1 soubor, stahuji 2 soubory", průběh jednou
+  lištou přes součet bajtů. Při stahování má „Pozastavit stahování" (`PauseDownloadsReceiver`,
+  `toggleAllDownloadsArePaused` ve všech účtech, jako „Pozastavit vše" ve Stahování); úloha pak
+  skončí sama, protože pozastavené se nestahuje. Nahrávání pozastavit nejde. Kanál zůstal
+  `uploads` (jiné id = nový kanál a ztracené nastavení uživatele), změnil se jen jeho název.
 - **Notifikace je `FOREGROUND_SERVICE_DEFERRED`**: Android 12+ ji ukáže až po deseti vteřinách,
   takže u fotky, která se nahraje hned, žádná nevyskočí. Do Androidu 11 odklad systém nedělá;
   služba se tam spustit z pozadí smí, takže úloha napřed tři vteřiny počká, jestli nahrávání
@@ -324,9 +345,9 @@ v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces
   sítě by služba jen pálila baterii a TDLib nahrávání dokončí po návratu do popředí.
 - **Spuštěná po zabití procesu běží bez služby v popředí** (z pozadí ji Android 12+ nepovolí);
   úloha proces drží i tak, jen kratší dobu.
-- **iOS: `UploadBackgroundTask`**, `beginBackgroundTask` s prvním nahráváním — už v popředí,
+- **iOS: `TransferBackgroundTask`**, `beginBackgroundTask` s prvním přenosem — už v popředí,
   odpočet běží teprve na pozadí a nezávisí na tom, kdy dorazí oznámení o odchodu. iOS dá zhruba
-  půl minuty: fotky a krátká videa to stihnou, delší nahrávání dokončí návrat do popředí. Po
+  půl minuty: fotky, krátká videa a menší soubory to stihnou, delší přenos dokončí návrat do popředí. Po
   vypršení se do návratu do popředí znovu nežádá. `URLSession` na pozadí použít nejde, síť
   si vede TDLib.
 - **Desktop nic nepotřebuje**, proces na pozadí běží.
@@ -348,8 +369,20 @@ v `ConnectionController` spojení znovu otevře a TDLib pokračuje sám). Proces
 - **Zrušení křížkem ověřeno** (Fold, Android 17): soubor 250 MB, během nahrávání křížek
   v kolečku průběhu a hned Domů. Zpráva zmizela a úloha skončila 8 s po ťuknutí (5 s bez
   nahrávání a vteřina mezi notifikacemi), se službou i notifikací. TDLib po `deleteMessages`
-  pošle `updateFile` s ukončeným nahráváním, takže `UploadMonitor` nezůstane viset na
+  pošle `updateFile` s ukončeným nahráváním, takže `TransferMonitor` nezůstane viset na
   zrušeném souboru (jinak by úlohu ukončil až pětiminutový limit bez posunu).
+- **Otevření dokumentu stav souboru ze seznamu jen SLEDUJE** (`ConversationDocuments`,
+  `FileRepository.observe`), nespouští ho přes `file()`. `file()` volá vlastní `downloadFile`
+  a TDLib pak soubor stahuje dvakrát „najednou": „Pozastavit" (ve Stahování i v notifikaci)
+  zastaví jen stahování přes seznam a soubor teče dál. Přišlo se na to až ověřením
+  pozastavení z notifikace — log ukázal spuštěný receiver a soubor rostl dál.
+- **Stahování ověřeno na emulátoru** (Fold, Android 17): soubor 250 MB z Uložených (místní
+  kopie smazaná z `files/tdlib-files/documents`, po `force-stop`, jinak ho TDLib má za stažený),
+  ťuknout a Domů. Proces `isFrozen=false`, notifikace „Downloading 1 file · 127 MB of 250 MB",
+  po dokončení úloha za 5 s skončila. „Pause downloads" stahování zastavilo (soubor v `temp`
+  stál na 181 MB) a úloha za 5 s skončila; „Resume" ve Stahování ji spustil znovu a soubor se
+  dostáhl na pozadí. **Notifikaci systém ukáže až po 10 s** (`FOREGROUND_SERVICE_DEFERRED`),
+  dřív tlačítko v liště není. Souběh nahrávání a stahování v jedné notifikaci a iOS neověřené.
 - **Výběr souboru na emulátoru s Androidem 11 nereaguje na ťuknutí** (DocumentsUI ťuknutí
   na položku ani složku nepřijme, kořeny vlevo ano). Vybírá se klávesnicí:
   `input keyevent KEYCODE_DPAD_DOWN` na položku a `KEYCODE_ENTER`. Sdílení souboru přes

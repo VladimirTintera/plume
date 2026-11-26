@@ -75,8 +75,8 @@ import eu.tintera.plume.core.telegram.TdlDirectTopicsRepository
 import eu.tintera.plume.core.telegram.TdlDownloadsRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
-import eu.tintera.plume.core.telegram.TdlUploadMonitor
-import eu.tintera.plume.core.telegram.UploadMonitor
+import eu.tintera.plume.core.telegram.TdlTransferMonitor
+import eu.tintera.plume.core.telegram.TransferMonitor
 import eu.tintera.plume.core.telegram.TdlForumRepository
 import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlInstantViewRepository
@@ -352,8 +352,8 @@ internal fun accountModule(slot: AccountSlot): Module = module {
 
     // Eagerně ze stejného důvodu: nahrávání, které TDLib po startu obnoví (rozeslané zprávy
     // z minulého běhu), se hlásí updaty hned po přihlášení.
-    single<UploadMonitor>(createdAtStart = true) {
-        TdlUploadMonitor(holder = get(), scope = get(named(APP_SCOPE)))
+    single<TransferMonitor>(createdAtStart = true) {
+        TdlTransferMonitor(holder = get(), session = get(), scope = get(named(APP_SCOPE)))
     }
 
     // Eagerně: v konstruktoru se odebírá `havePendingNotificationsUpdates`, který chodí jen na

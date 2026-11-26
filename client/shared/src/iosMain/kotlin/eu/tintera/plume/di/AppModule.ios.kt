@@ -32,9 +32,9 @@ import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.NowPlayingControls
 import eu.tintera.plume.core.audio.AudioRecorder
-import eu.tintera.plume.core.files.ActiveUploads
+import eu.tintera.plume.core.files.ActiveTransfers
 import eu.tintera.plume.core.files.FileOpener
-import eu.tintera.plume.core.files.UploadBackgroundTask
+import eu.tintera.plume.core.files.TransferBackgroundTask
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.WebFileDownloader
 import eu.tintera.plume.core.files.MediaSharer
@@ -104,11 +104,11 @@ actual fun Module.platformModule() {
         IosShareInbox(requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))
             .also { it.start(get<AppForeground>().isForeground) }
     }
-    // Odesílání souborů na pozadí: úloha na pozadí, dokud se v kterémkoli účtu nahrává. Na hlavním
+    // Odesílání a stahování souborů na pozadí: úloha na pozadí, dokud v kterémkoli účtu běží přenos. Na hlavním
     // vlákně, `UIApplication` jinde sahat nesmí.
     single(createdAtStart = true) {
-        UploadBackgroundTask(
-            activity = get<ActiveUploads>().activity,
+        TransferBackgroundTask(
+            activity = get<ActiveTransfers>().activity,
             foreground = get<AppForeground>().isForeground,
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
         ).also { it.start() }

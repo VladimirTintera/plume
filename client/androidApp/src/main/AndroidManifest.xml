@@ -290,6 +290,12 @@
             </intent-filter>
         </service>
 
+        <!-- „Pozastavit stahování" z notifikace přenosů (core/files/PauseDownloadsReceiver v :client:shared).
+             Neexportovaný: broadcast posílá jen PendingIntent naší aplikace. -->
+        <receiver
+            android:name="eu.tintera.plume.core.files.PauseDownloadsReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".NotificationActionReceiver"
             android:exported="false">
