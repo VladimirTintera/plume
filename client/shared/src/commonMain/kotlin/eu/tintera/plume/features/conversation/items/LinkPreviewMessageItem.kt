@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.aspectRatio
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.contextClickable
@@ -101,7 +103,7 @@ internal data class LinkPreviewMessageItem(
                     // Text zprávy i popis webu mají šířku obrázku; s ním využije celou nabízenou šířku.
                     val frameSize = photoFrame(
                         maxWidth,
-                        photo.width.toFloat() / photo.height.toFloat(),
+                        aspectRatio(photo.width, photo.height),
                         fillWidth = true,
                     )
                     Column(Modifier.width(frameSize.width).clip(shape)) {

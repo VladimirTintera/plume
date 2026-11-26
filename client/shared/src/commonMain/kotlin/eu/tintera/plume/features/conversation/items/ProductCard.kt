@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.aspectRatio
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -61,7 +63,7 @@ internal fun ProductCard(product: MessageMedia.Product, accent: Color) {
         return
     }
     BoxWithConstraints {
-        val ratio = if (photo.width > 0 && photo.height > 0) photo.width.toFloat() / photo.height else 1f
+        val ratio = aspectRatio(photo.width, photo.height)
         val frame = photoFrame(maxWidth, ratio, fillWidth = true)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RemoteImage(

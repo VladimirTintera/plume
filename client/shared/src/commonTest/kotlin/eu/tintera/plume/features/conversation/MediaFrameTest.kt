@@ -104,4 +104,12 @@ class MediaFrameTest {
         assertEquals(200.dp, frame.width)
         assertEquals(50.dp, frame.height)
     }
+
+    @Test
+    fun pomerStranZMetadatSNahradouProNulu() {
+        assertEquals(2f, aspectRatio(400, 200))
+        // Neznámé rozměry nedělí nulou, vrátí náhradu.
+        assertEquals(1f, aspectRatio(0, 200))
+        assertEquals(16f / 9f, aspectRatio(640, 0, fallback = 16f / 9f))
+    }
 }

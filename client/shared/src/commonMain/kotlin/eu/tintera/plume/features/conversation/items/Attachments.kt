@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.aspectRatio
+
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -165,7 +167,7 @@ internal fun MessageAttachment(
             } else {
                 // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
                 BoxWithConstraints {
-                    val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+                    val frame = photoFrame(maxWidth, aspectRatio(media.width, media.height), fillWidth)
                     val revealed = reveal.revealed
                     val spoilerStyle = rememberSpoilerBlurStyle()
 
@@ -321,7 +323,7 @@ internal fun MessageAttachment(
         )
         is MessageMedia.Animation -> BoxWithConstraints {
             // Stejný rámeček jako fotka a video: GIF na výšku se zúží, místo aby přišel o kraje.
-            val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+            val frame = photoFrame(maxWidth, aspectRatio(media.width, media.height), fillWidth)
             val reveal = rememberMediaReveal(messageId, media.hasSpoiler)
             AnimationBubble(
                 animation = media,
@@ -509,11 +511,7 @@ private fun StickerImage(
     // Poměr stran z metadat zprávy, ne z načteného souboru — jinak by seznam poskočil,
     // až se obrázek dotáhne. Nulové rozměry samolepka mít nemá, ale dělit se jimi nedá,
     // takže z ní v tom případě je čtverec.
-    val ratio = if (sticker.width > 0 && sticker.height > 0) {
-        sticker.width.toFloat() / sticker.height.toFloat()
-    } else {
-        1f
-    }
+    val ratio = aspectRatio(sticker.width, sticker.height)
 
     val longerSide = LocalStickerSize.current.dp
     val width = if (ratio >= 1f) longerSide else longerSide * ratio
@@ -1316,4 +1314,4 @@ private fun PaidPreviewTile(preview: MessageMedia.PaidPreview, modifier: Modifie
 
 /** Poměr stran náhledu; bez rozměrů [default]. */
 private fun MessageMedia.PaidPreview.ratio(default: Float): Float =
-    if (width > 0 && height > 0) width.toFloat() / height else default
+    aspectRatio(width, height, fallback = default)

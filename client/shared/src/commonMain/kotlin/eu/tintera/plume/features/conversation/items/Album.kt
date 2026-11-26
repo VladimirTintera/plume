@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.aspectRatio
+
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.LocalAutoDownload
@@ -291,8 +293,8 @@ private fun MessageMedia?.isAlbumTile(): Boolean = when (this) {
 
 /** Poměr stran dlaždice samotné na řádku. Video bez rozměrů je 16:9, neznámá fotka čtverec. */
 internal fun MessageMedia?.albumRatio(): Float = when (this) {
-    is MessageMedia.Photo -> if (width > 0 && height > 0) width.toFloat() / height.toFloat() else 1f
-    is MessageMedia.Video -> if (width > 0 && height > 0) width.toFloat() / height.toFloat() else 16f / 9f
+    is MessageMedia.Photo -> aspectRatio(width, height)
+    is MessageMedia.Video -> aspectRatio(width, height, fallback = 16f / 9f)
     else -> 16f / 9f
 }
 

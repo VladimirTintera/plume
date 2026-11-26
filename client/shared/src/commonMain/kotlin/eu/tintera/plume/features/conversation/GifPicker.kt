@@ -403,7 +403,7 @@ internal fun GifCell(
 internal fun Modifier.coverAspect(width: Int, height: Int): Modifier = layout { measurable, constraints ->
     val boxWidth = constraints.maxWidth
     val boxHeight = constraints.maxHeight
-    val ratio = if (width > 0 && height > 0) width.toFloat() / height else boxWidth.toFloat() / boxHeight
+    val ratio = aspectRatio(width, height, fallback = boxWidth.toFloat() / boxHeight)
     val coverWidth: Int
     val coverHeight: Int
     if (boxWidth.toFloat() / boxHeight > ratio) {

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.aspectRatio
+
 import eu.tintera.plume.features.conversation.showsLargePhoto
 
 import eu.tintera.plume.core.ui.LocalAutoDownload
@@ -91,11 +93,7 @@ internal fun LinkPreviewCard(
             preview.photo?.let { photo ->
                 // Výška ručně, ne `aspectRatio` — ten by strop z `heightIn` neuplatnil (viz fotka).
                 BoxWithConstraints {
-                    val ratio = if (photo.width > 0 && photo.height > 0) {
-                        photo.width.toFloat() / photo.height.toFloat()
-                    } else {
-                        LINK_PREVIEW_FALLBACK_RATIO
-                    }
+                    val ratio = aspectRatio(photo.width, photo.height, fallback = LINK_PREVIEW_FALLBACK_RATIO)
                     LinkPreviewImage(
                         photo = photo,
                         messageId = messageId,

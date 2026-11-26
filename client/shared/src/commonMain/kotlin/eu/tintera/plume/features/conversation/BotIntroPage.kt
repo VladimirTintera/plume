@@ -146,7 +146,7 @@ private fun MessageMedia.Animation.ratio(): Float = ratio(width, height)
 
 /** Neznámé rozměry (nula) by dělaly nekonečný poměr; pak obrázek jako 16 : 9. */
 private fun ratio(width: Int, height: Int): Float =
-    if (width > 0 && height > 0) (width.toFloat() / height).coerceIn(0.5f, 3f) else 16f / 9f
+    aspectRatio(width, height, fallback = 16f / 9f).coerceIn(0.5f, 3f)
 
 private val AVATAR_SIZE = 112.dp
 
