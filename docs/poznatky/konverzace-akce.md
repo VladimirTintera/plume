@@ -200,6 +200,23 @@ chatu s kontaktem až 18 řádků v pěti skupinách. Teď má dvě úrovně jak
   v něm zaregistrované jako handler. `NavigationBackHandler` uvnitř obsahu nabídky se registruje
   později, takže má přednost: zpět vede z podnabídky nahoru a nabídka zůstane otevřená (ověřeno
   na emulátoru). Ťuknutí mimo nabídku ji zavře celou.
+- **Okno nabídky má velikost NEJVĚTŠÍ úrovně** (`LargestLevelSize`), ne té, která je vidět.
+  Okno `Popup` na Androidu je `WRAP_CONTENT` a jeho poloha se po změně velikosti dopočítá až
+  o snímek později. Dokud se šířka při přepnutí úrovně animovala (`SizeTransform`), měnilo okno
+  velikost v každém snímku: obsah byl oříznutý a posunutý vůči ⋮ a při zvětšení probleskl na
+  okraji okna tmavý pruh — uživatel to hlásil z telefonu jako „podivné probliknutí". Úrovně se
+  proto složí ještě jednou jen kvůli změření (neumístěné: nekreslí se, dotyky ani čtečka je
+  nevidí), viditelná se drží strany u kotvy (`transformOrigin` pozicovače, čte se až při
+  umístění) a ťuknutí do prázdné rezervy nabídku zavře. Vedlejší efekt: podnabídka je stejně
+  široká jako hlavní úroveň.
+- **Příchozí úroveň naskočí rychle (`fastEffects`), odchozí pod ní mizí pomaleji
+  (`defaultEffects`) a bez posunu** — obráceně než u běžných přechodů. Skupiny jsou neprůhledné
+  plochy; se stejně rychlým prolnutím byly v půli obě napůl průhledné a skrz nabídku prosvitly
+  tmavé bubliny konverzace (podle pružin `AppMotion` až ~24 % pozadí, takhle ~7 %). Posunutá
+  odchozí úroveň navíc odkryla pruh pozadí na kraji okna.
+- **Ověřeno záznamem obrazovky po snímcích** (Pixel_10_Pro_Fold, `animator_duration_scale 5`,
+  `screenrecord` + `ffmpeg -fps_mode passthrough` a dlaždice ořezu nabídky): emulátor nahrává
+  jen ~10 snímků/s, jemné prolnutí se tak posoudí jen na telefonu.
 - **Úroveň při zavírání se drží** (`closingFrom`): nabídka dojede v podnabídce, ze které se
   zavírala, místo aby během mizení sjela zpátky nahoru. Nová nabídka začíná vždycky nahoře
   (`remember(expanded)`).

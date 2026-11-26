@@ -5,7 +5,6 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -34,7 +33,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAbsoluteAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.MultiContentMeasurePolicy
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
 import androidx.navigationevent.NavigationEventInfo
@@ -147,33 +163,142 @@ fun ExpressiveMenu(
             isBackEnabled = expanded && openSubmenu != null && !submenusCascade,
             onBackCompleted = { openSubmenu = null },
         )
-        val level = (if (expanded) openSubmenu else closingFrom).takeIf { !submenusCascade }
-        val submenu = level?.let { label -> shown.flatten().firstOrNull { it.label == label && it.submenu.isNotEmpty() } }
-        val motion = MaterialTheme.motionScheme
+        val submenus = if (submenusCascade) emptyList() else shown.flatten().filter { it.submenu.isNotEmpty() }
+        if (submenus.isEmpty()) {
+            MenuColors { MenuGroups(shown, host) }
+        } else {
+            LeveledMenu(shown, submenus, if (expanded) openSubmenu else closingFrom, host, popupPositionProvider) {
+                closingFrom = openSubmenu
+                onDismiss()
+            }
+        }
+    }
+}
+
+/**
+ * Nabídka s podnabídkami na telefonu: úrovně se vyměňují na místě ([level] = popisek otevřené
+ * podnabídky, `null` = hlavní úroveň) v rezervě velké jako největší z nich.
+ */
+@Composable
+private fun LeveledMenu(
+    shown: List<List<MenuAction>>,
+    submenus: List<MenuAction>,
+    level: String?,
+    host: MenuHost,
+    popupPositionProvider: DropdownMenuPopupPositionProvider,
+    onTapOutside: () -> Unit,
+) {
+    val submenu = level?.let { label -> submenus.firstOrNull { it.label == label } }
+    val motion = MaterialTheme.motionScheme
+    // Strana, ke které se obsah v rezervě drží: ta u kotvy (⋮ vpravo nahoře → vpravo nahoře).
+    // Pozicovač ji zná až po prvním rozmístění, čte se proto až při umístění, ne v kompozici.
+    val alignment = {
+        val origin = popupPositionProvider.transformOrigin
+        BiasAbsoluteAlignment(
+            horizontalBias = if (origin.pivotFractionX >= 0.5f) 1f else -1f,
+            verticalBias = if (origin.pivotFractionY >= 0.5f) 1f else -1f,
+        )
+    }
+    LargestLevelSize(
+        alignment = alignment,
+        onTapOutside = onTapOutside,
+        levels = {
+            MenuGroups(shown, host)
+            submenus.forEach { MenuGroups(it.submenu, host, back = it.label) }
+        },
+    ) {
         AnimatedContent(
             targetState = submenu,
             contentKey = { it?.label },
             transitionSpec = {
-                // Do podnabídky se jde doprava (jako do hloubky), zpět doleva.
+                // Do podnabídky se jde doprava (jako do hloubky), zpět doleva. Velikost se
+                // neanimuje: rezerva je pro obě úrovně stejná (viz LargestLevelSize).
+                //
+                // Příchozí úroveň (kreslí se navrch) naskočí RYCHLE a odchozí pod ní mizí
+                // pomaleji a na místě — obráceně, než je u přechodů zvykem. Obě skupiny jsou
+                // neprůhledné plochy a se stejně rychlým prolnutím by byly v půli obě napůl
+                // průhledné: skrz nabídku prosvitly bubliny konverzace (až ~24 % pozadí, tmavé
+                // bubliny pod světlou nabídkou vypadaly jako probliknutí). Takhle je to nejvýš ~7 %.
+                // Odchozí se ani neposouvá: posunutá odkryla pruh pozadí na kraji okna.
                 val direction = if (targetState != null) 1 else -1
                 (
                     slideInHorizontally(motion.fastSpatialSpec()) { direction * it / 4 } +
                         fadeIn(motion.fastEffectsSpec())
-                    ) togetherWith (
-                    slideOutHorizontally(motion.fastSpatialSpec()) { -direction * it / 4 } +
-                        fadeOut(motion.fastEffectsSpec())
-                    ) using SizeTransform(clip = false) { _, _ -> motion.fastSpatialSpec() }
+                    ) togetherWith fadeOut(motion.defaultEffectsSpec()) using SizeTransform(clip = false)
             },
             label = "menu-level",
         ) { sub ->
             MenuColors {
-                if (sub == null) {
-                    MenuGroups(shown, host)
-                } else {
-                    MenuGroups(sub.submenu, host, back = sub.label)
+                Box(Modifier.alignWithin(alignment)) {
+                    if (sub == null) {
+                        MenuGroups(shown, host)
+                    } else {
+                        MenuGroups(sub.submenu, host, back = sub.label)
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Nabídka s podnabídkami má po celou dobu velikost NEJVĚTŠÍ ze svých úrovní, ne té, která je
+ * vidět. Okno nabídky (`Popup` na Androidu) je `WRAP_CONTENT`: se změnou obsahu se mění velikost
+ * okna a jeho poloha se dopočítá až o snímek později. Při přepnutí úrovně, kdy se šířka
+ * animovala, tak okno měnilo velikost v každém snímku — obsah byl chvíli oříznutý, posunutý vůči
+ * ⋮, a při zvětšení okna probleskl černý pruh na jeho okraji (viděno po snímcích ze záznamu
+ * obrazovky emulátoru). Tentýž důvod, proč nabídka nad zprávou drží výšku vyšší z obou úrovní.
+ *
+ * [levels] se složí jen kvůli změření a neumístí se (nekreslí se, nechytají dotyky, čtečka je
+ * nevidí). Viditelná úroveň ([content]) dostane rezervu celou a drží se v ní strany [alignment].
+ * Ťuknutí do prázdného zbytku rezervy zavře nabídku jako ťuknutí mimo ni ([onTapOutside]).
+ */
+@Composable
+private fun LargestLevelSize(
+    alignment: () -> Alignment,
+    onTapOutside: () -> Unit,
+    levels: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val tapOutside by rememberUpdatedState(onTapOutside)
+    Layout(
+        contents = listOf(content, levels),
+        modifier = Modifier.pointerInput(Unit) { detectTapGestures { tapOutside() } },
+        measurePolicy = LargestLevelPolicy,
+    )
+}
+
+private val LargestLevelPolicy = object : MultiContentMeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<List<Measurable>>, constraints: Constraints): MeasureResult {
+        val (content, levels) = measurables
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val sizes = levels.map { it.measure(loose) }
+        val width = constraints.constrainWidth(sizes.maxOf { it.width })
+        val height = constraints.constrainHeight(sizes.maxOf { it.height })
+        val placeable = content.single().measure(Constraints.fixed(width, height))
+        return layout(width, height) { placeable.place(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<List<IntrinsicMeasurable>>, height: Int) =
+        measurables[1].maxOf { it.minIntrinsicWidth(height) }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<List<IntrinsicMeasurable>>, height: Int) =
+        measurables[1].maxOf { it.maxIntrinsicWidth(height) }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<List<IntrinsicMeasurable>>, width: Int) =
+        measurables[1].maxOf { it.minIntrinsicHeight(width) }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<List<IntrinsicMeasurable>>, width: Int) =
+        measurables[1].maxOf { it.maxIntrinsicHeight(width) }
+}
+
+/** Obsah ve své přirozené velikosti, umístěný v celé ploše podle [alignment] (čteno při umístění). */
+private fun Modifier.alignWithin(alignment: () -> Alignment): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+    val width = constraints.constrainWidth(placeable.width)
+    val height = constraints.constrainHeight(placeable.height)
+    layout(width, height) {
+        placeable.place(alignment().align(IntSize(placeable.width, placeable.height), IntSize(width, height), layoutDirection))
     }
 }
 
