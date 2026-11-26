@@ -513,30 +513,18 @@ Velikost: S / M / L.
 
 **Úklid kódu (uživatel nepozná)**
 
-- **Spoiler a mizející médium jedním pomocníkem (S).** `koinInject<RevealedSpoilers>` a „první
-  ťuknutí odkryje, druhé otevře" je šestkrát (fotka, video, GIF v `Attachments.kt`, dvě dlaždice
-  alba, sponzorovaná karta), `SelfDestructTimers` dvakrát. Např. `rememberMediaReveal(messageId,
-  media)` vracející stav a `onClick`.
-- **Jeden layout „díl pod dílem ve stejné šířce" (S).** `MediaWithCaption`, `BelowWithSameWidth`
-  (`Transcript.kt`) a `WithBelowMessage` (`BotKeyboard.kt`) dělají totéž; patří do `core/ui`.
-- **Společná kostra karty bubliny (S).** `BubbleMessageItem`, `PollMessageItem`
-  a `ChecklistMessageItem` opakují `quoted ?: return Bubble { X }` + `QuotedBubble(…)`, X začíná
-  `SenderName(bubbleColor)` + `OriginLabel()`, a všechny tři nesou `quoted` a `partnerName`.
-- **Vlastní blok pro kolečko a pro dárek (S).** `StickerMessageItem` nese i kostku a kolečko
-  (s vnitřní větví `if (media is VideoNote)`); `ServiceMessageItem` uvnitř rozhoduje
-  `if (gift != null) GiftCard` — proti pravidlu „jediný `when` je v builderu".
-- **`ServiceMessage` s osmi parametry (S).** Šest lambd, které volající hned převádí na
-  `MessageAction` — stačí jeden `onAction`.
-- **Rozdělit `MessageFrame` (M).** Jedna funkce ~530 řádků s rozbitým odsazením (vnořený
-  `Box`/`Row`, obsah `WithBelowMessage`). Vytáhnout tvář odesílatele, značky u bubliny a patičku
-  (počty, mizející zpráva, doručení). Značky (kontext, efekt, hover) si posun počítají ručním
-  sčítáním mezer — nová značka = úprava všech ostatních; řada by to dělala sama.
+- ~~**Spoiler a mizející médium jedním pomocníkem**, **jeden layout dílů stejné šířky**,
+  **společná kostra karty bubliny**, **vlastní blok pro dárek**, **`ServiceMessage` s jedním
+  `onAction`**, **rozdělení `MessageFrame`** a drobnosti~~ — hotovo (`MediaReveal`,
+  `SameWidthStack`, `BubbleCard`, `GiftNoticeItem`, `SenderAvatarSlot` / `BelowMessageCards` /
+  `SideMarks` / `MessageFooter`; `docs/poznatky/konverzace-zobrazeni.md`, „Bloky seznamu").
+- **Kolečko a samolepka jsou pořád dva bloky v `BareMessageItems.kt`** — v pořádku, jen poznámka:
+  `StickerMessageItem` už kolečko nenese (má `VideoNoteMessageItem`).
 - **`ConversationItemScope` rozdělit (M).** ~45 členů, většina s prázdnou výchozí implementací,
-  takže zapomenutá implementace se neozve. Menší rozhraní (přehrávání, AI, nabídka, efekty).
-- **Drobnosti (S):** dvakrát stejné `atTop` v `BubbleMessageItem`; `VoiceHandlers` s `onAccent`
-  opsané v článku i v `Attachment`; poměr stran `width / height` na třech místech; rozpis akcentu
-  `takeIf { it != Color.Unspecified } ?: LocalContentColor` v pěti kartách; `PostStats(views = 0…)`
-  jako berlička pro podpis autora; zastaralý KDoc `AlbumTile` („přehrávat neumíme").
+  takže zapomenutá implementace se neozve. Menší rozhraní (přehrávání, AI, nabídka, efekty);
+  sahá do `ScreenItemScope` i všech bloků, proto zvlášť.
+- **Poměr stran `width / height`** se počítá na třech místech (fotka, GIF, obrázek náhledu
+  odkazu) — `photoFrame` si s nulou poradí, takže jen kosmetika.
 
 ## Nápady z průchodu aplikací (27. 10. 2026)
 

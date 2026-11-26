@@ -241,6 +241,15 @@ a postup přestavby: [docs/architektura-konverzace.md](../architektura-konverzac
 - **Detektor gesta čte id zprávy přes `rememberUpdatedState`.** Vzniká jednou za život položky,
   ale odeslaná zpráva po potvrzení změní id (klíč položky ne); odpověď swipem by jinak mířila
   na dočasné id, které už neexistuje.
+- **Co se v blocích opakovalo, má jedno místo** (úklid listopad 2026): `BubbleCard` (bublina,
+  anketa i seznam úkolů: bez citace bublina, s citací karta, nahoře jméno a značka),
+  `SameWidthStack` (díly ve šířce kotvy: hlavička a popisek snímku, přepis pod záznamem),
+  `MediaReveal` / `rememberMediaReveal` (spoiler a mizející médium, dřív šestkrát),
+  `NoticeFrame` (rám oznámení pro `ServiceMessageItem` i dárek `GiftNoticeItem`).
+  **`MessageFrame` je rozdělený**: tvář (`SenderAvatarSlot`), karty pod zprávou
+  (`BelowMessageCards`), značky na volné straně (`SideMarks` — každá posune ty za sebou, dřív si
+  posun počítala každá sama) a patička (`MessageFooter`). Nová část rámu = nová funkce, ne další
+  blok uvnitř `MessageFrame`.
 - **Servisní oznámení přerušuje blok z OBOU stran** (`continues`). Dřív se hlídala jen novější
   zpráva, takže bublina pod oznámením měla stažené nároží, jako by na něj navazovala. Našel to
   až test nad builderem — v kompozici to nikdo neověřoval.
