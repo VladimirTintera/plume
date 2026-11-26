@@ -12,6 +12,7 @@ import eu.tintera.plume.core.accounts.AccountVisibility
 import eu.tintera.plume.core.accounts.notificationName
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.AccountSwitchNotices
+import eu.tintera.plume.core.accounts.SharedChats
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.ai.core.Connectivity
 import eu.tintera.plume.core.ai.NetworkConnectivity
@@ -305,6 +306,12 @@ fun appModule() = module {
     single { CallRequests() }
     single { ChatOpenRequests() }
     single { AccountSwitchNotices() }
+    // Spojené společné skupiny režimu Všechny účty: přenáší přečtení a notifikace mezi účty.
+    single {
+        val koin = getKoin()
+        // Účty líně, jako u nahrávání: kontejnery účtů si tohle berou už při svém zakládání.
+        SharedChats(accountsProvider = { koin.get() }, settings = get(), scope = get(named(APP_SCOPE)))
+    }
     single { LinkOpenRequests() }
     // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
     single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }
@@ -344,7 +351,16 @@ fun appAccountModule() = module {
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
     // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
-    single { NotificationActions(session = get(), conversations = get(), chats = get(), notifications = get()) }
+    single {
+        NotificationActions(
+            session = get(),
+            conversations = get(),
+            chats = get(),
+            notifications = get(),
+            slot = get(),
+            sharedChats = get(),
+        )
+    }
 
 
 
@@ -457,6 +473,8 @@ fun appAccountModule() = module {
             pendingDeletes = get(),
             history = get(),
             shareTargets = get(),
+            slot = get(),
+            sharedChats = get(),
         )
     }
     // Hledání v seznamu chatů (docs/navrh-hledani.md); dřív součást ChatsViewModel.
@@ -684,6 +702,7 @@ fun appAccountModule() = module {
             stagedAttachments = get(),
             gifs = get(),
             liveStoriesSupported = getOrNull<LiveStreamMedia>() != null,
+            sharedChats = get(),
         )
     }
 

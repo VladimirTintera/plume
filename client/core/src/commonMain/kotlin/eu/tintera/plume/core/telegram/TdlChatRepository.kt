@@ -128,6 +128,7 @@ import dev.g000sha256.tdl.dto.ChatActionBarReportSpam
 import dev.g000sha256.tdl.dto.ReportChatResultOk
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
+import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageSourceChatList
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.Message
@@ -1443,6 +1444,27 @@ class TdlChatRepository(
             is ChatTypeBasicGroup, is ChatTypeSupergroup -> client.ownMemberStatus(chat).isMember()
             else -> false
         }
+    }
+
+    override suspend fun readUpTo(chatId: Long, messageId: Long): Result<Unit> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        if (chat.unreadCount == 0 || messageId <= chat.lastReadInboxMessageId) return@runCatching
+        val last = chat.lastMessage
+        // Až po poslední zprávu: ta je v databázi vždycky. Starší se napřed dočte (`getMessage`
+        // jde i na server), jinak by ji TDLib v `viewMessages` nemusel znát.
+        val target = if (last != null && messageId >= last.id) {
+            last.id
+        } else {
+            client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+            messageId
+        }
+        client.viewMessages(
+            chatId = chatId,
+            messageIds = longArrayOf(target),
+            source = MessageSourceChatHistory(),
+            // Přečte i všechno před ní, jako hlášení z konverzace (`markRead`).
+            forceRead = true,
+        ).toResult().getOrThrow()
     }
 
     override suspend fun openSavedMessages(): Result<Long> {

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -105,6 +106,11 @@ data class ConversationNavigation(
      * nenabízet (bublina konverzace).
      */
     val onSwitchChat: ((ChatSummary) -> Unit)? = null,
+    /**
+     * Výběr účtu u pole ve spojené společné skupině (`SharedChats`): tutéž konverzaci otevře
+     * jiným účtem, na místě téhle. `null` = nenabízet (bublina konverzace).
+     */
+    val onSwitchAccount: ((AccountSlot) -> Unit)? = null,
 )
 
 /**

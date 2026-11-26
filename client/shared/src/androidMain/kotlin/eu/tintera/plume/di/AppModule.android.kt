@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.accounts.SharedChats
 import eu.tintera.ai.core.AudioClipDecoder
 import eu.tintera.ai.core.ModelDownloadNotifications
 import eu.tintera.plume.core.accounts.Accounts
@@ -313,6 +314,7 @@ actual fun Module.platformAccountModule() {
             journal = getOrNull<CallJournal>(),
             accountName = { get<Accounts>().notificationName(get()) },
             callBusy = { get<Accounts>().inCallElsewhere(get()) },
+            mayNotify = { notification -> get<SharedChats>().mayNotify(get(), notification.chatId, notification.messageId) },
         )
     }
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.

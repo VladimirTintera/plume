@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.SharedChats
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -32,6 +34,10 @@ class NotificationActions(
     private val conversations: ConversationRepository,
     private val chats: ChatRepository,
     private val notifications: NotificationRepository,
+    /** Účet akcí, pro přenos přečtení spojené společné skupiny ([sharedChats]). */
+    private val slot: AccountSlot? = null,
+    /** Přečtení z notifikace u společné skupiny přečte i ostatní účty v ní (`SharedChats`). */
+    private val sharedChats: SharedChats? = null,
 ) {
 
     private val logger = Logger.withTag("NotificationReply")
@@ -102,6 +108,7 @@ class NotificationActions(
         val upTo = messageId ?: newestMessageId(chatId)
             ?: return Result.failure(IllegalStateException("V chatu $chatId není co přečíst."))
         return conversations.markRead(chatId, listOf(upTo))
+            .onSuccess { slot?.let { sharedChats?.readUpTo(it, chatId, upTo) } }
             .onFailure { logger.w(it) { "Chat se z notifikace nepodařilo označit za přečtený." } }
     }
 

@@ -88,6 +88,11 @@ actual class NotificationPresenter internal constructor(
      * oznámení hovoru ale vydá TDLib vlastní cestou — to se pak neukazuje.
      */
     private val callBusy: () -> Boolean = { false },
+    /**
+     * Smí se oznámení ukázat? Ve spojené společné skupině ho ohlásí každý účet, ukáže se jen
+     * od prvního (`SharedChats.mayNotify`).
+     */
+    private val mayNotify: suspend (ChatNotification) -> Boolean = { true },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -160,7 +165,9 @@ actual class NotificationPresenter internal constructor(
         startBadge()
     }
 
-    private suspend fun add(notifications: List<ChatNotification>) {
+    private suspend fun add(added: List<ChatNotification>) {
+        val notifications = added.filter { mayNotify(it) }
+        if (notifications.isEmpty()) return
         val labels = if (actions != null) buttonLabels() else null
         // Popisky se mohly změnit s jazykem; na macOS jsou v kategoriích, ne v oznámení.
         if (labels != null) prepareActions(labels)

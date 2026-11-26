@@ -218,6 +218,15 @@ interface ChatRepository {
     suspend fun takesPartIn(chatId: Long): Boolean = false
 
     /**
+     * Přečte chat [chatId] po zprávu [messageId] včetně, jako by ji uživatel viděl v historii.
+     * Volá se za DRUHÝ účet společné skupiny nebo kanálu, když ji uživatel přečetl v prvním
+     * (`SharedChats`): id zpráv jsou tam v obou účtech stejná. Zmínky a reakce zůstávají —
+     * patří tomu účtu, kterého se týkají. Zpráva, kterou účet ještě nemá v databázi, se napřed
+     * dočte; přečtení starší než to, co už účet přečetl, nic neudělá.
+     */
+    suspend fun readUpTo(chatId: Long, messageId: Long): Result<Unit> = Result.success(Unit)
+
+    /**
      * Skupiny ze seznamu chatů (i archivu), do kterých smí uživatel přidat bota ([canAddBot]);
      * s [asAdmin] jen ty, kde ho smí i jmenovat správcem.
      */
