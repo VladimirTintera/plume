@@ -7,9 +7,10 @@
     client/resources/src/commonMain/composeResources/drawable/plume_logo_24dp.xml – logo v „O aplikaci“
     client/desktopApp/icons/plume.{ico,icns,png}                     – desktop (Windows, macOS, Linux)
     client/desktopApp/src/main/resources/plume-icon.png              – ikona okna a oznamovací oblasti
+    client/tvApp/src/main/res/drawable-xhdpi/tv_banner.png           – banner v launcheru Android TV
 
 Spuštění (z kořene repa): python3 play/tools/icon.py (Pillow, shapely), jen desktop:
-python3 play/tools/icon.py desktop. Bez Pillow a shapely v systému:
+python3 play/tools/icon.py desktop, jen banner televize: python3 play/tools/icon.py tv. Bez Pillow a shapely v systému:
 uv run --with pillow --with shapely python3 play/tools/icon.py. Barvy pozadí musí sedět
 s `ic_launcher_background.xml`.
 
@@ -168,12 +169,47 @@ def write_desktop():
     desktop(512).save(ROOT / "client/desktopApp/src/main/resources/plume-icon.png")
 
 
+def tv_banner():
+    """Banner v launcheru Android TV: 320 × 180 dp (xhdpi 640 × 360), pírko a jméno.
+
+    Launcher televize ukazuje místo ikony banner a Google chce, aby nesl jméno aplikace
+    (bez něj ho uživatel v řadě aplikací nepozná). Jméno je Bricolage z písem aplikace, jako
+    velké nadpisy; vektor text neumí, proto PNG.
+    """
+    from PIL import ImageFont
+
+    w, h, k = 640, 360, 4
+    n_w, n_h = w * k, h * k
+    im = gradient(n_w, n_h)
+    font = ImageFont.truetype(
+        str(ROOT / "client/resources/src/commonMain/composeResources/font/bricolage_grotesque_semibold.ttf"),
+        round(n_h * 0.26),
+    )
+    d = ImageDraw.Draw(im)
+    x0, y0, x1, y1 = d.textbbox((0, 0), "Plume", font=font)
+    # Pírko zabírá 2 × RASTER_REACH své čtvercové masky; pírko, mezera a jméno uprostřed.
+    side = round(n_h * 0.9)
+    visible = side * 2 * RASTER_REACH
+    gap = n_h * 0.06
+    left = (n_w - (visible + gap + (x1 - x0))) / 2
+    fx = round(left - side * (0.5 - RASTER_REACH))
+    im.paste(Image.new("RGB", (side, side), INK), (fx, (n_h - side) // 2), feather_mask(side))
+    d.text((left + visible + gap - x0, (n_h - (y1 - y0)) / 2 - y0), "Plume", font=font, fill=INK)
+    out = ROOT / "client/tvApp/src/main/res/drawable-xhdpi/tv_banner.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    im.resize((w, h), Image.LANCZOS).save(out)
+
+
 if __name__ == "__main__":
     import sys
 
+    if sys.argv[1:] == ["tv"]:
+        tv_banner()
+        sys.exit()
     write_desktop()
     if sys.argv[1:] == ["desktop"]:
         sys.exit()
+    tv_banner()
     raster(512).save(ROOT / "play/graphics/icon/icon.png")
     raster(1024).save(ROOT / "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png")
     (ROOT / "client/androidApp/src/main/res/drawable/ic_launcher_foreground.xml").write_text(vector(), encoding="utf-8")

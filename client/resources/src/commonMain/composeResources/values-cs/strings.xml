@@ -5159,4 +5159,29 @@
     <string name="chat_lock_title">Zamknout tenhle chat?</string>
     <string name="chat_lock_text">V tomhle zařízení zmizí ze seznamu chatů, z hledání i z widgetu a notifikace řeknou jen „Nová zpráva“. Najdeš ho v menu účtu → Zamčené chaty, za PINem zámku aplikace.</string>
     <string name="chat_lock_needs_app_lock">Zamčené chaty se odemykají PINem zámku aplikace. Napřed zapni zámek v Nastavení → Soukromí → Zámek aplikace.</string>
+    <!-- Android TV (client/tvApp) -->
+    <string name="tv_login_title">Přihlášení do Plume</string>
+    <string name="tv_login_qr_only">Na televizi se dá přihlásit jen QR kódem.</string>
+    <string name="tv_login_show_qr">Zobrazit QR kód</string>
+    <string name="tv_password_title">Dvoufázové ověření</string>
+    <string name="tv_password_label">Heslo</string>
+    <string name="tv_password_hint">Nápověda: %1$s</string>
+    <string name="tv_password_failed">Heslo neprošlo, zkus to znovu.</string>
+    <string name="tv_password_submit">Přihlásit</string>
+    <string name="tv_chats_empty">Tady zatím žádné chaty nejsou</string>
+    <string name="tv_conversation_empty">Zatím žádné zprávy</string>
+    <string name="tv_conversation_failed">Zprávy se nepodařilo načíst.</string>
+    <string name="tv_message_unsupported">Tuhle zprávu zatím ukáže jen telefon.</string>
+    <string name="tv_message_you">Ty</string>
+    <string name="tv_comments_title">Komentáře</string>
+    <string name="tv_comments_empty">Zatím žádné komentáře</string>
+    <string name="tv_comments_off">Tenhle kanál komentáře nemá</string>
+    <string name="tv_action_reply">Odpovědět</string>
+    <string name="tv_reply_title">Odpověď</string>
+    <string name="tv_reply_hint">Zpráva</string>
+    <string name="tv_reply_send">Odeslat</string>
+    <string name="tv_send_failed">Zprávu se nepodařilo odeslat.</string>
+    <string name="tv_compose_button">Napsat zprávu</string>
+    <string name="tv_compose_comment">Napsat komentář</string>
+    <string name="tv_compose_title">Nová zpráva</string>
 </resources>

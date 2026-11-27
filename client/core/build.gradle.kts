@@ -79,6 +79,9 @@ kotlin {
             // být Crashlytics na classpath. Bez `google-services.json` se knihovna jen neinicializuje.
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.crashlytics)
+            // Zdroj pro ExoPlayer nad rozestavěným souborem TDLib (`core/video/PartialFileDataSource`):
+            // telefon i televize. Jen datasource, přehrávač si přidá, kdo přehrává.
+            api(libs.media3.datasource)
         }
 
         commonTest.dependencies {

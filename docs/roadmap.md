@@ -564,6 +564,50 @@ přehrávání videa a hudby, mapy u polohy, Instant View, formátování textu 
 drahé na baterii a výkon, nebo skoro nic nepřidají. Gemini Nano na hodinkách není, návrhy
 odpovědí jsou jen ze systému.
 
+## Android TV
+
+**Stav (27. 11. 2026):** základ samostatné aplikace `:client:tvApp` nad `:client:core`, stejně
+poskládaný jako hodinky: přihlášení QR kódem (a heslo dvoufázového ověření systémovou
+klávesnicí), seznam chatů se složkami jako záložkami a náhledem zaostřeného chatu (poslední
+médium přes pozadí, poslední zprávy), konverzace jen ke čtení (text, fotky, video, servisní
+zprávy), kanály jako feed karet s detailem příspěvku a komentáři a video přes celou obrazovku za běhu stahování s ovládáním ovladačem a `MediaSession`.
+Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co se při tom zjistilo:
+`docs/poznatky/android-tv.md`.
+
+**Další kroky (podle užitku):**
+
+1. ~~**Video a přehrávání médií**~~ — hotovo (zdroj nad souborem TDLib přesunutý do `core`,
+   přehrávač, `MediaSession`). Zbývá: pokračování tam, kde uživatel skončil (rozkoukaná videa,
+   na telefonu `VideoProgress`), výběr kvality (`alternatives`), titulky/storyboard při skoku,
+   video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
+2. ~~**Kanály jako feed a komentáře**~~ — hotovo (karty příspěvků, detail s rolovaným textem
+   a vláknem komentářů). Zbývá: odkazy a Instant
+   View v textu, příspěvek z feedu otevřený přímo v přehrávači (OK na kartě s videem), **zpráva
+   vyšší než obrazovka v konverzaci** (skupiny, chaty — fokus tam pořád skáče po celých
+   zprávách) a velké komentáře, které se do pravého sloupce nevejdou celé.
+3. ~~**Fotky přes celou obrazovku** a procházení alba šipkami~~ — hotovo (prohlížeč přes všechna
+   média konverzace, album jako mřížka v bublině). Zbývá: přiblížení fotky, pás alba v detailu
+   příspěvku ověřit na kanálu s alby, otevření prohlížeče na N-té položce alba (dnes vždy první).
+4. ~~**Hlasovky a hudba**~~ — hotovo (jeden přehrávač pro aplikaci, dock, fronta, `MediaSession`
+   s dalším a předchozím). Zbývá: skok v hlasovce a skladbě (dnes jen od začátku), přepis
+   hlasovky, kolečka (video zprávy), streamování dlouhých skladeb místo stažení celých.
+5. ~~**Reakce a odpovědi**~~ — hotovo (čipy reakcí, citace, nabídka podržením OK, odpověď přes
+   systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod
+   konverzací (hotovo). Zbývá: kdo reagoval, vlastní emoji (kreslení), úprava a smazání vlastní zprávy,
+   přeposlání, skok na citovanou zprávu.
+6. **Úklid mezipaměti** jako na hodinkách (`WearStorageCleaner`): levné televize mají kolem 8 GB
+   a videa z kanálů by je zaplnila.
+7. **Hlavní cíle v liště** (`NavigationDrawer`: Chaty, Hledání, Nastavení), až budou; složky
+   zůstávají záložkami.
+8. **Vydání do Play:** bundl ze stejného tagu (`versionCodeOffset` 200 000 000 už je), track
+   `tv:internal` v release workflow, jednotka `tv` v `release_notes.py`, snímky z televize do
+   `play/graphics/`, přihlášení k distribuci pro Android TV s kontrolou kvality.
+9. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
+   a výkon seznamu s avatary na slabém procesoru.
+
+Vědomě ne (aspoň zatím): hovory, psaní dlouhých zpráv, správa skupin a nastavení účtu,
+notifikace (centrum notifikací na televizi skoro není).
+
 ## Obrazovky a sekce, které nejsou
 
 Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou). Routy: `ChatsRoute`, `SettingsRoute`,
