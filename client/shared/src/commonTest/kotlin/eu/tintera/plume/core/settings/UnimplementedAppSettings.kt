@@ -137,6 +137,10 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setOpenLinksInApp(enabled: Boolean): Unit = error("setOpenLinksInApp")
     override val doubleTapReaction: StateFlow<Boolean> get() = error("doubleTapReaction")
     override fun setDoubleTapReaction(enabled: Boolean): Unit = error("setDoubleTapReaction")
+    override val onThisDay: StateFlow<Boolean> get() = error("onThisDay")
+    override fun setOnThisDay(enabled: Boolean): Unit = error("setOnThisDay")
+    override val onThisDayDismissed: StateFlow<Set<String>> get() = error("onThisDayDismissed")
+    override fun dismissOnThisDay(epochDay: Long, chatId: Long): Unit = error("dismissOnThisDay")
     override fun forAccount(slot: eu.tintera.plume.core.accounts.AccountSlot): AccountSettings = error("forAccount")
 }
 

@@ -377,22 +377,10 @@ class ConversationCalendar(
     suspend fun messagesOfDay(date: LocalDate): List<ChatMessage> {
         val start = date.atStartOfDayIn(zone).epochSeconds.toInt()
         val end = date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).epochSeconds.toInt()
-        val nextDay = repository.firstMessageFrom(chatId, end).getOrNull()
-        var from = nextDay ?: 0L
-        val seen = HashSet<Long>()
-        val day = mutableListOf<ChatMessage>()
-        for (page in 0 until DAY_SUMMARY_PAGES) {
-            val fresh = repository.history(chatId, from, limit = DAY_SUMMARY_PAGE).getOrNull().orEmpty()
-                .filter { seen.add(it.id) }
-            if (fresh.isEmpty()) break
-            day += fresh.filter { it.timestamp in start until end && !it.isService }
-            val oldest = fresh.minBy { it.id }
-            if (oldest.timestamp < start || day.size >= DAY_SUMMARY_CAP) break
-            from = oldest.id
-        }
+        val day = repository.messagesBetween(chatId, start, end, cap = DAY_SUMMARY_CAP, pages = DAY_SUMMARY_PAGES, pageSize = DAY_SUMMARY_PAGE)
         // Bez dalšího dne je den poslední v chatu, a ten počítá souvislý úsek od nejnovější zprávy.
-        if (seen.isNotEmpty()) refresh(anchor = nextDay)
-        return day.sortedBy { it.id }.takeLast(DAY_SUMMARY_CAP)
+        if (day.readAnything) refresh(anchor = day.nextMessageId)
+        return day.messages
     }
 
     private suspend fun findFirstMonth() {

@@ -803,6 +803,19 @@ class ConversationViewModel(
     fun closeReplyThread() = replyThread.closeThread()
     fun pickReplyThreadMessage(messageId: Long) = replyThread.pickThreadMessage(messageId)
 
+    /** Pruh „Před rokem" — viz [ConversationOnThisDay]. */
+    private val onThisDay: ConversationOnThisDay = ConversationOnThisDay(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        settings = settings,
+        jumpToDate = { epochSeconds -> search.jumpToDate(epochSeconds) },
+        logger = logger,
+    )
+    fun openOnThisDay() = onThisDay.open()
+    fun dismissOnThisDay() = onThisDay.dismiss()
+
     fun openScheduled() = scheduled.openScheduled()
     fun closeScheduled() = scheduled.closeScheduled()
     fun reschedule(messageId: Long, schedule: MessageSchedule?) = scheduled.reschedule(messageId, schedule)
@@ -1091,6 +1104,9 @@ class ConversationViewModel(
                 it.copy(attachments = staged.attachments, attachmentsSeparately = staged.separately, photoEdits = staged.photoEdits)
             }
         }
+
+        // „Před rokem" jen nad celým chatem (téma a vlákno mají vlastní historii jinde).
+        if (canJumpToDate) onThisDay.check()
 
         // Vlastní emoji v úpravě zprávy: smí se jen tam, kde se smí poslat (lokální dotaz).
         viewModelScope.launch {

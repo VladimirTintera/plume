@@ -80,6 +80,7 @@ import eu.tintera.plume.resources.settings_notif_preview
 import eu.tintera.plume.resources.settings_notif_reset_all
 import eu.tintera.plume.resources.settings_notif_stories
 import eu.tintera.plume.resources.settings_open_links_in_app
+import eu.tintera.plume.resources.settings_on_this_day
 import eu.tintera.plume.resources.settings_passkeys
 import eu.tintera.plume.resources.settings_quick_reaction
 import eu.tintera.plume.resources.settings_reply_suggestions
@@ -194,6 +195,7 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
         Res.string.settings_swipe_left,
         Res.string.settings_swipe_right,
         Res.string.settings_quick_reaction,
+        Res.string.settings_on_this_day,
         Res.string.settings_open_links_in_app,
         Res.string.settings_telegram_links,
         Res.string.settings_skip_silence,

@@ -4731,6 +4731,13 @@
     </plurals>
     <!-- Statistiky kanálu, skupiny a příspěvku -->
     <string name="statistics_title">Statistics</string>
+    <plurals name="on_this_day_title">
+        <item quantity="one">A year ago</item>
+        <item quantity="other">%1$d years ago</item>
+    </plurals>
+    <string name="on_this_day_preview">%1$s: %2$s</string>
+    <string name="settings_on_this_day">A year ago in chats</string>
+    <string name="settings_on_this_day_summary">Above a conversation, show what you wrote on this day a year or more ago</string>
     <string name="chat_insights_title">Chat stats</string>
     <string name="chat_insights_failed">Couldn't compute chat stats</string>
     <string name="chat_insights_scanning">Counting messages…</string>
