@@ -2159,9 +2159,9 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
 
 **Psaní**
 
-- **Vlastní textové zkratky** (S). `/adresa` nebo `;iban` se rozbalí na uložený text.
-  Telegram má rychlé odpovědi jen v placeném Business. Další zdroj návrhů pro napovídání
-  ve vstupním poli; správa v Nastavení → Chaty.
+- ~~**Vlastní textové zkratky**~~ — hotovo (Nastavení → Chaty → Textové zkratky, návrhy po „/"
+  nad polem; `docs/poznatky/konverzace-psani.md`, „Vlastní textové zkratky"). Zbývá: zkratky
+  i jako hotové odpovědi u hovoru a v notifikaci; ověřit synchronizaci na dvou zařízeních.
 
 ---
 
