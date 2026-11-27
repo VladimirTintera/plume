@@ -145,7 +145,11 @@ fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, actions
     val opened = openPost?.let { id -> posts.firstOrNull { it.id == id } }
     if (opened != null) {
         BackHandler { openPost = null }
-        PostDetail(chatId, info, opened, playerOpen, actions)
+        // Kanál jako pořad: po videu příspěvku hrají videa STARŠÍCH příspěvků, jak jde feed dolů.
+        val olderVideos = remember(posts, opened.id) {
+            videoQueue(chatId, posts.dropWhile { it.id != opened.id }.drop(1).flatMap { it.messages })
+        }
+        PostDetail(chatId, info, opened, playerOpen, actions, olderVideos)
         return
     }
     Column(Modifier.fillMaxSize()) {
@@ -329,21 +333,35 @@ private fun FooterStat(icon: org.jetbrains.compose.resources.DrawableResource, t
  * — teprve na konci by fokus odešel jinam; doprava se jde do komentářů. U videa OK přehraje.
  */
 @Composable
-private fun PostDetail(chatId: Long, info: ChatInfo, post: ChannelPost, playerOpen: Boolean, actions: MediaActions) {
+private fun PostDetail(
+    chatId: Long,
+    info: ChatInfo,
+    post: ChannelPost,
+    playerOpen: Boolean,
+    actions: MediaActions,
+    olderVideos: List<VideoRequest>,
+) {
     Column(Modifier.fillMaxSize()) {
         ChatHeader(chatId, info)
         Row(
             Modifier.fillMaxSize().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, bottom = SAFE_VERTICAL),
             horizontalArrangement = Arrangement.spacedBy(32.dp),
         ) {
-            PostBody(chatId, post, playerOpen, actions, Modifier.weight(0.56f).fillMaxHeight())
+            PostBody(chatId, post, playerOpen, actions, olderVideos, Modifier.weight(0.56f).fillMaxHeight())
             PostComments(chatId, info.title, post, actions, Modifier.weight(0.44f).fillMaxHeight())
         }
     }
 }
 
 @Composable
-private fun PostBody(chatId: Long, post: ChannelPost, playerOpen: Boolean, actions: MediaActions, modifier: Modifier) {
+private fun PostBody(
+    chatId: Long,
+    post: ChannelPost,
+    playerOpen: Boolean,
+    actions: MediaActions,
+    olderVideos: List<VideoRequest>,
+    modifier: Modifier,
+) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val stepPx = with(LocalDensity.current) { SCROLL_STEP.toPx() }
@@ -351,7 +369,7 @@ private fun PostBody(chatId: Long, post: ChannelPost, playerOpen: Boolean, actio
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Samotné video se pustí, fotka nebo album otevře prohlížeč na první položce.
-    val open = mediaOpenAction(chatId, post.messages, post.messages, actions)
+    val open = mediaOpenAction(chatId, post.messages, post.messages, actions, videosAfter = olderVideos)
     Column(
         modifier
             .clip(RoundedCornerShape(20.dp))

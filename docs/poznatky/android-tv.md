@@ -134,6 +134,27 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
 
+## Kanál jako pořad (další video samo)
+
+- **Žádost o přehrání nese frontu** (`VideoRequest.queue`, `next()`): po dohrání naskočí vpravo
+  dole karta dalšího videa s náhledem, popiskem a šestivteřinovým odpočtem, pak se pustí samo.
+  OK přehraje hned, Zpět odpočet zruší (video zůstane na konci, druhé Zpět zavře), jiná klávesa
+  ho zruší a udělá, co dělá vždycky (šipka vlevo skočí zpět). Tlačítko „další" na ovladači pustí
+  další video kdykoli. Ovládání během odpočtu ustoupí kartě — jinak ji překrývalo.
+- **Směr podle toho, jak se obrazovka čte**: v konverzaci novější zprávy (`mediaOpenAction`
+  z `allMessages`), v kanálu STARŠÍ příspěvky, protože feed jde od nejnovějšího dolů
+  (`ChannelFeedScreen` předá frontu sám přes `videosAfter`). Ve frontě jsou jen videa, která
+  přehrávač pustí (ne mizející a tajná), nejvýš 50, a jen z načtené části historie — feed se při
+  přehrávání nedočítá.
+- **Zpět z přehrávače vede tam, odkud se pouštělo první video** (detail příspěvku, zpráva
+  v konverzaci), ne na příspěvek posledního přehraného. Přehrávač je jedna vrstva nad obrazovkou
+  a každé video z fronty je nová instance (`key(fileId)`) téže vrstvy.
+- **Ověřeno 27. 11. 2026** v chatu s Notifikátorem na dvou patnáctivteřinových videích od
+  testovacího bota: po dohrání karta „Další za 5 s" s náhledem a popiskem videa B, samo pustí B;
+  Zpět během odpočtu zůstane na konci A; tlačítko „další" (`KEYCODE_MEDIA_NEXT`) pustí B hned;
+  Zpět z B vrátí fokus na zprávu s A. **Fronta v kanálu (starší příspěvky) na zařízení ověřená
+  NENÍ** — odebírané kanály s videy po sobě v testu nebyly.
+
 ## Rozkoukaná videa
 
 - **Tatáž pravidla a tentýž seznam jako na telefonu** (`docs/poznatky/prohlizec-medii.md`,

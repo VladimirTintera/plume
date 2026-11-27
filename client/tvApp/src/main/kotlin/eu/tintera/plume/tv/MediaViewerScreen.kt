@@ -62,10 +62,38 @@ data class ViewerItem(val chatId: Long, val messageId: Long, val media: MessageM
 
 /**
  * Video k přehrání a zpráva, ze které je: podle ní se pamatuje, kde uživatel přestal sledovat
- * (seznam Rozkoukaná videa otevírá video zase z té zprávy).
+ * (seznam Rozkoukaná videa otevírá video zase z té zprávy). [queue] jsou videa, která po něm
+ * přehrávač pustí sám („kanál jako pořad"): v konverzaci novější zprávy, v kanálu starší
+ * příspěvky — tím směrem, kterým se obrazovka čte.
  */
 @Immutable
-data class VideoRequest(val chatId: Long, val messageId: Long, val video: MessageMedia.Video, val caption: String)
+data class VideoRequest(
+    val chatId: Long,
+    val messageId: Long,
+    val video: MessageMedia.Video,
+    val caption: String,
+    val queue: List<VideoRequest> = emptyList(),
+) {
+    /** Další video z fronty, se zbytkem fronty za sebou; `null` na konci. */
+    fun next(): VideoRequest? = queue.firstOrNull()?.copy(queue = queue.drop(1))
+}
+
+/**
+ * Videa ze zpráv [messages] v daném pořadí jako fronta pro přehrávač (nejvýš [MAX_VIDEO_QUEUE]).
+ * Jen videa, která se dají přehrát (ne mizející ani tajná).
+ */
+fun videoQueue(chatId: Long, messages: List<ChatMessage>): List<VideoRequest> =
+    messages.asSequence()
+        .mapNotNull { message ->
+            val video = message.media as? MessageMedia.Video ?: return@mapNotNull null
+            if (video.selfDestructType != null || video.isSecret) return@mapNotNull null
+            VideoRequest(chatId, message.id, video, message.text)
+        }
+        .take(MAX_VIDEO_QUEUE)
+        .toList()
+
+/** Kolik videí dopředu fronta nese (televize se dívá v kuse, ale ne celou historii). */
+private const val MAX_VIDEO_QUEUE = 50
 
 /**
  * Co jde s médiem ve zprávě udělat: pustit video ([playVideo]), nebo otevřít prohlížeč fotek
@@ -91,8 +119,17 @@ fun viewerItems(chatId: Long, messages: List<ChatMessage>): List<ViewerItem> = m
  * z [allMessages] (celé načtené konverzace, jako na telefonu). Hlasovka nebo skladba se pustí
  * v přehrávači zvuku a po ní hrají další stejného druhu; OK na právě hrající ji pozastaví.
  * Zpráva bez média nic nedělá (`null`).
+ *
+ * Po videu přehrávač pustí další videa z [videosAfter] — bez něj novější videa z [allMessages]
+ * (konverzace se čte od nejstarší dolů). Kanál dává frontu sám: jeho feed jde od nejnovějšího.
  */
-fun mediaOpenAction(chatId: Long, album: List<ChatMessage>, allMessages: List<ChatMessage>, actions: MediaActions): (() -> Unit)? {
+fun mediaOpenAction(
+    chatId: Long,
+    album: List<ChatMessage>,
+    allMessages: List<ChatMessage>,
+    actions: MediaActions,
+    videosAfter: List<VideoRequest>? = null,
+): (() -> Unit)? {
     val first = album.first()
     val media = first.media
     return when {
@@ -102,7 +139,12 @@ fun mediaOpenAction(chatId: Long, album: List<ChatMessage>, allMessages: List<Ch
                 actions.playAudio(items, items.indexOfFirst { it.messageId == first.id }.coerceAtLeast(0))
             }
         }
-        album.size == 1 && media is MessageMedia.Video -> { { actions.playVideo(VideoRequest(chatId, first.id, media, first.text)) } }
+        album.size == 1 && media is MessageMedia.Video -> {
+            {
+                val queue = videosAfter ?: videoQueue(chatId, allMessages.filter { it.id > first.id })
+                actions.playVideo(VideoRequest(chatId, first.id, media, first.text, queue))
+            }
+        }
         album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video } -> {
             {
                 val items = viewerItems(chatId, allMessages)
