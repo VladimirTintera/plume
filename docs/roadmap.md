@@ -599,9 +599,12 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    a videa z kanálů by je zaplnila.
 7. **Hlavní cíle v liště** (`NavigationDrawer`: Chaty, Hledání, Nastavení), až budou; složky
    zůstávají záložkami.
-8. **Vydání do Play:** bundl ze stejného tagu (`versionCodeOffset` 200 000 000 už je), track
-   `tv:internal` v release workflow, jednotka `tv` v `release_notes.py`, snímky z televize do
-   `play/graphics/`, přihlášení k distribuci pro Android TV s kontrolou kvality.
+8. ~~**Vydání do Play:** bundl ze stejného tagu, track `tv:internal`, jednotka `tv`, banner do
+   obchodu~~ — připraveno (release workflow za `TV_RELEASE`, R8 ověřený na emulátoru). Zbývá na
+   uživateli: povolit formát Android TV v Play Console, nastavit repo proměnnou `TV_RELEASE`,
+   vydat, zaškrtnout testery. Pro veřejné vydání **snímky TV z testovacího účtu** (emulátor
+   `Plume_TV` přihlásit QR kódem z testovacího telefonu) do `play/graphics/<locale>/tvScreenshots/`
+   a přihlášení k distribuci pro Android TV s kontrolou kvality.
 9. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
    a výkon seznamu s avatary na slabém procesoru.
 
