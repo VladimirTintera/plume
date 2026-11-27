@@ -444,6 +444,9 @@ který uvidí uživatel.
   s jedním to dvakrát propadlo: slot v UI (`Text(`, `text =`, `contentDescription = …`) nesmí
   dostat literál vůbec a český text nesmí být nikde mimo komentáře, logy a vnitřní kontroly.
   Hledat jen podle diakritiky nestačí — „Odebrat soubor" ani „Video" tak nenajdeš.
+  **Log pozná kontrola jen na řádku s `logger.…` / `Logger.withTag`**: popisek předaný pomocné
+  funkci, která loguje až uvnitř (`call("Příprava tahu oknem") { … }` v `MacTitleBar`), shodil
+  `check` na `main`. Takový popisek je jméno volání (`call("nativeInstallDragMonitor")`).
 - **Prompt pro model je výjimka z JEDNOHO z těch dvou pravidel, ne z celé kontroly.** Instrukce
   pro Gemini Nano musí jmenovat „tykání/vykání" česky (bez toho model kamarádovi vykal, viz
   „Návrhy odpovědí"), takže promptové soubory v `core.ai` mají vypnuté pravidlo o diakritice —

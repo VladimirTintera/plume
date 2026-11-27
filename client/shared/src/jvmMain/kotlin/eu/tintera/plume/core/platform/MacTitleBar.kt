@@ -47,13 +47,13 @@ internal object MacTitleBar {
      * Začne tah oknem za myší, dokud je stisknuté levé tlačítko. Na Macu jediná cesta, jak tah
      * za pruh titulku začíná (`DesktopTitleBar`).
      */
-    fun startDrag(window: java.awt.Frame) = call("Tah oknem") { nativeStartDrag(window.title) }
+    fun startDrag(window: java.awt.Frame) = call("nativeStartDrag") { nativeStartDrag(window.title) }
 
     /** Připraví tah oknem (hlídač stisků v AppKitu); jednou, než může přijít první tah. */
-    fun prepareDrag() = call("Příprava tahu oknem") { nativeInstallDragMonitor() }
+    fun prepareDrag() = call("nativeInstallDragMonitor") { nativeInstallDragMonitor() }
 
     /** Dvojklik na pruh titulku: zvětšení / minimalizace podle nastavení systému. */
-    fun titleBarDoubleClick(window: java.awt.Frame) = call("Dvojklik na titulek") { nativeTitleBarDoubleClick(window.title) }
+    fun titleBarDoubleClick(window: java.awt.Frame) = call("nativeTitleBarDoubleClick") { nativeTitleBarDoubleClick(window.title) }
 
     private inline fun call(what: String, block: () -> Unit) {
         if (!MacNative.loaded) return
