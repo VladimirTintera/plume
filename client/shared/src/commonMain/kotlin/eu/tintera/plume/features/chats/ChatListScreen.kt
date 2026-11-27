@@ -159,6 +159,7 @@ import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.features.chatlabels.ChatLabelsSheet
 import eu.tintera.plume.resources.chats_archived
 import eu.tintera.plume.resources.chats_archived_many
 import eu.tintera.plume.resources.chats_unarchived_many
@@ -974,6 +975,10 @@ internal fun ChatActionsHost(
             folders = folderChoices,
             // Do složek se přidává často do víc po sobě, takže nabídka zůstává otevřená.
             onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
+            onLabels = {
+                close()
+                sheets.labels = chat
+            },
             onAddToHomeScreen = if (viewModel.canAddToHomeScreen) {
                 { close(); viewModel.addToHomeScreen(chat) }
             } else null,
@@ -987,6 +992,7 @@ internal fun ChatActionsHost(
             onDismiss = close,
         )
     }
+    sheets.labels?.let { chat -> ChatLabelsSheet(chatId = chat.id, onDismiss = { sheets.labels = null }) }
     // Tentýž sheet jako ⋮ v konverzaci — dvě podoby téhož kroku by se rozešly.
     sheets.clearHistory?.let { target ->
         ClearHistorySheet(

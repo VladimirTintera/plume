@@ -4757,6 +4757,17 @@
     <string name="digest_ai_off">Summaries are written by the on-device model. Turn it on in Settings.</string>
     <string name="digest_ai_missing">Summaries need the on-device model to be downloaded.</string>
     <string name="digest_open_settings">Open settings</string>
+    <string name="labels_title">Labels</string>
+    <string name="labels_explanation">Only you can see labels. They stay on your devices; Telegram doesn't know about them.</string>
+    <string name="labels_empty">No labels yet. Create one to sort your chats.</string>
+    <string name="labels_new">New label</string>
+    <string name="labels_edit">Edit label</string>
+    <string name="labels_name">Name</string>
+    <string name="labels_save">Save</string>
+    <string name="labels_delete">Delete label</string>
+    <string name="labels_delete_title">Delete the label “%1$s”?</string>
+    <string name="labels_delete_text">It will be removed from every chat.</string>
+    <string name="labels_filter">Filter by label</string>
     <string name="chat_insights_title">Chat stats</string>
     <string name="chat_insights_failed">Couldn't compute chat stats</string>
     <string name="chat_insights_scanning">Counting messages…</string>

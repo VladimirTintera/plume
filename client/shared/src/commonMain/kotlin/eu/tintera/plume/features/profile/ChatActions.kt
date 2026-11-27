@@ -41,6 +41,9 @@ import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.features.calls.rememberVideoCallsSupported
 import eu.tintera.plume.features.settings.BirthdatePickerDialog
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.label_24dp
+import eu.tintera.plume.resources.labels_title
+import eu.tintera.plume.features.chatlabels.ChatLabelsSheet
 import eu.tintera.plume.resources.add_members_title
 import eu.tintera.plume.resources.add_photo_alternate_24dp
 import eu.tintera.plume.resources.add_subscribers_title
@@ -141,6 +144,7 @@ internal fun ChatActions(
     var editContact by rememberSaveable { mutableStateOf(false) }
     var confirmLock by rememberSaveable { mutableStateOf(false) }
     var needsAppLock by rememberSaveable { mutableStateOf(false) }
+    var showLabels by rememberSaveable { mutableStateOf(false) }
     val accountSettings = koinInject<AccountSettings>()
     val appLock = koinInject<AppLock>()
     val lockedChats by accountSettings.lockedChats.collectAsStateWithLifecycle()
@@ -213,6 +217,8 @@ internal fun ChatActions(
         } else {
             null
         },
+        // Vlastní štítky chatu (jen v zařízení) — stejný sheet jako z nabídky v seznamu chatů.
+        MenuAction(stringResource(Res.string.labels_title), Res.drawable.label_24dp, onClick = { showLabels = true }),
         // Zamčený chat v tomhle zařízení (`LockedChatGate`). Uložené zprávy ne — jsou vlastní.
         when {
             profile.kind == ProfileKind.SavedMessages || lockedChats == null -> null
@@ -272,6 +278,8 @@ internal fun ChatActions(
         },
     )
     content(ChatActionGroups(main = main, share = share, extras = extras, suggest = suggest, contact = contactActions, block = block))
+
+    if (showLabels) ChatLabelsSheet(chatId = viewModel.chatId, onDismiss = { showLabels = false })
 
     if (confirmLock) {
         ConfirmDialog(

@@ -31,4 +31,7 @@ internal class ChatSheets {
 
     /** Vymazání historie s volbami (z nabídky nad chatem); `null` = zavřené. */
     var clearHistory by mutableStateOf<ClearHistoryTarget?>(null)
+
+    /** Štítky chatu (z nabídky nad chatem); `null` = zavřené. */
+    var labels by mutableStateOf<ChatSummary?>(null)
 }

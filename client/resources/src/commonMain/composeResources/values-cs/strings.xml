@@ -4929,6 +4929,17 @@
     <string name="digest_ai_off">Shrnutí píše model v zařízení. Zapnout ho jde v Nastavení.</string>
     <string name="digest_ai_missing">Ke shrnutí je potřeba stáhnout model v zařízení.</string>
     <string name="digest_open_settings">Otevřít nastavení</string>
+    <string name="labels_title">Štítky</string>
+    <string name="labels_explanation">Štítky vidíš jen ty. Zůstávají v tvých zařízeních, Telegram o nich neví.</string>
+    <string name="labels_empty">Zatím žádné štítky. Založ si první a třiď si chaty.</string>
+    <string name="labels_new">Nový štítek</string>
+    <string name="labels_edit">Upravit štítek</string>
+    <string name="labels_name">Název</string>
+    <string name="labels_save">Uložit</string>
+    <string name="labels_delete">Smazat štítek</string>
+    <string name="labels_delete_title">Smazat štítek „%1$s"?</string>
+    <string name="labels_delete_text">Zmizí ze všech chatů.</string>
+    <string name="labels_filter">Filtr podle štítku</string>
     <string name="chat_insights_title">Statistika chatu</string>
     <string name="chat_insights_failed">Statistiku chatu se nepodařilo spočítat</string>
     <string name="chat_insights_scanning">Počítám zprávy…</string>
