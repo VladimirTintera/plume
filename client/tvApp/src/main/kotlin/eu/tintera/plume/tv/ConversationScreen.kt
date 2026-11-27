@@ -123,9 +123,9 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions,
     }
 }
 
-/** Hlavička konverzace a feedu kanálu: avatar a název. */
+/** Hlavička konverzace a feedu kanálu: avatar a název, vpravo [trailing] (nápověda feedu). */
 @Composable
-fun ChatHeader(chatId: Long, info: ChatInfo?) {
+fun ChatHeader(chatId: Long, info: ChatInfo?, trailing: @Composable () -> Unit = {}) {
     val savedMessagesId = savedMessagesChatId()
     val title = info?.let { chatTitle(chatId, it.title, savedMessagesId) }.orEmpty()
     Row(
@@ -134,7 +134,8 @@ fun ChatHeader(chatId: Long, info: ChatInfo?) {
     ) {
         ChatAvatar(fileId = info?.avatarFileId, title = title, size = 56.dp, savedMessages = chatId == savedMessagesId, modifier = Modifier.storyRing(chatId, savedMessages = chatId == savedMessagesId))
         Spacer(Modifier.width(16.dp))
-        Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        trailing()
     }
 }
 
