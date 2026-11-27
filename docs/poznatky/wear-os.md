@@ -205,6 +205,17 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
 - **Položky seznamu BEZ klíče.** S `key = id` seznam po přihlášení začínal uprostřed: chaty
   přibývají postupně a lazy seznam drží první viditelnou položku, takže nové nahoře odjely nad
   displej i s nadpisem. Na hodinkách se má začínat nahoře.
+- **Obrázek podle souboru se drží přes `key(fileId) { produceState(null) { … } }`, ne přes
+  klíče `produceState`** (`ChatAvatar`, `rememberPhotoBitmap`). `produceState(initial, klíče)`
+  při změně klíče restartuje jen producenta; stav je `remember` bez klíče a hodnota zůstane
+  z minulého souboru. Karta seznamu chatů (bez klíčů, viz výš) po přeskládání patří jinému
+  chatu: s chatem bez fotky (`fileId == null`, producent hned skončí) by navždy ukazovala fotku
+  chatu, který na jejím místě byl předtím, a s ještě nestaženou fotkou ji ukazovala do stažení.
+  `rememberPhotoBitmap` přiřazoval jen při `value == null`, takže by starý obrázek nevyměnil
+  nikdy. `value = null` na začátku producenta (jak to má televize) by stačilo taky, jenže
+  producent běží až po kompozici, takže by starý obrázek problikl jeden snímek; `key` zahodí
+  stav hned. Na televizi se totéž projevilo hned (náhled chatu měl fotku prvního chatu
+  u každého), na hodinkách nahlášené nebylo.
 
 ## Konverzace
 
