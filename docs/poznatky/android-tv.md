@@ -543,6 +543,26 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Délku skladby nemusí odesílatel uvést** (bot bez `duration` → 0): bublina pak délku ukáže
   až z přehrávače a do té doby žádnou, ne „0:00".
 
+## Kolečka (video zprávy)
+
+- **Kulatý náhled bez bubliny** (`VideoNoteBubble`, 300 dp), délka dole v kruhu, čas pod ním.
+  Dřív televize kolečka neznala a ukázala jen popis zprávy.
+- **OK ho přehraje na místě, v kruhu, se zvukem**; OK na hrajícím ho zastaví. Kolem kruhu
+  prstenec průběhu, místo délky uběhlý čas. Hraje nejvýš jedno v celé aplikaci
+  (`VideoNotePlayback` přes `LocalVideoNotes`, akce `MediaActions.toggleVideoNote`).
+- **Přehrávač žije v bublině**: odjede-li bublina ze seznamu nebo se odejde z chatu, kolečko
+  skončí s ní (ExoPlayer se uvolní v `onDispose`). Přes celou obrazovku by se čtvercové video
+  384 px jen roztáhlo.
+- **Obraz jde do `TextureView`, ne `SurfaceView`** (to bere `PlayerView`): `SurfaceView` je
+  samostatná vrstva okna a oříznutí do kruhu by ignoroval.
+- **Náhled zůstává nad obrazem až do prvního snímku** (`onRenderedFirstFrame`), jinak kruh
+  při spuštění probliknul prázdnou plochou.
+- **Soubor se stáhne celý, pak hraje** (jednotky MB, nejvýš minuta), jako hlasovka. Fokus
+  zvuku řeší ExoPlayer: hrající hlasovka nebo hudba se pozastaví. Příchozí nezhlédnuté kolečko
+  se po spuštění nahlásí jako zhlédnuté (`openContent`).
+- Ověřeno na emulátoru s kolečkem poslaným testovacím botem (`sendVideoNote`, 384×384, 10 s):
+  náhled, přehrání v kruhu s prstencem, návrat na náhled po dohrání, zastavení OK.
+
 ## Kanály: feed a komentáře
 
 - **Kanál se otevírá jako feed příspěvků** (`ChannelFeedScreen`), ostatní chaty jako konverzace.

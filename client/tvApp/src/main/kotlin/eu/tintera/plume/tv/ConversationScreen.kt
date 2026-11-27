@@ -367,6 +367,16 @@ internal fun MessageRow(
     // Fotka, video a album jako na telefonu („Médium bez bubliny" v konverzace-zobrazeni.md):
     // bez popisku a citace holé na ploše, s nimi jedna karta, ve které jde snímek od kraje ke kraji.
     val visual = isAlbum || message.media is MessageMedia.Photo || video != null
+    // Kolečko: kulaté, bez bubliny, přehrává se na místě (VideoNotes.kt).
+    (message.media as? MessageMedia.VideoNote)?.let { note ->
+        Box(
+            focusModifier.fillMaxWidth(),
+            contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
+        ) {
+            VideoNoteBubble(message, note, sender, focused)
+        }
+        return
+    }
     if (visual) {
         Box(
             focusModifier.fillMaxWidth(),
@@ -705,7 +715,7 @@ private const val LOAD_AHEAD = 8
 
 /** Čas pod zprávou; upravená má před ním „upraveno", jako na telefonu (`MessageFrame`). */
 @Composable
-private fun timeLabel(message: ChatMessage): String {
+internal fun timeLabel(message: ChatMessage): String {
     val time = message.timestamp.asTimeOfDay()
     return if (message.isEdited) "${stringResource(Res.string.conversation_edited)} $time" else time
 }
