@@ -393,7 +393,7 @@
     <string name="media_describe_hide">Hide description</string>
     <string name="media_describe_title">Photo description</string>
     <string name="media_describe_progress">Looking at the photo…</string>
-    <string name="media_describe_disclaimer">Written by the model on your phone. It may be wrong.</string>
+    <string name="media_describe_disclaimer">Written by the on-device model. It may be wrong.</string>
     <string name="media_describe_failed">Couldn't describe the photo. Try again in a moment.</string>
     <string name="media_save_denied">Plume isn't allowed to save to the gallery</string>
     <string name="media_share">Share</string>
@@ -786,7 +786,7 @@
     <string name="rewrite_use">Use</string>
     <string name="rewrite_failed">The message could not be rewritten.</string>
     <string name="rewrite_emoji_changed_text">The model changed the text too, not just added emoji, so the result isn't offered.</string>
-    <string name="rewrite_disclaimer">Rewritten by the model on your phone, the message is not sent anywhere. Read it before sending.</string>
+    <string name="rewrite_disclaimer">Rewritten by the on-device model, the message is not sent anywhere. Read it before sending.</string>
     <string name="effect_picker_title">Message effect</string>
     <string name="effect_picker_hint">Plays over the message for everyone in the chat. Touch and hold to preview.</string>
     <string name="effect_picker_empty">No effects available.</string>
@@ -1054,7 +1054,7 @@
     <string name="scam_warning_phishing">The message asks you to sign in, verify an account or send a code. Never share a code or password with anyone.</string>
     <string name="scam_warning_prize">It promises a prize or a gift you have to claim. Don't pay anything or enter your details.</string>
     <string name="scam_warning_money">It asks for money, an investment or a fee. Before paying, check the sender some other way.</string>
-    <string name="scam_warning_note">Estimated by the model on your phone, it can be wrong.</string>
+    <string name="scam_warning_note">Estimated by the on-device model, it can be wrong.</string>
     <string name="scam_warning_dismiss">Hide</string>
     <string name="fact_check_source">Added by independent fact-checkers.</string>
     <string name="fact_check_country">Added by independent fact-checkers for %1$s.</string>
@@ -2497,7 +2497,7 @@
     <string name="settings_chat_triage">Awaiting reply</string>
     <string name="settings_chat_triage_summary">The model on this device marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
     <string name="settings_background_photos">Describe photos in the background</string>
-    <string name="settings_background_photos_summary">While charging, the model describes new photos from your chats so you can find them in search by what is in them. Photos stay on the phone.</string>
+    <string name="settings_background_photos_summary">While charging, the model describes new photos from your chats so you can find them in search by what is in them. Photos stay on the device.</string>
     <string name="chats_search_section_photos">Photos by content</string>
     <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on this device. They are not sent anywhere.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
@@ -4064,7 +4064,7 @@
     <string name="message_context_payment">QR payment</string>
     <string name="message_context_parcel">Track parcel</string>
     <string name="message_context_all_day">%1$s, all day</string>
-    <string name="message_context_from_model">Name and place suggested by the model on your phone</string>
+    <string name="message_context_from_model">Name and place suggested by the on-device model</string>
     <string name="message_context_payment_scan">Scan the code with your banking app, or copy the details.</string>
     <string name="message_context_payment_share">Share QR code</string>
     <string name="message_context_payment_share_failed">Couldn't share the QR code</string>

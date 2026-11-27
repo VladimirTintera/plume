@@ -404,7 +404,7 @@
     <string name="media_describe_hide">Skrýt popis</string>
     <string name="media_describe_title">Popis fotky</string>
     <string name="media_describe_progress">Prohlížím fotku…</string>
-    <string name="media_describe_disclaimer">Napsal model v telefonu. Může se mýlit.</string>
+    <string name="media_describe_disclaimer">Napsal model v zařízení. Může se mýlit.</string>
     <string name="media_describe_failed">Fotku se nepodařilo popsat. Zkus to za chvíli.</string>
     <string name="media_save_denied">Plume nemá oprávnění ukládat do galerie</string>
     <string name="media_share">Sdílet</string>
@@ -808,7 +808,7 @@
     <string name="rewrite_use">Použít</string>
     <string name="rewrite_failed">Zprávu se nepodařilo přepsat.</string>
     <string name="rewrite_emoji_changed_text">Model kromě emoji změnil i text, takový výsledek se proto nenabízí.</string>
-    <string name="rewrite_disclaimer">Přepisuje model v telefonu, zpráva nikam neodchází. Před odesláním si ji přečti.</string>
+    <string name="rewrite_disclaimer">Přepisuje model v zařízení, zpráva nikam neodchází. Před odesláním si ji přečti.</string>
     <string name="effect_picker_title">Efekt zprávy</string>
     <string name="effect_picker_hint">Přehraje se nad zprávou u všech v chatu. Podržením ho uvidíš.</string>
     <string name="effect_picker_empty">Žádné efekty nejsou k dispozici.</string>
@@ -1080,7 +1080,7 @@
     <string name="scam_warning_phishing">Zpráva chce přihlášení, ověření účtu nebo kód. Kód ani heslo nikomu neposílej.</string>
     <string name="scam_warning_prize">Slibuje výhru nebo dárek, který si máš vyzvednout. Nic neplať a nezadávej své údaje.</string>
     <string name="scam_warning_money">Chce peníze, investici nebo poplatek. Než zaplatíš, ověř si odesílatele jinou cestou.</string>
-    <string name="scam_warning_note">Odhad modelu v telefonu, může se mýlit.</string>
+    <string name="scam_warning_note">Odhad modelu v zařízení, může se mýlit.</string>
     <string name="scam_warning_dismiss">Skrýt</string>
     <string name="fact_check_source">Doplnili nezávislí ověřovatelé faktů.</string>
     <string name="fact_check_country">Doplnili nezávislí ověřovatelé faktů pro zemi %1$s.</string>
@@ -2510,7 +2510,7 @@
     <string name="error_member_admin_forbidden">Tohohle správce může měnit jen vlastník.</string>
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">AI v zařízení</string>
-    <string name="settings_on_device_ai_enable">Funkce s modelem v telefonu (experimentální)</string>
+    <string name="settings_on_device_ai_enable">Funkce s modelem v zařízení (experimentální)</string>
     <string name="settings_on_device_ai_enable_summary">Shrnutí konverzace a návrhy odpovědí počítá jazykový model přímo v tomhle zařízení. Zprávy ho neopustí.</string>
     <string name="settings_reply_suggestions">Návrhy odpovědí</string>
     <string name="settings_reply_suggestions_summary">Nad vstupním polem se nabídnou krátké odpovědi, když přijde zpráva a nemáš nic rozepsaného.</string>
@@ -2565,7 +2565,7 @@
     <string name="settings_chat_triage">Čeká na odpověď</string>
     <string name="settings_chat_triage_summary">Model v zařízení označí nepřečtené soukromé chaty, ve kterých na tvou odpověď někdo čeká. Zprávy se nikam neposílají.</string>
     <string name="settings_background_photos">Popisovat fotky na pozadí</string>
-    <string name="settings_background_photos_summary">Při nabíjení model popíše nové fotky z chatů, aby šly v hledání najít podle toho, co na nich je. Fotky telefon neopustí.</string>
+    <string name="settings_background_photos_summary">Při nabíjení model popíše nové fotky z chatů, aby šly v hledání najít podle toho, co na nich je. Fotky zařízení neopustí.</string>
     <string name="chats_search_section_photos">Fotky podle obsahu</string>
     <string name="settings_scam_warnings_summary">Příchozí zprávy s odkazy nebo frázemi typickými pro podvody posoudí model v zařízení. Nikam se neposílají.</string>
     <string name="settings_on_device_ai_checking">Zjišťuji stav modelu…</string>
@@ -2633,8 +2633,8 @@
     <string name="summary_details_tokens">Vstup: %1$s z %2$s tokenů</string>
     <string name="summary_details_tokens_no_limit">Vstup: %1$s tokenů</string>
     <string name="summary_details_trimmed">Vešlo se %1$d z %2$d zpráv</string>
-    <string name="ai_failure_language">Model v telefonu jazyk tohohle textu neumí.</string>
-    <string name="ai_failure_refused">Model v telefonu tenhle text odmítl zpracovat.</string>
+    <string name="ai_failure_language">Model v zařízení jazyk tohohle textu neumí.</string>
+    <string name="ai_failure_refused">Model v zařízení tenhle text odmítl zpracovat.</string>
     <string name="settings_ai_provider_apple">Apple Intelligence</string>
     <string name="settings_ai_provider_apple_summary">Vestavěný v systému. Stahuje a aktualizuje ho iOS.</string>
     <string name="ai_failure_apple">Apple Intelligence selhala. Zkontroluj, že je zapnutá v Nastavení → Apple Intelligence a Siri.</string>
@@ -2735,9 +2735,9 @@
     <string name="settings_on_device_ai_not_enough_space">V zařízení není dost volného místa na model.</string>
     <string name="settings_on_device_ai_stop">Zastavit stahování</string>
     <string name="settings_on_device_ai_discard_part">Zahodit staženou část</string>
-    <string name="settings_on_device_ai_paused">Model je stažený jen zčásti. Stahování naváže na to, co už je v telefonu.</string>
+    <string name="settings_on_device_ai_paused">Model je stažený jen zčásti. Stahování naváže na to, co už je v zařízení.</string>
     <string name="notification_channel_model_download">Stahování modelu AI</string>
-    <string name="notification_channel_model_download_description">Průběh stahování jazykového modelu do telefonu</string>
+    <string name="notification_channel_model_download_description">Průběh stahování jazykového modelu do zařízení</string>
     <string name="model_download_notification_title">Stahuji %1$s</string>
     <string name="notification_channel_uploads">Odesílání a stahování souborů</string>
     <string name="notification_channel_uploads_description">Dokončí odesílání a stahování souborů i s aplikací na pozadí</string>
@@ -4208,7 +4208,7 @@
     <string name="message_context_payment">QR platba</string>
     <string name="message_context_parcel">Sledovat zásilku</string>
     <string name="message_context_all_day">%1$s, celý den</string>
-    <string name="message_context_from_model">Název a místo navrhl model v telefonu</string>
+    <string name="message_context_from_model">Název a místo navrhl model v zařízení</string>
     <string name="message_context_payment_scan">Kód načte bankovní aplikace, nebo si údaje zkopírujte.</string>
     <string name="message_context_payment_share">Sdílet QR kód</string>
     <string name="message_context_payment_share_failed">QR kód se nepodařilo sdílet</string>
