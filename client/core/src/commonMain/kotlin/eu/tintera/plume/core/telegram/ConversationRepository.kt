@@ -550,6 +550,14 @@ interface ConversationRepository {
      */
     suspend fun sharedMediaPositions(chatId: Long, kind: SharedMediaKind): Result<SharedMediaPositions>
 
+    /**
+     * Fotky a videa ze VŠECH chatů (hlavní seznam i archiv), od nejnovějších (`searchMessages`
+     * s filtrem fotek a videí a prázdným dotazem) — pro galerii přes všechny chaty. [offset]
+     * prázdný = od nejnovější, jinak [GalleryPage.nextOffset] předchozí stránky. Tajné chaty
+     * hledání nepokrývá a mizející média se vynechají (jako ve sdílených médiích).
+     */
+    suspend fun galleryMedia(offset: String = ""): Result<GalleryPage> = Result.failure(UnsupportedOperationException())
+
     /** Počty pro všechny druhy naráz; profil podle nich schová prázdné řádky. */
     suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts>
 

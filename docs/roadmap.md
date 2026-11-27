@@ -2144,9 +2144,11 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
 
 **Napříč chaty**
 
-- **Galerie fotek přes všechny chaty** (M). Jedna časová osa fotek a videí s kalendářem
-  a rychlým rolováním (jako Google Photos), `searchMessages` s filtrem médií. Navazuje na
-  hledání fotek podle obsahu.
+- ~~**Galerie fotek přes všechny chaty**~~ — hotovo (menu účtu → Fotky a videa;
+  `docs/poznatky/prohlizec-medii.md`, „Galerie přes všechny chaty"). Zbývá: ověřit vzhled
+  a plynulost na telefonu; kalendář a rychlé rolování po měsících (TDLib je má jen pro jeden
+  chat — leda z vlastních stránek); prohlížeč, který listuje přes chaty; tajné chaty
+  (`searchSecretMessages`); propojení s hledáním fotek podle obsahu.
 - **Ranní přehled kanálů** (M, AI). Jedna obrazovka „co se od včera stalo" ve ztlumených
   kanálech, u každého dva řádky od modelu v zařízení; skládá existující shrnutí chatu.
   AICore počítá jen v popředí, takže se přehled počítá při otevření, ne v noci.

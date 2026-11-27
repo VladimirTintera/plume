@@ -1818,6 +1818,40 @@ zvednutý na 500), takže je prohlížeč ukáže hned a čtečka je přečte u 
   `dumpsys battery reset` vrací ke skutečnému stavu. **Neověřené:** skutečný telefon
   na nabíječce (kdy přesně systém úlohu pustí) a delší provoz.
 
+## Galerie přes všechny chaty
+
+Menu účtu → **Fotky a videa** (`GalleryRoute`, seznamový panel jako Rozkoukaná videa): fotky
+a videa ze všech chatů v jedné mřížce od nejnovějších, rozdělené po měsících, u videa délka.
+Ťuknutí otevře prohlížeč, podržení nabídne „Zobrazit v chatu" (`GalleryScreen`,
+`GalleryViewModel`, testy `GalleryViewModelTest`).
+
+- **Zdroj je `searchMessages` s filtrem fotek a videí a prázdným dotazem**
+  (`ConversationRepository.galleryMedia`, stránka 60). Hlavní seznam i archiv dohromady;
+  hledání napříč chaty `ChatRepository.searchMessages` se nehodí, vrací jen text bez médií.
+  Zpráva se převádí jako ve sdílených médiích (`toChatMessage`) a **mizející média vypadnou**
+  (`isLastingVisualMedia`). Tajné chaty `searchMessages` nepokrývá vůbec.
+- **Stránka smí po filtru vyjít prázdná** (samá mizející média); konec je jen prázdný
+  `nextOffset`. Prázdná stránka proto rovnou dotáhne další (nejvýš tři po sobě).
+- **Klíč dlaždice obsahuje chat** (`chatId:messageId`): id zpráv se mezi chaty opakují a stejně
+  i odhalení spoileru — proto vlastní sada odhalených v galerii, ne `RevealedSpoilers`, které
+  znají jen id zprávy. Táž zpráva na hranici stránek se neopakuje.
+- **Zamčené chaty galerie neukazuje** (`AccountSettings.lockedChats`, jako hledání fotek podle
+  obsahu). Filtruje se při zobrazení, takže zamknutí se projeví hned; dokud se sada čte, galerie
+  neukáže nic, aby zamčená fotka neprobleskla.
+- **Prohlížeč listuje médii jednoho chatu** — toho, odkud fotka je (`MediaRoute` jako ze
+  sdílených médií). Prohlížeč přes víc chatů by potřeboval vlastní zdroj položek s chatem
+  u každé (`ViewerItem` chat nenese) — zatím ne.
+- **Po chybě další stránky se nedotahuje samo**, jen tlačítkem v patičce: mřížka u konce už
+  stojí a bez sítě by se zkoušelo dokola.
+- **Kalendář ani rychlé rolování po měsících nemá.** Obojí (`getChatMessageCalendar`,
+  `getChatSparseMessagePositions`) je jen pro jeden chat.
+- **Ověřeno na emulátoru jen textovým výpisem** (`uiautomator`): emulátor `Plume_Galerie_Fold`
+  je na skutečném účtu a snímky by ukázaly fotky z chatů lidí. Položka v menu, nadpis měsíce,
+  dlaždice fotek a video s délkou, nabídka „Zobrazit v chatu" a otevření prohlížeče. Plynulost
+  rolování ani dotahování dalších měsíců ověřit nešlo: emulátor kreslil i seznam chatů
+  s mediánem 250 ms na snímek (GPU 4,9 s) a záplava 90 švihů skončila ANR (čekání na dotyk) —
+  galerie byla s 300 ms na tom stejně. Vzhled a plynulost zbývá ověřit na telefonu.
+
 ## Spoilery a mizející média
 
 Dva různé mechanismy TDLib. **Spoiler** (`hasSpoiler`) je jen rozmazání, fotka v historii zůstává

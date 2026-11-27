@@ -1273,6 +1273,11 @@
     <string name="downloads_deleted">File deleted</string>
     <string name="downloads_cleared">Downloaded files cleared</string>
     <string name="downloads_undo">Undo</string>
+    <string name="gallery_title">Photos and videos</string>
+    <string name="gallery_failed">Couldn't load photos</string>
+    <string name="gallery_more_failed">Couldn't load more photos</string>
+    <string name="gallery_empty_title">No photos yet</string>
+    <string name="gallery_empty">Photos and videos from all your chats will show up here.</string>
     <string name="continue_watching_title">Continue watching</string>
     <string name="continue_watching_empty_title">Nothing to continue</string>
     <string name="continue_watching_empty">Videos you stop watching partway show up here, so you can pick up where you left off.</string>
