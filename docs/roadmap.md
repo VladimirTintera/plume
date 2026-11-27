@@ -592,8 +592,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    hlasovky, kolečka (video zprávy), streamování dlouhých skladeb místo stažení celých.
 5. ~~**Reakce a odpovědi**~~ — hotovo (čipy reakcí, citace, nabídka podržením OK, odpověď přes
    systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod
-   konverzací (hotovo). Zbývá: kdo reagoval, vlastní emoji (kreslení), úprava a smazání vlastní zprávy,
-   přeposlání. Skok na citovanou zprávu hotový.
+   konverzací (hotovo). Úprava a smazání vlastní zprávy hotové. Zbývá: kdo reagoval, vlastní emoji
+   (kreslení), přeposlání, zachování formátování při úpravě. Skok na citovanou zprávu hotový.
 6. ~~**Úklid mezipaměti**~~ — hotovo (`AutoStorageCleaner` v `core`, společný s hodinkami;
    3 dny a 1 GB). Zbývá: ověřit, že úklid nad stropem na televizi opravdu maže.
 7. ~~**Hlavní cíle v liště**~~ — hledání je první záložka s lupou (jako horní navigace Google

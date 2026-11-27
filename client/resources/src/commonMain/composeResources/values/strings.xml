@@ -5004,4 +5004,10 @@
     <string name="tv_dream_settings_title">Screen saver photos</string>
     <string name="tv_dream_settings_hint">The screen saver shows photos from the chat you choose.</string>
     <string name="tv_action_show_quote">Show original message</string>
+    <string name="tv_edit_title">Edit message</string>
+    <string name="tv_edit_save">Save</string>
+    <string name="tv_edit_failed">Couldn't edit the message.</string>
+    <string name="tv_delete_for_all">Delete for everyone</string>
+    <string name="tv_delete_for_me">Delete for me</string>
+    <string name="tv_delete_failed">Couldn't delete the message.</string>
 </resources>

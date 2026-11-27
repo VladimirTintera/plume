@@ -1,5 +1,17 @@
 package eu.tintera.plume.tv
 
+import eu.tintera.plume.core.telegram.MessageActions
+import eu.tintera.plume.resources.delete_message_for_all
+import eu.tintera.plume.resources.delete_message_for_self
+import eu.tintera.plume.resources.delete_message_title
+import eu.tintera.plume.resources.menu_delete
+import eu.tintera.plume.resources.menu_edit
+import eu.tintera.plume.resources.tv_delete_failed
+import eu.tintera.plume.resources.tv_delete_for_all
+import eu.tintera.plume.resources.tv_delete_for_me
+import eu.tintera.plume.resources.tv_edit_failed
+import eu.tintera.plume.resources.tv_edit_save
+import eu.tintera.plume.resources.tv_edit_title
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -38,7 +50,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -54,6 +68,7 @@ import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.tv_action_reply
 import eu.tintera.plume.resources.tv_action_show_quote
 import eu.tintera.plume.resources.tv_message_you
@@ -86,6 +101,12 @@ class MessageInteractions {
     var actionsFor by mutableStateOf<ChatMessage?>(null)
     var replyTo by mutableStateOf<ChatMessage?>(null)
     var composing by mutableStateOf(false)
+
+    /** Vlastní zpráva, jejíž text se upravuje. */
+    var editing by mutableStateOf<ChatMessage?>(null)
+
+    /** Zpráva (album celé), kterou se uživatel chystá smazat, a co server dovolí. */
+    var deleting by mutableStateOf<Pair<ChatMessage, MessageActions>?>(null)
 }
 
 /**
@@ -114,8 +135,22 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
                     scope.launch { state.jumpTo(quoted) }
                 }
             },
+            onEdit = {
+                interactions.actionsFor = null
+                interactions.editing = message
+            },
+            onDelete = { actions ->
+                interactions.actionsFor = null
+                interactions.deleting = message to actions
+            },
             onDismiss = { interactions.actionsFor = null },
         )
+    }
+    interactions.editing?.let { message ->
+        ReplyDialog(state, replyTo = null, chatTitle, editing = message, onDismiss = { interactions.editing = null })
+    }
+    interactions.deleting?.let { (message, actions) ->
+        DeleteDialog(state, message, actions, scope, onDismiss = { interactions.deleting = null })
     }
     interactions.replyTo?.let { message ->
         ReplyDialog(state, message, chatTitle, onDismiss = { interactions.replyTo = null })
@@ -138,8 +173,13 @@ private fun MessageActionsDialog(
     onReply: () -> Unit,
     /** Skok na zprávu, na kterou tahle odpovídá; `null` = neodpovídá na nic. */
     onJumpToQuote: (() -> Unit)?,
+    onEdit: () -> Unit,
+    onDelete: (MessageActions) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // Upravit a smazat jen tam, kde to server dovolí (`messageActions`): vlastní zprávu jde
+    // upravit omezenou dobu, smazat cizí jen správce.
+    val actions by produceState<MessageActions?>(null, message.id) { value = state.actions(message.id) }
     val choices by produceState<List<String>?>(null, message.id) {
         value = state.reactionChoices(message.id).filter { customEmojiIdOf(it) == null }.take(MAX_QUICK_REACTIONS)
     }
@@ -179,6 +219,13 @@ private fun MessageActionsDialog(
                         Text(stringResource(Res.string.tv_action_reply))
                     }
                 }
+                val allowed = actions
+                if (allowed?.canEdit == true && message.text.isNotBlank()) {
+                    Button(onClick = onEdit) { Text(stringResource(Res.string.menu_edit)) }
+                }
+                if (allowed != null && (allowed.canDeleteForAll || allowed.canDeleteForSelf)) {
+                    Button(onClick = { onDelete(allowed) }) { Text(stringResource(Res.string.menu_delete)) }
+                }
                 if (onJumpToQuote != null) {
                     // Bez reakcí i odpovědi (kanál bez reakcí) by fokus v nabídce nebyl nikde.
                     val showQuote = remember { FocusRequester() }
@@ -198,9 +245,19 @@ private fun MessageActionsDialog(
  * televize (na Google TV i s diktováním z ovladače); OK na klávesnici rovnou odešle.
  */
 @Composable
-private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTitle: String, onDismiss: () -> Unit) {
+private fun ReplyDialog(
+    state: ConversationState,
+    replyTo: ChatMessage?,
+    chatTitle: String,
+    /** Úprava vlastní zprávy: pole začíná jejím textem a Odeslat ho uloží. */
+    editing: ChatMessage? = null,
+    onDismiss: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
-    var text by remember { mutableStateOf("") }
+    // Kurzor na konec předvyplněného textu: s holým řetězcem stál na začátku a dopsat
+    // k upravované zprávě slovo chtělo napřed dojet šipkami na konec (ověřeno na emulátoru).
+    var value by remember { editing?.text.orEmpty().let { mutableStateOf(TextFieldValue(it, TextRange(it.length))) } }
+    val text = value.text
     var sending by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val send = {
@@ -208,9 +265,12 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTit
             sending = true
             failed = false
             scope.launch {
-                state.send(text.trim(), replyTo?.id)
-                    .onSuccess { onDismiss() }
-                    .onFailure { failed = true }
+                val result = if (editing != null) {
+                    if (text.trim() == editing.text) Result.success(Unit) else state.edit(editing, text.trim())
+                } else {
+                    state.send(text.trim(), replyTo?.id)
+                }
+                result.onSuccess { onDismiss() }.onFailure { failed = true }
                 sending = false
             }
         }
@@ -221,7 +281,13 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTit
     Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
         DialogPanel {
             Text(
-                stringResource(if (replyTo != null) Res.string.tv_reply_title else Res.string.tv_compose_title),
+                stringResource(
+                    when {
+                        editing != null -> Res.string.tv_edit_title
+                        replyTo != null -> Res.string.tv_reply_title
+                        else -> Res.string.tv_compose_title
+                    },
+                ),
                 style = MaterialTheme.typography.titleLarge,
             )
             if (replyTo != null) {
@@ -232,9 +298,9 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTit
             var focused by remember { mutableStateOf(false) }
             val colors = MaterialTheme.colorScheme
             BasicTextField(
-                value = text,
+                value = value,
                 onValueChange = {
-                    text = it
+                    value = it
                     failed = false
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -275,11 +341,70 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTit
             )
             if (failed) {
                 Spacer(Modifier.height(8.dp))
-                Text(stringResource(Res.string.tv_send_failed), style = MaterialTheme.typography.bodyMedium, color = colors.error)
+                Text(
+                    stringResource(if (editing != null) Res.string.tv_edit_failed else Res.string.tv_send_failed),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.error,
+                )
             }
             Spacer(Modifier.height(20.dp))
             Button(onClick = send, enabled = text.isNotBlank() && !sending, modifier = Modifier.focusRequester(sendButton)) {
-                Text(stringResource(Res.string.tv_reply_send))
+                Text(stringResource(if (editing != null) Res.string.tv_edit_save else Res.string.tv_reply_send))
+            }
+        }
+    }
+}
+
+/**
+ * Potvrzení smazání: otázka, věta s následkem a tlačítka podle toho, co server dovolí —
+ * „Smazat pro všechny" (ve skupině a kanálu jediná možnost) a „Smazat jen pro mě". Album
+ * se maže celé (zprávy se stejným `mediaAlbumId` z načtené historie).
+ */
+@Composable
+private fun DeleteDialog(state: ConversationState, message: ChatMessage, actions: MessageActions, scope: CoroutineScope, onDismiss: () -> Unit) {
+    val ids = message.mediaAlbumId.takeIf { it != 0L }
+        ?.let { album -> state.messages?.filter { it.mediaAlbumId == album }?.map { it.id } }
+        ?.takeIf { it.isNotEmpty() }
+        ?: listOf(message.id)
+    var failed by remember { mutableStateOf(false) }
+    val delete = { revoke: Boolean ->
+        scope.launch {
+            state.delete(ids, revoke).onSuccess { onDismiss() }.onFailure { failed = true }
+        }
+    }
+    val cancel = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+    Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
+        DialogPanel {
+            Text(stringResource(Res.string.delete_message_title), style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(if (actions.canDeleteForAll) Res.string.delete_message_for_all else Res.string.delete_message_for_self),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (failed) {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(Res.string.tv_delete_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Výchozí fokus na Zrušit, ne na smazání: OK zmáčknuté o jednou víc (dialog
+                // naskočí pod prstem hned po výběru v nabídce) smazalo zprávu pro všechny —
+                // stalo se při ověřování na emulátoru.
+                Button(onClick = onDismiss, modifier = Modifier.focusRequester(cancel)) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
+                if (actions.canDeleteForAll) {
+                    Button(onClick = { delete(true) }) {
+                        Text(stringResource(Res.string.tv_delete_for_all))
+                    }
+                }
+                if (actions.canDeleteForSelf) {
+                    Button(onClick = { delete(false) }) {
+                        Text(stringResource(Res.string.tv_delete_for_me))
+                    }
+                }
             }
         }
     }
