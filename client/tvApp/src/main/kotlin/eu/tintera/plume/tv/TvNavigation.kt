@@ -13,6 +13,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.Saver
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.connection_connecting
+import androidx.compose.runtime.produceState
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
@@ -46,7 +53,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
         // `BackHandler` je složený později, takže má přednost).
         var playing by remember(current) { mutableStateOf<Pair<MessageMedia.Video, String>?>(null) }
         Box(Modifier.fillMaxSize()) {
-            key(current) { ConversationScreen(
+            key(current) { ChatScreen(
                     chatId = current,
                     playerOpen = playing != null,
                     onPlayVideo = { video, caption -> playing = video to caption },
@@ -71,6 +78,22 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                 opened = chatId
             },
         )
+    }
+}
+
+/**
+ * Otevřený chat: kanál jako feed příspěvků ([ChannelFeedScreen]), ostatní jako konverzace.
+ * Druh chatu se zjistí z `chatInfo`, než se cokoli nakreslí.
+ */
+@Composable
+private fun ChatScreen(chatId: Long, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit) {
+    val conversations = koinInject<ConversationRepository>()
+    val info by produceState<Result<ChatInfo>?>(null, chatId) { value = conversations.chatInfo(chatId) }
+    val loaded = info?.getOrNull()
+    when {
+        info == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
+        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, playerOpen, onPlayVideo)
+        else -> ConversationScreen(chatId = chatId, playerOpen = playerOpen, onPlayVideo = onPlayVideo)
     }
 }
 

@@ -121,6 +121,36 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
 
+## Kanály: feed a komentáře
+
+- **Kanál se otevírá jako feed příspěvků** (`ChannelFeedScreen`), ostatní chaty jako konverzace.
+  O druhu rozhoduje `ChatInfo.isChannel` (`ChatScreen` v `TvNavigation.kt`), než se cokoli
+  nakreslí. Karty jsou podle návodů Google obsah k vizuálnímu procházení — u kanálu, kde se
+  čtou příspěvky, sedí líp než bubliny. Nejnovější nahoře, starší se dočítají ke konci.
+- **Karta příspěvku** (200 dp vysoká, přes celou šířku): médium 16 : 9 vlevo (fotka, náhled
+  videa s délkou, u alba „+N"), vpravo první řádek textu jako nadpis, zbytek jako text (prázdné
+  řádky sbalené, jinak by snědly místo), dole datum, zhlédnutí („2,1 tis." — `compactCountText`,
+  přesunuté kvůli tomu ze `shared` do `core`), komentáře a tři nejčastější reakce. Vlastní
+  emoji v reakcích se vynechávají, televize je kreslit neumí. Zaostřená karta se zvětší jen
+  o 3 %: výchozích 10 % by kartu přes celou šířku vytlačilo přes bezpečný okraj.
+- **Album je jeden příspěvek** (`channelPosts`: po sobě jdoucí zprávy se stejným
+  `mediaAlbumId`). Popisek nese jen jedna ze zpráv alba a počty (zhlédnutí, komentáře) jen ta,
+  ke které server přivázal diskusi — hledají se proto napříč albem (`statsMessage`).
+- **Detail příspěvku** (`PostDetail`): vlevo médium a celý text, vpravo komentáře. Text se roluje
+  šipkami nahoru a dolů, dokud je kam (vlastní `onPreviewKeyEvent` nad `verticalScroll` —
+  zaostřitelná je celá plocha, ne jednotlivé odstavce). U videa OK přehraje. Detail kartu
+  NAHRADÍ, neleží nad ní: fokus by šipkou utekl na karty pod detailem. Pozice feedu a karta,
+  na kterou se vrátí fokus, proto žijí nad oběma.
+- **Komentáře jsou vlákno v diskusní skupině**: `commentThread` (`getMessageThread`) řekne
+  skupinu a kořen, historii a živé zprávy dá `ThreadConversationRepository` z `core` (tentýž
+  obal jako na telefonu; `rememberConversationState(threadRootId = …)`). Kořen vlákna (kopie
+  příspěvku ve skupině) se mezi komentáři vynechává, je vlevo. Počet komentářů se živě
+  aktualizuje (ověřeno: 64 → 67 během testu). Kanál bez diskuse (`postStats.comments == null`)
+  ukáže větu, že komentáře nemá.
+- **Vstup do komentářů padá na nejnovější** (`focusRestorer` s nejnovějším komentářem jako
+  zálohou, příště naposledy zaostřený). Bez toho šipka z textu vybrala komentář podle polohy
+  — kterýkoli, který zrovna ležel naproti.
+
 ## Past: `produceState` hodnotu při změně klíče nevynuluje
 
 Stav uvnitř `produceState` je `remember` BEZ klíčů; klíče jen znovu spustí producenta. Kdo
@@ -131,6 +161,11 @@ hodnotu vynulovat sám (`rememberImage` v `ChatAvatar.kt`). **Hodinky to mají t
 položek se to může projevit cizím avatarem u recyklované karty; neověřené.
 
 ## Ověření
+
+- **Feed kanálu ověřen 27. 11. 2026** na veřejných kanálech, které účet odebírá a měl
+  přečtené (Pavel Durov bez komentářů, Short Drama s komentáři a reakcemi): karty, detail,
+  rolování textu, vstup do komentářů, zpět s fokusem na kartě. Kanál se otevře i intentem
+  (`--el eu.tintera.plume.tv.CHAT_ID -1001006503122` je kanál Pavla Durova).
 
 - **Emulátor `Plume_TV`**: obraz telefonu (`android-34`, `google_apis_playstore`) s displejem
   televize — 1920 × 1080, hustota 320 (tedy 960 × 540 dp jako televize 1080p), `hw.dPad=yes`,

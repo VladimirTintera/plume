@@ -81,18 +81,10 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, onPlayVideo: (MessageM
     val state = rememberConversationState(chatId)
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<ChatInfo?>(null, chatId) { value = conversations.chatInfo(chatId).getOrNull() }
-    val savedMessagesId = savedMessagesChatId()
-    val title = info?.let { chatTitle(chatId, it.title, savedMessagesId) }.orEmpty()
+    val title = chatTitle(chatId, info?.title.orEmpty(), savedMessagesChatId())
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ChatAvatar(fileId = info?.avatarFileId, title = title, size = 56.dp, savedMessages = chatId == savedMessagesId)
-            Spacer(Modifier.width(16.dp))
-            Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        ChatHeader(chatId, info)
         val messages = state.messages
         when {
             state.failed -> MessageScreen(stringResource(Res.string.tv_conversation_failed), Res.drawable.cloud_off_24dp, error = true)
@@ -100,6 +92,21 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, onPlayVideo: (MessageM
             messages.isEmpty() -> MessageScreen(stringResource(Res.string.tv_conversation_empty), Res.drawable.chat_bubble_24dp)
             else -> MessageList(state, messages, title, playerOpen, onPlayVideo)
         }
+    }
+}
+
+/** Hlavička konverzace a feedu kanálu: avatar a název. */
+@Composable
+fun ChatHeader(chatId: Long, info: ChatInfo?) {
+    val savedMessagesId = savedMessagesChatId()
+    val title = info?.let { chatTitle(chatId, it.title, savedMessagesId) }.orEmpty()
+    Row(
+        Modifier.fillMaxWidth().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ChatAvatar(fileId = info?.avatarFileId, title = title, size = 56.dp, savedMessages = chatId == savedMessagesId)
+        Spacer(Modifier.width(16.dp))
+        Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -188,7 +195,7 @@ private fun DayDivider(timestamp: Int) {
 }
 
 @Composable
-private fun MessageRow(
+internal fun MessageRow(
     message: ChatMessage,
     chatTitle: String,
     onPlayVideo: (MessageMedia.Video, String) -> Unit,
@@ -297,7 +304,7 @@ private fun MessagePhoto(fileId: Int) {
 
 /** Náhled videa v bublině: první snímek, uprostřed tlačítko přehrát, v rohu délka. */
 @Composable
-private fun MessageVideo(video: MessageMedia.Video) {
+internal fun MessageVideo(video: MessageMedia.Video) {
     val targetPx = with(LocalDensity.current) { PHOTO_HEIGHT.roundToPx() }
     val thumbnail = rememberImage(video.thumbnailFileId, targetPx)
     val ratio = if (video.width > 0 && video.height > 0) video.width.toFloat() / video.height else 16f / 9f
@@ -329,7 +336,7 @@ private fun MessageVideo(video: MessageMedia.Video) {
     }
 }
 
-private fun Int.asDuration(): String = if (this >= 3600) {
+internal fun Int.asDuration(): String = if (this >= 3600) {
     "%d:%02d:%02d".format(this / 3600, this % 3600 / 60, this % 60)
 } else {
     "%d:%02d".format(this / 60, this % 60)

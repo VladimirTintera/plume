@@ -570,7 +570,7 @@ odpovědí jsou jen ze systému.
 poskládaný jako hodinky: přihlášení QR kódem (a heslo dvoufázového ověření systémovou
 klávesnicí), seznam chatů se složkami jako záložkami a náhledem zaostřeného chatu (poslední
 médium přes pozadí, poslední zprávy), konverzace jen ke čtení (text, fotky, video, servisní
-zprávy) a video přes celou obrazovku za běhu stahování s ovládáním ovladačem a `MediaSession`.
+zprávy), kanály jako feed karet s detailem příspěvku a komentáři a video přes celou obrazovku za běhu stahování s ovládáním ovladačem a `MediaSession`.
 Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co se při tom zjistilo:
 `docs/poznatky/android-tv.md`.
 
@@ -580,10 +580,11 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    přehrávač, `MediaSession`). Zbývá: pokračování tam, kde uživatel skončil (rozkoukaná videa,
    na telefonu `VideoProgress`), výběr kvality (`alternatives`), titulky/storyboard při skoku,
    video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
-2. **Kanály jako feed a komentáře** — příspěvek s médii přes šířku obrazovky, počet komentářů,
-   vlákno komentářů (`getMessageThread`, `core` ho umí). Vyřeší i **zprávu vyšší než
-   obrazovka** (dlouhý příspěvek kanálu se dnes ukáže jen zčásti, fokus skáče po celých
-   zprávách) — feed příspěvků jako karty se dá procházet po částech.
+2. ~~**Kanály jako feed a komentáře**~~ — hotovo (karty příspěvků, detail s rolovaným textem
+   a vláknem komentářů). Zbývá: celé album v detailu (dnes jen první médium), odkazy a Instant
+   View v textu, příspěvek z feedu otevřený přímo v přehrávači (OK na kartě s videem), **zpráva
+   vyšší než obrazovka v konverzaci** (skupiny, chaty — fokus tam pořád skáče po celých
+   zprávách) a velké komentáře, které se do pravého sloupce nevejdou celé.
 3. **Fotky přes celou obrazovku** a procházení alba šipkami.
 4. **Hlasovky a hudba** (přehrávání, dock).
 5. **Reakce** (rychlá reakce na zaostřenou zprávu), případně odpověď hlasem přes systémovou

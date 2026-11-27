@@ -11,6 +11,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -109,12 +110,19 @@ class ConversationState(private val chatId: Long, private val conversations: Con
     }
 }
 
-/** [ConversationState] chatu [chatId]: odběry běží s kompozicí, chat se zavře v aplikačním scope. */
+/**
+ * [ConversationState] chatu [chatId]: odběry běží s kompozicí, chat se zavře v aplikačním scope.
+ * [threadRootId] zúží konverzaci na vlákno komentářů pod tímhle příspěvkem
+ * (`ThreadConversationRepository` z `core`, tentýž obal jako na telefonu).
+ */
 @Composable
-fun rememberConversationState(chatId: Long): ConversationState {
-    val conversations = koinInject<ConversationRepository>()
+fun rememberConversationState(chatId: Long, threadRootId: Long? = null): ConversationState {
+    val base = koinInject<ConversationRepository>()
+    val conversations = remember(base, threadRootId) {
+        threadRootId?.let { ThreadConversationRepository(base, it) } ?: base
+    }
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
-    val state = remember(chatId) { ConversationState(chatId, conversations) }
+    val state = remember(chatId, threadRootId) { ConversationState(chatId, conversations) }
     LaunchedEffect(state) { state.run() }
     // Zavření v aplikačním scope: scope kompozice je v tu chvíli už zrušený.
     DisposableEffect(chatId) { onDispose { appScope.launch { conversations.closeChat(chatId) } } }

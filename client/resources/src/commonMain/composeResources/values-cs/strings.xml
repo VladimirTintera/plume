@@ -5111,4 +5111,7 @@
     <string name="tv_conversation_failed">Zprávy se nepodařilo načíst.</string>
     <string name="tv_message_unsupported">Tuhle zprávu zatím ukáže jen telefon.</string>
     <string name="tv_message_you">Ty</string>
+    <string name="tv_comments_title">Komentáře</string>
+    <string name="tv_comments_empty">Zatím žádné komentáře</string>
+    <string name="tv_comments_off">Tenhle kanál komentáře nemá</string>
 </resources>

@@ -4921,4 +4921,7 @@
     <string name="tv_conversation_failed">Couldn't load the messages.</string>
     <string name="tv_message_unsupported">This message can only be viewed on your phone.</string>
     <string name="tv_message_you">You</string>
+    <string name="tv_comments_title">Comments</string>
+    <string name="tv_comments_empty">No comments yet</string>
+    <string name="tv_comments_off">This channel doesn't have comments</string>
 </resources>
