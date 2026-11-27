@@ -594,7 +594,7 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 5. ~~**Reakce a odpovědi**~~ — hotovo (čipy reakcí, citace, nabídka podržením OK, odpověď přes
    systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod
    konverzací (hotovo). Zbývá: kdo reagoval, vlastní emoji (kreslení), úprava a smazání vlastní zprávy,
-   přeposlání, skok na citovanou zprávu.
+   přeposlání. Skok na citovanou zprávu hotový.
 6. **Úklid mezipaměti** jako na hodinkách (`WearStorageCleaner`): levné televize mají kolem 8 GB
    a videa z kanálů by je zaplnila.
 7. ~~**Hlavní cíle v liště**~~ — hledání je první záložka s lupou (jako horní navigace Google
@@ -612,8 +612,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
     a odpověď, vlastní příběh, lem u avatarů v řádcích chatů, ověřit přechod mezi autory na
     účtu s příběhy lidí (testovací účet).
 11. ~~**Hledání i hlasem**~~ — hotovo (záložka s lupou, chaty, globální výsledky a zprávy,
-    hlasové zadání a tlačítko hledání na ovladači). Zbývá: skok ze zprávy ve výsledcích přímo
-    na zprávu v konverzaci, globální hledání přes Asistenta Google TV (`searchable`).
+    hlasové zadání a tlačítko hledání na ovladači). Zbývá: globální hledání přes Asistenta
+    Google TV (`searchable`). Skok ze zprávy ve výsledcích na zprávu v konverzaci hotový.
 12. ~~**Kanál jako pořad**~~ — hotovo (po dohrání odpočet a další video, v kanálu starší
     příspěvky, v konverzaci novější zprávy). Zbývá: dočítat feed během přehrávání, po zavření
     stát na příspěvku posledního přehraného videa, ověřit na kanálu s videy po sobě.

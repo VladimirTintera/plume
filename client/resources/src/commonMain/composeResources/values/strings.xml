@@ -5003,4 +5003,5 @@
     <string name="tv_dream_empty">No photos here yet. Choose a chat with photos in the screen saver settings.</string>
     <string name="tv_dream_settings_title">Screen saver photos</string>
     <string name="tv_dream_settings_hint">The screen saver shows photos from the chat you choose.</string>
+    <string name="tv_action_show_quote">Show original message</string>
 </resources>

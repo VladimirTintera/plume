@@ -55,15 +55,38 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
      */
     var sentCount by mutableIntStateOf(0)
         private set
+
+    /**
+     * Načtené je okno uprostřed historie (skok na zprávu), ne konec: novější zprávy se dočítají,
+     * jak se fokus blíží spodku ([loadNewer]), a živé nové zprávy se do okna nepřidávají —
+     * stály by za mezerou v historii.
+     */
+    var hasNewer by mutableStateOf(false)
+        private set
+
+    /**
+     * Zpráva, na kterou má konverzace skočit (fokus a posun), s pořadím žádosti — týž cíl
+     * dvakrát po sobě musí skočit znovu. Obrazovka ho spotřebuje ([consumeJump]).
+     */
+    var jump by mutableStateOf<JumpRequest?>(null)
+        private set
+    private var jumps = 0
+
     private var loadingOlder = false
+    private var loadingNewer = false
     private var historyEnd = false
 
-    /** Odběry a první stránka; běží, dokud je konverzace v kompozici. */
-    suspend fun run() = coroutineScope {
+    /**
+     * Odběry a první stránka; běží, dokud je konverzace v kompozici. S [startAt] se místo konce
+     * historie načte okno kolem té zprávy a konverzace na ni skočí (hledání, Rozkoukaná videa).
+     */
+    suspend fun run(startAt: Long? = null) = coroutineScope {
         conversations.openChat(chatId)
         // Nové, upravené a smazané se odebírají DŘÍV než historie, ať se nic mezi tím neztratí.
         launch {
             conversations.newMessages(chatId).collect { message ->
+                // V okně uprostřed historie by nová zpráva stála za mezerou; přijde s dočtením.
+                if (hasNewer) return@collect
                 upsert(message)
                 if (!message.isOutgoing) conversations.markRead(chatId, listOf(message.id))
             }
@@ -100,6 +123,10 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
         launch {
             snapshotFlow { messages }.collect { loaded -> fetchMissingQuotes(loaded.orEmpty()) }
         }
+        if (startAt != null) {
+            loadAround(startAt)
+            return@coroutineScope
+        }
         loadHistory()
             .onSuccess { loaded ->
                 messages = (loaded + messages.orEmpty()).distinctBy { it.id }.sortedBy { it.id }
@@ -109,6 +136,70 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
                 logger.w(it) { "Historie chatu $chatId se na televizi nenačetla." }
                 failed = true
             }
+    }
+
+    /**
+     * Skok na zprávu [messageId]: když je načtená, jen fokus; jinak se historie nahradí oknem
+     * kolem ní (polovina starších, polovina novějších).
+     */
+    suspend fun jumpTo(messageId: Long) {
+        if (messages?.any { it.id == messageId } == true) {
+            jump = JumpRequest(messageId, ++jumps)
+            return
+        }
+        loadAround(messageId)
+    }
+
+    fun consumeJump() {
+        jump = null
+    }
+
+    private suspend fun loadAround(messageId: Long) {
+        // Starší polovina od zprávy (ta sama je v ní) a novější polovina záporným posunem.
+        val window = conversations.history(chatId, fromMessageId = messageId, limit = PAGE, offset = -(PAGE / 2))
+            .onFailure { logger.w(it) { "Okno historie chatu $chatId kolem zprávy $messageId se nenačetlo." } }
+            .getOrNull()
+        if (window == null) {
+            if (messages == null) failed = true
+            return
+        }
+        // Zpráva, která už není (smazaná), okno nemá: aspoň se ukáže okolí.
+        historyEnd = false
+        hasNewer = true
+        messages = window.distinctBy { it.id }.sortedBy { it.id }
+        if (window.isNotEmpty()) conversations.markRead(chatId, window.map { it.id })
+        jump = JumpRequest(messageId, ++jumps)
+    }
+
+    /**
+     * Dočte [PAGE] novějších zpráv za nejnovější načtenou (jen v okně uprostřed historie).
+     * Nic nového = jsme u konce a od té chvíle se přidávají i živé nové zprávy.
+     */
+    suspend fun loadNewer() {
+        val newest = messages?.lastOrNull()?.id ?: return
+        if (!hasNewer || loadingNewer) return
+        loadingNewer = true
+        conversations.history(chatId, fromMessageId = newest, limit = PAGE, offset = -(PAGE - 1))
+            .onSuccess { page ->
+                val newer = page.filter { it.id > newest }
+                if (newer.isEmpty()) {
+                    hasNewer = false
+                } else {
+                    messages = (messages.orEmpty() + newer).distinctBy { it.id }.sortedBy { it.id }
+                    conversations.markRead(chatId, newer.map { it.id })
+                }
+            }
+            .onFailure { logger.w(it) { "Novější historie chatu $chatId se na televizi nenačetla." } }
+        loadingNewer = false
+    }
+
+    /** Konec historie místo okna uprostřed (po odeslání zprávy z okna). */
+    private suspend fun loadLatest() {
+        loadHistory().onSuccess { loaded ->
+            messages = loaded.distinctBy { it.id }.sortedBy { it.id }
+            hasNewer = false
+            historyEnd = false
+        }
     }
 
     /** Dočte [PAGE] starších zpráv od nejstarší načtené; prázdná stránka = začátek chatu. */
@@ -132,6 +223,8 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
     suspend fun send(text: String, replyTo: Long?): Result<Unit> =
         conversations.send(chatId, text, replyToMessageId = replyTo)
             .onSuccess {
+                // Odesláno z okna uprostřed historie: nová zpráva patří na konec, ne za mezeru.
+                if (hasNewer) loadLatest()
                 upsert(it)
                 sentCount++
             }
@@ -192,20 +285,23 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
     }
 }
 
+/** Žádost o skok na zprávu [messageId]; [serial] odliší dva skoky na tutéž zprávu. */
+data class JumpRequest(val messageId: Long, val serial: Int)
+
 /**
  * [ConversationState] chatu [chatId]: odběry běží s kompozicí, chat se zavře v aplikačním scope.
  * [threadRootId] zúží konverzaci na vlákno komentářů pod tímhle příspěvkem
  * (`ThreadConversationRepository` z `core`, tentýž obal jako na telefonu).
  */
 @Composable
-fun rememberConversationState(chatId: Long, threadRootId: Long? = null): ConversationState {
+fun rememberConversationState(chatId: Long, threadRootId: Long? = null, startAt: Long? = null): ConversationState {
     val base = koinInject<ConversationRepository>()
     val conversations = remember(base, threadRootId) {
         threadRootId?.let { ThreadConversationRepository(base, it) } ?: base
     }
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     val state = remember(chatId, threadRootId) { ConversationState(chatId, conversations) }
-    LaunchedEffect(state) { state.run() }
+    LaunchedEffect(state) { state.run(startAt) }
     // Zavření v aplikačním scope: scope kompozice je v tu chvíli už zrušený.
     DisposableEffect(chatId) { onDispose { appScope.launch { conversations.closeChat(chatId) } } }
     return state

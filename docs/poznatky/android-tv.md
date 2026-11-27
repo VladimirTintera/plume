@@ -134,6 +134,28 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
 
+## Skok na zprávu
+
+- **Okno historie kolem zprávy** (`ConversationState.jumpTo`, `loadAround`): `getChatHistory`
+  od zprávy se záporným posunem (polovina starších, polovina novějších). Je-li zpráva už
+  načtená, jen se na ni přesune fokus. Obrazovka žádost spotřebuje (`JumpRequest` s pořadím —
+  týž cíl dvakrát po sobě musí skočit znovu), posune se na bublinu, počká snímek a vezme fokus.
+- **V okně uprostřed historie** (`hasNewer`) se novější zprávy dočítají, jak se fokus blíží
+  spodku (`loadNewer`, prázdná stránka = konec), a **živé nové zprávy se do okna nepřidávají** —
+  stály by za mezerou v historii; přijdou s dočtením. Odeslání zprávy z okna načte konec historie
+  (`loadLatest`), jinak by nová zpráva visela za mezerou.
+- **Odkud se skáče**: zpráva ve výsledcích hledání (chat se otevře rovnou na ní,
+  `TvNavigation.openedAt`), „Zobrazit v chatu" u rozkoukaného videa (dřív jen „Otevřít chat"),
+  OK na zprávě bez média, která na něco odpovídá, a „Zobrazit citovanou zprávu" v nabídce nad
+  zprávou (podržení OK) — u zprávy s médiem OK dál otevírá médium.
+- **Kanál skočí rovnou do detailu příspěvku**, ve kterém zpráva je; po Zpět je fokus ve feedu
+  na tomtéž příspěvku. Feed dočítá novější příspěvky u horního okraje stejně jako konverzace.
+- **Ověřeno 27. 11. 2026** v chatu s Notifikátorem: hledání „testovaci" → nejstarší výsledek
+  (12:28) → konverzace otevřená na něm s fokusem, šipkou dolů dočtení až k nejnovější zprávě
+  (17:36) a na „Napsat zprávu"; OK na odpovědi „Test odpovedi z TV" → fokus na citované zprávě.
+  **Neověřené na zařízení**: „Zobrazit v chatu" z Rozkoukaných (táž cesta jako z hledání),
+  skok v kanálu do detailu příspěvku a odeslání zprávy z okna.
+
 ## Kanál jako pořad (další video samo)
 
 - **Žádost o přehrání nese frontu** (`VideoRequest.queue`, `next()`): po dohrání naskočí vpravo
@@ -273,8 +295,7 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   záložce a šipka vpravo přepnula složku). **Mikrofon na ovladači Google TV si ale bere Asistent
   systému**, aplikace ho nedostane — globální hledání přes Asistenta („najdi … v Plume") by
   chtělo `searchable` a obsahového poskytovatele, zatím není.
-- **Zpráva z výsledků otevře svůj chat**, ne zprávu: skok na zprávu konverzace na televizi
-  zatím neumí (roadmapa).
+- **Zpráva z výsledků otevře chat rovnou na sobě** (viz „Skok na zprávu").
 
 ## Spořič obrazovky s fotkami
 

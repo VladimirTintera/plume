@@ -125,7 +125,7 @@ class TvSearchState {
  * z `core`). Vpravo náhled zaostřeného chatu jako v seznamu chatů. Bez dotazu nedávno nalezené
  * chaty (`recentlyFoundChats`, historii vede TDLib).
  *
- * Zpráva otevře svůj chat; skok přímo na zprávu konverzace na televizi zatím neumí.
+ * Zpráva otevře svůj chat rovnou na sobě (okno historie kolem ní, `ConversationState.jumpTo`).
  */
 @Composable
 fun SearchPane(
@@ -136,6 +136,8 @@ fun SearchPane(
     preview: ChatPreviewData?,
     onFocusChat: (ChatSummary) -> Unit,
     onOpen: (Long) -> Unit,
+    /** Nalezená zpráva otevře svůj chat rovnou na sobě. */
+    onOpenMessage: (chatId: Long, messageId: Long) -> Unit,
 ) {
     val chats = koinInject<ChatRepository>()
     var recent by remember { mutableStateOf<List<ChatSummary>?>(null) }
@@ -186,6 +188,7 @@ fun SearchPane(
                         takeFocus = takeFocus,
                         onFocusChat = onFocusChat,
                         onOpen = onOpen,
+                        onOpenMessage = onOpenMessage,
                     )
                     results == null || (results.isEmpty && results.loading) ->
                         LoadingScreen(stringResource(Res.string.connection_connecting))
@@ -206,6 +209,7 @@ fun SearchPane(
                         takeFocus = takeFocus,
                         onFocusChat = onFocusChat,
                         onOpen = onOpen,
+                        onOpenMessage = onOpenMessage,
                     )
                 }
             }
@@ -347,6 +351,7 @@ private fun SearchList(
     takeFocus: Boolean,
     onFocusChat: (ChatSummary) -> Unit,
     onOpen: (Long) -> Unit,
+    onOpenMessage: (chatId: Long, messageId: Long) -> Unit,
 ) {
     val savedMessagesId = savedMessagesChatId()
     val returnFocus = remember { FocusRequester() }
@@ -385,7 +390,10 @@ private fun SearchList(
                     savedMessagesId = savedMessagesId,
                     onClick = {
                         state.lastKey = item.key
-                        onOpen(item.chat.id)
+                        when (item) {
+                            is SearchItem.Message -> onOpenMessage(item.chat.id, item.found.messageId)
+                            is SearchItem.Chat -> onOpen(item.chat.id)
+                        }
                     },
                     modifier = (if (item.key == returnKey) Modifier.focusRequester(returnFocus) else Modifier)
                         .onFocusChanged { if (it.isFocused) onFocusChat(item.chat) },

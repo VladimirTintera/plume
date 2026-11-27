@@ -55,6 +55,7 @@ import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.tv_action_reply
+import eu.tintera.plume.resources.tv_action_show_quote
 import eu.tintera.plume.resources.tv_message_you
 import eu.tintera.plume.resources.tv_reply_hint
 import eu.tintera.plume.resources.tv_reply_send
@@ -107,6 +108,12 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
                 interactions.actionsFor = null
                 interactions.replyTo = message
             },
+            onJumpToQuote = message.replyToMessageId?.let { quoted ->
+                {
+                    interactions.actionsFor = null
+                    scope.launch { state.jumpTo(quoted) }
+                }
+            },
             onDismiss = { interactions.actionsFor = null },
         )
     }
@@ -129,6 +136,8 @@ private fun MessageActionsDialog(
     scope: CoroutineScope,
     chatTitle: String,
     onReply: () -> Unit,
+    /** Skok na zprávu, na kterou tahle odpovídá; `null` = neodpovídá na nic. */
+    onJumpToQuote: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val choices by produceState<List<String>?>(null, message.id) {
@@ -162,11 +171,21 @@ private fun MessageActionsDialog(
                 }
                 Spacer(Modifier.height(20.dp))
             }
-            if (state.canWrite) {
-                val reply = remember { FocusRequester() }
-                if (shown != null && shown.isEmpty()) LaunchedEffect(Unit) { runCatching { reply.requestFocus() } }
-                Button(onClick = onReply, modifier = Modifier.focusRequester(reply)) {
-                    Text(stringResource(Res.string.tv_action_reply))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (state.canWrite) {
+                    val reply = remember { FocusRequester() }
+                    if (shown != null && shown.isEmpty()) LaunchedEffect(Unit) { runCatching { reply.requestFocus() } }
+                    Button(onClick = onReply, modifier = Modifier.focusRequester(reply)) {
+                        Text(stringResource(Res.string.tv_action_reply))
+                    }
+                }
+                if (onJumpToQuote != null) {
+                    // Bez reakcí i odpovědi (kanál bez reakcí) by fokus v nabídce nebyl nikde.
+                    val showQuote = remember { FocusRequester() }
+                    if (shown != null && shown.isEmpty() && !state.canWrite) LaunchedEffect(Unit) { runCatching { showQuote.requestFocus() } }
+                    Button(onClick = onJumpToQuote, modifier = Modifier.focusRequester(showQuote)) {
+                        Text(stringResource(Res.string.tv_action_show_quote))
+                    }
                 }
             }
         }
