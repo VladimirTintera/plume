@@ -68,6 +68,8 @@ import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.tv_compose_voice
+import eu.tintera.plume.resources.tv_compose_voice_prompt
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.tv_action_reply
 import eu.tintera.plume.resources.tv_action_show_quote
@@ -277,6 +279,15 @@ private fun ReplyDialog(
     }
     val field = remember { FocusRequester() }
     val sendButton = remember { FocusRequester() }
+    val mic = remember { FocusRequester() }
+    // Nadiktovaný text se PŘIPOJÍ za napsaný (u úpravy za text zprávy), kurzor na konec; fokus
+    // zpátky do pole, ať jde rovnou odeslat klávesnicí nebo dopsat.
+    val voice = rememberVoiceInput(stringResource(Res.string.tv_compose_voice_prompt)) { spoken ->
+        val joined = if (value.text.isBlank()) spoken else value.text.trimEnd() + " " + spoken
+        value = TextFieldValue(joined, TextRange(joined.length))
+        failed = false
+        runCatching { field.requestFocus() }
+    }
     LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
     Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
         DialogPanel {
@@ -297,48 +308,73 @@ private fun ReplyDialog(
             Spacer(Modifier.height(20.dp))
             var focused by remember { mutableStateOf(false) }
             val colors = MaterialTheme.colorScheme
-            BasicTextField(
-                value = value,
-                onValueChange = {
-                    value = it
-                    failed = false
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { send() }),
-                textStyle = MaterialTheme.typography.titleMedium.copy(color = colors.onSurface),
-                cursorBrush = SolidColor(colors.primary),
-                // Jednořádkové: víceřádkové pole si šipku dolů bere na pohyb kurzoru a z pole se
-                // ovladačem nedalo odejít na Odeslat (ověřeno na emulátoru). I tak se šipka dolů
-                // posílá výslovně — v jednořádkovém poli ji Compose na všech verzích nepustí.
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(field)
-                    .onFocusChanged { focused = it.isFocused }
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                            runCatching { sendButton.requestFocus() }
-                            true
-                        } else {
-                            false
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (voice != null) {
+                    MicButton(
+                        voice,
+                        stringResource(Res.string.tv_compose_voice),
+                        Modifier.focusRequester(mic).onPreviewKeyEvent { event ->
+                            // Z mikrofonu dolů na Odeslat, ne do prázdna vedle pole.
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                                runCatching { sendButton.requestFocus() }
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = {
+                        value = it
+                        failed = false
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { send() }),
+                    textStyle = MaterialTheme.typography.titleMedium.copy(color = colors.onSurface),
+                    cursorBrush = SolidColor(colors.primary),
+                    // Jednořádkové: víceřádkové pole si šipku dolů bere na pohyb kurzoru a z pole se
+                    // ovladačem nedalo odejít na Odeslat (ověřeno na emulátoru). I tak se šipka dolů
+                    // posílá výslovně — v jednořádkovém poli ji Compose na všech verzích nepustí.
+                    singleLine = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(field)
+                        .onFocusChanged { focused = it.isFocused }
+                        .onPreviewKeyEvent { event ->
+                            when {
+                                event.type != KeyEventType.KeyDown -> false
+                                event.key == Key.DirectionDown -> {
+                                    runCatching { sendButton.requestFocus() }
+                                    true
+                                }
+                                // Šipku vlevo pole bere na posun kurzoru; na začátku textu z něj
+                                // odejde na mikrofon (jako v hledání).
+                                event.key == Key.DirectionLeft && voice != null && value.selection.collapsed && value.selection.start == 0 -> {
+                                    runCatching { mic.requestFocus() }
+                                    true
+                                }
+                                else -> false
+                            }
+                        },
+                    decorationBox = { inner ->
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .background(colors.surfaceVariant, RoundedCornerShape(16.dp))
+                                .border(if (focused) 3.dp else 1.dp, if (focused) colors.primary else colors.border, RoundedCornerShape(16.dp))
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                        ) {
+                            if (text.isEmpty()) {
+                                Text(stringResource(Res.string.tv_reply_hint), style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
+                            }
+                            inner()
                         }
                     },
-                decorationBox = { inner ->
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .background(colors.surfaceVariant, RoundedCornerShape(16.dp))
-                            .border(if (focused) 3.dp else 1.dp, if (focused) colors.primary else colors.border, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
-                    ) {
-                        if (text.isEmpty()) {
-                            Text(stringResource(Res.string.tv_reply_hint), style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
-                        }
-                        inner()
-                    }
-                },
-            )
+                )
+            }
             if (failed) {
                 Spacer(Modifier.height(8.dp))
                 Text(
