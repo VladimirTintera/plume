@@ -302,8 +302,20 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   minuty a jednotky MB), pak ExoPlayer s `RESIZE_MODE_ZOOM` jako `Crop` u fotky. Fokus zvuku
   vezme přehrávači hudby (pozastaví se). Živé vysílání televize neumí: věta a po 6 s dál, stejně
   jako příběh, který už není.
+- **Lem u avataru v řádku chatu a v hlavičce konverzace** (`Modifier.storyRing`, kreslení
+  společné s řadou příběhů v `drawStoryRing`). Kreslí se VEN z plochy avataru (`drawBehind`
+  před ořezem), takže řádek s lemem i bez něj má stejnou výšku. Jen ukazatel — OK na řádku
+  otevře chat, příběhy se otevírají z řady nad seznamem. Uložené zprávy lem nemají (záložka
+  místo fotky účtu, „Moje příběhy" jsou v řadě).
+- **Na zaostřeném řádku (inverzní plocha, v tmavém motivu světlá) je lem `inversePrimary`**:
+  `primary` tam skoro nebylo vidět. Fokus předává řádek (`onInverse`); odvodit ho
+  z `LocalContentColor` uvnitř avataru na emulátoru nefungovalo — ani přesná shoda
+  s `inverseOnSurface`, ani světlost barvy lem nepřebarvily.
+- **Ověřeno na emulátoru s podstrčenými příběhy** (dočasná úprava, necommitnutá: Notifikátor
+  se třemi příběhy, jeden zhlédnutý): lem v nezaostřeném i zaostřeném řádku a v hlavičce
+  konverzace. Na skutečném účtu v době ověření nikdo aktivní příběh neměl.
 - **Zatím ne**: reakce a odpověď na příběh, ztlumení (hlasitost má ovladač), skrytí autora,
-  vlastní příběh (diváci, správa), lem příběhu u avataru v řádku chatu a v konverzaci.
+  vlastní příběh (diváci, správa).
 
 ## Hledání
 

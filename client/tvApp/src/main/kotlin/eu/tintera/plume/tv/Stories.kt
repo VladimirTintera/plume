@@ -38,12 +38,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -179,28 +181,72 @@ private fun StoryAvatar(poster: ActiveStories, title: String, own: Boolean) {
     val read = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
     Box(Modifier.padding(4.dp).size(STORY_AVATAR + 12.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val count = poster.stories.size.coerceAtLeast(1)
-            val stroke = 3.dp.toPx()
-            val gap = if (count > 1) (360f / count * 0.25f).coerceAtMost(8f) else 0f
-            val sweep = 360f / count - gap
-            val inset = stroke / 2
-            poster.stories.ifEmpty { listOf(null) }.forEachIndexed { index, story ->
-                val seen = story == null || story.id <= poster.maxReadStoryId
-                drawArc(
-                    color = if (seen) read else unread,
-                    startAngle = -90f + index * (sweep + gap) + gap / 2,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(size.width - stroke, size.height - stroke),
-                    style = Stroke(width = if (seen) stroke * 0.6f else stroke),
-                )
-            }
+            drawStoryRing(poster, unread, read, stroke = 3.dp.toPx(), inset = 0f)
         }
         // Vlastní příběh má fotku účtu (u Uložených zpráv by ChatAvatar dal záložku).
         ChatAvatar(fileId = poster.avatarFileId, title = title, size = STORY_AVATAR, savedMessages = false)
     }
 }
+
+/**
+ * Lem příběhů: dílek na příběh, od horního středu po směru hodinových ručiček, nejstarší první;
+ * nezhlédnuté v barvě [unread], zhlédnuté tenčí v [read]. [inset] > 0 kreslí dovnitř okraje
+ * plochy, záporný ven z ní (lem kolem avataru v řádku chatu, který nesmí měnit jeho velikost).
+ */
+internal fun DrawScope.drawStoryRing(poster: ActiveStories, unread: Color, read: Color, stroke: Float, inset: Float) {
+    val count = poster.stories.size.coerceAtLeast(1)
+    val gap = if (count > 1) (360f / count * 0.25f).coerceAtMost(8f) else 0f
+    val sweep = 360f / count - gap
+    val edge = inset + stroke / 2
+    poster.stories.ifEmpty { listOf(null) }.forEachIndexed { index, story ->
+        val seen = story == null || story.id <= poster.maxReadStoryId
+        drawArc(
+            color = if (seen) read else unread,
+            startAngle = -90f + index * (sweep + gap) + gap / 2,
+            sweepAngle = sweep,
+            useCenter = false,
+            topLeft = Offset(edge, edge),
+            size = Size(size.width - 2 * edge, size.height - 2 * edge),
+            style = Stroke(width = if (seen) stroke * 0.6f else stroke),
+        )
+    }
+}
+
+/**
+ * Lem příběhů KOLEM avataru chatu [chatId] (v řádku seznamu, v hlavičce konverzace), když má
+ * autor aktivní příběh; jinak nic. Kreslí se mimo plochu avataru — velikost řádku se nezmění,
+ * ať má lem, nebo ne. Vlastní příběhy (Uložené zprávy) lem nemají: řádek nese záložku, ne fotku
+ * účtu, a „Moje příběhy" jsou v řadě nad seznamem.
+ *
+ * Jen ukazatel: OK na řádku otevře chat jako dřív, příběhy se otevírají z řady nad seznamem
+ * (avatar v řádku nejde ovladačem zaostřit zvlášť).
+ */
+@Composable
+fun Modifier.storyRing(
+    chatId: Long,
+    savedMessages: Boolean = false,
+    /**
+     * Avatar leží na inverzní ploše — zaostřený řádek seznamu (`inverseSurface`, v tmavém motivu
+     * světlá). `primary` na ní skoro nebylo vidět (ověřeno na emulátoru), patří tam
+     * `inversePrimary`. Řádek to musí říct sám: odvodit to z `LocalContentColor` uvnitř avataru
+     * na emulátoru nefungovalo (barva se nepřepnula), proč, zjištěné není.
+     */
+    onInverse: Boolean = false,
+): Modifier {
+    if (savedMessages) return this
+    val active by koinInject<StoryRepository>().active.collectAsState()
+    val poster = active[chatId]?.takeIf { it.stories.isNotEmpty() } ?: return this
+    val colors = MaterialTheme.colorScheme
+    val unread = if (onInverse) colors.inversePrimary else colors.primary
+    val read = (if (onInverse) colors.inverseOnSurface else colors.onSurfaceVariant).copy(alpha = 0.45f)
+    return drawBehind {
+        val stroke = RING_STROKE.toPx()
+        drawStoryRing(poster, unread, read, stroke, inset = -(RING_GAP.toPx() + stroke))
+    }
+}
+
+private val RING_STROKE = 2.5.dp
+private val RING_GAP = 3.dp
 
 /**
  * Prohlížeč příběhů ovladačem. Příběh stojí uprostřed na výšku (9 : 16), autoři i jejich příběhy

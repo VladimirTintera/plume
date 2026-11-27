@@ -608,8 +608,9 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 9. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
    a výkon seznamu s avatary na slabém procesoru.
 
-10. ~~**Příběhy**~~ — hotovo (řada nad Všemi chaty, prohlížeč ovladačem). Zbývá: reakce
-    a odpověď, vlastní příběh, lem u avatarů v řádcích chatů, ověřit přechod mezi autory na
+10. ~~**Příběhy**~~ — hotovo (řada nad Všemi chaty, prohlížeč ovladačem, lem u avatarů v řádcích
+    chatů a v hlavičce konverzace). Zbývá: reakce
+    a odpověď, vlastní příběh, ověřit přechod mezi autory na
     účtu s příběhy lidí (testovací účet).
 11. ~~**Hledání i hlasem**~~ — hotovo (záložka s lupou, chaty, globální výsledky a zprávy,
     hlasové zadání a tlačítko hledání na ovladači). Zbývá: globální hledání přes Asistenta
