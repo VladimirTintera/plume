@@ -1790,6 +1790,29 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
     přijdu.", „Jsem v sobotu s námi.") je ve všech variantách, i bez „first person"; tvary
     („Poslím") a rod („Jsem rád, že jsem pomohl") pokyn jen ubere. Další krok by byl větší model
     (E4B, Gemini Nano), ne další ladění promptu. **Gemini Nano neověřené.**
+- **Hotová věta v POKYNU se opisuje jako návrh** (27. 11. 2026). Pokyn k rodu zněl „write
+  "Jasně, přijdu.", not "Rád přijdu."" a „Jasně, přijdu." chodilo jako první návrh skoro ke
+  všemu — na „Jak dopadla zkouška?", „Koupil jsem si nový kolo", ztracené klíče od auta, babičku
+  v nemocnici; uživatel si toho všiml v několika chatech na telefonu i na desktopu. Ukázka neměla
+  „do not copy" jako blok ukázek, byla krátká, obecně použitelná a téma „přijít" opakovala
+  i ukázka perspektivy („Will you come?" → „Yes, I'll come."); souhlas je v pokynu první, takže
+  model první návrh opsal. **Změřeno** přes `llama-completion` sestavený ze submodulu llama.cpp
+  (EuroLLM 9B a Aya 8B, teplota 0,2 jako v aplikaci, pět konverzací po dvou bězích): s ukázkou
+  „Jasně, přijdu." ve 12 z 20 běhů, bez ní 0 z 20. Proto:
+  - **pokyn smí jmenovat tvary, ne nést hotovou odpověď** — ukázky odpovědí jen v bloku ukázek
+    s „do not copy" (hlídá `ReplyPromptTest`);
+  - **ukázky nezačínají stejně** — dvě ze tří ukázek souhlasu začínaly „Jasně, …" a model to bral
+    jako šablonu; zůstala jedna;
+  - **rada „prošlý čas prozradí rod, piš přítomný / budoucí" nepomohla** — „zvládla jsem",
+    „zvládl/a" zůstaly a EuroLLM jednou vrátil třikrát totéž; nezkoušet znovu;
+  - **i blok ukázek občas prosákne**: EuroLLM jednou odpověděl na babičku v nemocnici ukázkou
+    s kočkou („už se našla?"). Méně často, ale „do not copy" není záruka.
+  Rychlé A/B promptu bez emulátoru: `cmake` z Android SDK (`~/Library/Android/sdk/cmake/3.31.0/bin`),
+  `cmake -S external/ai-engine/ai-llamacpp/llama.cpp -B <mimo repo> -G Ninja -DLLAMA_CURL=OFF
+  -DLLAMA_OPENSSL=OFF` a `--target llama-completion`; modely leží v `~/Library/Application
+  Support/Plume/ai-models/` (stažené desktopovou Plume). Prompt se obalí šablonou modelu ručně
+  (EuroLLM ChatML, Aya `<|START_OF_TURN_TOKEN|>…`) a pouští s `-no-cnv`. Gemini Nano tak ověřit
+  nejde.
 
 - **Fakta model drží, sloh ne.** Na připraveném testu (ceny, číslo účtu, datum, jména) nevymyslel
   nic — ale na skutečné konverzaci komolí tvary („telefon nebudou mít vibrace“), plete si, kdo co

@@ -175,13 +175,19 @@ private val ENGLISH_WORDS = setOf(
  *
  * **Rod uživatele neznáme** (Telegram ho nenese), a čeština ho prozradí v každém „rád/ráda"
  * a „šel/šla". Návrh v cizím rodě je horší než žádný — uživatel ho musí přepsat —, proto se
- * model vede k bezrodým tvarům („Jasně, přijdu." místo „Rád přijdu.").
+ * model vede k bezrodým tvarům.
  *
  * Pokyn rod nevynutí — „Jsem rád, že jsem pomohl" model napíše dál —, jen ho ubere.
+ *
+ * **Pokyn k rodu NESMÍ nést ukázkovou odpověď.** Stálo v něm „write "Jasně, přijdu.", not
+ * "Rád přijdu."" — hotová krátká věta bez „do not copy", a modely ji nabízely jako první návrh
+ * skoro ke všemu (zkouška, nové kolo, ztracené klíče): EuroLLM a Aya ve 12 z 20 běhů, bez ní
+ * ani jednou. Rada „prošlý čas prozradí rod, piš přítomný" místo ní rod neubrala.
  *
  * **Ukázky jsou TŘI na různá témata.** S jedinou model opisoval její obsah: „Nemůžu zítra, co
  * v sobotu?" vyšlo u pozvání na pivo i u poděkování za stěhování. Se třemi bere spíš tvar
  * (souhlas / odmítnutí s protinávrhem / doplňující otázka) a obsah prosákne jen tam, kde sedí.
+ * Jen jedna ukázka začíná „Jasně": se dvěma model bral „Jasně, …" za šablonu souhlasu.
  *
  * **Ukázky jdou až PODMÍNĚNĚ („if you write in Czech")** a u zprávy, kterou kód pozná jako
  * anglickou ([looksEnglish]), vůbec: jazyk aplikace je jen nápověda a české ukázky by táhly do
@@ -190,10 +196,10 @@ private val ENGLISH_WORDS = setOf(
 private fun styleInstructions(languageCode: String): List<String> = when (languageCode) {
     "cs" -> listOf(
         "if you write in Czech: the user's gender is unknown, so avoid forms that show it " +
-            "(rád/ráda, byl/byla, šel/šla) — write \"Jasně, přijdu.\", not \"Rád přijdu.\"",
+            "(rád/ráda, byl/byla, šel/šla)",
         "if you write in Czech, replies should sound like these (other chats, do not copy them): " +
             "\"Nepůjdeme zítra do kina?\" → \"Jasně, půjdu.\" / \"Zítra nemůžu, co v pátek?\" / \"Na jaký film?\"; " +
-            "\"Pošleš mi číslo na instalatéra?\" → \"Jasně, hned ti ho pošlu.\" / \"Teď ho nemám u sebe.\" / \"Na kterého?\"; " +
+            "\"Pošleš mi číslo na instalatéra?\" → \"Hned ti ho pošlu.\" / \"Teď ho nemám u sebe.\" / \"Na kterého?\"; " +
             "\"Ztratila se nám kočka.\" → \"To je mi líto, už se našla?\" / \"Můžu pomoct hledat?\" / \"Držím palce, ať se najde.\"",
     )
     else -> emptyList()
