@@ -28,6 +28,14 @@ zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
 hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 status=0
 
+# Jeden dočasný adresář na celý push, uklidí se i po `continue` a přerušení.
+tmp_root=$(mktemp -d) || exit 1
+trap 'rm -rf "$tmp_root"' EXIT
+trap 'exit 1' INT TERM HUP
+
+script_path=".github/scripts/release_notes.py"
+n=0
+
 while read -r local_ref local_sha remote_ref remote_sha; do
     [ -n "${local_ref:-}" ] || continue
     [ "$local_sha" = "$zero" ] && continue
@@ -37,17 +45,26 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 
     base=$(git merge-base refs/remotes/origin/main "$local_sha" 2>/dev/null) || continue
 
-    # Skript se bere vedle hooku, a teprve když tam není, z pushovaného stromu: z worktree
-    # se pushuje větev, která `.github/scripts/` mít nemusí, zato hook leží v hlavním stromu.
+    n=$((n + 1))
+    tmp="$tmp_root/$n"
+    mkdir -p "$tmp/notes" || exit 1
+
+    # Skript se bere Z PUSHOVANÉHO COMMITU, stejně jako ho vezme CI. Hook leží v hlavním
+    # stromu (absolutní `core.hooksPath`) a ten může stát na staré větvi: PR, který pravidla
+    # rozšiřuje (nová hodnota `units:`), by jinak lokálně neprošel, ač CI ho pustí.
+    # Teprve když pushovaný strom skript nemá (větev starší než skript), vezme se ten vedle
+    # hooku; když není ani ten, kontrola formátu se přeskočí a zbyde na CI.
     script=""
-    for candidate in "$hook_dir/../.github/scripts/release_notes.py" \
-                     "$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py"; do
-        [ -f "$candidate" ] && { script=$candidate; break; }
-    done
+    if git cat-file -e "$local_sha:$script_path" 2>/dev/null \
+        && git show "$local_sha:$script_path" > "$tmp/release_notes.py"; then
+        script="$tmp/release_notes.py"
+    elif [ -f "$hook_dir/../$script_path" ]; then
+        script="$hook_dir/../$script_path"
+    fi
     # Na Windows (Git Bash) je cesta `/c/…`, a Python pro Windows jí rozumí jen díky převodu
     # argumentů v MSYS. S `MSYS_NO_PATHCONV=1` (potřebuje ho adb) převod neběží, Python
     # dostal `/c/Develop/…`, četl to jako `C:\c\Develop\…` a hook spadl na chybějícím
-    # souboru. `cygpath -m` udělá cestu `C:/…`, které rozumí obě strany.
+    # souboru. `cygpath -m` udělá cestu `C:/…`, které rozumí obě strany (i u `/tmp/…`).
     if [ -n "$script" ] && command -v cygpath >/dev/null 2>&1; then
         script=$(cygpath -m "$script")
     fi
@@ -73,22 +90,19 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         echo "poznámka: python3 tu není, formát poznámky ověří až CI." >&2
         continue
     }
-
-    changed=$(git diff --diff-filter=AM --name-only "$base" "$local_sha" -- 'release-notes/*.md')
-    tmp=$(mktemp -d) || exit 1
-    for file in $changed; do
-        git show "$local_sha:$file" > "$tmp/$(basename "$file")" || status=1
-    done
     if [ -z "$script" ]; then
         echo "poznámka: release_notes.py tu není, formát poznámky ověří až CI." >&2
-        rm -rf "$tmp"
         continue
     fi
 
+    changed=$(git diff --diff-filter=AM --name-only "$base" "$local_sha" -- 'release-notes/*.md')
+    for file in $changed; do
+        git show "$local_sha:$file" > "$tmp/notes/$(basename "$file")" || status=1
+    done
+
     # Kontrola běží AŽ V TOM adresáři, aby se v hlášce objevilo jméno poznámky,
     # a ne cesta do /var/folders, ve které ji nikdo nehledá.
-    (cd "$tmp" && python3 "$script" check ./*.md) || status=1
-    rm -rf "$tmp"
+    (cd "$tmp/notes" && python3 "$script" check ./*.md) || status=1
 done
 
 exit $status

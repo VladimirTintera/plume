@@ -169,10 +169,13 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
   být nemusí, protože je starší než hook. Hook tam pak neběžel a **nijak se to neohlásilo**: git
   na chybějící cestu k hooku nenadává. Config je mezi worktrees sdílený, takže absolutní cesta
   se nastavuje jednou a platí pro všechny.
-- **Skript se hledá vedle hooku, teprve pak v pushovaném stromu.** Z worktree se pushuje větev,
-  která `.github/scripts/` mít nemusí; hook naopak leží v hlavním stromu, kam absolutní cesta
-  míří. Když není ani jeden, kontrola formátu se přeskočí a zbyde na CI — hook nemá blokovat
-  push kvůli tomu, že si na něco nedosáhl.
+- **Skript se bere z pushovaného commitu, teprve pak vedle hooku.** Hook leží v hlavním stromu
+  (absolutní cesta) a ten může stát na staré větvi; s jeho skriptem neprošel PR, který pravidla
+  sám rozšiřuje (nová hodnota `units:`, `tv` v #118), přestože CI, které bere skript z větve,
+  by ho pustilo — zbylo `--no-verify`. Hook proto skript vytáhne `git show <sha>:…` do
+  dočasného souboru. Skript vedle hooku je až záloha pro větev starší než skript; když není
+  ani ten, kontrola formátu se přeskočí a zbyde na CI — hook nemá blokovat push kvůli tomu,
+  že si na něco nedosáhl.
 - **Na Windows jde skriptu cesta přes `cygpath -m`.** Git Bash dává hooku cestu `/c/…`
   a Python pro Windows jí rozumí jen díky převodu argumentů v MSYS. S `MSYS_NO_PATHCONV=1`
   v prostředí (nastavuje se kvůli adb) převod neběží a Python hledal `C:\c\Develop\…` —
