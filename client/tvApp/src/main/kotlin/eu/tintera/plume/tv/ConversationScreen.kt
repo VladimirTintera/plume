@@ -383,8 +383,8 @@ internal fun MessageRow(
                 color = colors.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
+                    .focusRing(focused, RoundedCornerShape(50))
                     .background(colors.surfaceVariant, RoundedCornerShape(50))
-                    .border(if (focused) 2.dp else 0.dp, if (focused) colors.border else colors.surfaceVariant, RoundedCornerShape(50))
                     .padding(horizontal = 16.dp, vertical = 6.dp),
             )
         }
@@ -440,9 +440,9 @@ internal fun MessageRow(
             Modifier
                 .widthIn(max = BUBBLE_MAX_WIDTH)
                 .width(IntrinsicSize.Max)
+                .focusRing(focused, BUBBLE_RING_SHAPE)
                 .clip(BUBBLE_SHAPE)
-                .background(container)
-                .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
+                .background(container),
         ) {
             if (quote != null) {
                 Column(
@@ -524,8 +524,8 @@ private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolea
         }
         Box(
             Modifier
-                .clip(BUBBLE_SHAPE)
-                .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
+                .focusRing(focused, BUBBLE_RING_SHAPE)
+                .clip(BUBBLE_SHAPE),
         ) {
             VisualMedia(album, timeOnMedia = true, selected = selected)
             Text(
@@ -570,9 +570,9 @@ private fun MediaCard(
     Column(
         Modifier
             .width(IntrinsicSize.Min)
+            .focusRing(focused, BUBBLE_RING_SHAPE)
             .clip(BUBBLE_SHAPE)
-            .background(container)
-            .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
+            .background(container),
     ) {
         if (quote != null) {
             Column(
@@ -770,6 +770,7 @@ internal fun Int.asDuration(): String = if (this >= 3600) {
 }
 
 private val BUBBLE_SHAPE = RoundedCornerShape(20.dp)
+private val BUBBLE_RING_SHAPE = focusRingShape(20.dp)
 private val BUBBLE_MAX_WIDTH = 720.dp
 private val PHOTO_HEIGHT = 240.dp
 private val ALBUM_TILE_WIDTH = 220.dp

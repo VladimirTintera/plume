@@ -4,7 +4,6 @@ import android.net.Uri
 import android.view.TextureView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -109,7 +108,7 @@ fun VideoNoteBubble(message: ChatMessage, note: MessageMedia.VideoNote, sender: 
         Box(
             Modifier
                 .size(NOTE_SIZE)
-                // Prstenec průběhu kolem kruhu; fokus má vlastní, silnější obrys nad ním.
+                // Prstenec průběhu kolem kruhu; fokus má vlastní prstenec vně (focusRing).
                 .drawWithContent {
                     drawContent()
                     if (playingIn != null) {
@@ -125,8 +124,8 @@ fun VideoNoteBubble(message: ChatMessage, note: MessageMedia.VideoNote, sender: 
                         )
                     }
                 }
-                .clip(CircleShape)
-                .then(if (focused) Modifier.border(4.dp, colors.border, CircleShape) else Modifier),
+                .focusRing(focused, CircleShape)
+                .clip(CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             val px = with(LocalDensity.current) { NOTE_SIZE.roundToPx() }

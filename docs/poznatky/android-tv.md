@@ -212,7 +212,24 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Po zavření videa se fokus vrací na zprávu s videem** (`focusTarget` v `MessageList`).
   Přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
-  ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
+  ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese prstenec kolem
+  bubliny (viz „Fokus zprávy“).
+
+## Fokus zprávy
+
+- **Zaostřená zpráva má světlý prstenec KOLEM sebe** (`focusRing` ve `FocusRing.kt`: 3 dp
+  v `onSurface`, 3 dp od okraje, rohy soustředné přes `focusRingShape`). Platí pro bublinu,
+  holé médium, kartu s médiem, servisní pilulku, kolečko a text příspěvku v detailu kanálu.
+- **Dřív to byl 3dp rámeček v barvě `border` uvnitř tvaru zprávy** a ze tří metrů byl
+  nevýrazný: středně šedá na šedé příchozí bublině skoro splývala a rámeček ukrajoval okraj
+  fotky nebo citace. Návod Google chce „okamžitou a zřetelnou“ odezvu na ovladač a Google TV
+  má fokus bílý. Prstenec stojí na ploše stránky, takže kontrast nezávisí na barvě bubliny.
+- **Bez zvětšení**, které mají karty tv-material: široká bublina by přetekla do okraje a text
+  ve zvětšené vrstvě by se rozmazal.
+- **Prstenec se kreslí mimo hranice zprávy** (`drawWithContent`, modifikátor PŘED `clip`),
+  takže seznam potřebuje aspoň `FOCUS_RING_OUTSET` (6 dp) mezi položkami i na krajích:
+  konverzace má mezery 8 dp a okraje, seznam komentářů v kanálu dostal `contentPadding`.
+  U zprávy vyšší než obrazovka ho seznam na kraji ořízne, boky zůstanou vidět.
 
 ## Dlouhé zprávy
 
