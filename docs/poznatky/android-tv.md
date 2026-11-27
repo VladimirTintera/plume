@@ -47,6 +47,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   **Immersive list** (řada karet a velký náhled na pozadí, který sleduje fokus) je podle návodu
   pro pár vybraných položek (novinky, populární), ne pro dlouhý seznam — na chaty se nehodí.
   Karty v řadách jsou pro vizuální katalog (objevování kanálů, feed příspěvků).
+- **Čas u chatu je krátký sloupec jako na telefonu** (`asRelativeTime` z `core`: dnes hodina,
+  pak „včera", zkratka dne a „26. 11."), i u zpráv ve výsledcích hledání. Dřív tam bylo celé
+  datum („26. listopadu", `asDate`): seznam je úzký (kolem 360 dp) a datum bralo místo názvu,
+  při písmu systému 1,3 z „Short Drama BL | AI Dramas" zbylo „Short Drama BL | …". S krátkým
+  sloupcem „Short Drama BL | AI Dra…". Ověřeno 27. 11. 2026 na emulátoru při 1,3 i 1,0
+  (dnešní, včerejší, „út", „so", „17. 11."); výsledky hledání jen přeložené (táž funkce).
 - **Z immersive listu si seznam bere náhled**: vpravo zaostřený chat (`ChatPreview`), jeho
   poslední fotka nebo video přes pozadí celé obrazovky (prolíná se i pod záložky) a poslední
   zprávy. Obraz je zarovnaný doprava nahoru (Google: hlavní motiv vpravo nahoře) a zleva

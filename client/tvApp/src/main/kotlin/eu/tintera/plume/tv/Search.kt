@@ -54,9 +54,7 @@ import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessage
-import eu.tintera.plume.core.ui.asDate
-import eu.tintera.plume.core.ui.asTimeOfDay
-import eu.tintera.plume.core.ui.isSameDayAs
+import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_search_empty
@@ -385,11 +383,8 @@ private fun SearchRow(item: SearchItem, savedMessagesId: Long?, onClick: () -> U
         },
         trailingContent = (item as? SearchItem.Message)?.let { message ->
             {
-                val date = message.found.date
-                Text(
-                    if (date.isSameDayAs(nowSeconds())) date.asTimeOfDay() else date.asDate(),
-                    style = MaterialTheme.typography.labelMedium.tabular(),
-                )
+                // Krátký sloupec jako v seznamu chatů a ve výsledcích hledání na telefonu.
+                Text(message.found.date.asRelativeTime(), style = MaterialTheme.typography.labelMedium.tabular(), maxLines = 1)
             }
         },
     )
