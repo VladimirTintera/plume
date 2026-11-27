@@ -587,6 +587,19 @@ interface ConversationRepository {
         includeFrom: Boolean = false,
     ): Result<HistoryCounts> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Zprávy pro statistiku chatu: projde historii jako [messageCountsByDay] (od [fromMessageId],
+     * `0` = od nejnovější, ke starším, nejvýš [maxMessages] zpráv, [onlyLocal] = jen lokální
+     * databáze TDLib), jen místo počtů po dnech vrátí otisk každé zprávy ([MessageStat]).
+     * Zpráva [fromMessageId] sama ve výsledku není — je spočtená z předchozího úseku.
+     */
+    suspend fun messageStats(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+    ): Result<MessageStatsPage> = Result.failure(UnsupportedOperationException())
+
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**

@@ -95,6 +95,9 @@ import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.features.profile.RemovedMembersScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
+import eu.tintera.plume.core.navigation.ChatInsightsRoute
+import eu.tintera.plume.core.navigation.ArchiveChatInsightsRoute
+import eu.tintera.plume.features.chatinsights.ChatInsightsScreen
 import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
@@ -1256,6 +1259,12 @@ private fun shellEntryProvider(
                     },
                     onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(slot, chatId)) },
                     onOpenPostStatistics = { messageId -> chatsStack.addOnce(PostStatisticsRoute(slot, route.chatId, messageId)) },
+                    // Statistika chatu jen nad celým chatem, ne nad vláknem nebo tématem.
+                    onOpenInsights = if (route.threadId == null && route.topicId == null && route.savedTopicId == null && route.directTopicId == null) {
+                        { chatsStack.addOnce(ChatInsightsRoute(slot, route.chatId)) }
+                    } else {
+                        null
+                    },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(slot, route.chatId, request)) },
                     onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(slot, route.chatId, request)) },
                     onOpenWebApp = { request -> chatsStack.add(webAppRoute(slot, route.chatId, request, archive = false)) },
@@ -1555,6 +1564,20 @@ private fun shellEntryProvider(
         )
     }
 
+    entry<ChatInsightsRoute>(metadata = Panes.extra() + Panes.headerOutside()) { route ->
+        ChatInsightsScreen(
+            viewModel = koinViewModel(key = "chat-insights-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<ArchiveChatInsightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.headerOutside()) { route ->
+        ChatInsightsScreen(
+            viewModel = koinViewModel(key = "chat-insights-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
     entry<ArchiveChatStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.headerOutside()) { route ->
         val slot = LocalAccount.current.slot
         ChatStatisticsScreen(
@@ -1697,6 +1720,11 @@ private fun shellEntryProvider(
                     },
                     onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(slot, chatId)) },
                     onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(slot, route.chatId, messageId)) },
+                    onOpenInsights = if (route.threadId == null && route.topicId == null && route.directTopicId == null) {
+                        { chatsStack.addOnce(ArchiveChatInsightsRoute(slot, route.chatId)) }
+                    } else {
+                        null
+                    },
                     onUnarchived = { chatsStack.moveConversationToMain(route.slot, route.chatId) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(slot, route.chatId, request)) },
                     onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(slot, route.chatId, request)) },

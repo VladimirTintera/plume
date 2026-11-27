@@ -2131,11 +2131,10 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
     modelem v zařízení (nejisté, jen jako návrh).
   - Fáze 1 dává smysl i bez ostatních (je to rozšíření dnešního sheetu); obava se týká hlavně
     fáze 3.
-- **Statistika chatu** (M). Kdo kolik píše, aktivita podle hodin a dnů v týdnu (heatmapa),
-  nejčastější reakce, nejdelší série dnů, kdy jste si psali — „Wrapped" pro jeden chat,
-  počítané lokálně. Grafy jsou ze statistik kanálu (`StatGraphCard`); počty po dnech dává
-  už kalendář (`getChatMessageCalendar`), na hodiny a autory se musí projít historie
-  (pozor na velké skupiny: strop a průběh).
+- ~~**Statistika chatu**~~ — hotovo (⋮ v konverzaci → Statistika chatu;
+  `docs/poznatky/profil-chatu.md`, „Statistika chatu"). Zbývá: ověřit ve velké skupině (strop
+  průchodu, rychlost) a česky; vstup i z profilu chatu; ťuknutí na nejrušnější den nebo měsíc
+  jako skok do konverzace.
 - **„Před rokem"** (S). Nenápadný řádek v konverzaci nebo profilu: „Dnes před rokem jste si
   psali o…" se skokem na místo. Tatáž cesta jako kalendář a skok na datum.
 - **Mapa poloh v chatu** (S–M). Všechny sdílené polohy a místa z chatu na jedné mapě, nejspíš

@@ -39,6 +39,8 @@ import eu.tintera.plume.resources.delete_sweep_24dp
 import eu.tintera.plume.resources.chats_action_report
 import eu.tintera.plume.resources.chats_delete_report
 import eu.tintera.plume.resources.conversation_jump_to_date
+import eu.tintera.plume.resources.chat_insights_title
+import eu.tintera.plume.resources.bar_chart_24dp
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.event_24dp
@@ -99,6 +101,8 @@ internal fun ConversationMenu(
     onSwitchChat: (() -> Unit)?,
     /** „Přejít na datum": kalendář zpráv; `null` = konverzace bez kalendáře. */
     onOpenCalendar: (() -> Unit)?,
+    /** „Statistika chatu"; `null` = vlákno nebo téma. */
+    onOpenInsights: (() -> Unit)?,
     /** Akce nad chatem → Sdílet kontakt: výběr chatů, do kterých ho poslat. */
     onShareContact: (userId: Long) -> Unit,
     /** Akce nad chatem → Přidat členy / odběratele. */
@@ -125,10 +129,10 @@ internal fun ConversationMenu(
             // Hovor je v liště vedle (`ConversationCallButtons`), v nabídce podruhé ne.
             onCall = null,
         ) { groups ->
-            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, groups)
+            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, onOpenInsights, groups)
         }
     } else {
-        ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, ChatActionGroups.Empty)
+        ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, onOpenInsights, ChatActionGroups.Empty)
     }
 }
 
@@ -142,6 +146,7 @@ private fun ConversationMenuContent(
     onViewAsTopics: (() -> Unit)?,
     onSwitchChat: (() -> Unit)?,
     onOpenCalendar: (() -> Unit)?,
+    onOpenInsights: (() -> Unit)?,
     chatActions: ChatActionGroups,
 ) {
     val info = state.info
@@ -185,6 +190,12 @@ private fun ConversationMenuContent(
             // dnech — vidět, kdy se psalo, je při hledání dne polovina práce.
             if (showsContent && viewModel.canJumpToDate && onOpenCalendar != null) {
                 MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = onOpenCalendar)
+            } else {
+                null
+            },
+            // Statistika vedle kalendáře: obojí je pohled na historii chatu jako celek.
+            if (showsContent && onOpenInsights != null) {
+                MenuAction(stringResource(Res.string.chat_insights_title), Res.drawable.bar_chart_24dp, onClick = onOpenInsights)
             } else {
                 null
             },

@@ -63,6 +63,8 @@ import eu.tintera.plume.core.ui.longName
 import eu.tintera.plume.core.ui.name
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.ui.standaloneName
+import eu.tintera.plume.resources.calendar_month_year
 import eu.tintera.plume.resources.date_day_month
 import eu.tintera.plume.resources.date_day_month_year
 import eu.tintera.plume.resources.decimal_number
@@ -124,6 +126,25 @@ internal fun StatGraphCard(entry: StatGraphEntry, modifier: Modifier = Modifier)
     }
 }
 
+/**
+ * Karta grafu, který nespočítal server, ale aplikace (statistika chatu): stejný vzhled a výběr
+ * bodu jako [StatGraphCard], jen s vlastním nadpisem. [monthly]: body jsou začátky měsíců
+ * a popisují se měsícem a rokem, ne dnem.
+ */
+@Composable
+internal fun StatChartCard(title: String, chart: StatChart, monthly: Boolean, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(GROUP_CORNER))
+            .background(MaterialTheme.colorScheme.groupRow)
+            .padding(16.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        ChartContent(chart, kind = null, monthly = monthly)
+    }
+}
+
 /** Graf stojí za kreslení: je hotový a není samá nula, nebo se teprve počítá. */
 internal fun StatGraph.isWorthShowing(): Boolean = when (this) {
     is StatGraph.Ready -> !chart.isEmpty
@@ -133,12 +154,13 @@ internal fun StatGraph.isWorthShowing(): Boolean = when (this) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChartContent(raw: StatChart, kind: StatGraphKind) {
+private fun ChartContent(raw: StatChart, kind: StatGraphKind?, monthly: Boolean = false) {
     val otherName = stringResource(Res.string.statistics_other)
     val chart = remember(raw, otherName) { raw.folded(MAX_SERIES, otherName) }
     val colors = seriesColors(chart.series.size)
     var selected by remember(chart) { mutableStateOf<Int?>(null) }
     val labelStyle = when {
+        monthly -> XLabel.Month
         kind == StatGraphKind.ActivityByWeek -> XLabel.Weekday
         chart.hourly -> XLabel.Hour
         else -> XLabel.Date
@@ -444,7 +466,7 @@ internal fun percentText(value: Double): String {
     return stringResource(Res.string.statistics_percent, number)
 }
 
-private enum class XLabel { Date, Hour, Weekday }
+private enum class XLabel { Date, Hour, Weekday, Month }
 
 /**
  * Popis bodu na ose x. **V UTC**: Telegram počítá dny i hodiny statistik v UTC, takže půlnoc
@@ -456,6 +478,7 @@ private fun xLabel(epochMillis: Long, style: XLabel): String {
     return when (style) {
         XLabel.Hour -> "${moment.hour.toString().padStart(2, '0')}:00"
         XLabel.Weekday -> stringResource(moment.date.dayOfWeek.longName())
+        XLabel.Month -> stringResource(Res.string.calendar_month_year, stringResource(moment.date.month.standaloneName()), moment.year)
         XLabel.Date -> {
             val month = stringResource(moment.date.month.name())
             val thisYear = Clock.System.now().toLocalDateTime(TimeZone.UTC).year

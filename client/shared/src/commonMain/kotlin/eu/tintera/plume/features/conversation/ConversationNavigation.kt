@@ -52,6 +52,8 @@ data class ConversationNavigation(
      * kalendáře. [anchor] = zpráva, na které konverzace stojí — vstup do ostrůvku historie.
      */
     val onOpenCalendar: ((anchor: Long?) -> Unit)? = null,
+    /** Statistika chatu (třetí panel); `null` = vlákno, téma — statistika je jen nad celým chatem. */
+    val onOpenInsights: (() -> Unit)? = null,
     /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
     val onOpenUserProfile: (chatId: Long) -> Unit,
     /** Statistika příspěvku v kanálu z „Informace o zprávě" (jen pro správce, `canGetStatistics`). */
