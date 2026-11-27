@@ -567,10 +567,12 @@ private fun CommentListContent(
                 modifier = Modifier.fillMaxSize().focusRestorer(newest).then(tall.listModifier),
             ) {
                 items(newestFirst, key = { it.first().id }) { album ->
+                    val pick = if (album.size > 1) remember(album.first().id) { AlbumPick() } else null
                     MessageRow(
                         album = album,
                         chatTitle = channelTitle,
-                        onOpen = mediaOpenAction(thread.chatId, album, comments, actions),
+                        albumPick = pick,
+                        onOpen = mediaOpenAction(thread.chatId, album, comments, actions, pick = pick),
                         onLongPress = { interactions.actionsFor = album.first() },
                         // Odpověď kořeni (příspěvku) se necituje — komentáře mu odpovídají všechny.
                         quote = album.first().replyToMessageId?.takeIf { it != thread.rootMessageId }?.let(state::quote),
