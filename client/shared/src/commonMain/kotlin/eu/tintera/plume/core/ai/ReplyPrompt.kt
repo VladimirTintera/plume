@@ -237,7 +237,8 @@ private fun formalityInstruction(languageCode: String): String = when (languageC
  * kurzívou. Aya to dělá skoro vždycky: se starým čištěním z patnácti odpovědí devět nedalo
  * ani jeden návrh (řádek s překladem přeteče [MAX_REPLY_CHARS]), z ostatních zůstávala
  * v čipu odrážka „- ". Čistí se proto opakovaně, dokud se řádek mění, a řádek celý
- * v závorce nebo kurzívou je poznámka modelu, ne návrh.
+ * v závorce nebo kurzívou je poznámka modelu, ne návrh. Příliš dlouhý návrh se zkrátí na celé
+ * věty ([shortenSuggestion]).
  *
  * Čistá funkce s testy: je to jediné místo, kde se výstup modelu překládá na to, co uživatel
  * uvidí, a hraniční případy (prázdno, samé odrážky, příliš dlouhý text) se v UI neověří.
@@ -249,6 +250,7 @@ fun parseReplySuggestions(text: String): List<String> {
         // Úvodní věta modelu končí dvojtečkou a není to návrh.
         .filterNot { it.endsWith(":") }
         .filterNot { isModelNote(it) }
+        .map { shortenSuggestion(it) }
         .filter { it.length <= MAX_REPLY_CHARS }
         .distinct()
 
@@ -278,7 +280,7 @@ data class ReplySuggestionsOutput(val replies: List<String>? = null)
  */
 fun cleanReplySuggestions(output: ReplySuggestionsOutput): List<String> =
     output.replies.orEmpty()
-        .map { cleanSuggestion(it) }
+        .map { shortenSuggestion(cleanSuggestion(it)) }
         .filter { it.isNotBlank() && it.length <= MAX_REPLY_CHARS && !isModelNote(it) }
         .distinct()
         .take(MAX_REPLY_SUGGESTIONS)
@@ -355,3 +357,32 @@ private fun isModelNote(s: String): Boolean {
         (s.first() == '*' && s.last() == '*') ||
         (s.first() == '_' && s.last() == '_')
 }
+
+/**
+ * Návrh delší než [MAX_REPLY_CHARS] zkrátí na nejdelší začátek z CELÝCH vět, který se vejde;
+ * nejde-li to, nebo by zbylo jediné slovo, vrátí návrh beze změny (a ten se pak nenabídne).
+ *
+ * Aya Expanse nedrží „at most 8 words" a píše dvě tři věty („To je výborná zpráva! Už jsi
+ * vyzkoušel, jak jezdí? Mám zájem se s tebou někdy svezt."). Takové návrhy se zahazovaly
+ * a často zbyl jeden nebo žádný; první věta nebo dvě bývají samy o sobě celá odpověď, další
+ * jen rozvádějí. Jediné slovo („Skvělé!" z „Skvělé! Už se těším…") odpovědí není — tam je
+ * lepší návrh nenabídnout. Usekávat uprostřed věty nejde: změnil by se smysl.
+ */
+internal fun shortenSuggestion(suggestion: String): String {
+    if (suggestion.length <= MAX_REPLY_CHARS) return suggestion
+    // Konec věty = interpunkce, za kterou následuje mezera; konec celého textu se nevejde.
+    val end = SENTENCE_END.findAll(suggestion)
+        .map { it.range.first + it.value.trimEnd().length }
+        .lastOrNull { it <= MAX_REPLY_CHARS }
+        ?: return suggestion
+    val shortened = suggestion.substring(0, end)
+    val words = shortened.split(WHITESPACE).count { word -> word.any { it.isLetterOrDigit() } }
+    return if (words >= MIN_SHORTENED_WORDS) shortened else suggestion
+}
+
+/** Bez lookbehind: regulární výrazy Kotlin/Native ho nemusí umět stejně jako JVM. */
+private val SENTENCE_END = Regex("""[.!?…]+\s+""")
+private val WHITESPACE = Regex("""\s+""")
+
+/** Zkrácený návrh musí mít aspoň dvě slova („Povedlo se!", ne „Skvělé!"). */
+private const val MIN_SHORTENED_WORDS = 2

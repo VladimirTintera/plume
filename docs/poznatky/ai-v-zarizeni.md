@@ -1746,13 +1746,18 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
     o závorku, která k němu patří; test `zavorkaKteraNeniPrekladZustane`.
   - **Výsledek na týchž výstupech:** Aya z 9 prázdných běhů na 2 a z 8 návrhů na 27, bez odrážek;
     EuroLLM beze změny počtu, jen bez překladů a poznámek v čipech.
-  - **Co zůstává:** Aya nedrží „at most 8 words" a delší návrhy (přes 60 znaků) se pořád zahodí,
-    takže často nabídne jen jeden nebo dva. Pokyn „write only the replies: no introduction, no
-    translation, no notes" Aya skoro nepomohl a EuroLLM s ním psal hůř („Šla jsem na ni
-    s kufrem.", odpověď za protějšek u nového kola) — **nezkoušet znovu v promptu**, omáčka
-    patří parseru. Usekávat dlouhý návrh na první větu se nezkoušelo: z „Je mi to moc líto,
-    určitě tam za ní půjdu. Jak můžu pomoct?" by to šlo, z „Skvělé! Už se těším…" by zbylo
-    „Skvělé!".
+  - **Pokyn „write only the replies: no introduction, no translation, no notes"** Aya skoro
+    nepomohl a EuroLLM s ním psal hůř („Šla jsem na ni s kufrem.", odpověď za protějšek u nového
+    kola) — **nezkoušet znovu v promptu**, omáčka patří parseru.
+  - **Dlouhý návrh se zkrátí na celé věty** (`shortenSuggestion`): Aya nedrží „at most 8 words"
+    a píše dvě tři věty, které přetečou 60 znaků. Bere se nejdelší začátek z celých vět, který
+    se vejde, a jen když má aspoň DVĚ slova — „Skvělé!" z „Skvělé! Už se těším…" odpovědí není,
+    „Povedlo se!", „Páni, gratuluju!" a „Určitě přijdu." ano (práh tří slova by je zahodil,
+    jednoho by pustil „Skvělé!"). Uprostřed věty se nikdy neusekává. Na týchž výstupech Aya:
+    z 27 návrhů na 44, prázdný běh žádný; EuroLLM se to netýká (jeho návrhy se vejdou).
+    Zkrácení umí ubrat to podstatné: z „To je škoda. Můžu se zastavit… Jak se cítíš?" na
+    babičku v nemocnici zbude „To je škoda." — smysl to nezmění, ale ubere tón; častější je
+    „To je výborná zpráva! Už jsi vyzkoušel, jak jezdí?" a podobně celé odpovědi.
 - **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na TŘECH systémech —
   Android 16, Android 9 (API 28, Play služby 21.45.15) a **Android 8 (API 26, tedy `minSdk`
   projektu)** —, všude bez balíčku `com.google.android.aicore`. Pokaždé stejně: `status` vrátí

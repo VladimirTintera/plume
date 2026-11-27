@@ -78,6 +78,30 @@ class ReplyPromptTest {
     }
 
     @Test
+    fun dlouhyNavrhSeZkratiNaCeleVety() {
+        // Aya píše dvě tři věty a nevejde se do čipu; nejdelší začátek z celých vět se vejde.
+        val text = """
+            1. - To je výborná zpráva! Už jsi vyzkoušel, jak jezdí? Mám zájem se s tebou někdy svezt. (That's great news!)
+            2. - Páni, gratuluju! Doufám, že budeš mít spoustu zábavy na nových kolech. Máš nějaké oblíbené trasy?
+            3. - Skvělé! Už se těším, až uvidím tvé nové kolo v akci a vyrazíme spolu na dlouhý výlet.
+        """.trimIndent()
+        assertEquals(
+            // Třetí by zkrácením zůstala jediným slovem („Skvělé!"), tak se nenabídne.
+            listOf("To je výborná zpráva! Už jsi vyzkoušel, jak jezdí?", "Páni, gratuluju!"),
+            parseReplySuggestions(text),
+        )
+    }
+
+    @Test
+    fun zkraceniNikdyNeuseknePulVety() {
+        val long = "Bohužel, nepovedlo se mi to tak, jak jsem doufal, ale neboj, zkusím to znovu."
+        assertTrue(long.length > MAX_REPLY_CHARS)
+        assertEquals(long, shortenSuggestion(long), "jediná věta se nemá kde zkrátit")
+        assertEquals("Krátká odpověď.", shortenSuggestion("Krátká odpověď."))
+        assertTrue(parseReplySuggestions("- $long").isEmpty())
+    }
+
+    @Test
     fun cisloNaZacatkuVetySeNEUSEKNE() {
         // „5 minut" není číslování — usekávat po první číslici by zmrzačilo návrh.
         assertEquals(listOf("5 minut a jsem tam"), parseReplySuggestions("- 5 minut a jsem tam"))
