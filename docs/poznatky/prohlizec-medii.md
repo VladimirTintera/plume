@@ -483,6 +483,34 @@ kus kreslí místo v anketě i jeho náhled ve formuláři. Ťuknutí otevře ma
   nevypnu" = `LIVE_FOREVER`) a přesná poloha zařízení. Odchází `InputMessageLiveLocation`
   (`sendLiveLocation`), viz „Sdílení živé polohy" níž.
 
+#### Místa v chatu
+
+⋮ v konverzaci → **Místa v chatu** (`ChatPlacesRoute`, v archivu `ArchiveChatPlacesRoute`, třetí
+panel jako statistika chatu): polohy, místa i živé polohy z historie chatu, nahoře přehledová
+mapa se špendlíkem za každé místo, pod ní seznam (malá mapa, název nebo adresa, kdo a kdy).
+Ťuknutí na řádek otevře mapy telefonu (`mapsUrl`), ikona vedle skočí na zprávu v konverzaci
+(`ConversationJumpRequests`, jako kalendář). `ChatPlacesViewModel`, `ChatPlacesScreen`,
+výřez `MapFit.kt`, testy `MapFitTest`, `ChatPlacesViewModelTest`.
+
+- **TDLib na polohy filtr hledání nemá** (`SearchMessagesFilter` je bez nich), takže se
+  prochází historie jako u statistiky chatu: lokální databáze po úsecích a „Načíst starší"
+  ze serveru (`ConversationRepository.chatLocations`). Smyčka průchodu je jedna
+  (`walkHistory` v `TdlConversationRepository`) pro statistiku i místa.
+- **Přehledová mapa je JEDEN obrázek od Telegramu se špendlíky promítnutými navrch.**
+  Interaktivní mapa by chtěla mapové SDK s klíčem. Střed a přiblížení počítá `fitMap`
+  (Web Mercator, 256 bodů na dlaždici při přiblížení 0): nejvyšší přiblížení 13–17, do kterého
+  se všechny body vejdou s okrajem 32 bodů; `pointOnMap` pak dá polohu bodu v obrázku.
+  **Obrázek se žádá přesně na velikost, ve které se kreslí, a kreslí se `FillBounds`** —
+  `StaticMap` ořezává (`Crop`) a špendlíky by ujely.
+- **Místa daleko od sebe na jednu mapu nejdou**: Telegram vzdálenější výřez než přiblížení 13
+  nevydá (do 400 bodů se vejde zhruba město). Místo mapy pak stojí věta a zůstává seznam.
+- **Skok na zprávu panel zavře, když stojí sám** (`LocalPanesSideBySide`, jako kalendář) —
+  na telefonu by se konverzace posunula pod ním a nebylo by to vidět.
+- **Ověřeno na emulátoru** se třemi místy v Praze od testovacího bota (`sendVenue`,
+  `sendLocation`): špendlíky na přehledu sedí (Hrad, Staroměstské a Václavské náměstí), seznam
+  s náhledy a adresami, skok do konverzace zavřel panel a najel na zprávu. Body daleko od sebe
+  (věta místo mapy) jen test `MapFitTest`; iOS a desktop jen přeložené.
+
 #### Sdílení živé polohy
 
 Polohu do zpráv posílá služba v popředí `LiveLocationService` (`core/location`, typ `location`),

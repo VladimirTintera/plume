@@ -34,3 +34,12 @@ data class MessageStatsPage(
     /** Jako [HistoryCounts.reachedEnd]: z databáze = dál nic není v zařízení, ze serveru = začátek chatu. */
     val reachedEnd: Boolean,
 )
+
+/** Úsek historie pro „Místa v chatu": zprávy s polohou od nejnovější a kam až úsek sahá. */
+data class ChatLocationsPage(
+    val messages: List<ChatMessage>,
+    /** Nejstarší prošlá zpráva (jakákoli) — odtud se pokračuje; `null`, když nepřišla žádná. */
+    val oldestMessageId: Long?,
+    /** Jako [MessageStatsPage.reachedEnd]. */
+    val reachedEnd: Boolean,
+)

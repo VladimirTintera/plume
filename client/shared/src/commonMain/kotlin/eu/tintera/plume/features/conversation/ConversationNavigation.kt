@@ -54,6 +54,8 @@ data class ConversationNavigation(
     val onOpenCalendar: ((anchor: Long?) -> Unit)? = null,
     /** Statistika chatu (třetí panel); `null` = vlákno, téma — statistika je jen nad celým chatem. */
     val onOpenInsights: (() -> Unit)? = null,
+    /** Místa v chatu (třetí panel); `null` = vlákno, téma. */
+    val onOpenPlaces: (() -> Unit)? = null,
     /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
     val onOpenUserProfile: (chatId: Long) -> Unit,
     /** Statistika příspěvku v kanálu z „Informace o zprávě" (jen pro správce, `canGetStatistics`). */

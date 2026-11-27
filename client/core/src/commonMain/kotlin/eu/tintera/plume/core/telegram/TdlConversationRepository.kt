@@ -411,19 +411,54 @@ class TdlConversationRepository(
         maxMessages: Int,
     ): Result<MessageStatsPage> = runCatching {
         check(savedTopicId == null && directTopicId == null) { "Statistika jen pro celý chat" }
+        val saved = chatId == myId()
+        val walk = walkHistory(chatId, fromMessageId, onlyLocal, maxMessages) { it.toMessageStat(saved) }
+        MessageStatsPage(messages = walk.items, oldestMessageId = walk.oldestMessageId, reachedEnd = walk.reachedEnd)
+    }.onFailure { logger.w(it) { "Zprávy pro statistiku se nepodařilo projít." } }
+
+    /**
+     * Polohy a místa v chatu: týž průchod historií jako statistika, jen se převedou zprávy
+     * s polohou ([MessageLocation], [MessageVenue], i živá). TDLib na polohy filtr hledání nemá.
+     */
+    override suspend fun chatLocations(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+    ): Result<ChatLocationsPage> = runCatching {
+        check(savedTopicId == null && directTopicId == null) { "Polohy jen pro celý chat" }
+        val group = isGroup(chatId)
+        val walk = walkHistory(chatId, fromMessageId, onlyLocal, maxMessages) { message ->
+            if (message.content is MessageLocation || message.content is MessageVenue) message.toChatMessage(group) else null
+        }
+        ChatLocationsPage(messages = walk.items, oldestMessageId = walk.oldestMessageId, reachedEnd = walk.reachedEnd)
+    }.onFailure { logger.w(it) { "Polohy v chatu se nepodařilo projít." } }
+
+    /** Co z průchodu historií vzešlo: převedené zprávy, kde se skončilo a jestli je to konec. */
+    private class HistoryWalk<T>(val items: List<T>, val oldestMessageId: Long?, val reachedEnd: Boolean)
+
+    /**
+     * Historie od [fromMessageId] (bez ní) ke starším po stránkách, nejvýš [maxMessages] zpráv;
+     * [map] vybere a převede, co se má vrátit. Jako u počtů po dnech: co už bylo, se nepočítá
+     * znovu; prázdná stránka ze serveru se zkusí ještě jednou, než se vezme jako začátek chatu.
+     */
+    private suspend fun <T : Any> walkHistory(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+        map: suspend (Message) -> T?,
+    ): HistoryWalk<T> {
         var from = fromMessageId
         val seen = HashSet<Long>().apply { if (fromMessageId != 0L) add(fromMessageId) }
-        val stats = mutableListOf<MessageStat>()
+        val items = mutableListOf<T>()
         var oldest: Long? = null
         var walked = 0
         var idle = 0
         var reachedEnd = false
-        val saved = chatId == myId()
         while (walked < maxMessages) {
             val page = client.getChatHistory(chatId = chatId, fromMessageId = from, offset = 0, limit = HISTORY_PAGE, onlyLocal = onlyLocal)
                 .toResult().getOrThrow().messages.filterNotNull()
-            // Jako u počtů po dnech: co už bylo, se nepočítá znovu; prázdná stránka ze serveru
-            // se zkusí ještě jednou, než se vezme jako začátek chatu.
             val fresh = page.filter { seen.add(it.id) }
             if (fresh.isEmpty()) {
                 if (onlyLocal || ++idle >= EMPTY_PAGE_ATTEMPTS) {
@@ -434,13 +469,13 @@ class TdlConversationRepository(
             }
             idle = 0
             walked += fresh.size
-            fresh.mapNotNullTo(stats) { it.toMessageStat(saved) }
+            fresh.forEach { message -> map(message)?.let(items::add) }
             val last = fresh.minBy { it.id }
             oldest = last.id
             from = last.id
         }
-        MessageStatsPage(messages = stats, oldestMessageId = oldest, reachedEnd = reachedEnd)
-    }.onFailure { logger.w(it) { "Zprávy pro statistiku se nepodařilo projít." } }
+        return HistoryWalk(items, oldest, reachedEnd)
+    }
 
     override fun inForumTopic(topicId: Int): ConversationRepository =
         TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics, directTopics = directTopics)
