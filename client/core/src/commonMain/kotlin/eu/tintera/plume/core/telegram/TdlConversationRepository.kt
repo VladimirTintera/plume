@@ -1359,6 +1359,30 @@ class TdlConversationRepository(
             }
     }
 
+    override suspend fun galleryMedia(offset: String): Result<GalleryPage> =
+        client.searchMessages(
+            chatList = null,
+            query = "",
+            offset = offset,
+            limit = GALLERY_PAGE,
+            filter = SearchMessagesFilterPhotoAndVideo(),
+            chatTypeFilter = null,
+            minDate = 0,
+            maxDate = 0,
+        )
+            .toResult()
+            .map { found ->
+                GalleryPage(
+                    // Jméno odesílatele galerie nepotřebuje, proto bez dotazu, jestli je chat skupina.
+                    items = found.messages.filterNotNull()
+                        .map { GalleryItem(it.chatId, it.toChatMessage(isGroup = false)) }
+                        .filter { it.message.isLastingVisualMedia },
+                    // TDLib vrací prázdný offset na konci.
+                    nextOffset = found.nextOffset.takeIf { it.isNotEmpty() },
+                )
+            }
+            .onFailure { logger.w(it) { "Galerii se nepodařilo načíst." } }
+
     override suspend fun sharedMediaPositions(chatId: Long, kind: SharedMediaKind): Result<SharedMediaPositions> =
         client.getChatSparseMessagePositions(
             chatId = chatId,
@@ -4810,6 +4834,9 @@ private const val NEWER_ATTEMPTS = 3
 
 /** Stránka historie při počítání zpráv po dnech (víc TDLib v jednom dotazu nevydá). */
 private const val HISTORY_PAGE = 100
+
+/** Stránka galerie přes všechny chaty (TDLib bere nejvýš 100). */
+private const val GALLERY_PAGE = 60
 
 /** Kolikrát prázdná stránka ze serveru, než se vezme jako začátek chatu. */
 private const val EMPTY_PAGE_ATTEMPTS = 2

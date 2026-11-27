@@ -1303,6 +1303,11 @@
     <string name="downloads_deleted">Soubor smazán</string>
     <string name="downloads_cleared">Stažené soubory odebrány ze seznamu</string>
     <string name="downloads_undo">Vrátit</string>
+    <string name="gallery_title">Fotky a videa</string>
+    <string name="gallery_failed">Fotky se nepodařilo načíst</string>
+    <string name="gallery_more_failed">Další fotky se nepodařilo načíst</string>
+    <string name="gallery_empty_title">Zatím tu nejsou žádné fotky</string>
+    <string name="gallery_empty">Fotky a videa ze všech chatů se ukážou tady.</string>
     <string name="continue_watching_title">Rozkoukaná videa</string>
     <string name="continue_watching_empty_title">Nic rozkoukaného</string>
     <string name="continue_watching_empty">Videa, která nedokoukáte, se objeví tady a budete v nich moct pokračovat.</string>

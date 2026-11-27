@@ -134,6 +134,7 @@ import eu.tintera.plume.features.links.ExternalLinkViewModel
 import eu.tintera.plume.features.calls.CallsViewModel
 import eu.tintera.plume.features.downloads.DownloadsViewModel
 import eu.tintera.plume.features.watching.ContinueWatchingViewModel
+import eu.tintera.plume.features.gallery.GalleryViewModel
 import eu.tintera.plume.features.downloads.PendingDownloadRemovals
 import eu.tintera.plume.features.stories.MyStoriesViewModel
 import eu.tintera.plume.features.settings.MyQrCodeViewModel
@@ -969,6 +970,7 @@ fun appAccountModule() = module {
     }
     viewModelOf(::MyStoriesViewModel)
     viewModelOf(::ContinueWatchingViewModel)
+    viewModel { GalleryViewModel(repository = get(), lockedChats = get<AccountSettings>().lockedChats) }
     viewModel { parameters ->
         StickerComposerViewModel(
             sourcePath = parameters.get(),

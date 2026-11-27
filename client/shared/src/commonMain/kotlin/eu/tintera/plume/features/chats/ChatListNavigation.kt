@@ -40,6 +40,8 @@ data class ChatListNavigation(
     val onOpenDownloads: () -> Unit = {},
     /** Menu účtu → Rozkoukaná videa (položka jen tehdy, když nějaká jsou). */
     val onOpenContinueWatching: () -> Unit = {},
+    /** Menu účtu → Fotky a videa ze všech chatů. */
+    val onOpenGallery: () -> Unit = {},
     /** Menu účtu → Koncepty, Záložky a Můj QR kód: sheety jako navigační destinace (`SheetRoute`). */
     val onOpenDrafts: () -> Unit = {},
     val onOpenBookmarks: () -> Unit = {},

@@ -96,6 +96,8 @@ import eu.tintera.plume.features.profile.RemovedMembersScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatInsightsRoute
+import eu.tintera.plume.core.navigation.GalleryRoute
+import eu.tintera.plume.features.gallery.GalleryScreen
 import eu.tintera.plume.core.navigation.ArchiveChatInsightsRoute
 import eu.tintera.plume.features.chatinsights.ChatInsightsScreen
 import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
@@ -947,6 +949,7 @@ private fun shellEntryProvider(
                     .takeIf { koinInject<CallRepository>().supported },
                 onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
                 onOpenContinueWatching = { if (chatsStack.lastOrNull() !is ContinueWatchingRoute) chatsStack.add(ContinueWatchingRoute(slot)) },
+                onOpenGallery = { if (chatsStack.lastOrNull() !is GalleryRoute) chatsStack.add(GalleryRoute(slot)) },
                 onOpenDrafts = { navigation.openSheet(ChatsRoute, DraftsRoute(slot)) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot)) },
                 onOpenMyQrCode = { navigation.openSheet(ChatsRoute, MyQrCodeRoute) },
@@ -1081,6 +1084,16 @@ private fun shellEntryProvider(
 
     // Rozkoukaná videa: seznam vlevo, video přes celou plochu v prohlížeči, který sám pokračuje
     // z pamatované pozice; „Zobrazit v chatu" jako nalezená zpráva.
+    // Fotky a videa ze všech chatů: mřížka vlevo jako Rozkoukaná videa, médium přes celou plochu.
+    entry<GalleryRoute>(metadata = Panes.list()) { route ->
+        GalleryScreen(
+            viewModel = koinViewModel(key = "gallery-${route.slot.id}"),
+            onBack = { chatsStack.remove(route) },
+            onOpen = { chatId, messageId -> chatsStack.add(MediaRoute(route.slot, chatId, messageId, fromSharedMedia = true)) },
+            onShowInChat = { chatId, messageId -> chatsStack.openFoundMessage(route.slot, chatId, messageId, topicId = null) },
+        )
+    }
+
     entry<ContinueWatchingRoute>(
         metadata = Panes.list(),
     ) { route ->

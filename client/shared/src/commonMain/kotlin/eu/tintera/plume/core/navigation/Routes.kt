@@ -205,6 +205,10 @@ data object DownloadsRoute : Route
 @Serializable
 data class ContinueWatchingRoute(override val slot: AccountSlot) : AccountRoute
 
+/** Fotky a videa ze všech chatů účtu (menu účtu); médium se otevírá v prohlížeči přes celou plochu. */
+@Serializable
+data class GalleryRoute(override val slot: AccountSlot) : AccountRoute
+
 /**
  * Konverzace v archivu. V list-detail rozvržení je to detail panel scény archivu.
  */
@@ -789,6 +793,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(CallsRoute::class, CallsRoute.serializer())
             subclass(DownloadsRoute::class, DownloadsRoute.serializer())
             subclass(ContinueWatchingRoute::class, ContinueWatchingRoute.serializer())
+            subclass(GalleryRoute::class, GalleryRoute.serializer())
             subclass(MyStoriesRoute::class, MyStoriesRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())

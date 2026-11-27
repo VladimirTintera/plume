@@ -435,6 +435,7 @@ fun ChatListScreen(
             onLockedChats = navigation.onOpenLockedChats.takeIf { lockedChats.isNotEmpty() },
             onCalls = navigation.onOpenCalls,
             onDownloads = navigation.onOpenDownloads,
+            onGallery = navigation.onOpenGallery,
             onContinueWatching = navigation.onOpenContinueWatching.takeIf { watchingCount > 0 },
             onMyStories = navigation.onOpenMyStories,
             draftCount = drafts?.size ?: 0,
