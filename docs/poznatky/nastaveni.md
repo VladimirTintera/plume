@@ -1226,6 +1226,16 @@ vyšlo, je níž.
     změnil, tomu se nepřepíšou a jdou na server. Kdo ne, dostane nastavení účtu.
   - **Nepovedený zápis** (bez sítě) nechá `SettingsSync.Push` a zkusí se při dalším `Ready`, tedy
     při dalším startu aplikace. `authStage` je `StateFlow` a `Ready` se během běhu neopakuje.
+  - **Změna před `Ready` podle toho, jestli je účet přihlášený.** Přihlášený účet bez spojení
+    (`Connecting`, `Failed`) nastaví `Push` a změnu pošle `afterReady`; dřív `change` mimo `Ready`
+    jen odešel, stav zůstal `Synced` a server si nechal starou volbu (`zmenaPredReadySeOdesle`).
+    `afterReady` u `Push` posílá napřed čekající změnu (`pending`) a teprve bez ní uloženou
+    hodnotu: lokální zápis změny jde mimo zámek a ještě nemusel doběhnout. Volba na přihlašovací
+    obrazovce (`signedOut`) jde jen lokálně a do `pending` se nedává — po přihlášení platí
+    server, a čekající změna by `pull` zablokovala. Přesně to se po opravě níž (`pull` šetří
+    čekající změnu) stalo a odhalil to `zmenaPredPrihlasenimNeprebijeServer`. Rozhoduje se
+    hned v `change`, ne až za zámkem: test i aplikace by jinak závisely na tom, jestli zámek
+    stihne dřív přechod do `Ready`, nebo `pull`.
   - **Úroveň ze serveru = nejbližší podle stropu videa** (GIFy a kolečka). Hranice leží
     v geometrickém středu mezi stropy Plume (1 · 5 · 20 MB), převod Plume → server → Plume vrací
     tutéž úroveň. Horní hranice (10 MB) je ostrá: výchozí předvolby Telegramu jsou nízká 0,

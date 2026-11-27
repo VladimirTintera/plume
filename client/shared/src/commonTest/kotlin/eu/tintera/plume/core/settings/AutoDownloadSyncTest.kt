@@ -169,6 +169,35 @@ class AutoDownloadSyncTest {
         await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
     }
 
+    /**
+     * Přihlášený účet bez spojení (`Connecting`): změna se pošle po Ready. Dřív `change` mimo
+     * Ready jen odešel, stav zůstal `Synced` a další Ready na server nic neposlal.
+     */
+    @Test
+    fun zmenaPredReadySeOdesle() = syncTest(AuthStage.Connecting, prepare = { it.forAccount(AccountSlot.Primary).setAutoDownloadSync(SettingsSync.Synced) }) {
+        val new = AutoDownloadSettings(roaming = AutoDownloadLevel.Medium)
+        sync.change(new)
+        await("Push") { account.autoDownloadSync() == SettingsSync.Push }
+        assertTrue(presets.saved.isEmpty(), "Bez spojení se na server nezapisuje: ${presets.saved}")
+        stage.value = AuthStage.Ready
+        await("zápis po Ready") { presets.saved.lastOrNull() == new }
+        await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
+        assertEquals(new, settings.loadedAutoDownload())
+    }
+
+    /** Volba z přihlašovací obrazovky nepřebije nastavení účtu ze serveru, jen se nepošle. */
+    @Test
+    fun zmenaPredPrihlasenimNeprebijeServer() = syncTest(AuthStage.WaitPhoneNumber) {
+        await("Pull po přihlašovací obrazovce") { account.autoDownloadSync() == SettingsSync.Pull }
+        val mine = AutoDownloadSettings(wifi = AutoDownloadLevel.Off)
+        sync.change(mine)
+        await("volba lokálně") { settings.autoDownload.value == mine }
+        stage.value = AuthStage.Ready
+        await("nastavení ze serveru") { settings.autoDownload.value == server }
+        await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
+        assertTrue(presets.saved.isEmpty(), "Volba odhlášeného účtu nejde na server: ${presets.saved}")
+    }
+
     /** Aktualizace z verze bez synchronizace: vlastní volba se nepřepíše, jde na server. */
     @Test
     fun vlastniVolbaPoAktualiziJdeNaServer() {
