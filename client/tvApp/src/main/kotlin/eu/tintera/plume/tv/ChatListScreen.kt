@@ -50,9 +50,7 @@ import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
-import eu.tintera.plume.core.ui.asDate
-import eu.tintera.plume.core.ui.asTimeOfDay
-import eu.tintera.plume.core.ui.isSameDayAs
+import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
@@ -392,7 +390,10 @@ private fun ChatRow(
     val title = chatTitle(chat.id, chat.title, savedMessagesId)
     // „Píše…" odebírá každý viditelný řádek sám; odběr skončí s řádkem, který odjede z obrazovky.
     val typing by remember(chat.id) { repository.typing(chat.id) }.collectAsState(null)
-    val time = chat.lastMessageTimestamp?.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
+    // Sloupec jako na telefonu: dnes hodina, pak „včera", den v týdnu a krátké datum („26. 11.").
+    // Celé „26. listopadu" bralo místo názvu chatu a při větším písmu systému z něj zbylo
+    // „Short Drama BL | …".
+    val time = chat.lastMessageTimestamp?.asRelativeTime()
     val unread = chat.unreadCount > 0 || chat.isMarkedAsUnread
     var focused by remember { mutableStateOf(false) }
     ListItem(
@@ -428,7 +429,7 @@ private fun ChatRow(
         },
         trailingContent = {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                time?.let { Text(it, style = MaterialTheme.typography.labelMedium.tabular()) }
+                time?.let { Text(it, style = MaterialTheme.typography.labelMedium.tabular(), maxLines = 1) }
                 if (unread) UnreadBadge(chat.unreadCount, muted = chat.isMuted, onInverse = focused)
             }
         },
