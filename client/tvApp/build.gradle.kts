@@ -87,6 +87,9 @@ dependencies {
     implementation(libs.tv.material)
     // Jen `LoadingIndicator` (neurčité čekání, M3 Expressive): tv-material indikátor nemá.
     implementation(libs.compose.material3)
+    // Paleta z barvy Plume jako na telefonu (TvColors): materialkolor dopočítá schéma M3
+    // a jeho role se přepíšou do schématu tv-material.
+    implementation(libs.materialkolor)
     implementation(libs.androidx.activity.compose)
 
     implementation(libs.kotlinx.coroutines.core)
