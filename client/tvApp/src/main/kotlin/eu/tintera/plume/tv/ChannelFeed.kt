@@ -388,7 +388,9 @@ private fun PostBody(
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Samotné video se pustí, fotka nebo album otevře prohlížeč na první položce.
+    // Médium se pustí, příspěvek bez média s odkazem na Telegram (jiný příspěvek, kanál) ho otevře.
     val open = mediaOpenAction(chatId, post.messages, post.messages, actions, videosAfter = olderVideos)
+        ?: telegramLinkOf(post.entities)?.let { url -> { actions.openLink(url, post.id) } }
     // Spoiler v textu příspěvku: první OK ho odkryje, teprve další pustí médium.
     var spoilersRevealed by remember(post.id) { mutableStateOf(false) }
     val hiddenSpoiler = !spoilersRevealed && post.entities.hasSpoiler()

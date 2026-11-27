@@ -1,6 +1,14 @@
 package eu.tintera.plume.tv
 
 import androidx.activity.compose.BackHandler
+import org.jetbrains.compose.resources.getString
+import kotlinx.coroutines.launch
+import eu.tintera.plume.resources.tv_link_unsupported
+import eu.tintera.plume.core.telegram.InternalLink
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateListOf
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyListState
@@ -61,12 +69,37 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var viewer by remember { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
     val audio = rememberTvAudioPlayer()
     val videoNotes = remember { VideoNotePlayback() }
+    // Chaty, ze kterých se přešlo odkazem (chat a zpráva s odkazem): Zpět se vrací po nich,
+    // teprve pak na seznam. Otevření chatu ze seznamu historii zahodí.
+    val linkHistory = remember { mutableStateListOf<Pair<Long, Long?>>() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val chatsRepository = koinInject<ChatRepository>()
     val actions = remember(audio, videoNotes) {
         MediaActions(
             playVideo = { playing = it },
             openViewer = { items, index -> viewer = items to index },
             playAudio = audio::play,
             toggleVideoNote = videoNotes::toggle,
+            openLink = { url, fromMessageId ->
+                scope.launch {
+                    val target = when (val link = chatsRepository.resolveLink(url).getOrNull()) {
+                        is InternalLink.Chat -> link.chatId to null
+                        is InternalLink.Message -> link.chatId to link.messageId
+                        // Pozvánka, bot, samolepky…: televize je neumí ukázat.
+                        else -> null
+                    }
+                    if (target == null) {
+                        Toast.makeText(context, getString(Res.string.tv_link_unsupported), Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                    opened?.let { from -> linkHistory.add(from to fromMessageId) }
+                    viewer = null
+                    lastOpened = target.first
+                    openedAt = target.second
+                    opened = target.first
+                }
+            },
         )
     }
     // Složka obnovená z uloženého stavu už nemusí existovat (smazaná v telefonu, než se proces
@@ -107,9 +140,17 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             val current = opened
             if (current != null) {
                 BackHandler {
-                    opened = null
                     viewer = null
                     playing = null
+                    // Přišlo se odkazem z jiného chatu: zpátky do něj, na zprávu s odkazem.
+                    val previous = linkHistory.removeLastOrNull()
+                    if (previous != null) {
+                        lastOpened = previous.first
+                        openedAt = previous.second
+                        opened = previous.first
+                    } else {
+                        opened = null
+                    }
                 }
                 key(current, openedAt) {
                     ChatScreen(chatId = current, startAt = openedAt, overlayOpen = playing != null || viewer != null, actions = actions)
@@ -146,11 +187,13 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     lastStoriesChat = lastStories,
                     search = search,
                     onOpen = { chatId ->
+                        linkHistory.clear()
                         lastOpened = chatId
                         openedAt = null
                         opened = chatId
                     },
                     onOpenMessage = { chatId, messageId ->
+                        linkHistory.clear()
                         lastOpened = chatId
                         openedAt = messageId
                         opened = chatId

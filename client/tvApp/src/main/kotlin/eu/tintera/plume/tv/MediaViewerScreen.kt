@@ -113,6 +113,11 @@ class MediaActions(
     val playAudio: (List<AudioItem>, Int) -> Unit,
     /** Kolečko (chat, zpráva): pustí ho na místě, hrající zastaví ([VideoNotePlayback]). */
     val toggleVideoNote: (Long, Long) -> Unit = { _, _ -> },
+    /**
+     * Odkaz na Telegram z textu zprávy ([telegramLinkOf]): otevře cíl (chat, příspěvek) uvnitř
+     * aplikace. [fromMessageId] je zpráva s odkazem — Zpět se na ni vrátí.
+     */
+    val openLink: (url: String, fromMessageId: Long?) -> Unit = { _, _ -> },
 )
 
 /**
