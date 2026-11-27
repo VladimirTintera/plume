@@ -7,6 +7,7 @@ import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.logging.configureLogging
 import eu.tintera.plume.core.settings.sync.BotCloudStore
+import eu.tintera.plume.core.storage.AutoStorageCleaner
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -49,5 +50,17 @@ class TvApplication : Application() {
             foreground = koin.getOrNull<AppForeground>()?.isForeground,
             scope = koin.get(named(APP_SCOPE)),
         ).start()
+
+        // Úklid stažených médií: levné televize mají kolem 8 GB a videa z kanálů (i přehrávaná
+        // po sobě) a příběhy by je zaplnila. 3 dny a 1 GB — strop výš než na hodinkách, video
+        // má desítky MB a rozkoukané se smazáním souboru neztratí (pozice je zvlášť).
+        AutoStorageCleaner(
+            context = this,
+            repository = koin.get(),
+            scope = koin.get(named(APP_SCOPE)),
+            prefsName = "tv_storage",
+            keepSeconds = 3 * 24 * 3600,
+            maxBytes = 1024L * 1024 * 1024,
+        ).start(koin.get())
     }
 }
