@@ -107,7 +107,12 @@ class TvAudioPlayer(
     private val conversations: ConversationRepository,
     private val scope: CoroutineScope,
 ) {
-    private val player: ExoPlayer = ExoPlayer.Builder(context).build().apply {
+    // Přetáčení z ovladače (MEDIA_FAST_FORWARD / REWIND přes `MediaSession`) o tentýž krok
+    // jako šipky na bublině skladby ([seekBy]).
+    private val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setSeekBackIncrementMs(SEEK_AUDIO_MS)
+        .setSeekForwardIncrementMs(SEEK_AUDIO_MS)
+        .build().apply {
         setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
             /* handleAudioFocus = */ true,
@@ -200,6 +205,19 @@ class TvAudioPlayer(
         if (index < queue.lastIndex) select(index + 1)
     }
 
+    /**
+     * Přetočí právě hrající položku o [deltaMs] (záporné = zpět). Dopředu nejvýš vteřinu před
+     * konec: skok na samý konec by položku dohrál a pustil další z fronty, takže by opakované
+     * šipky vpravo nečekaně přeskakovaly na další hlasovky. Dokud se soubor stahuje, nic.
+     */
+    fun seekBy(deltaMs: Long) {
+        if (current == null || loading) return
+        val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: durationMs
+        val target = (player.currentPosition + deltaMs).coerceIn(0, (duration - SEEK_END_MARGIN_MS).coerceAtLeast(0))
+        player.seekTo(target)
+        positionMs = target
+    }
+
     fun previous() {
         // Jako všude: po pár vteřinách přehrávání vrací na začátek, jinak na předchozí položku.
         if (player.currentPosition > RESTART_THRESHOLD_MS || index == 0) player.seekTo(0) else select(index - 1)
@@ -255,6 +273,11 @@ class TvAudioPlayer(
         player.release()
     }
 }
+
+/** Krok přetáčení: skladba o 10 s, hlasovka (desítky vteřin) o 5 s. */
+const val SEEK_AUDIO_MS = 10_000L
+const val SEEK_VOICE_MS = 5_000L
+private const val SEEK_END_MARGIN_MS = 1_000L
 
 /** Přeskakování ve frontě, které session nabízí navíc ([TvAudioPlayer.sessionPlayer]). */
 private val QUEUE_COMMANDS = intArrayOf(

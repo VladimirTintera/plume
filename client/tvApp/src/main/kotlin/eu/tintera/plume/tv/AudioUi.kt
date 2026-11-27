@@ -51,6 +51,7 @@ import eu.tintera.plume.resources.music_note_24dp
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.skip_next_24dp
+import eu.tintera.plume.resources.tv_audio_seek_hint
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -61,56 +62,67 @@ import org.jetbrains.compose.resources.stringResource
  * chodí šipkami a druhý cíl uvnitř bubliny by každou zastávku zdvojil.
  */
 @Composable
-fun AudioBubbleContent(message: ChatMessage, contentColor: Color) {
+fun AudioBubbleContent(
+    message: ChatMessage,
+    contentColor: Color,
+    /** Zaostřená hrající zpráva: pod obsahem nápověda, že šipky do strany přetáčejí. */
+    seekHint: Boolean = false,
+) {
     val audio = LocalAudioPlayer.current
     val current = audio?.current?.takeIf { it.messageId == message.id }
     val playing = current != null && audio.playing
     val progress = if (current != null && audio.durationMs > 0) (audio.positionMs.toFloat() / audio.durationMs).coerceIn(0f, 1f) else 0f
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        PlayStateButton(playing = playing, loading = current != null && audio.loading)
-        Spacer(Modifier.width(16.dp))
-        when (val media = message.media) {
-            is MessageMedia.VoiceNote -> {
-                Waveform(media.waveform, progress, contentColor, Modifier.width(WAVEFORM_WIDTH).height(36.dp))
-                Spacer(Modifier.width(16.dp))
-                val seconds = if (current != null) (audio.positionMs / 1000).toInt() else media.durationSeconds
-                Text(seconds.asDuration(), style = MaterialTheme.typography.labelLarge.tabular(), color = contentColor)
-                // Nepřehraná příchozí hlasovka má tečku, jako na telefonu.
-                if (!message.isOutgoing && !media.isListened && current == null) {
-                    Spacer(Modifier.width(8.dp))
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
-                }
-            }
-            is MessageMedia.Audio -> {
-                Cover(media.coverFileId, 56.dp)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.widthIn(max = 420.dp)) {
-                    Text(
-                        media.title.ifBlank { media.fileName },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    media.performer?.takeIf { it.isNotBlank() }?.let {
-                        Text(it, style = MaterialTheme.typography.bodyMedium, color = contentColor.copy(alpha = 0.75f), maxLines = 1)
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (current != null) {
-                            ProgressLine(progress, contentColor, Modifier.width(220.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Text((audio.positionMs / 1000).toInt().asDuration() + " / ", style = MaterialTheme.typography.labelMedium.tabular(), color = contentColor)
-                        }
-                        // Délku nemusí odesílatel uvést (bot bez `duration`); pak ji ví až přehrávač.
-                        val total = if (current != null && audio.durationMs > 0) (audio.durationMs / 1000).toInt() else media.durationSeconds
-                        if (total > 0) {
-                            Text(total.asDuration(), style = MaterialTheme.typography.labelMedium.tabular(), color = contentColor)
-                        }
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PlayStateButton(playing = playing, loading = current != null && audio.loading)
+            Spacer(Modifier.width(16.dp))
+            when (val media = message.media) {
+                is MessageMedia.VoiceNote -> {
+                    Waveform(media.waveform, progress, contentColor, Modifier.width(WAVEFORM_WIDTH).height(36.dp))
+                    Spacer(Modifier.width(16.dp))
+                    val seconds = if (current != null) (audio.positionMs / 1000).toInt() else media.durationSeconds
+                    Text(seconds.asDuration(), style = MaterialTheme.typography.labelLarge.tabular(), color = contentColor)
+                    // Nepřehraná příchozí hlasovka má tečku, jako na telefonu.
+                    if (!message.isOutgoing && !media.isListened && current == null) {
+                        Spacer(Modifier.width(8.dp))
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
                     }
                 }
+                is MessageMedia.Audio -> {
+                    Cover(media.coverFileId, 56.dp)
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.widthIn(max = 420.dp)) {
+                        Text(
+                            media.title.ifBlank { media.fileName },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        media.performer?.takeIf { it.isNotBlank() }?.let {
+                            Text(it, style = MaterialTheme.typography.bodyMedium, color = contentColor.copy(alpha = 0.75f), maxLines = 1)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (current != null) {
+                                ProgressLine(progress, contentColor, Modifier.width(220.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text((audio.positionMs / 1000).toInt().asDuration() + " / ", style = MaterialTheme.typography.labelMedium.tabular(), color = contentColor)
+                            }
+                            // Délku nemusí odesílatel uvést (bot bez `duration`); pak ji ví až přehrávač.
+                            val total = if (current != null && audio.durationMs > 0) (audio.durationMs / 1000).toInt() else media.durationSeconds
+                            if (total > 0) {
+                                Text(total.asDuration(), style = MaterialTheme.typography.labelMedium.tabular(), color = contentColor)
+                            }
+                        }
+                    }
+                }
+                else -> {}
             }
-            else -> {}
+        }
+        if (seekHint) {
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(Res.string.tv_audio_seek_hint), style = MaterialTheme.typography.labelMedium, color = contentColor.copy(alpha = 0.75f))
         }
     }
 }

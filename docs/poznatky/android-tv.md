@@ -532,6 +532,14 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   jen překážel. Seznamy mají, dokud je dock vidět, spodní odsazení navíc (`audioDockInset`),
   jinak by zakryl poslední řádky. Při videu se dock schová a hudbu pozastaví fokus zvuku
   (`handleAudioFocus` u obou přehrávačů).
+- **Přetáčení: šipky vlevo a vpravo na zaostřené hrající bublině** (`TvAudioPlayer.seekBy`),
+  hlasovka o 5 s, skladba o 10 s; pod obsahem bubliny je pak nápověda „◀ ▶ přetáčení".
+  Jinde šipka do strany v konverzaci nic nedělá (zprávy jsou pod sebou), takže ji nikomu
+  nebere. Tlačítka přetáčení na ovladači (`MEDIA_REWIND` / `MEDIA_FAST_FORWARD`) jdou přes
+  `MediaSession` o 10 s (`setSeekBack/ForwardIncrementMs`). **Dopředu nejvýš vteřinu před
+  konec**: skok na samý konec položku dohrál a pustil další z fronty, opakované šipky vpravo
+  by tak nečekaně přeskakovaly na další hlasovky. Ověřeno na emulátoru se skladbou poslanou
+  testovacím botem (0:02 → 0:33 → 0:24, strop 0:59, `MEDIA_REWIND` −20 s).
 - **Délku skladby nemusí odesílatel uvést** (bot bez `duration` → 0): bublina pak délku ukáže
   až z přehrávače a do té doby žádnou, ne „0:00".
 
