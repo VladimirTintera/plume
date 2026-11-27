@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
-import androidx.tv.material3.darkColorScheme
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -60,12 +59,12 @@ fun TvApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
 
 /**
  * Téma a plocha každé obrazovky. Televize je vždy tmavá (doporučení Google pro TV: světlá
- * plocha v tmavém obýváku oslňuje) a barvy z tapety nemá; výchozí tmavé schéma tv-material
- * je fialové jako ikona. Písma jsou tatáž jako na telefonu ([tvTypography]).
+ * plocha v tmavém obýváku oslňuje) a barvy z tapety nemá; paleta je z barvy Plume jako na
+ * telefonu ([TvColors]). Písma jsou tatáž jako na telefonu ([tvTypography]).
  */
 @Composable
 fun TvTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = darkColorScheme(), typography = tvTypography()) {
+    MaterialTheme(colorScheme = TvColors.scheme, typography = tvTypography()) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),

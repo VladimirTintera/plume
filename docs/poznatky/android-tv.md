@@ -78,8 +78,19 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Jediná závislost na M3 telefonu je `LoadingIndicator`** (`libs.compose.material3`):
   tv-material indikátor čekání nemá. Barvu dostává výslovně z tv schématu — výchozí by si vzal
   z `MaterialTheme` telefonu, který tu není nastavený.
-- **Téma je vždy tmavé** (`darkColorScheme()` z tv-material): světlá plocha v tmavém pokoji
-  oslňuje a Google ji na TV nedoporučuje. Barvy z tapety televize nemá.
+- **Téma je vždy tmavé**: světlá plocha v tmavém pokoji oslňuje a Google ji na TV
+  nedoporučuje. Barvy z tapety televize nemá.
+- **Paleta je z barvy Plume, ne výchozí tv-material** (`TvColors`). Holé `darkColorScheme()`
+  je základní paleta M3: fialová primární barva a plochy s fialovým nádechem, takže televize
+  jako jediná část Plume neměla barvy aplikace. Schéma dopočítá materialkolor z téhož seedu
+  a stylu jako telefon (`ThemeColor.BLUE`, `Vibrant`; seed je kopie, `shared` televize
+  nevidí) a role se přepíšou do schématu tv-material jedna k jedné (`outline` → `border`).
+  Volba barvy z telefonu sem nejde: televize má vlastní sezení a nastavení telefonu nevidí.
+- **Schéma tv-material nemá stupně `surfaceContainer*`**, proto je nese `TvSurfaces` vedle
+  něj. Dialog stojí na `surfaceContainerHigh` jako `AlertDialog` na telefonu. Dřív měl
+  `surfaceVariant`, tedy stejnou barvu jako výchozí nezaostřené `Button` z tv-material
+  (`surfaceVariant` s průhledností 0,8, ověřeno v bajtkódu `ButtonDefaults.colors`).
+  Tlačítka s plochou splývala a jako tlačítko bylo vidět jen to zaostřené (bílé `onSurface`).
 - **Navigace jsou dvě úrovně ve stavu** (`TvNavigation`): seznam a otevřená konverzace, zpět
   tlačítkem ovladače (`BackHandler`). Knihovna navigace by na dvě obrazovky jen přibyla.
 - **Seznam po návratu z konverzace stojí, kde stál, a fokus je na chatu, ze kterého uživatel

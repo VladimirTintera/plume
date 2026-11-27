@@ -504,14 +504,21 @@ fun ComposeButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
  */
 internal val WideDialog = DialogProperties(usePlatformDefaultWidth = false)
 
-/** Plocha dialogu: zaoblená, v barvě nad stránkou, šířka do 640 dp. */
+/**
+ * Plocha dialogu: zaoblená, šířka do 640 dp, v barvě `surfaceContainerHigh` jako `AlertDialog`
+ * na telefonu ([TvSurfaces]).
+ *
+ * **Ne `surfaceVariant`:** na té ploše stojí i nezaostřené `Button` z tv-material (výchozí
+ * `surfaceVariant` s průhledností 0,8), takže tlačítka s dialogem splývala a jako tlačítko bylo
+ * vidět jen to zaostřené — ostatní vypadala jako holý text na šedé ploše.
+ */
 @Composable
 internal fun DialogPanel(content: @Composable () -> Unit) {
     Column(
         Modifier
             .widthIn(min = 420.dp, max = 640.dp)
             .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(TvColors.surfaces.containerHigh)
             .padding(28.dp),
     ) { content() }
 }
