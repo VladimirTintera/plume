@@ -216,6 +216,12 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   producent běží až po kompozici, takže by starý obrázek problikl jeden snímek; `key` zahodí
   stav hned. Na televizi se totéž projevilo hned (náhled chatu měl fotku prvního chatu
   u každého), na hodinkách nahlášené nebylo.
+  - **Ověřeno na emulátoru 2026-11-27.** Pod sebou Notifikátor (bez fotky) a Petr Kulhánek
+    (s fotkou), pak bot Notifikátor napíše do „Plume test triaze": ta skočí nahoru a Notifikátor
+    se posune na kartu, kde byl Petr. Build z `main` tam nechal Petrovu fotku vedle jména
+    Notifikátor, s opravou je tam „N" (posun vyvolaný rychlou poznámkou do Uložených,
+    `QuickNoteActivity` — aktivita seznamu zůstane živá i se složenými kartami). Petrova fotka
+    na jeho nové kartě se načte.
 
 ## Konverzace
 
