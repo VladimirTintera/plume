@@ -90,7 +90,7 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions)
             state.failed -> MessageScreen(stringResource(Res.string.tv_conversation_failed), Res.drawable.cloud_off_24dp, error = true)
             messages == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
             messages.isEmpty() -> MessageScreen(stringResource(Res.string.tv_conversation_empty), Res.drawable.chat_bubble_24dp)
-            else -> MessageList(state, messages, title, playerOpen, actions)
+            else -> MessageList(chatId, state, messages, title, playerOpen, actions)
         }
     }
 }
@@ -112,6 +112,7 @@ fun ChatHeader(chatId: Long, info: ChatInfo?) {
 
 @Composable
 private fun MessageList(
+    chatId: Long,
     state: ConversationState,
     messages: List<ChatMessage>,
     chatTitle: String,
@@ -136,7 +137,7 @@ private fun MessageList(
     LazyColumn(
         state = listState,
         reverseLayout = true,
-        contentPadding = PaddingValues(horizontal = SAFE_HORIZONTAL, vertical = SAFE_VERTICAL),
+        contentPadding = PaddingValues(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = SAFE_VERTICAL + audioDockInset()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -145,7 +146,7 @@ private fun MessageList(
                 is Entry.Day -> DayDivider(entry.timestamp)
                 is Entry.Message -> {
                     val id = entry.album.first().id
-                    val open = mediaOpenAction(entry.album, messages, actions)
+                    val open = mediaOpenAction(chatId, entry.album, messages, actions)
                     MessageRow(
                         album = entry.album,
                         chatTitle = chatTitle,
@@ -285,6 +286,9 @@ internal fun MessageRow(
             if (isAlbum) {
                 AlbumGrid(album.mapNotNull { it.media })
                 Spacer(Modifier.height(8.dp))
+            } else if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
+                AudioBubbleContent(message, content)
+                Spacer(Modifier.height(8.dp))
             } else {
                 (message.media as? MessageMedia.Photo)?.let { photo ->
                     MessagePhoto(photo.fileId)
@@ -295,7 +299,10 @@ internal fun MessageRow(
                     Spacer(Modifier.height(8.dp))
                 }
             }
-            val hasVisualMedia = album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
+            val hasVisualMedia = album.any {
+                it.media is MessageMedia.Photo || it.media is MessageMedia.Video ||
+                    it.media is MessageMedia.VoiceNote || it.media is MessageMedia.Audio
+            }
             val text = captioned.text.ifEmpty {
                 if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
             }

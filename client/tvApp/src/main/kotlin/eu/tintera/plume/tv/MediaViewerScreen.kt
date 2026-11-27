@@ -69,6 +69,7 @@ data class ViewerItem(val messageId: Long, val media: MessageMedia, val caption:
 class MediaActions(
     val playVideo: (MessageMedia.Video, String) -> Unit,
     val openViewer: (List<ViewerItem>, Int) -> Unit,
+    val playAudio: (List<AudioItem>, Int) -> Unit,
 )
 
 /** Fotky a videa ze zpráv (od nejstarší) v pořadí, v jakém je prohlížeč prochází. */
@@ -78,14 +79,22 @@ fun viewerItems(messages: List<ChatMessage>): List<ViewerItem> = messages.mapNot
 }
 
 /**
- * Co se stane po OK na zprávě (nebo albu) [album]: samotné video se rovnou přehraje, fotka nebo
- * album otevře prohlížeč na první položce a šipkami jde dál po všech médiích z [allMessages]
- * (celé načtené konverzace, jako na telefonu). Zpráva bez média nic nedělá (`null`).
+ * Co se stane po OK na zprávě (nebo albu) [album] v chatu [chatId]: samotné video se rovnou
+ * přehraje, fotka nebo album otevře prohlížeč na první položce a šipkami jde dál po všech médiích
+ * z [allMessages] (celé načtené konverzace, jako na telefonu). Hlasovka nebo skladba se pustí
+ * v přehrávači zvuku a po ní hrají další stejného druhu; OK na právě hrající ji pozastaví.
+ * Zpráva bez média nic nedělá (`null`).
  */
-fun mediaOpenAction(album: List<ChatMessage>, allMessages: List<ChatMessage>, actions: MediaActions): (() -> Unit)? {
+fun mediaOpenAction(chatId: Long, album: List<ChatMessage>, allMessages: List<ChatMessage>, actions: MediaActions): (() -> Unit)? {
     val first = album.first()
     val media = first.media
     return when {
+        media is MessageMedia.VoiceNote || media is MessageMedia.Audio -> {
+            {
+                val items = audioItems(chatId, allMessages, voice = media is MessageMedia.VoiceNote)
+                actions.playAudio(items, items.indexOfFirst { it.messageId == first.id }.coerceAtLeast(0))
+            }
+        }
         album.size == 1 && media is MessageMedia.Video -> { { actions.playVideo(media, first.text) } }
         album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video } -> {
             {

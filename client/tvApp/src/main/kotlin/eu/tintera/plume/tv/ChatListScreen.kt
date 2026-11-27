@@ -236,7 +236,7 @@ private fun ChatList(
     }
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = SAFE_HORIZONTAL - 12.dp, end = 12.dp, top = 8.dp, bottom = SAFE_VERTICAL),
+        contentPadding = PaddingValues(start = SAFE_HORIZONTAL - 12.dp, end = 12.dp, top = 8.dp, bottom = SAFE_VERTICAL + audioDockInset()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize(),
     ) {

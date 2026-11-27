@@ -141,6 +141,29 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **`MediaActions`** (přehrát video, otevřít prohlížeč) jde cestou od navigace ke zprávě jako
   jedna skupina, ne dva callbacky v každé funkci.
 
+## Hlasovky a hudba
+
+- **Jeden přehrávač zvuku pro celou aplikaci** (`TvAudioPlayer`, žije v `TvNavigation` a dává se
+  dál přes `LocalAudioPlayer`): hraje dál při přechodu mezi chaty a seznamem, dva zvuky se
+  nepřou. OK na bublině hlasovky nebo skladby ji pustí, na právě hrající ji pozastaví. Po
+  dohrání hraje další stejného druhu z konverzace (hlasovky a hudba se nemíchají).
+- **Soubor se napřed stáhne celý**, pak hraje: hlasovky mají desítky kB, skladby jednotky MB,
+  streamování jako u videa by tu přidalo složitost bez znatelného užitku. Dokud se stahuje,
+  ukazuje tlačítko `LoadingIndicator`.
+- **`MediaSession` dostává `ForwardingPlayer`, ne ExoPlayer přímo.** Fronta je v aplikaci
+  a ExoPlayer má vždy jen jednu položku, takže session „další" a „předchozí" nenabídla —
+  pauza z ovladače šla, další ne (ověřeno na emulátoru). Obal příkazy nabízí a posílá do fronty.
+  „Předchozí" po třech vteřinách přehrávání vrací na začátek položky, jako všude.
+- **Příchozí hlasovka se po spuštění nahlásí jako poslechnutá** (`openContent`), tečka
+  „nepřehráno" v bublině zmizí.
+- **Dock dole uprostřed** (`AudioDock`): co hraje, průběh, čas a že je ve frontě další. Není
+  zaostřitelný — ovládá se tlačítky médií a OK na bublině; další cíl fokusu by na televizi
+  jen překážel. Seznamy mají, dokud je dock vidět, spodní odsazení navíc (`audioDockInset`),
+  jinak by zakryl poslední řádky. Při videu se dock schová a hudbu pozastaví fokus zvuku
+  (`handleAudioFocus` u obou přehrávačů).
+- **Délku skladby nemusí odesílatel uvést** (bot bez `duration` → 0): bublina pak délku ukáže
+  až z přehrávače a do té doby žádnou, ne „0:00".
+
 ## Kanály: feed a komentáře
 
 - **Kanál se otevírá jako feed příspěvků** (`ChannelFeedScreen`), ostatní chaty jako konverzace.
@@ -182,6 +205,9 @@ položek se to může projevit cizím avatarem u recyklované karty; neověřen�
 
 ## Ověření
 
+- **Hlasovky a hudba ověřeny 27. 11. 2026** (hlasovka a dvě skladby od Notifikátora): vlna
+  s průběhem, dock, hraní dál po odchodu do seznamu, pauza a „další" z ovladače
+  (`input keyevent KEYCODE_MEDIA_PLAY_PAUSE` / `KEYCODE_MEDIA_NEXT`), stav v `dumpsys media_session`.
 - **Fotky a alba ověřeny 27. 11. 2026**: album (tři fotky a video, poslané Notifikátorem do jeho
   chatu) jako bublina s mřížkou, prohlížeč od první fotky alba, šipkami na video, přehrání, Zpět
   do prohlížeče a do konverzace s fokusem na albu. Pás alba v detailu příspěvku je jen přeložený

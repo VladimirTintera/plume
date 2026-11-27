@@ -190,7 +190,7 @@ private fun PostList(
     }
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = 8.dp, bottom = SAFE_VERTICAL),
+        contentPadding = PaddingValues(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = 8.dp, bottom = SAFE_VERTICAL + audioDockInset()),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -333,14 +333,14 @@ private fun PostDetail(chatId: Long, info: ChatInfo, post: ChannelPost, playerOp
             Modifier.fillMaxSize().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, bottom = SAFE_VERTICAL),
             horizontalArrangement = Arrangement.spacedBy(32.dp),
         ) {
-            PostBody(post, playerOpen, actions, Modifier.weight(0.56f).fillMaxHeight())
+            PostBody(chatId, post, playerOpen, actions, Modifier.weight(0.56f).fillMaxHeight())
             PostComments(chatId, post, actions, Modifier.weight(0.44f).fillMaxHeight())
         }
     }
 }
 
 @Composable
-private fun PostBody(post: ChannelPost, playerOpen: Boolean, actions: MediaActions, modifier: Modifier) {
+private fun PostBody(chatId: Long, post: ChannelPost, playerOpen: Boolean, actions: MediaActions, modifier: Modifier) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val stepPx = with(LocalDensity.current) { SCROLL_STEP.toPx() }
@@ -348,7 +348,7 @@ private fun PostBody(post: ChannelPost, playerOpen: Boolean, actions: MediaActio
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Samotné video se pustí, fotka nebo album otevře prohlížeč na první položce.
-    val open = mediaOpenAction(post.messages, post.messages, actions)
+    val open = mediaOpenAction(chatId, post.messages, post.messages, actions)
     Column(
         modifier
             .clip(RoundedCornerShape(20.dp))
@@ -503,7 +503,7 @@ private fun CommentList(thread: CommentThread, actions: MediaActions) {
                     MessageRow(
                         album = album,
                         chatTitle = "",
-                        onOpen = mediaOpenAction(album, comments, actions),
+                        onOpen = mediaOpenAction(thread.chatId, album, comments, actions),
                         modifier = if (album.first().id == newestFirst.first().first().id) Modifier.focusRequester(newest) else Modifier,
                     )
                 }

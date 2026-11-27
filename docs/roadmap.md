@@ -588,7 +588,9 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 3. ~~**Fotky přes celou obrazovku** a procházení alba šipkami~~ — hotovo (prohlížeč přes všechna
    média konverzace, album jako mřížka v bublině). Zbývá: přiblížení fotky, pás alba v detailu
    příspěvku ověřit na kanálu s alby, otevření prohlížeče na N-té položce alba (dnes vždy první).
-4. **Hlasovky a hudba** (přehrávání, dock).
+4. ~~**Hlasovky a hudba**~~ — hotovo (jeden přehrávač pro aplikaci, dock, fronta, `MediaSession`
+   s dalším a předchozím). Zbývá: skok v hlasovce a skladbě (dnes jen od začátku), přepis
+   hlasovky, kolečka (video zprávy), streamování dlouhých skladeb místo stažení celých.
 5. **Reakce** (rychlá reakce na zaostřenou zprávu), případně odpověď hlasem přes systémovou
    klávesnici.
 6. **Úklid mezipaměti** jako na hodinkách (`WearStorageCleaner`): levné televize mají kolem 8 GB
