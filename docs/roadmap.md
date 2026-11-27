@@ -580,10 +580,10 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    přehrávač, `MediaSession`). Rozkoukaná videa hotová (pokračování od pozice, záložka,
    synchronizace s telefonem). Zbývá: výběr kvality (`alternatives`), titulky/storyboard při skoku,
    video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
-2. ~~**Kanály jako feed a komentáře**~~ — hotovo (karty příspěvků, detail s rolovaným textem
-   a vláknem komentářů). Formátovaný text, spoilery, odkazy na Telegram, náhled odkazu
-   a čtečka Instant View hotové. Příspěvek s videem se z feedu pouští rovnou (OK na kartě, podržení = detail; na zařízení
-   s videem neověřené). Zpráva vyšší než
+2. ~~**Kanály jako feed a komentáře**~~ — hotovo (mřížka karet 16 : 9 podle návodu Google,
+   detail s rolovaným textem a vláknem komentářů). Formátovaný text, spoilery, odkazy na Telegram, náhled odkazu
+   a čtečka Instant View hotové. Příspěvek s videem se z feedu pouští rovnou (OK na kartě, podržení = detail; ověřené
+   na videu v kanálu Pavla Durova). Zpráva vyšší než
    obrazovka v konverzaci a velké komentáře hotové (šipka je napřed odroluje).
 3. ~~**Fotky přes celou obrazovku** a procházení alba šipkami~~ — hotovo (prohlížeč přes všechna
    média konverzace, album jako mřížka v bublině). Přiblížení fotky hotové. Zbývá: pás alba v detailu

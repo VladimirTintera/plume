@@ -686,19 +686,40 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   O druhu rozhoduje `ChatInfo.isChannel` (`ChatScreen` v `TvNavigation.kt`), než se cokoli
   nakreslí. Karty jsou podle návodů Google obsah k vizuálnímu procházení — u kanálu, kde se
   čtou příspěvky, sedí líp než bubliny. Nejnovější nahoře, starší se dočítají ke konci.
-- **Karta příspěvku** (200 dp vysoká, přes celou šířku): médium 16 : 9 vlevo (fotka, náhled
-  videa s délkou, u alba „+N"), vpravo první řádek textu jako nadpis, zbytek jako text (prázdné
-  řádky sbalené, jinak by snědly místo), dole datum, zhlédnutí („2,1 tis." — `compactCountText`,
-  přesunuté kvůli tomu ze `shared` do `core`), komentáře a tři nejčastější reakce. Vlastní
-  emoji v reakcích se vynechávají, televize je kreslit neumí. Zaostřená karta se zvětší jen
-  o 3 %: výchozích 10 % by kartu přes celou šířku vytlačilo přes bezpečný okraj.
+- **Feed je mřížka karet podle návodu Google pro karty** ([Cards](https://developer.android.com/design/ui/tv/guides/components/cards),
+  procházeno 27. 11. 2026): tři karty 16 : 9 vedle sebe (268 dp, mezera 20 dp — přesně šířka
+  v bezpečných okrajích, 3 × 268 + 2 × 20 = 844 dp), zaostřená se zvětší o výchozích 10 %
+  a dostane rámeček (`Card` z tv-material), stejně jako Rozkoukaná videa. Pod obrazem první řádek
+  textu (nejvýš dva řádky) a datum, zhlédnutí („2,1 tis." — `compactCountText`, přesunuté kvůli
+  tomu ze `shared` do `core`) a komentáře; reakce a zbytek textu jsou až v detailu. Dřív byl
+  každý příspěvek karta přes celou šířku se 4–5 řádky textu: na obrazovku se vešly dva, a návod
+  u karet pod sebou dlouhé popisy výslovně nedoporučuje. Teď je jich vidět šest.
+- **Obraz karty**: fotka, náhled videa s délkou (nebo zhlédnutou částí), u alba „+N"; příspěvek
+  bez média vezme obrázek náhledu odkazu (ne profilovku cíle odkazu na Telegram, `roundPhoto`).
+  **Textový příspěvek má místo obrazu plošku s prvním řádkem** (`titleLarge`), který se zalomí,
+  kolik se vejde; kanál jako Pavel Durov je skoro celý textový a prázdné šedé karty by se od
+  sebe nedaly rozeznat. Zaostřená ploška zesvětlí na `inverseSurface` jako řádky jinde.
+- **Karta nemá pevnou výšku.** Obraz je dán šířkou (dp), popisek pod ním roste s písmem systému
+  a řada mřížky se natáhne podle nejvyšší karty. Dřív pevných 200 dp s textem v sp při větším
+  písmu obsah ořízlo — návod k přístupnosti TV říká sp nepoužívat v nepružných komponentách.
+  **Text v plošce 16 : 9 je omezený výškou a výpustku dostane sám**: Compose u
+  `TextOverflow.Ellipsis` bez `maxLines` spočte řádky, které se do výšky vejdou. Ověřeno
+  s `font_scale 1.3`: „…username on Teleg…" místo useknutého řádku.
+- **Zaostřená karta musí do obrazu posunout celou BUŇKU, ne jen sebe** (`BringIntoViewRequester`
+  na sloupci karty s popiskem, obdélník rozšířený o mezeru nahoře a bezpečný okraj dole).
+  Fokus si řekne jen o zaostřitelnou kartu a mřížka bere oblast odsazení obsahu za viditelnou:
+  karta ve druhé řadě stála u spodní hrany a popisek pod ní nebyl vidět vůbec.
+- **Po zavření přehrávače se buňka dorovná, až se mřížka usadí** (`revealItem`). Fokus padne
+  napřed na první kartu a mřížka se k ní rozjede; vrácený fokus pak kartu s videem zaostří, ale
+  neodroluje (zaostřená plocha je v obraze aspoň zčásti) — karta zůstala napůl pod okrajem.
+  Zjištěno logem `firstVisibleItemScrollOffset`: 115 → 0 hned po zavření.
 - **Karta s videem: OK ho pustí rovnou, podržení OK otevře detail** s textem a komentáři
   (`playableVideo` v `ChannelFeedScreen`, `onLongClick` karty). Po videu hrají videa starších
   příspěvků jako z detailu (kanál jako pořad) a po zavření přehrávače jde fokus zpátky na kartu.
-  Zaostřená karta s videem to napoví („OK: přehrát · podržet: příspěvek a komentáře") — jinak
-  by se o detailu nikdo nedozvěděl. Jen u příspěvku, který je jedno video (album a fotka
-  otevírají detail jako dřív). **Na zařízení ověřené jen to, že karta s fotkou se chová jako
-  dřív**; kanál s videem v příspěvcích při testu k dispozici nebyl.
+  Zaostřená karta s videem to napoví v hlavičce vpravo („OK: přehrát · podržet: příspěvek
+  a komentáře", `ChatHeader(trailing)`) — na kartu do třetiny šířky se věta nevejde a měnila by
+  výšku řady. Jen u příspěvku, který je jedno video (album a fotka otevírají detail). Ověřeno
+  27. 11. 2026 na videu v kanálu Pavla Durova: přehrání z karty, Zpět s fokusem na kartě.
 - **Album je jeden příspěvek** (`channelPosts`: po sobě jdoucí zprávy se stejným
   `mediaAlbumId`). Popisek nese jen jedna ze zpráv alba a počty (zhlédnutí, komentáře) jen ta,
   ke které server přivázal diskusi — hledají se proto napříč albem (`statsMessage`).
@@ -767,6 +788,10 @@ Do Play z téhož tagu jako telefon a hodinky, track `tv:internal`, za repo prom
   chatu) jako bublina s mřížkou, prohlížeč od první fotky alba, šipkami na video, přehrání, Zpět
   do prohlížeče a do konverzace s fokusem na albu. Pás alba v detailu příspěvku je jen přeložený
   (odebírané kanály s alby v testu nebyly).
+- **Mřížka karet ověřena 27. 11. 2026 večer** (Pavel Durov, Short Drama): textové plošky,
+  fotky s popisky a počty komentářů, šipky mezi řadami s celou buňkou v obraze, nápověda
+  u videa, přehrání z karty a návrat, detail s komentáři a návrat, dočítání starších příspěvků,
+  `font_scale 1.3` (a zpět 1.0).
 - **Feed kanálu ověřen 27. 11. 2026** na veřejných kanálech, které účet odebírá a měl
   přečtené (Pavel Durov bez komentářů, Short Drama s komentáři a reakcemi): karty, detail,
   rolování textu, vstup do komentářů, zpět s fokusem na kartě. Kanál se otevře i intentem
