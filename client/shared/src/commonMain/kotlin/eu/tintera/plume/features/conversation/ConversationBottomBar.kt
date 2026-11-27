@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.shortcuts.shortcutQueryAt
+import eu.tintera.plume.core.shortcuts.shortcutInsertion
+import eu.tintera.plume.core.shortcuts.matchingShortcuts
 import androidx.compose.foundation.layout.Row
 import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.accounts.rememberConversationAccount
@@ -368,8 +373,18 @@ internal fun ConversationBottomBar(
             },
         )
     }
+    // Vlastní textové zkratky (`/adr` u kurzoru → uložený text). V chatu s příkazy bota mají
+    // přednost, jen když nějaká zkratka napsanému odpovídá; samotné „/" tam patří příkazům.
+    val shortcuts by koinInject<AppSettings>().textShortcuts.collectAsStateWithLifecycle()
+    val shortcutQuery = remember(draft, state.editing) {
+        draft.takeIf { it.selection.collapsed && shortcuts.isNotEmpty() }?.let { shortcutQueryAt(it.text, it.selection.start) }
+    }
+    val shownShortcuts = remember(shortcutQuery, shortcuts, state.botCommands) {
+        shortcutQuery?.takeIf { it.query.isNotEmpty() || state.botCommands.isEmpty() }
+            ?.let { matchingShortcuts(shortcuts, it.query) }.orEmpty()
+    }
     // Příkazy botů: napovídání podle rozepsaného „/…", nebo celý seznam z tlačítka u pole.
-    val typedCommands = commandSuggestions(draft.text, state.botCommands)
+    val typedCommands = commandSuggestions(draft.text, state.botCommands).takeIf { shownShortcuts.isEmpty() }
     // Inline bot (`@gif kočka`): výsledky nad polem. S přílohami je text popisek a při úpravě
     // text staré zprávy — ani jedno není dotaz na bota.
     val inlineDraft = remember(draft.text, state.editing, state.attachments.isEmpty()) {
@@ -393,9 +408,9 @@ internal fun ConversationBottomBar(
     LaunchedEffect(hashtagQuery?.query) { viewModel.hashtagQuery(hashtagQuery?.query) }
     // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
     // mají nad polem přednost a emoji plovoucí přes jejich panel by ho zakryla.
-    val emojiWord = remember(draft, inlineDraft, mentionQuery, hashtagQuery, typedCommands) {
+    val emojiWord = remember(draft, inlineDraft, mentionQuery, hashtagQuery, typedCommands, shownShortcuts) {
         draft.takeIf {
-            inlineDraft == null && mentionQuery == null && hashtagQuery == null && typedCommands == null &&
+            inlineDraft == null && mentionQuery == null && hashtagQuery == null && typedCommands == null && shownShortcuts.isEmpty() &&
                 it.selection.collapsed
         }?.let { emojiWordAt(it.text, it.selection.start) }
     }
@@ -431,6 +446,7 @@ internal fun ConversationBottomBar(
     val floatingShown = (commandsShown && state.botCommands.isNotEmpty()) ||
         (mentionQuery != null && state.mentionSuggestions?.candidates.orEmpty().isNotEmpty()) ||
         (hashtagQuery != null && state.hashtagSuggestions?.hashtags.orEmpty().isNotEmpty()) ||
+        shownShortcuts.isNotEmpty() ||
         (emojiWord != null && shownEmojis.isNotEmpty()) ||
         (stickerEmoji != null && shownStickers.isNotEmpty()) ||
         inlineDraft != null
@@ -453,6 +469,18 @@ internal fun ConversationBottomBar(
                 }
                 viewModel.closeCommands()
                 viewModel.sendCommand(command.text)
+            },
+            glass = suggestionGlass,
+        )
+        ShortcutSuggestionsPanel(
+            shortcuts = shownShortcuts,
+            visible = shortcutQuery != null,
+            onPick = { shortcut ->
+                val query = shortcutQuery ?: return@ShortcutSuggestionsPanel
+                haptics.confirm()
+                val (text, cursor) = shortcutInsertion(draft.text, draft.selection.start, query, shortcut)
+                draft = TextFieldValue(text, selection = TextRange(cursor))
+                viewModel.onDraftChanged(composer.composed)
             },
             glass = suggestionGlass,
         )

@@ -34,6 +34,7 @@ fun SettingsSectionScreen(
     onOpenFolders: () -> Unit,
     onOpenStickerSets: () -> Unit,
     onOpenEmojiSets: () -> Unit,
+    onOpenTextShortcuts: () -> Unit,
     onOpenProxy: () -> Unit,
     onOpenAccountPrivacy: () -> Unit,
     onOpenTwoStep: () -> Unit,
@@ -85,6 +86,7 @@ fun SettingsSectionScreen(
                     onOpenFolders = onOpenFolders,
                     onOpenStickerSets = onOpenStickerSets,
                     onOpenEmojiSets = onOpenEmojiSets,
+                    onOpenTextShortcuts = onOpenTextShortcuts,
                 )
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Storage -> {

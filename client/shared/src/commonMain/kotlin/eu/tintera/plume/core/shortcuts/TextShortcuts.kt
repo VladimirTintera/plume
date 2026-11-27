@@ -57,6 +57,12 @@ fun shortcutInsertion(text: String, cursor: Int, query: ShortcutQuery, shortcut:
 fun shortcutName(raw: String): String =
     raw.trim().removePrefix("/").lowercase().filter { it.isShortcutChar() }.take(MAX_SHORTCUT_NAME)
 
+/** Předpona zkratky ve vstupním poli. */
+const val SHORTCUT_PREFIX = "/"
+
+/** `/název` — jak se zkratka píše a ukazuje (jako `hashtagText`). */
+fun shortcutText(name: String): String = SHORTCUT_PREFIX + name
+
 /** Nové id zkratky (šestnáctkové číslo, jako u štítků). */
 fun newShortcutId(): String = Random.nextLong().toULong().toString(16)
 
