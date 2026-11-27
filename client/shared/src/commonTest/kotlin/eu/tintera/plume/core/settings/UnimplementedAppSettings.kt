@@ -81,6 +81,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setChatLabels(labels: List<eu.tintera.plume.core.chatlabels.StoredChatLabel>): Unit = error("setChatLabels")
     override val labelAssignments: StateFlow<List<eu.tintera.plume.core.chatlabels.StoredLabelAssignment>> get() = error("labelAssignments")
     override fun setLabelAssignments(assignments: List<eu.tintera.plume.core.chatlabels.StoredLabelAssignment>): Unit = error("setLabelAssignments")
+    override val textShortcuts: StateFlow<List<eu.tintera.plume.core.shortcuts.TextShortcut>> get() = error("textShortcuts")
+    override fun setTextShortcuts(shortcuts: List<eu.tintera.plume.core.shortcuts.TextShortcut>): Unit = error("setTextShortcuts")
     override val storedTranscripts: StateFlow<List<StoredTranscript>> get() = error("storedTranscripts")
     override val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>> get() = error("storedTriageVerdicts")
     override fun setStoredTriageVerdicts(verdicts: List<StoredTriageVerdict>): Unit = error("setStoredTriageVerdicts")

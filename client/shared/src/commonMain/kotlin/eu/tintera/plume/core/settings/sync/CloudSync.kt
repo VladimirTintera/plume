@@ -78,9 +78,9 @@ class CloudSync(
             settings.messageBookmarks,
             settings.chatColors,
             // Štítky a přiřazení jako jeden tok: `combine` se pěti toky typově končí.
-            combine(settings.chatLabels, settings.labelAssignments, ::Pair),
-        ) { preferences, positions, bookmarks, colors, (labels, assignments) ->
-            localEntries(preferences, positions, bookmarks, colors, labels, assignments, accountId)
+            combine(settings.chatLabels, settings.labelAssignments, settings.textShortcuts, ::Triple),
+        ) { preferences, positions, bookmarks, colors, (labels, assignments, shortcuts) ->
+            localEntries(preferences, positions, bookmarks, colors, labels, assignments, shortcuts, accountId)
         }
             .distinctUntilChanged()
             .filter { it != synced }
@@ -106,6 +106,7 @@ class CloudSync(
             settings.chatColors.value,
             settings.chatLabels.value,
             settings.labelAssignments.value,
+            settings.textShortcuts.value,
             accountId,
         )
 
@@ -133,6 +134,9 @@ class CloudSync(
             settings.setChatLabels(chatLabelsWith(entries, settings.chatLabels.value, accountId))
             settings.setLabelAssignments(labelAssignmentsWith(entries, settings.labelAssignments.value, accountId))
         }
+        merged[CloudSyncGroup.TextShortcuts]?.takeIf { it != local[CloudSyncGroup.TextShortcuts] }?.let { entries ->
+            settings.setTextShortcuts(textShortcutsWith(entries))
+        }
 
         // Tam: skupiny, které se v úložišti liší.
         merged.forEach { (group, entries) ->
@@ -155,6 +159,7 @@ class CloudSync(
         colors: List<eu.tintera.plume.core.chatcolor.StoredChatColor>,
         labels: List<eu.tintera.plume.core.chatlabels.StoredChatLabel>,
         assignments: List<eu.tintera.plume.core.chatlabels.StoredLabelAssignment>,
+        shortcuts: List<eu.tintera.plume.core.shortcuts.TextShortcut>,
         accountId: Long,
     ): Map<CloudSyncGroup, SyncEntries> = buildMap {
         SYNCED_PREFERENCE_GROUPS.forEach { (group, names) -> put(group, preferenceEntries(preferences, names)) }
@@ -162,10 +167,12 @@ class CloudSync(
         put(CloudSyncGroup.Bookmarks, bookmarkEntries(bookmarks, accountId))
         put(CloudSyncGroup.ChatColors, chatColorEntries(colors, accountId))
         put(CloudSyncGroup.ChatLabels, chatLabelEntries(labels, assignments, accountId))
+        put(CloudSyncGroup.TextShortcuts, textShortcutEntries(shortcuts))
     }
 
     private fun resolverFor(group: CloudSyncGroup): (String, String) -> String = when (group) {
-        CloudSyncGroup.Appearance, CloudSyncGroup.Playback, CloudSyncGroup.ChatColors, CloudSyncGroup.ChatLabels -> ::resolvePreference
+        CloudSyncGroup.Appearance, CloudSyncGroup.Playback, CloudSyncGroup.ChatColors, CloudSyncGroup.ChatLabels,
+        CloudSyncGroup.TextShortcuts -> ::resolvePreference
         CloudSyncGroup.Positions -> ::resolvePosition
         CloudSyncGroup.Bookmarks -> ::resolveBookmark
     }

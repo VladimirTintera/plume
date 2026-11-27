@@ -11,6 +11,7 @@ import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.chatlabels.StoredChatLabel
 import eu.tintera.plume.core.chatlabels.StoredLabelAssignment
+import eu.tintera.plume.core.shortcuts.TextShortcut
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
@@ -258,6 +259,12 @@ interface AppSettings {
 
     /** Uloží přiřazení štítků. Neblokuje. */
     fun setLabelAssignments(assignments: List<StoredLabelAssignment>)
+
+    /** Vlastní textové zkratky („/adresa" → text), společné pro všechny účty. */
+    val textShortcuts: StateFlow<List<TextShortcut>>
+
+    /** Uloží textové zkratky. Neblokuje. */
+    fun setTextShortcuts(shortcuts: List<TextShortcut>)
 
     /**
      * Hotové přepisy hlasovek a koleček z modelu v telefonu, všech účtů; filtruje a spravuje je
@@ -1008,6 +1015,20 @@ class DataStoreAppSettings(
         }
     }
 
+    override val textShortcuts: StateFlow<List<TextShortcut>> = value(emptyList()) { preferences ->
+        preferences[TEXT_SHORTCUTS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<TextShortcut>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setTextShortcuts(shortcuts: List<TextShortcut>) {
+        scope.launch {
+            edit { preferences ->
+                if (shortcuts.isEmpty()) preferences.remove(TEXT_SHORTCUTS) else preferences[TEXT_SHORTCUTS] = storedListJson.encodeToString(shortcuts)
+            }
+        }
+    }
+
     override val quietHours: StateFlow<QuietHours> = value(QuietHours()) { preferences ->
         val default = QuietHours()
         // Čas mimo den (poškozený nebo cizí zápis) spadne na výchozí, jinak by úsek nedával smysl.
@@ -1573,6 +1594,7 @@ class DataStoreAppSettings(
         val CHAT_COLORS = stringPreferencesKey("chat_colors")
         val CHAT_LABELS = stringPreferencesKey("chat_labels")
         val LABEL_ASSIGNMENTS = stringPreferencesKey("chat_label_assignments")
+        val TEXT_SHORTCUTS = stringPreferencesKey("text_shortcuts")
         val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
         val STORED_PHOTO_DESCRIPTIONS = stringPreferencesKey("stored_photo_descriptions")
         val STORED_TRIAGE_VERDICTS = stringPreferencesKey("stored_triage_verdicts")
