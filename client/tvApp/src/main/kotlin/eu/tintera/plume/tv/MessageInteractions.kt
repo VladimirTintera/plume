@@ -68,6 +68,7 @@ import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.tv_compose_voice
 import eu.tintera.plume.resources.tv_compose_voice_prompt
 import eu.tintera.plume.resources.common_cancel
@@ -109,6 +110,9 @@ class MessageInteractions {
 
     /** Zpráva (album celé), kterou se uživatel chystá smazat, a co server dovolí. */
     var deleting by mutableStateOf<Pair<ChatMessage, MessageActions>?>(null)
+
+    /** Zpráva (album celé), pro kterou se vybírá chat, kam ji přeposlat. */
+    var forwarding by mutableStateOf<ChatMessage?>(null)
 }
 
 /**
@@ -145,6 +149,10 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
                 interactions.actionsFor = null
                 interactions.deleting = message to actions
             },
+            onForward = {
+                interactions.actionsFor = null
+                interactions.forwarding = message
+            },
             onDismiss = { interactions.actionsFor = null },
         )
     }
@@ -153,6 +161,9 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
     }
     interactions.deleting?.let { (message, actions) ->
         DeleteDialog(state, message, actions, scope, onDismiss = { interactions.deleting = null })
+    }
+    interactions.forwarding?.let { message ->
+        ForwardDialog(state, message, chatTitle, scope, onDismiss = { interactions.forwarding = null })
     }
     interactions.replyTo?.let { message ->
         ReplyDialog(state, message, chatTitle, onDismiss = { interactions.replyTo = null })
@@ -177,6 +188,7 @@ private fun MessageActionsDialog(
     onJumpToQuote: (() -> Unit)?,
     onEdit: () -> Unit,
     onDelete: (MessageActions) -> Unit,
+    onForward: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Upravit a smazat jen tam, kde to server dovolí (`messageActions`): vlastní zprávu jde
@@ -224,6 +236,9 @@ private fun MessageActionsDialog(
                 val allowed = actions
                 if (allowed?.canEdit == true && message.text.isNotBlank()) {
                     Button(onClick = onEdit) { Text(stringResource(Res.string.menu_edit)) }
+                }
+                if (allowed?.canForward == true) {
+                    Button(onClick = onForward) { Text(stringResource(Res.string.menu_forward)) }
                 }
                 if (allowed != null && (allowed.canDeleteForAll || allowed.canDeleteForSelf)) {
                     Button(onClick = { onDelete(allowed) }) { Text(stringResource(Res.string.menu_delete)) }
@@ -398,10 +413,7 @@ private fun ReplyDialog(
  */
 @Composable
 private fun DeleteDialog(state: ConversationState, message: ChatMessage, actions: MessageActions, scope: CoroutineScope, onDismiss: () -> Unit) {
-    val ids = message.mediaAlbumId.takeIf { it != 0L }
-        ?.let { album -> state.messages?.filter { it.mediaAlbumId == album }?.map { it.id } }
-        ?.takeIf { it.isNotEmpty() }
-        ?: listOf(message.id)
+    val ids = state.albumIds(message)
     var failed by remember { mutableStateOf(false) }
     val delete = { revoke: Boolean ->
         scope.launch {

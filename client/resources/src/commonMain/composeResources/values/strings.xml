@@ -4989,6 +4989,7 @@
     <string name="tv_reply_hint">Message</string>
     <string name="tv_compose_voice">Dictate message</string>
     <string name="tv_compose_voice_prompt">Say your message</string>
+    <string name="tv_forward_done">Forwarded to %1$s</string>
     <string name="tv_reply_send">Send</string>
     <string name="tv_send_failed">Couldn't send the message.</string>
     <string name="tv_compose_button">Write a message</string>
