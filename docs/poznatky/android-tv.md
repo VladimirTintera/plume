@@ -98,8 +98,8 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   v úložišti aktivity i po zavření chatu a `closeChat` by TDLib nikdy nedostala. Zprávy jsou
   zaostřitelné jednotlivě (`focusable` s rámečkem), seznam je obrácený (nejnovější dole)
   a starší historie se dočítá, když se fokus blíží horní hraně. Předěl dne je nezaostřitelný
-  — šipka ho přeskočí. **Zpráva vyšší než obrazovka** (dlouhý příspěvek kanálu) se ukáže jen
-  částečně: fokus skáče po celých zprávách. Pro kanály se to bude řešit s feedem příspěvků.
+  — šipka ho přeskočí. **Zpráva vyšší než obrazovka** se šipkou napřed odroluje (viz „Dlouhé
+  zprávy").
 - **Písma jsou tatáž jako na telefonu** (`tvTypography`: Figtree a Bricolage z
   `:client:resources`, proložení podle `theme/Typography.kt`). Výchozí škála tv-material je
   Roboto a vedle zbytku Plume vypadala cize.
@@ -133,6 +133,28 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   Přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
+
+## Dlouhé zprávy
+
+- **Zpráva vyšší než seznam se šipkou napřed odroluje** (`TallItemScroll`, v konverzaci
+  i v komentářích): dokud zaostřená zpráva přečnívá přes kraj seznamu ve směru šipky, šipka
+  posune seznam o 60 % výšky (nejvýš o to, co zbývá do kraje zprávy), teprve pak pustí fokus
+  dál. Dřív fokus skákal po celých zprávách a seznam ukázal jen kraj zaostřené — prostředek
+  dlouhé zprávy nebo komentáře se nedal přečíst. Detail příspěvku kanálu to řeší vlastním
+  rolováním textu (`PostBody`).
+- **Při vstupu do vysoké zprávy** ukáže seznam (výchozí `bringIntoView`) její bližší kraj:
+  zdola spodek, shora začátek. Šipka pak čte dál týmž směrem, takže se nic nepřeskočí.
+- **Kraj se měří přes polohu v okně a výšku, ne `boundsInWindow`** — ta je oříznutá rodiči,
+  takže přečnívající zpráva by vypadala, že se vejde. Seznam se měří bez odsazení obsahu.
+- **Instance pomocníka se nesmí měnit se změnou odsazení.** Tlačítko psaní se ukáže až po
+  načtení práv chatu, spodní odsazení se změní — a s `remember(…, odsazení)` vznikla nová
+  instance, která nevěděla, která zpráva je zaostřená (změna fokusu, která to hlásí, už
+  proběhla), takže šipka zprávu přeskočila (ověřeno logem na emulátoru). Odsazení se proto jen
+  přepisuje do stávající instance.
+- **Ověřeno 27. 11. 2026** v chatu s Notifikátorem na zprávě o 47 řádcích od testovacího bota:
+  šipka nahoru roluje zprávou až k jejímu začátku, další nahoru jde na předchozí video, dolů
+  zpátky na začátek dlouhé zprávy a rolováním až na její konec. **Komentáře** (týž pomocník)
+  na zařízení ověřené nejsou.
 
 ## Úklid mezipaměti
 
