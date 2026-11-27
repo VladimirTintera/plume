@@ -518,10 +518,16 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   dočítají až při otevření nabídky (`produceState`), tlačítka proto naskočí o chvilku později
   než reakce — u cizí zprávy nenaskočí vůbec.
 - **Úprava je tentýž dialog jako odpověď** (`ReplyDialog(editing = …)`), předvyplněný textem
-  zprávy; u média upravuje popisek (`editCaption`). Nezměněný text se neposílá. **Formátování
-  se nezachová** — pole na televizi je holý text a entity by po úpravě neseděly na offsetech;
-  kdo potřebuje tučné písmo, upraví zprávu na telefonu. Výsledek přijde updatem úprav, takže
-  seznam se překreslí sám.
+  zprávy; u média upravuje popisek (`editCaption`). Nezměněný text se neposílá. Výsledek přijde
+  updatem úprav, takže seznam se překreslí sám.
+- **Formátování při úpravě zůstává**, přestože pole na televizi je holý text: formátování
+  zprávy (`composedFormatsOf` z `core`) se jen posune podle rozdílu starého a nového textu
+  (`afterEdit`, tentýž výpočet jako pole na telefonu). Tučné slovo zůstane tučné, i když se za
+  něj dopíše věta. Zprávu, jejíž formátování z holého textu znovu poznat nejde (zmínka jménem,
+  datum, vlastní emoji — `composedFormatsOf` vrátí `null`), televize upravit nenabídne
+  (`canEditKeepingFormat`): úprava by ho tiše smazala. Dřív se formátování úpravou ztrácelo.
+  Ověřeno na emulátoru vlastní zprávou s tučným prvním slovem (poslanou dočasně upraveným
+  buildem, televize formátování psát neumí): po dopsání „ok" zůstalo tučné.
 - **Kurzor stojí na KONCI předvyplněného textu** (`TextFieldValue` s `TextRange(délka)`).
   S holým řetězcem byl na začátku a dopsat slovo znamenalo napřed dojet šipkami na konec —
   ovladačem po znaku (ověřeno na emulátoru).

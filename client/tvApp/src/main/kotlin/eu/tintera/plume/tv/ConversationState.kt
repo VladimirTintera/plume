@@ -17,6 +17,8 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.WriteAccess
+import eu.tintera.plume.core.telegram.afterEdit
+import eu.tintera.plume.core.telegram.composedFormatsOf
 import androidx.compose.runtime.snapshotFlow
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -259,17 +261,29 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
 
     /**
      * Uloží nový text vlastní zprávy [message]: u zprávy s médiem popisek (jiné volání než text).
-     * Výsledek přijde updatem úprav (`editedMessages`). **Formátování se nezachová** — pole na
-     * televizi je holý text a offsety původních entit by po změně textu neseděly.
+     * Výsledek přijde updatem úprav (`editedMessages`).
+     *
+     * **Formátování zůstává**: pole na televizi je holý text, takže se formátování zprávy
+     * ([composedFormatsOf]) jen posune podle rozdílu starého a nového textu (`afterEdit`, tentýž
+     * výpočet jako pole na telefonu) — tučné slovo zůstane tučné, i když se za něj dopíše věta.
+     * Zprávu, jejíž formátování takhle nést nejde ([canEditKeepingFormat]), televize upravit
+     * nenabídne; úprava by ho tiše smazala.
      */
     suspend fun edit(message: ChatMessage, text: String): Result<Unit> {
+        val formats = composedFormatsOf(message.text, message.entities)?.afterEdit(message.text, text).orEmpty()
         val result = if (message.media != null) {
-            conversations.editCaption(chatId, message.id, text)
+            conversations.editCaption(chatId, message.id, text, formats)
         } else {
-            conversations.editText(chatId, message.id, text, linkPreview = message.linkPreviewOptions)
+            conversations.editText(chatId, message.id, text, linkPreview = message.linkPreviewOptions, formats = formats)
         }
         return result.onFailure { logger.w(it) { "Zpráva ${message.id} se z televize neupravila." } }
     }
+
+    /**
+     * Jde formátování zprávy při úpravě zachovat. Ne u zmínky jménem, data nebo vlastního emoji:
+     * ty z holého textu znovu poznat nejdou a server by je po úpravě zahodil.
+     */
+    fun canEditKeepingFormat(message: ChatMessage): Boolean = composedFormatsOf(message.text, message.entities) != null
 
     /** Smaže zprávy [ids] (album celé); [revoke] = i protějšku. Zmizí hned, potvrdí je update. */
     suspend fun delete(ids: List<Long>, revoke: Boolean): Result<Unit> =
