@@ -157,9 +157,11 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
             LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
-                // Strop výšky (asi čtyři řádky): s víc řádky panel s nadpisem a citací přerostl
-                // bezpečné okraje obrazovky (ověřeno na emulátoru, 360 dp sahalo ke spodní hraně).
-                modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp),
+                // Strop výšky (tři a půl řádku, vykouknutí dalšího řádku říká, že seznam
+                // pokračuje): panel s nadpisem, citací a polem hledání se musí vejít do 484 dp
+                // (540 dp bez bezpečných okrajů 28 dp). Se 280 dp měl po přidání pole hledání
+                // 511 dp a sahal od stavové lišty ke spodní hraně (změřeno na emulátoru).
+                modifier = Modifier.fillMaxWidth().heightIn(max = 248.dp),
             ) {
                 if (showSaved) {
                     item(key = "saved") {

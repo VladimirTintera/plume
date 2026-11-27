@@ -429,7 +429,7 @@ private fun ChatRow(
         trailingContent = {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 time?.let { Text(it, style = MaterialTheme.typography.labelMedium.tabular()) }
-                if (unread) UnreadBadge(chat.unreadCount, muted = chat.isMuted)
+                if (unread) UnreadBadge(chat.unreadCount, muted = chat.isMuted, onInverse = focused)
             }
         },
     )
@@ -438,11 +438,25 @@ private fun ChatRow(
 /**
  * Odznak nepřečtených: vyplněná pilulka s počtem, jako na telefonu. Ztlumený chat má odznak
  * tlumený, ručně označený jako nepřečtený bez počtu je jen tečka.
+ *
+ * **Na zaostřeném řádku ([onInverse]) `primaryContainer`, ne `primary`.** Zaostřený řádek má
+ * plochu `inverseSurface` (světlou) a `primary` je v tmavém schématu taky světlý tón: odznak
+ * s řádkem skoro splýval (kontrast kolem 1,4) a tečka bez počtu by zmizela. Tmavý
+ * `primaryContainer` je táž barva jako avatar vedle.
  */
 @Composable
-private fun UnreadBadge(count: Int, muted: Boolean) {
-    val container = if (muted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary
-    val content = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
+private fun UnreadBadge(count: Int, muted: Boolean, onInverse: Boolean) {
+    val colors = MaterialTheme.colorScheme
+    val container = when {
+        muted -> colors.surfaceVariant
+        onInverse -> colors.primaryContainer
+        else -> colors.primary
+    }
+    val content = when {
+        muted -> colors.onSurfaceVariant
+        onInverse -> colors.onPrimaryContainer
+        else -> colors.onPrimary
+    }
     Box(
         Modifier
             .heightIn(min = BADGE_SIZE)
