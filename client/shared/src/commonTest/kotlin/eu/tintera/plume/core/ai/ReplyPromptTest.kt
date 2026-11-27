@@ -150,6 +150,11 @@ class ReplyPromptTest {
         // Rod uživatele neznáme — „Rád přijdu." by ženě musel přepisovat.
         assertTrue(prompt.contains("gender is unknown"), "chybí pokyn k bezrodým tvarům")
         assertTrue(prompt.contains("Jasně, půjdu."), "chybí ukázka slohu")
+        // Ukázková věta v pokynu k rodu („Jasně, přijdu.") se opisovala jako první návrh
+        // ke všemu — mimo blok ukázek nesmí stát žádná hotová česká odpověď.
+        val genderLine = prompt.lines().single { "gender is unknown" in it }
+        assertFalse(genderLine.contains('"'), "pokyn k rodu nese ukázkovou odpověď")
+        assertEquals(1, Regex("Jasně").findAll(prompt).count(), "víc ukázek začíná „Jasně“")
         // Ukázka je podmíněná, aby netáhla do češtiny anglickou konverzaci.
         assertTrue(prompt.contains("if you write in Czech"))
         assertTrue(prompt.contains("received the message", ignoreCase = true), "chybí perspektiva uživatele")
