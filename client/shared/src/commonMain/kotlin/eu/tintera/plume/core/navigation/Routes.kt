@@ -283,6 +283,10 @@ data class ArchiveChatStatisticsRoute(override val slot: AccountSlot, val chatId
 @Serializable
 data class ArchiveChatInsightsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
+/** [ChatPlacesRoute] konverzace z archivu. */
+@Serializable
+data class ArchiveChatPlacesRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
+
 /** Statistika příspěvku otevřená v archivní větvi. */
 @Serializable
 data class ArchivePostStatisticsRoute(override val slot: AccountSlot, val chatId: Long, val messageId: Long) : AccountRoute
@@ -426,6 +430,10 @@ data class ChatStatisticsRoute(override val slot: AccountSlot, val chatId: Long)
  */
 @Serializable
 data class ChatInsightsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
+
+/** Místa v chatu (polohy z historie, přehledová mapa) — z ⋮ konverzace, taky jako detailový panel. */
+@Serializable
+data class ChatPlacesRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Přehled ztlumených kanálů za posledních 24 hodin se shrnutím modelem (menu účtu). */
 @Serializable
@@ -819,6 +827,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveEventLogRoute::class, ArchiveEventLogRoute.serializer())
             subclass(ArchiveChatStatisticsRoute::class, ArchiveChatStatisticsRoute.serializer())
             subclass(ArchiveChatInsightsRoute::class, ArchiveChatInsightsRoute.serializer())
+            subclass(ArchiveChatPlacesRoute::class, ArchiveChatPlacesRoute.serializer())
             subclass(ArchivePostStatisticsRoute::class, ArchivePostStatisticsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
@@ -833,6 +842,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(ChatStatisticsRoute::class, ChatStatisticsRoute.serializer())
             subclass(ChatInsightsRoute::class, ChatInsightsRoute.serializer())
+            subclass(ChatPlacesRoute::class, ChatPlacesRoute.serializer())
             subclass(ChannelDigestRoute::class, ChannelDigestRoute.serializer())
             subclass(PostStatisticsRoute::class, PostStatisticsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())

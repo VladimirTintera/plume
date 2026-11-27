@@ -4953,6 +4953,24 @@
     <string name="text_shortcuts_save">Uložit</string>
     <string name="text_shortcuts_delete_title">Smazat zkratku /%1$s?</string>
     <string name="text_shortcuts_delete_text">Zmizí ze všech tvých zařízení.</string>
+    <string name="chat_places_title">Místa v chatu</string>
+    <string name="chat_places_failed">Chat se nepodařilo projít</string>
+    <string name="chat_places_scanning">Hledám místa…</string>
+    <string name="chat_places_local_note">Ze zpráv, které už jsou v zařízení. Starší jde načíst z Telegramu.</string>
+    <string name="chat_places_load_older">Načíst starší zprávy</string>
+    <string name="chat_places_older_failed">Starší zprávy se nepodařilo načíst</string>
+    <plurals name="chat_places_whole_history">
+        <item quantity="one">Celá historie chatu · %1$d místo</item>
+        <item quantity="few">Celá historie chatu · %1$d místa</item>
+        <item quantity="other">Celá historie chatu · %1$d míst</item>
+    </plurals>
+    <string name="chat_places_empty_title">Zatím žádná místa</string>
+    <string name="chat_places_empty">Polohy a místa, které se v chatu pošlou, se ukážou tady.</string>
+    <string name="chat_places_overview">Na mapě</string>
+    <string name="chat_places_overview_far">Místa jsou od sebe moc daleko na jednu mapu. Otevři je jednotlivě ze seznamu.</string>
+    <string name="chat_places_list">Všechna místa</string>
+    <string name="chat_places_location">Poloha</string>
+    <string name="chat_places_live">Živá poloha</string>
     <string name="chat_insights_title">Statistika chatu</string>
     <string name="chat_insights_failed">Statistiku chatu se nepodařilo spočítat</string>
     <string name="chat_insights_scanning">Počítám zprávy…</string>

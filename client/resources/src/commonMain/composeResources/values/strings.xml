@@ -4781,6 +4781,23 @@
     <string name="text_shortcuts_save">Save</string>
     <string name="text_shortcuts_delete_title">Delete the shortcut /%1$s?</string>
     <string name="text_shortcuts_delete_text">It disappears from all your devices.</string>
+    <string name="chat_places_title">Places in chat</string>
+    <string name="chat_places_failed">Couldn't go through the chat</string>
+    <string name="chat_places_scanning">Looking for places…</string>
+    <string name="chat_places_local_note">From messages already on this device. Older ones can be loaded from Telegram.</string>
+    <string name="chat_places_load_older">Load older messages</string>
+    <string name="chat_places_older_failed">Couldn't load older messages</string>
+    <plurals name="chat_places_whole_history">
+        <item quantity="one">Whole chat history · %1$d place</item>
+        <item quantity="other">Whole chat history · %1$d places</item>
+    </plurals>
+    <string name="chat_places_empty_title">No places yet</string>
+    <string name="chat_places_empty">Locations and places shared in this chat will show up here.</string>
+    <string name="chat_places_overview">On the map</string>
+    <string name="chat_places_overview_far">The places are too far apart for one map. Open each one from the list.</string>
+    <string name="chat_places_list">All places</string>
+    <string name="chat_places_location">Location</string>
+    <string name="chat_places_live">Live location</string>
     <string name="chat_insights_title">Chat stats</string>
     <string name="chat_insights_failed">Couldn't compute chat stats</string>
     <string name="chat_insights_scanning">Counting messages…</string>

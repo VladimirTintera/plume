@@ -98,6 +98,9 @@ import eu.tintera.plume.features.profile.RemovedMembersScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatInsightsRoute
+import eu.tintera.plume.core.navigation.ChatPlacesRoute
+import eu.tintera.plume.core.navigation.ArchiveChatPlacesRoute
+import eu.tintera.plume.features.places.ChatPlacesScreen
 import eu.tintera.plume.core.navigation.GalleryRoute
 import eu.tintera.plume.features.gallery.GalleryScreen
 import eu.tintera.plume.core.navigation.ChannelDigestRoute
@@ -1283,6 +1286,11 @@ private fun shellEntryProvider(
                     } else {
                         null
                     },
+                    onOpenPlaces = if (route.threadId == null && route.topicId == null && route.savedTopicId == null && route.directTopicId == null) {
+                        { chatsStack.addOnce(ChatPlacesRoute(slot, route.chatId)) }
+                    } else {
+                        null
+                    },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(slot, route.chatId, request)) },
                     onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(slot, route.chatId, request)) },
                     onOpenWebApp = { request -> chatsStack.add(webAppRoute(slot, route.chatId, request, archive = false)) },
@@ -1592,6 +1600,20 @@ private fun shellEntryProvider(
         )
     }
 
+    entry<ChatPlacesRoute>(metadata = Panes.extra() + Panes.headerOutside()) { route ->
+        ChatPlacesScreen(
+            viewModel = koinViewModel(key = "chat-places-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<ArchiveChatPlacesRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.headerOutside()) { route ->
+        ChatPlacesScreen(
+            viewModel = koinViewModel(key = "chat-places-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
     entry<ChatInsightsRoute>(metadata = Panes.extra() + Panes.headerOutside()) { route ->
         ChatInsightsScreen(
             viewModel = koinViewModel(key = "chat-insights-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -1750,6 +1772,11 @@ private fun shellEntryProvider(
                     onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(slot, route.chatId, messageId)) },
                     onOpenInsights = if (route.threadId == null && route.topicId == null && route.directTopicId == null) {
                         { chatsStack.addOnce(ArchiveChatInsightsRoute(slot, route.chatId)) }
+                    } else {
+                        null
+                    },
+                    onOpenPlaces = if (route.threadId == null && route.topicId == null && route.directTopicId == null) {
+                        { chatsStack.addOnce(ArchiveChatPlacesRoute(slot, route.chatId)) }
                     } else {
                         null
                     },

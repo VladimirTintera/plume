@@ -146,6 +146,7 @@ internal fun ConversationTopBar(
             onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
             onOpenCalendar = navigation.onOpenCalendar?.let { open -> { open(viewModel.calendarAnchor()) } },
             onOpenInsights = navigation.onOpenInsights,
+            onOpenPlaces = navigation.onOpenPlaces,
             onShareContact = navigation.onShareContact,
             onAddMembers = navigation.onAddMembers,
             onEditChat = navigation.onEditChat,

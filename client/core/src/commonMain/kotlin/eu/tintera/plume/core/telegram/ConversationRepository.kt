@@ -608,6 +608,17 @@ interface ConversationRepository {
         maxMessages: Int,
     ): Result<MessageStatsPage> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Polohy a místa v chatu (i živé) pro „Místa v chatu": průchod historií jako [messageStats],
+     * jen vrátí zprávy s polohou. TDLib filtr hledání na polohy nemá.
+     */
+    suspend fun chatLocations(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+    ): Result<ChatLocationsPage> = Result.failure(UnsupportedOperationException())
+
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**

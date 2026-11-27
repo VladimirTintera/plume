@@ -2138,9 +2138,10 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
 - ~~**„Před rokem"**~~ — hotovo jako pruh nad konverzací se skokem na ten den, i před víc lety
   (`docs/poznatky/konverzace-pohyb.md`, „Před rokem"). Zbývá ověřit v soukromém chatu, ve
   skupině a česky.
-- **Mapa poloh v chatu** (S–M). Všechny sdílené polohy a místa z chatu na jedné mapě, nejspíš
-  záložka ve sdílených médiích (`searchChatMessages` s filtrem polohy? — ověřit, jestli TDLib
-  filtr má; jinak průchod historií).
+- ~~**Mapa poloh v chatu**~~ — hotovo (⋮ v konverzaci → Místa v chatu: přehledová mapa se
+  špendlíky a seznam; `docs/poznatky/prohlizec-medii.md`, „Místa v chatu"). Zbývá: místa daleko
+  od sebe na jedné mapě (chtělo by mapové SDK, nebo skládat víc obrázků); vstup i ze sdílených
+  médií v profilu; ověřit na iOS.
 
 **Napříč chaty**
 

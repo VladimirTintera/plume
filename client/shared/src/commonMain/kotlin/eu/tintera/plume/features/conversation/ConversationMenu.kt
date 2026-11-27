@@ -40,6 +40,8 @@ import eu.tintera.plume.resources.chats_action_report
 import eu.tintera.plume.resources.chats_delete_report
 import eu.tintera.plume.resources.conversation_jump_to_date
 import eu.tintera.plume.resources.chat_insights_title
+import eu.tintera.plume.resources.chat_places_title
+import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.bar_chart_24dp
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.delete_24dp
@@ -103,6 +105,8 @@ internal fun ConversationMenu(
     onOpenCalendar: (() -> Unit)?,
     /** „Statistika chatu"; `null` = vlákno nebo téma. */
     onOpenInsights: (() -> Unit)?,
+    /** „Místa v chatu"; `null` = vlákno nebo téma. */
+    onOpenPlaces: (() -> Unit)?,
     /** Akce nad chatem → Sdílet kontakt: výběr chatů, do kterých ho poslat. */
     onShareContact: (userId: Long) -> Unit,
     /** Akce nad chatem → Přidat členy / odběratele. */
@@ -129,10 +133,10 @@ internal fun ConversationMenu(
             // Hovor je v liště vedle (`ConversationCallButtons`), v nabídce podruhé ne.
             onCall = null,
         ) { groups ->
-            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, onOpenInsights, groups)
+            ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, onOpenInsights, onOpenPlaces, groups)
         }
     } else {
-        ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, onOpenInsights, ChatActionGroups.Empty)
+        ConversationMenuContent(state, viewModel, showsContent, onSummary, onViewAsChats, onViewAsTopics, onSwitchChat, onOpenCalendar, onOpenInsights, onOpenPlaces, ChatActionGroups.Empty)
     }
 }
 
@@ -147,6 +151,7 @@ private fun ConversationMenuContent(
     onSwitchChat: (() -> Unit)?,
     onOpenCalendar: (() -> Unit)?,
     onOpenInsights: (() -> Unit)?,
+    onOpenPlaces: (() -> Unit)?,
     chatActions: ChatActionGroups,
 ) {
     val info = state.info
@@ -196,6 +201,11 @@ private fun ConversationMenuContent(
             // Statistika vedle kalendáře: obojí je pohled na historii chatu jako celek.
             if (showsContent && onOpenInsights != null) {
                 MenuAction(stringResource(Res.string.chat_insights_title), Res.drawable.bar_chart_24dp, onClick = onOpenInsights)
+            } else {
+                null
+            },
+            if (showsContent && onOpenPlaces != null) {
+                MenuAction(stringResource(Res.string.chat_places_title), Res.drawable.location_on_24dp, onClick = onOpenPlaces)
             } else {
                 null
             },
