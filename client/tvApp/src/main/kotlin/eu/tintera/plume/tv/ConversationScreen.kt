@@ -457,6 +457,7 @@ private fun MessagePhoto(fileId: Int) {
 internal fun MessageVideo(video: MessageMedia.Video) {
     val targetPx = with(LocalDensity.current) { PHOTO_HEIGHT.roundToPx() }
     val thumbnail = rememberImage(video.thumbnailFileId, targetPx)
+    val watched = rememberWatched(video)
     val ratio = if (video.width > 0 && video.height > 0) video.width.toFloat() / video.height else 16f / 9f
     Box(
         Modifier
@@ -473,8 +474,10 @@ internal fun MessageVideo(video: MessageMedia.Video) {
         ) {
             Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
         }
+        // Rozkoukané: kde se skončilo i číslem — u hodinového videa je proužek po minutě
+        // sledování pár bodů (jako na telefonu).
         Text(
-            video.durationSeconds.asDuration(),
+            watched?.progressLabel() ?: video.durationSeconds.asDuration(),
             style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
             color = Color.White,
             modifier = Modifier
@@ -483,6 +486,7 @@ internal fun MessageVideo(video: MessageMedia.Video) {
                 .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
+        watched?.let { WatchedBar(it, Modifier.align(Alignment.BottomCenter)) }
     }
 }
 

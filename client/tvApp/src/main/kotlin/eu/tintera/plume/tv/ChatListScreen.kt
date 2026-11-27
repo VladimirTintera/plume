@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,9 @@ import eu.tintera.plume.resources.chats_load_failed
 import eu.tintera.plume.resources.chats_section_pinned
 import eu.tintera.plume.resources.cloud_off_24dp
 import eu.tintera.plume.resources.connection_connecting
+import eu.tintera.plume.resources.continue_watching_empty
+import eu.tintera.plume.resources.continue_watching_title
+import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.tv_chats_empty
 import kotlin.time.Clock
@@ -82,31 +86,60 @@ import org.koin.compose.koinInject
  *
  * [listStateFor] a [lastOpenedChat] drží navigace, ne obrazovka: po návratu z konverzace musí
  * seznam stát na stejném místě a fokus na chatu, ze kterého uživatel odešel.
+ *
+ * **Rozkoukaná videa** ([watching]) jsou záložka hned za Všemi chaty, jen když nějaká jsou:
+ * mřížka karet ([ContinueWatchingPane]) místo seznamu a náhledu. Na plochu Google TV (řada
+ * „Pokračovat ve sledování") je dát nejde — viz docs/poznatky/android-tv.md, „Rozkoukaná videa".
  */
 @Composable
 fun ChatListScreen(
     folder: ChatFolder,
+    watching: Boolean,
     onFolder: (ChatFolder) -> Unit,
+    onWatching: () -> Unit,
     listStateFor: (ChatFolder) -> LazyListState,
     lastOpenedChat: Long?,
+    playerOpen: Boolean,
+    onPlay: (VideoRequest) -> Unit,
     onOpen: (Long) -> Unit,
 ) {
     val chats = koinInject<ChatRepository>()
     // Náhled patří zaostřenému chatu VYBRANÉ složky; po přepnutí složky by jinak zůstal chat
     // z předchozí, dokud fokus nesjede do seznamu.
-    var focusedChat by remember(folder) { mutableStateOf<ChatSummary?>(null) }
+    var focusedChat by remember(folder, watching) { mutableStateOf<ChatSummary?>(null) }
     var tabsFocused by remember { mutableStateOf(false) }
     val preview = rememberChatPreview(focusedChat?.id)
+    val watchingPositions = rememberWatchingPositions()
     Box(Modifier.fillMaxSize()) {
         ChatPreviewBackdrop(preview)
         Column(Modifier.fillMaxSize()) {
             FolderTabs(
                 selected = folder,
+                watching = watching,
+                // Záložka zůstane i s prázdným seznamem, dokud je vybraná (poslední video odebrané).
+                showWatching = watching || watchingPositions.isNotEmpty(),
                 onFolder = onFolder,
+                onWatching = onWatching,
                 modifier = Modifier
                     .padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = 8.dp)
                     .onFocusChanged { tabsFocused = it.hasFocus },
             )
+            if (watching) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    if (watchingPositions.isEmpty()) {
+                        MessageScreen(stringResource(Res.string.continue_watching_empty), Res.drawable.play_arrow_24dp)
+                    } else {
+                        ContinueWatchingPane(
+                            positions = watchingPositions,
+                            playerOpen = playerOpen,
+                            takeFocus = !tabsFocused,
+                            onPlay = onPlay,
+                            onOpenChat = onOpen,
+                        )
+                    }
+                }
+                return@Column
+            }
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Box(Modifier.fillMaxHeight().fillMaxWidth(LIST_FRACTION)) {
                     key(folder) {
@@ -135,27 +168,49 @@ fun ChatListScreen(
     }
 }
 
-/** Záložky složek: Všechny chaty, složky Telegramu v pořadí uživatele, Archiv. */
+/** Záložka: složka chatů, nebo Rozkoukaná videa (`folder == null`). */
+private data class TabEntry(val folder: ChatFolder?, val title: String, val count: Int)
+
+/** Záložky složek: Všechny chaty, Rozkoukaná videa, složky Telegramu v pořadí uživatele, Archiv. */
 @Composable
-private fun FolderTabs(selected: ChatFolder, onFolder: (ChatFolder) -> Unit, modifier: Modifier) {
+private fun FolderTabs(
+    selected: ChatFolder,
+    watching: Boolean,
+    showWatching: Boolean,
+    onFolder: (ChatFolder) -> Unit,
+    onWatching: () -> Unit,
+    modifier: Modifier,
+) {
     val chats = koinInject<ChatRepository>()
     val folders by chats.chatFolders.collectAsState()
     val unread by chats.folderUnread.collectAsState()
     val archiveUnread by chats.archiveUnread.collectAsState()
     val all = stringResource(Res.string.chat_folders_all)
     val archive = stringResource(Res.string.chats_archive)
+    val continueWatching = stringResource(Res.string.continue_watching_title)
     val tabs = buildList {
-        add(Triple<ChatFolder, String, Int>(ChatFolder.Main, all, 0))
-        folders.folders.forEach { add(Triple(ChatFolder.Custom(it.id), it.title, unread[it.id]?.chats ?: 0)) }
-        add(Triple(ChatFolder.Archive, archive, archiveUnread.chats))
+        add(TabEntry(ChatFolder.Main, all, 0))
+        if (showWatching) add(TabEntry(null, continueWatching, 0))
+        folders.folders.forEach { add(TabEntry(ChatFolder.Custom(it.id), it.title, unread[it.id]?.chats ?: 0)) }
+        add(TabEntry(ChatFolder.Archive, archive, archiveUnread.chats))
     }
-    val selectedIndex = tabs.indexOfFirst { it.first == selected }.coerceAtLeast(0)
-    TabRow(selectedTabIndex = selectedIndex, modifier = modifier.focusGroup()) {
+    val selectedIndex = tabs.indexOfFirst { if (watching) it.folder == null else it.folder == selected }.coerceAtLeast(0)
+    // Šipka nahoru ze seznamu jde na VYBRANOU záložku, ne na tu, která je nad zaostřeným řádkem
+    // nejblíž: záložka se vybírá už zaostřením, takže by šipka nahoru přepnula složku.
+    val selectedTab = remember { FocusRequester() }
+    TabRow(selectedTabIndex = selectedIndex, modifier = modifier.focusRestorer(selectedTab).focusGroup()) {
         tabs.forEachIndexed { index, (folder, title, count) ->
+            val choose = {
+                when {
+                    folder == null -> if (!watching) onWatching()
+                    watching || folder != selected -> onFolder(folder)
+                }
+            }
             Tab(
                 selected = index == selectedIndex,
-                onFocus = { if (folder != selected) onFolder(folder) },
-                onClick = { if (folder != selected) onFolder(folder) },
+                onFocus = choose,
+                onClick = choose,
+                modifier = if (index == selectedIndex) Modifier.focusRequester(selectedTab) else Modifier,
             ) {
                 Text(
                     title,

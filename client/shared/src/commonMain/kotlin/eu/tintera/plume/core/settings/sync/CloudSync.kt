@@ -96,7 +96,7 @@ class CloudSync(
     }
 
     private suspend fun syncOnce(accountId: Long): Boolean {
-        val remote = readRemote().getOrElse { return false }
+        val remote = store.readGroups(CloudSyncGroup.entries).getOrElse { return false }
         val base = decodeBase(account.cloudSyncBase())?.takeIf { it.accountId == accountId } ?: CloudSyncBase(accountId)
         val preferences = settings.syncedPreferences.filterNotNull().first()
         val local = localEntries(
@@ -110,8 +110,8 @@ class CloudSync(
             accountId,
         )
 
-        val merged = CloudSyncGroup.entries.filterNot { remote[it] is RemoteGroup.Unsupported }.associateWith { group ->
-            val theirs = (remote[group] as? RemoteGroup.Present)?.entries.orEmpty()
+        val merged = CloudSyncGroup.entries.filterNot { remote[it] is CloudRemoteGroup.Unsupported }.associateWith { group ->
+            val theirs = (remote[group] as? CloudRemoteGroup.Present)?.entries.orEmpty()
             merge3(base.groups[group].orEmpty(), local.getValue(group), theirs, resolverFor(group))
         }
 
@@ -140,10 +140,10 @@ class CloudSync(
 
         // Tam: skupiny, které se v úložišti liší.
         merged.forEach { (group, entries) ->
-            val present = remote[group] as? RemoteGroup.Present
+            val present = remote[group] as? CloudRemoteGroup.Present
             val theirs = present?.entries.orEmpty()
             if (entries == theirs && (present != null || entries.isEmpty())) return@forEach
-            write(group, entries, previousParts = present?.parts ?: 0)
+            store.writeGroup(group, entries, previousParts = present?.parts ?: 0)
         }
 
         account.setCloudSyncBase(encodeBase(CloudSyncBase(accountId, base.groups + merged)))
@@ -175,42 +175,6 @@ class CloudSync(
         CloudSyncGroup.TextShortcuts -> ::resolvePreference
         CloudSyncGroup.Positions -> ::resolvePosition
         CloudSyncGroup.Bookmarks -> ::resolveBookmark
-    }
-
-    /** Skupiny z úložiště: záhlaví všech naráz, pak kusy těch, které tam jsou. */
-    private suspend fun readRemote(): Result<Map<CloudSyncGroup, RemoteGroup>> = runCatching {
-        val headers = store.get(CloudSyncGroup.entries.map { it.cloudKey }).getOrThrow()
-        CloudSyncGroup.entries.mapNotNull { group ->
-            val header = headers[group.cloudKey]?.let(::decodeHeader) ?: return@mapNotNull null
-            if (header.v > CLOUD_FORMAT_VERSION) return@mapNotNull group to RemoteGroup.Unsupported
-            val keys = (0 until header.n.coerceIn(0, MAX_CLOUD_PARTS)).map { partKey(group, it) }
-            val parts = store.get(keys).getOrThrow()
-            // Chybějící kus (zápis jiného zařízení skončil uprostřed): skupina se tentokrát přeskočí.
-            if (keys.any { it !in parts }) return@mapNotNull group to RemoteGroup.Unsupported
-            val entries = decodeEntries(keys.joinToString("") { parts.getValue(it) }) ?: return@mapNotNull group to RemoteGroup.Unsupported
-            group to RemoteGroup.Present(entries, header.n)
-        }.toMap()
-    }
-
-    /** Kusy napřed, záhlaví nakonec: čtení uprostřed zápisu vidí buď staré, nebo celé nové. */
-    private suspend fun write(group: CloudSyncGroup, entries: SyncEntries, previousParts: Int) {
-        val chunks = chunkForCloud(encodeEntries(entries))
-        if (chunks.size > MAX_CLOUD_PARTS) {
-            logger.w { "Skupina ${group.name} se do úložiště nevejde (${chunks.size} kusů)." }
-            return
-        }
-        chunks.forEachIndexed { index, chunk -> store.set(partKey(group, index), chunk).getOrThrow() }
-        store.set(group.cloudKey, encodeHeader(CloudHeader(n = chunks.size))).getOrThrow()
-        if (previousParts > chunks.size) store.delete((chunks.size until previousParts).map { partKey(group, it) })
-    }
-
-    private fun partKey(group: CloudSyncGroup, index: Int) = "${group.cloudKey}_$index"
-
-    private sealed interface RemoteGroup {
-        data class Present(val entries: SyncEntries, val parts: Int) : RemoteGroup
-
-        /** Novější formát, nebo rozepsaný zápis: nepřepisovat, nebrat. */
-        data object Unsupported : RemoteGroup
     }
 
     companion object {

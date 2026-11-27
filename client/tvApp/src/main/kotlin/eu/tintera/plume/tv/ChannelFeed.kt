@@ -268,7 +268,9 @@ private fun PostMedia(media: List<MessageMedia>, modifier: Modifier) {
             Box(Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
                 Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
             }
-            MediaBadge(first.durationSeconds.asDuration(), Modifier.align(Alignment.BottomEnd))
+            val watched = rememberWatched(first)
+            MediaBadge(watched?.progressLabel() ?: first.durationSeconds.asDuration(), Modifier.align(Alignment.BottomEnd))
+            watched?.let { WatchedBar(it, Modifier.align(Alignment.BottomCenter)) }
         }
         if (media.size > 1) MediaBadge("+${media.size - 1}", Modifier.align(Alignment.TopEnd))
     }

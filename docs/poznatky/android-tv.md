@@ -134,6 +134,58 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
 
+## Rozkoukaná videa
+
+- **Tatáž pravidla a tentýž seznam jako na telefonu** (`docs/poznatky/prohlizec-medii.md`,
+  „Pozice přehrávání se pamatuje"): klíč je soubor na serveru (`MessageMedia.Video.fileKey`),
+  jen videa od 2 min, ne prvních 10 s ani posledních 15 s, dohrané se zapomene. Data a čisté
+  funkce (`VideoPosition`, `withPosition`) se kvůli tomu přesunuly do `:client:core`
+  (`core/video/VideoPosition.kt`); `VideoPositions` nad `AppSettings` zůstal ve `shared`.
+  Balíček je stejný, telefon importy neměnil.
+- **Uložené v `SharedPreferences`** (`TvVideoPositions`), ne v DataStore — televize stojí jen
+  na `core` a jeden seznam do sto kB DataStore nepotřebuje.
+- **Synchronizace s telefonem a desktopem** (`TvPositionSync`): tatáž skupina
+  `plume_positions` v úložišti bota `@PlumeSyncBot`, týž formát a totéž trojcestné sloučení
+  jako `CloudSync` (`docs/poznatky/nastaveni.md`, „Synchronizace nastavení"). Formát, sloučení
+  a čtení i zápis skupin jsou proto v `core` (`core/settings/sync/CloudGroups.kt`, `CloudStore.kt`);
+  ve `shared` zůstaly jen skupiny, které televize nemá (záložky, barvy chatů, štítky, zkratky,
+  volby). Televize čte a píše JEN svou skupinu — každá skupina má v úložišti vlastní klíče,
+  takže ostatní nepřepíše. Synchronizuje se po `Ready`, **po návratu do popředí** (televize
+  nechává aplikaci v pozadí celé dny a telefon mezitím sledoval dál), po místní změně
+  s prodlevou 15 s a každých 15 minut. Základ sloučení drží `TvVideoPositions.syncBase`.
+- **Video se pustí od pamatované pozice** a nahoře na 6 s od rozběhnutí svítí „Pokračuje od
+  12:34" s tlačítkem Od začátku. Tlačítko nebere fokus (ten drží přehrávač kvůli šipkám), OK
+  dokud je nápis vidět vrátí na začátek — jako „Přeskočit úvod" u streamovacích služeb. Pauza
+  jde i tehdy tlačítkem médií. Bez pamatované pozice se začíná od `startSeconds` (přeposlání
+  „od 1:23").
+- **Zápis**: každých 10 s hraní, při dohrání, zavření přehrávače a `ON_STOP` (tlačítko Domů).
+  Jen u videa, které opravdu hrálo — otevření a zavření bez puštění by zapsalo začátek, a tím
+  smazalo pozici z telefonu. Pozice z posledního tiknutí, přehrávač už může být uvolněný.
+- **Proužek zhlédnutého a „0:23 / 1:02:08"** v bublině videa i na kartě příspěvku kanálu
+  (`rememberWatched`, `WatchedBar`), jako na telefonu.
+- **Záložka Rozkoukaná videa** hned za Všemi chaty, jen když nějaká jsou (vybraná zůstane
+  i s prázdným seznamem, ať odebrání posledního videa neschová záložku pod fokusem). Mřížka karet
+  po třech (`ContinueWatchingPane`): OK pustí video rovnou, podržení OK nabídne Otevřít chat
+  a Odebrat ze seznamu. Zpráva se dočte jednou a pamatuje se; napřed `summaries` nad chaty —
+  video rozkoukané na telefonu bývá z chatu, který televize ještě nenačetla, a `getMessage` by
+  bez něj selhal. Smazaná zpráva nebo zpráva bez videa se tiše nevykreslí. „Zobrazit v chatu"
+  jako na telefonu to není: skok na zprávu konverzace na televizi zatím neumí.
+- **Zamčené chaty televize nemá** (`LockedChats` dodává jen aplikace telefonu), takže v seznamu
+  jsou i videa ze zamčených chatů — stejně jako ty chaty v seznamu chatů.
+- **Šipka nahoru ze seznamu jde na VYBRANOU záložku** (`focusRestorer` na `TabRow`). Dřív šla
+  na záložku nejblíž nad zaostřeným řádkem, a protože se záložka vybírá už zaostřením, šipka
+  nahoru tiše přepnula složku (s novou záložkou na druhém místě pokaždé na Rozkoukaná videa).
+- **Na plochu Google TV (řada „Pokračovat ve sledování") to nejde**, prozkoumáno 27. 11. 2026:
+  - **Engage SDK** (`com.google.android.engage:engage-tv`, cesta, kterou Google do té řady
+    dokumentuje) chce přihlášku a schválení Googlem, aplikace na Play v podporované kategorii
+    a velikost (Media Experience Program nebo 100 tisíc denních uživatelů). **Zasílání zpráv
+    mezi podporovanými kategoriemi výslovně není.**
+  - **Starší Watch Next** (`androidx.tvprovider`, řada „Play Next") schválení nechce, ale pravidla
+    říkají přidávat jen klasické filmy a seriály, ne klipy a krátká videa — přesně to, co je
+    v chatech. Jestli se na Google TV ještě ukazuje v řadě „Pokračovat ve sledování", dokumentace
+    neříká. Riziko, že kontrola kvality pro Android TV v Play aplikaci kvůli tomu vrátí, je
+    větší než užitek.
+
 ## Fotky a alba
 
 - **Prohlížeč přes celou obrazovku** (`MediaViewerScreen`): šipky vlevo a vpravo jdou po VŠECH
@@ -268,6 +320,13 @@ Do Play z téhož tagu jako telefon a hodinky, track `tv:internal`, za repo prom
 
 ## Ověření
 
+- **Rozkoukaná videa ověřena 27. 11. 2026** s tříminutovým videem od Notifikátora: po startu
+  synchronizace stáhla pozice z telefonu (záložka s videem rozkoukaným na Foldu, „0:26 /
+  1:02:08"), přehrání 28 s → proužek a „0:27 / 3:00" v bublině, znovu otevřené „Pokračuje od
+  0:27", OK → od začátku, posun a zavření → nahráno do úložiště (log `TvPositionSync`), karta
+  v záložce, přehrání z karty od 1:23 a fokus zpátky na kartě, podržení → Odebrat (zmizí
+  i z úložiště, videa z telefonu zůstala). Že se pozice z televize ukáže na telefonu, ověřené
+  není (telefon v tu chvíli neběžel); formát i sloučení jsou tytéž funkce z `core`.
 - **Nová zpráva ověřena 27. 11. 2026** v chatu s Notifikátorem: šipka dolů na tlačítko,
   dialog „Nová zpráva", odeslání, fokus na nové zprávě. Pod komentáři jen přeloženo.
 - **Reakce a odpovědi ověřeny 27. 11. 2026** v chatu s Notifikátorem: podržení OK, reakce 👍
