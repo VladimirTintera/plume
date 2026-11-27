@@ -14,6 +14,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.WriteAccess
 import androidx.compose.runtime.snapshotFlow
@@ -293,6 +294,11 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
     suspend fun forward(message: ChatMessage, toChatId: Long): Result<Unit> =
         conversations.forward(chatId, albumIds(message).sorted(), toChatId)
             .onFailure { logger.w(it) { "Zpráva ${message.id} se z televize nepřeposlala do $toChatId." } }
+
+    /** Kdo na zprávu [messageId] reagoval a čím (jedna stránka od nejnovější reakce). */
+    suspend fun reactionDetails(messageId: Long): Result<List<ReactionDetail>> =
+        conversations.reactionDetails(chatId, messageId)
+            .onFailure { logger.w(it) { "Kdo reagoval na zprávu $messageId, se na televizi nenačetlo." } }
 
     /** Emoji, která jdou u zprávy [messageId] dát. */
     suspend fun reactionChoices(messageId: Long): List<String> =
