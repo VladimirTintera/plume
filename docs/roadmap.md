@@ -581,11 +581,13 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    na telefonu `VideoProgress`), výběr kvality (`alternatives`), titulky/storyboard při skoku,
    video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
 2. ~~**Kanály jako feed a komentáře**~~ — hotovo (karty příspěvků, detail s rolovaným textem
-   a vláknem komentářů). Zbývá: celé album v detailu (dnes jen první médium), odkazy a Instant
+   a vláknem komentářů). Zbývá: odkazy a Instant
    View v textu, příspěvek z feedu otevřený přímo v přehrávači (OK na kartě s videem), **zpráva
    vyšší než obrazovka v konverzaci** (skupiny, chaty — fokus tam pořád skáče po celých
    zprávách) a velké komentáře, které se do pravého sloupce nevejdou celé.
-3. **Fotky přes celou obrazovku** a procházení alba šipkami.
+3. ~~**Fotky přes celou obrazovku** a procházení alba šipkami~~ — hotovo (prohlížeč přes všechna
+   média konverzace, album jako mřížka v bublině). Zbývá: přiblížení fotky, pás alba v detailu
+   příspěvku ověřit na kanálu s alby, otevření prohlížeče na N-té položce alba (dnes vždy první).
 4. **Hlasovky a hudba** (přehrávání, dock).
 5. **Reakce** (rychlá reakce na zaostřenou zprávu), případně odpověď hlasem přes systémovou
    klávesnici.

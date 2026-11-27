@@ -133,7 +133,7 @@ fun channelPosts(messages: List<ChatMessage>): List<ChannelPost> {
  * feedu ([listState]) a karta, na kterou se má fokus vrátit, proto žijí tady, nad oběma.
  */
 @Composable
-fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit) {
+fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, actions: MediaActions) {
     val state = rememberConversationState(chatId)
     val listState = rememberLazyListState()
     var openPost by remember { mutableStateOf<Long?>(null) }
@@ -144,7 +144,7 @@ fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, onPlayV
     val opened = openPost?.let { id -> posts.firstOrNull { it.id == id } }
     if (opened != null) {
         BackHandler { openPost = null }
-        PostDetail(chatId, info, opened, playerOpen, onPlayVideo)
+        PostDetail(chatId, info, opened, playerOpen, actions)
         return
     }
     Column(Modifier.fillMaxSize()) {
@@ -326,28 +326,29 @@ private fun FooterStat(icon: org.jetbrains.compose.resources.DrawableResource, t
  * — teprve na konci by fokus odešel jinam; doprava se jde do komentářů. U videa OK přehraje.
  */
 @Composable
-private fun PostDetail(chatId: Long, info: ChatInfo, post: ChannelPost, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit) {
+private fun PostDetail(chatId: Long, info: ChatInfo, post: ChannelPost, playerOpen: Boolean, actions: MediaActions) {
     Column(Modifier.fillMaxSize()) {
         ChatHeader(chatId, info)
         Row(
             Modifier.fillMaxSize().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, bottom = SAFE_VERTICAL),
             horizontalArrangement = Arrangement.spacedBy(32.dp),
         ) {
-            PostBody(post, playerOpen, onPlayVideo, Modifier.weight(0.56f).fillMaxHeight())
-            PostComments(chatId, post, playerOpen, onPlayVideo, Modifier.weight(0.44f).fillMaxHeight())
+            PostBody(post, playerOpen, actions, Modifier.weight(0.56f).fillMaxHeight())
+            PostComments(chatId, post, actions, Modifier.weight(0.44f).fillMaxHeight())
         }
     }
 }
 
 @Composable
-private fun PostBody(post: ChannelPost, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit, modifier: Modifier) {
+private fun PostBody(post: ChannelPost, playerOpen: Boolean, actions: MediaActions, modifier: Modifier) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val stepPx = with(LocalDensity.current) { SCROLL_STEP.toPx() }
     val focus = remember { FocusRequester() }
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
-    val video = post.media.firstOrNull() as? MessageMedia.Video
+    // Samotné video se pustí, fotka nebo album otevře prohlížeč na první položce.
+    val open = mediaOpenAction(post.messages, post.messages, actions)
     Column(
         modifier
             .clip(RoundedCornerShape(20.dp))
@@ -371,8 +372,8 @@ private fun PostBody(post: ChannelPost, playerOpen: Boolean, onPlayVideo: (Messa
                         false
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER -> {
-                        if (video != null) onPlayVideo(video, post.text)
-                        video != null
+                        open?.invoke()
+                        open != null
                     }
                     else -> false
                 }
@@ -397,6 +398,10 @@ private fun PostBody(post: ChannelPost, playerOpen: Boolean, onPlayVideo: (Messa
                 }
                 else -> {}
             }
+            if (post.media.size > 1) {
+                Spacer(Modifier.height(12.dp))
+                AlbumStrip(post.media)
+            }
             Spacer(Modifier.height(20.dp))
         }
         Text(post.text.ifBlank { post.description?.resolve().orEmpty() }, style = MaterialTheme.typography.bodyLarge)
@@ -405,12 +410,41 @@ private fun PostBody(post: ChannelPost, playerOpen: Boolean, onPlayVideo: (Messa
     }
 }
 
+/** Zbytek alba pod hlavním médiem: řada malých náhledů; celé album se prochází v prohlížeči (OK). */
+@Composable
+private fun AlbumStrip(media: List<MessageMedia>) {
+    val targetPx = with(LocalDensity.current) { STRIP_HEIGHT.roundToPx() }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        media.drop(1).take(STRIP_TILES).forEachIndexed { index, item ->
+            val fileId = when (item) {
+                is MessageMedia.Photo -> item.fileId
+                is MessageMedia.Video -> item.thumbnailFileId
+                else -> null
+            }
+            Box(
+                Modifier.height(STRIP_HEIGHT).aspectRatio(1f).clip(RoundedCornerShape(10.dp)).background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                rememberImage(fileId, targetPx)?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+                if (item is MessageMedia.Video) {
+                    Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                }
+                val more = media.size - 1 - STRIP_TILES
+                if (index == STRIP_TILES - 1 && more > 0) {
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+                        Text("+$more", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PostComments(
     chatId: Long,
     post: ChannelPost,
-    playerOpen: Boolean,
-    onPlayVideo: (MessageMedia.Video, String) -> Unit,
+    actions: MediaActions,
     modifier: Modifier,
 ) {
     val conversations = koinInject<ConversationRepository>()
@@ -433,13 +467,13 @@ private fun PostComments(
         when {
             current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
             current.isFailure -> MessageScreen(stringResource(Res.string.comments_unavailable), Res.drawable.cloud_off_24dp, error = true)
-            else -> CommentList(current.getOrThrow(), playerOpen, onPlayVideo)
+            else -> CommentList(current.getOrThrow(), actions)
         }
     }
 }
 
 @Composable
-private fun CommentList(thread: CommentThread, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit) {
+private fun CommentList(thread: CommentThread, actions: MediaActions) {
     val state = rememberConversationState(thread.chatId, threadRootId = thread.rootMessageId)
     // Kořen vlákna (kopie příspěvku v diskusní skupině) je vlevo, mezi komentáři by byl podruhé.
     val comments = state.messages?.filter { it.id != thread.rootMessageId && !it.isService }
@@ -449,7 +483,8 @@ private fun CommentList(thread: CommentThread, playerOpen: Boolean, onPlayVideo:
         comments == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
         comments.isEmpty() -> MessageScreen(stringResource(Res.string.tv_comments_empty), Res.drawable.mode_comment_24dp)
         else -> {
-            val newestFirst = remember(comments) { comments.asReversed() }
+            // Alba v komentářích jako jedna bublina, jako v konverzaci.
+            val newestFirst = remember(comments) { albums(comments).asReversed() }
             LaunchedEffect(listState) {
                 snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
                     .collect { last -> if (last != null && last >= newestFirst.size - LOAD_AHEAD) state.loadOlder() }
@@ -464,12 +499,12 @@ private fun CommentList(thread: CommentThread, playerOpen: Boolean, onPlayVideo:
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize().focusRestorer(newest),
             ) {
-                items(newestFirst, key = { it.id }) { comment ->
+                items(newestFirst, key = { it.first().id }) { album ->
                     MessageRow(
-                        message = comment,
+                        album = album,
                         chatTitle = "",
-                        onPlayVideo = onPlayVideo,
-                        modifier = if (comment.id == newestFirst.first().id) Modifier.focusRequester(newest) else Modifier,
+                        onOpen = mediaOpenAction(album, comments, actions),
+                        modifier = if (album.first().id == newestFirst.first().first().id) Modifier.focusRequester(newest) else Modifier,
                     )
                 }
             }
@@ -482,6 +517,8 @@ private val CARD_HEIGHT = 200.dp
 private val DETAIL_MEDIA_HEIGHT = 320.dp
 private val SCROLL_STEP = 160.dp
 private const val MAX_REACTIONS = 3
+private val STRIP_HEIGHT = 96.dp
+private const val STRIP_TILES = 5
 
 /** Kolik příspěvků před koncem načtené části se dočítají starší. */
 private const val LOAD_AHEAD = 4

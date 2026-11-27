@@ -52,12 +52,26 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
         // zpráv na stejném místě a nenačítá se znovu. Zpět zavře nejdřív video (jeho
         // `BackHandler` je složený později, takže má přednost).
         var playing by remember(current) { mutableStateOf<Pair<MessageMedia.Video, String>?>(null) }
+        var viewer by remember(current) { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
+        val actions = remember(current) {
+            MediaActions(
+                playVideo = { video, caption -> playing = video to caption },
+                openViewer = { items, index -> viewer = items to index },
+            )
+        }
+        // Vrstvy: chat, nad ním prohlížeč fotek, nad ním přehrávač. Zpět zavírá od horní
+        // (`BackHandler` složený později má přednost) a fokus si bere zpátky vrstva, která zbyla.
         Box(Modifier.fillMaxSize()) {
-            key(current) { ChatScreen(
-                    chatId = current,
+            key(current) { ChatScreen(chatId = current, overlayOpen = playing != null || viewer != null, actions = actions) }
+            viewer?.let { (items, index) ->
+                MediaViewerScreen(
+                    items = items,
+                    startIndex = index,
                     playerOpen = playing != null,
-                    onPlayVideo = { video, caption -> playing = video to caption },
-                ) }
+                    onPlayVideo = actions.playVideo,
+                    onClose = { viewer = null },
+                )
+            }
             playing?.let { (video, caption) ->
                 key(video.fileId) { VideoPlayerScreen(video = video, caption = caption, onClose = { playing = null }) }
             }
@@ -86,14 +100,14 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
  * Druh chatu se zjistí z `chatInfo`, než se cokoli nakreslí.
  */
 @Composable
-private fun ChatScreen(chatId: Long, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit) {
+private fun ChatScreen(chatId: Long, overlayOpen: Boolean, actions: MediaActions) {
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<Result<ChatInfo>?>(null, chatId) { value = conversations.chatInfo(chatId) }
     val loaded = info?.getOrNull()
     when {
         info == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, playerOpen, onPlayVideo)
-        else -> ConversationScreen(chatId = chatId, playerOpen = playerOpen, onPlayVideo = onPlayVideo)
+        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, overlayOpen, actions)
+        else -> ConversationScreen(chatId = chatId, playerOpen = overlayOpen, actions = actions)
     }
 }
 

@@ -77,7 +77,7 @@ import org.koin.compose.koinInject
  * Psaní a komentáře v kanálech přijdou v dalších krocích (docs/roadmap.md, „Android TV").
  */
 @Composable
-fun ConversationScreen(chatId: Long, playerOpen: Boolean, onPlayVideo: (MessageMedia.Video, String) -> Unit) {
+fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions) {
     val state = rememberConversationState(chatId)
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<ChatInfo?>(null, chatId) { value = conversations.chatInfo(chatId).getOrNull() }
@@ -90,7 +90,7 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, onPlayVideo: (MessageM
             state.failed -> MessageScreen(stringResource(Res.string.tv_conversation_failed), Res.drawable.cloud_off_24dp, error = true)
             messages == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
             messages.isEmpty() -> MessageScreen(stringResource(Res.string.tv_conversation_empty), Res.drawable.chat_bubble_24dp)
-            else -> MessageList(state, messages, title, playerOpen, onPlayVideo)
+            else -> MessageList(state, messages, title, playerOpen, actions)
         }
     }
 }
@@ -116,16 +116,16 @@ private fun MessageList(
     messages: List<ChatMessage>,
     chatTitle: String,
     playerOpen: Boolean,
-    onPlayVideo: (MessageMedia.Video, String) -> Unit,
+    actions: MediaActions,
 ) {
     // Obrácený seznam: index 0 je nejnovější zpráva dole a nová zpráva se přidá pod ni, aniž by
     // seznam odjel. Předěl dne stojí nad první zprávou dne, v obráceném seznamu tedy ZA ní.
     val entries = remember(messages) { conversationEntries(messages) }
-    val newestId = messages.last().id
+    val newestId = (entries.first { it is Entry.Message } as Entry.Message).album.first().id
     val listState = rememberLazyListState()
     val focus = remember { FocusRequester() }
-    // Fokus na nejnovější zprávu, po zavření videa zpátky na zprávu s ním: přehrávač fokus
-    // odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
+    // Fokus na nejnovější zprávu, po zavření videa nebo prohlížeče zpátky na zprávu, ze které
+    // se otevřel: přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
     var focusTarget by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Dočítání starší historie, když se fokus blíží nejstarší načtené zprávě (horní okraj).
@@ -143,15 +143,21 @@ private fun MessageList(
         items(entries, key = { it.key }) { entry ->
             when (entry) {
                 is Entry.Day -> DayDivider(entry.timestamp)
-                is Entry.Message -> MessageRow(
-                    message = entry.message,
-                    chatTitle = chatTitle,
-                    onPlayVideo = { video, caption ->
-                        focusTarget = entry.message.id
-                        onPlayVideo(video, caption)
-                    },
-                    modifier = if (entry.message.id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier,
-                )
+                is Entry.Message -> {
+                    val id = entry.album.first().id
+                    val open = mediaOpenAction(entry.album, messages, actions)
+                    MessageRow(
+                        album = entry.album,
+                        chatTitle = chatTitle,
+                        onOpen = open?.let {
+                            {
+                                focusTarget = id
+                                it()
+                            }
+                        },
+                        modifier = if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier,
+                    )
+                }
             }
         }
     }
@@ -165,19 +171,35 @@ private sealed interface Entry {
         override val key: Any get() = "day-$epochDay"
     }
 
-    data class Message(val message: ChatMessage) : Entry {
-        override val key: Any get() = message.id
+    /** Zpráva, nebo album ([album] má víc zpráv se stejným `mediaAlbumId`) jako jedna bublina. */
+    data class Message(val album: List<ChatMessage>) : Entry {
+        override val key: Any get() = album.first().id
     }
+}
+
+/** Po sobě jdoucí zprávy (od nejstarší) složené do alb; zpráva mimo album je album o jedné zprávě. */
+internal fun albums(messages: List<ChatMessage>): List<List<ChatMessage>> {
+    val groups = mutableListOf<MutableList<ChatMessage>>()
+    for (message in messages) {
+        val last = groups.lastOrNull()
+        if (last != null && message.mediaAlbumId != 0L && last.first().mediaAlbumId == message.mediaAlbumId) {
+            last += message
+        } else {
+            groups += mutableListOf(message)
+        }
+    }
+    return groups
 }
 
 /** Zprávy od nejnovější, s předělem dne za poslední (v čase první) zprávou každého dne. */
 private fun conversationEntries(messages: List<ChatMessage>): List<Entry> {
     val zone = ZoneId.systemDefault()
-    val days = messages.map { Instant.ofEpochSecond(it.timestamp.toLong()).atZone(zone).toLocalDate().toEpochDay() }
+    val groups = albums(messages)
+    val days = groups.map { Instant.ofEpochSecond(it.first().timestamp.toLong()).atZone(zone).toLocalDate().toEpochDay() }
     return buildList {
-        for (index in messages.indices.reversed()) {
-            add(Entry.Message(messages[index]))
-            if (index == 0 || days[index] != days[index - 1]) add(Entry.Day(messages[index].timestamp, days[index]))
+        for (index in groups.indices.reversed()) {
+            add(Entry.Message(groups[index]))
+            if (index == 0 || days[index] != days[index - 1]) add(Entry.Day(groups[index].first().timestamp, days[index]))
         }
     }
 }
@@ -196,26 +218,31 @@ private fun DayDivider(timestamp: Int) {
 
 @Composable
 internal fun MessageRow(
-    message: ChatMessage,
+    album: List<ChatMessage>,
     chatTitle: String,
-    onPlayVideo: (MessageMedia.Video, String) -> Unit,
+    onOpen: (() -> Unit)?,
     modifier: Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
+    // Popisek alba nese jen jedna z jeho zpráv; odesílatel a čas jsou z první.
+    val message = album.first()
+    val captioned = album.firstOrNull { it.text.isNotBlank() } ?: message
     val video = message.media as? MessageMedia.Video
-    // Zpráva s videem se OK otevře (`clickable` na televizi bere i DPAD_CENTER), ostatní jen
-    // drží fokus, aby šlo po zprávách chodit šipkami.
+    val isAlbum = album.size > 1
+    // Zpráva s médiem se OK otevře (`clickable` na televizi bere i DPAD_CENTER): video se pustí,
+    // fotka a album otevřou prohlížeč. Ostatní jen drží fokus, aby šlo chodit šipkami.
     val focusModifier = modifier
         .onFocusChanged { focused = it.isFocused }
         .then(
-            if (video != null) {
+            if (onOpen != null) {
                 // Bez vlnky přes celou šířku řádku: fokus nese rámeček bubliny.
                 Modifier.clickable(
                     interactionSource = null,
                     indication = null,
-                    onClickLabel = stringResource(Res.string.media_play),
-                ) { onPlayVideo(video, message.text) }
+                    onClickLabel = if (video != null && !isAlbum) stringResource(Res.string.media_play) else null,
+                    onClick = onOpen,
+                )
             } else {
                 Modifier.focusable()
             },
@@ -255,16 +282,22 @@ internal fun MessageRow(
                 Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
                 Spacer(Modifier.height(4.dp))
             }
-            (message.media as? MessageMedia.Photo)?.let { photo ->
-                MessagePhoto(photo.fileId)
+            if (isAlbum) {
+                AlbumGrid(album.mapNotNull { it.media })
                 Spacer(Modifier.height(8.dp))
+            } else {
+                (message.media as? MessageMedia.Photo)?.let { photo ->
+                    MessagePhoto(photo.fileId)
+                    Spacer(Modifier.height(8.dp))
+                }
+                video?.let {
+                    MessageVideo(it)
+                    Spacer(Modifier.height(8.dp))
+                }
             }
-            video?.let {
-                MessageVideo(it)
-                Spacer(Modifier.height(8.dp))
-            }
-            val text = message.text.ifEmpty {
-                if (message.media is MessageMedia.Photo || video != null) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
+            val hasVisualMedia = album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
+            val text = captioned.text.ifEmpty {
+                if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
             }
             if (text.isNotEmpty()) {
                 Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
@@ -275,6 +308,54 @@ internal fun MessageRow(
                 color = content.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.End),
             )
+        }
+    }
+}
+
+/**
+ * Album v bublině: až čtyři náhledy ve dvou řadách po dvou, u posledního „+N" za ostatní.
+ * Celé album se prochází v prohlížeči (OK na bublině), mřížka jen ukazuje, co v něm je.
+ */
+@Composable
+private fun AlbumGrid(media: List<MessageMedia>) {
+    val shown = media.take(ALBUM_TILES)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        shown.chunked(2).forEachIndexed { row, pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                pair.forEachIndexed { column, item ->
+                    val position = row * 2 + column
+                    AlbumTile(item, more = if (position == shown.lastIndex) media.size - shown.size else 0)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumTile(media: MessageMedia, more: Int) {
+    val fileId = when (media) {
+        is MessageMedia.Photo -> media.fileId
+        is MessageMedia.Video -> media.thumbnailFileId
+        else -> null
+    }
+    val targetPx = with(LocalDensity.current) { ALBUM_TILE_HEIGHT.roundToPx() }
+    val image = rememberImage(fileId, targetPx)
+    Box(
+        Modifier
+            .width(ALBUM_TILE_WIDTH)
+            .height(ALBUM_TILE_HEIGHT)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        image?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        if (media is MessageMedia.Video) {
+            Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
+        }
+        if (more > 0) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+                Text("+$more", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            }
         }
     }
 }
@@ -345,6 +426,9 @@ internal fun Int.asDuration(): String = if (this >= 3600) {
 private val BUBBLE_SHAPE = RoundedCornerShape(20.dp)
 private val BUBBLE_MAX_WIDTH = 720.dp
 private val PHOTO_HEIGHT = 240.dp
+private val ALBUM_TILE_WIDTH = 220.dp
+private val ALBUM_TILE_HEIGHT = 150.dp
+private const val ALBUM_TILES = 4
 
 /** Kolik zpráv před nejstarší načtenou se dočítá další stránka. */
 private const val LOAD_AHEAD = 8

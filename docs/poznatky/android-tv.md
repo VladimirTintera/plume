@@ -121,6 +121,26 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
 
+## Fotky a alba
+
+- **Prohlížeč přes celou obrazovku** (`MediaViewerScreen`): šipky vlevo a vpravo jdou po VŠECH
+  fotkách a videích načtené konverzace (jako prohlížeč na telefonu), ne jen po albu; OK na
+  videu ho pustí (přehrávač leží nad prohlížečem), Zpět zavře. Popisek a „3 / 12" se po 4 s
+  schovají, u krajů šipky naznačují, že je kam jít. Fotka se ukáže hned ve variantě z bubliny
+  (bývá stažená) a vymění se za plnou (`fullFileId`, dekódovaná na 1080 px), až dorazí.
+- **Vrstvy v `TvNavigation`: chat → prohlížeč → přehrávač.** Zpět zavírá od horní (pozdější
+  `BackHandler` má přednost). Fokus si po zavření bere vrstva, která zbyla: chat jen když je
+  zavřené obojí (`overlayOpen`), jinak by po zavření přehrávače ukradl fokus prohlížeči.
+- **Co udělá OK na zprávě, rozhoduje jedno místo** (`mediaOpenAction`): samotné video se rovnou
+  přehraje (bez mezikroku přes prohlížeč), fotka nebo album otevře prohlížeč, zpráva bez média
+  jen drží fokus. Platí v konverzaci, v komentářích i v detailu příspěvku.
+- **Album je v konverzaci i v komentářích jedna bublina** (`albums`: po sobě jdoucí zprávy se
+  stejným `mediaAlbumId`) s mřížkou 2 × 2 a „+N" na posledním náhledu. Popisek alba nese jen
+  jedna zpráva, odesílatel a čas jsou z první. V detailu příspěvku je pod hlavním médiem pás
+  dalších náhledů alba (jen na ukázku, prochází se v prohlížeči).
+- **`MediaActions`** (přehrát video, otevřít prohlížeč) jde cestou od navigace ke zprávě jako
+  jedna skupina, ne dva callbacky v každé funkci.
+
 ## Kanály: feed a komentáře
 
 - **Kanál se otevírá jako feed příspěvků** (`ChannelFeedScreen`), ostatní chaty jako konverzace.
@@ -162,6 +182,10 @@ položek se to může projevit cizím avatarem u recyklované karty; neověřen�
 
 ## Ověření
 
+- **Fotky a alba ověřeny 27. 11. 2026**: album (tři fotky a video, poslané Notifikátorem do jeho
+  chatu) jako bublina s mřížkou, prohlížeč od první fotky alba, šipkami na video, přehrání, Zpět
+  do prohlížeče a do konverzace s fokusem na albu. Pás alba v detailu příspěvku je jen přeložený
+  (odebírané kanály s alby v testu nebyly).
 - **Feed kanálu ověřen 27. 11. 2026** na veřejných kanálech, které účet odebírá a měl
   přečtené (Pavel Durov bez komentářů, Short Drama s komentáři a reakcemi): karty, detail,
   rolování textu, vstup do komentářů, zpět s fokusem na kartě. Kanál se otevře i intentem
