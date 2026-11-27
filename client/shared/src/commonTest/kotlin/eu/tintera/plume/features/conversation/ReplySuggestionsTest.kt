@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.ai.REPLY_CONTEXT_MESSAGES
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.SendState
+import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -97,5 +98,13 @@ class ReplySuggestionsTest {
         assertEquals(REPLY_CONTEXT_MESSAGES, context.size)
         // Bere se KONEC rozhovoru, ne jeho začátek.
         assertEquals((REPLY_CONTEXT_MESSAGES + 5).toLong(), context.last().id)
+    }
+
+    /** Telefon drží původních 240 dp, široký řádek na desktopu pustí celý návrh od Aya. */
+    @Test
+    fun stropCipuRosteSeSirkouRadku() {
+        assertEquals(240f, replyChipMaxWidth(300.dp).value, 0.01f)
+        assertEquals(240f, replyChipMaxWidth(380.dp).value, 0.01f)
+        assertEquals(444f, replyChipMaxWidth(740.dp).value, 0.01f)
     }
 }

@@ -1691,9 +1691,13 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Čipy leží na mléčném skle spodního bloku**, společném s polem (viz „Pruh pod kartou…"
   v `konverzace-zobrazeni.md`). Bez něj pod nimi při odrolování prosvítaly bubliny.
 - **Čipy přicházejí postupně** (60 ms po sobě, od konce řádku, průhlednost effects spec, posun
-  spatial), klíčované sadou — nová sada přijde znovu postupně. **Šířka má strop 240 dp a text
-  jeden řádek s výpustkou**: dlouhý návrh by jinak zabral celý řádek a schoval ostatní. Okraj,
-  za kterým řada pokračuje, se prolíná (`horizontalFadingEdges`).
+  spatial), klíčované sadou — nová sada přijde znovu postupně. **Šířka má strop a text jeden
+  řádek s výpustkou**: dlouhý návrh by jinak zabral celý řádek a schoval ostatní. Okraj, za
+  kterým řada pokračuje, se prolíná (`horizontalFadingEdges`).
+- **Strop šířky čipu se řídí šířkou řádku** (`replyChipMaxWidth`: aspoň 240 dp, jinak 60 %
+  řádku). Pevných 240 dp sedí na telefon, ale na desktopu s Aya byl oříznutý každý návrh
+  (40–60 znaků, kolem 400 dp) a vedle zbývalo plno místa — návrh se nedal přečíst, dokud se
+  nevložil. 60 % drží důvod stropu: i nejdelší čip nechá vykouknout souseda.
 - **Čtečka obrazovky** slyší u čipu „Vložit do zprávy" (`semantics { onClick(label) }`), ne holé
   „aktivovat" — jinak nevidomý nepozná, že se nic neodešle. Řádek je `isTraversalGroup`, ✨ má
   popis „Navržené odpovědi: možnosti" a čte se první.
@@ -1723,6 +1727,14 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   (na nejednoznačný vstup odpověděl polsky).
 - **Návrh se dělá JEDNOU na zprávu** (`ReplySuggestionsViewModel` si drží id). Bez toho by se
   inference pouštěla při každé změně stavu konverzace — přečtení, reakce, scroll.
+- **Hotové návrhy si ViewModel pamatuje i přes `clear()`** (`finished`, jen pro poslední
+  zprávu). Kdo vložil návrh a pak pole smazal, dostal dřív nový výpočet a JINÉ čipy — `clear()`
+  při psaní zapomene id, takže prázdné pole pustilo model znovu; s Aya 8B na desktopu to jsou
+  vteřiny. Teď se vrátí tytéž čipy hned. Zrušený výpočet (psaní začalo dřív, než doběhl) se
+  nepamatuje a dopočítá se.
+- **„Skrýt návrhy" a ťuknutí na čip jsou dvě různé věci** (`hide()` vs. `consume()`). Obojí
+  čipy schová, ale po smazání pole se vrátí jen po ťuknutí (uživatel vložený návrh nechce,
+  hledá jiný); schování je výslovné „k téhle zprávě ne" a platí, dokud nepřijde další zpráva.
 - **Během letu odeslané zprávy se návrh nepouští** (`state.flight` v `ConversationScreen`).
   Pole se vyprázdní dřív, než odeslaná zpráva dorazí do seznamu, takže poslední zprávou byla na
   okamžik zase ta příchozí: `clear()` při psaní zapomněl id, a model se tak rozjel znovu přesně

@@ -106,11 +106,30 @@ class ReplySuggestionsViewModel(
     /** Pro kterou zprávu už návrh běžel — aby se inference nepouštěla znovu a znovu. */
     private var lastTarget: Long? = null
 
+    /**
+     * Poslední DOPOČÍTANÉ návrhy a zpráva, ke které patří. [clear] je nezapomíná.
+     *
+     * Kdo vloží návrh a pak pole smaže (nebo začne psát a rozmyslí si to), dostal dřív nový
+     * výpočet a jiné čipy: [clear] zapomněl [lastTarget] a prázdné pole pustilo model znovu.
+     * U Aya 8B na desktopu to jsou vteřiny výpočtu a čipy, které uživatel už viděl, se pod ním
+     * vyměnily. Jde jen o jednu zprávu: k jiné se počítá znovu a starý výsledek se zahodí.
+     * Zrušený výpočet (uživatel začal psát dřív, než doběhl) se nepamatuje, ten se dopočítá.
+     */
+    private var finished: Pair<Long, List<String>>? = null
+
+    /** Zpráva, u které uživatel návrhy schoval ([hide]); k ní se nenabízí ani po [clear]. */
+    private var hiddenFor: Long? = null
+
     fun suggest(targetMessageId: Long, chatTitle: String, messages: List<ChatMessage>, me: String) {
         if (targetMessageId == lastTarget) return
         lastTarget = targetMessageId
         job?.cancel()
         _suggestions.value = emptyList()
+        if (targetMessageId == hiddenFor) return
+        finished?.takeIf { it.first == targetMessageId }?.let { (_, cached) ->
+            _suggestions.value = cached
+            return
+        }
 
         job = viewModelScope.launch {
             val lines = transcriptLines(replyContext(messages), chatTitle, me)
@@ -119,8 +138,10 @@ class ReplySuggestionsViewModel(
             val variant = ai.proactiveVariant(AiTask.Replies, settings, load) ?: return@launch
             if (ai.status(variant) != OnDeviceAiStatus.Ready) return@launch
             try {
-                _suggestions.value = structuredSuggestions(variant, chatTitle, lines)
+                val result = structuredSuggestions(variant, chatTitle, lines)
                     ?: textSuggestions(variant, chatTitle, lines)
+                finished = targetMessageId to result
+                _suggestions.value = result
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -179,7 +200,11 @@ class ReplySuggestionsViewModel(
         return parseReplySuggestions(last)
     }
 
-    /** Uživatel začal psát, odešel, nebo se cíl změnil na „nenabízet". */
+    /**
+     * Uživatel začal psát, odešel, nebo se cíl změnil na „nenabízet". Hotové návrhy
+     * ([finished]) a schování ([hiddenFor]) zůstávají: při návratu k téže zprávě se ukážou
+     * tytéž čipy bez nového výpočtu, nebo žádné.
+     */
     fun clear() {
         job?.cancel()
         job = null
@@ -188,13 +213,22 @@ class ReplySuggestionsViewModel(
     }
 
     /**
-     * Ťuknutí na čip nebo „Skrýt návrhy": k téže zprávě se už nenabízí (id zůstává), k další
-     * zase ano.
+     * Ťuknutí na čip: čipy zmizí, dokud se pole nevyprázdní (id zůstává). Když uživatel vložený
+     * návrh smaže, vrátí se tytéž čipy ([finished]) — chce zřejmě jiný.
      */
     fun consume() {
         job?.cancel()
         job = null
         _suggestions.value = emptyList()
+    }
+
+    /**
+     * „Skrýt návrhy" (× nebo nabídka ✨): k téže zprávě se už nenabízí vůbec, ani po smazání
+     * pole; k další zase ano. To je rozdíl proti [consume] — schování je výslovné „k tomuhle ne".
+     */
+    fun hide() {
+        consume()
+        hiddenFor = lastTarget
     }
 
     private val _turnedOff = MutableStateFlow(false)

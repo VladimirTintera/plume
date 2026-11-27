@@ -25,6 +25,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,6 +57,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,19 +117,27 @@ fun ReplySuggestionChips(
             val scroll = rememberScrollState()
             // Nová sada začíná zleva, i když řádek mezi zprávami nezmizel.
             LaunchedEffect(shown.value) { scroll.scrollTo(0) }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .weight(1f)
-                    .horizontalFadingEdges(scroll)
-                    .horizontalScrollWithWheel(scroll)
-                    .padding(vertical = 4.dp),
-            ) {
-                // Klíč podle sady: nová sada přichází znovu postupně, ne naráz.
-                key(shown.value) {
-                    shown.value.forEachIndexed { index, suggestion ->
-                        ReplyChip(text = suggestion, index = index, onClick = { pick(suggestion) })
+            // Šířka řádku pro strop čipu (`replyChipMaxWidth`); uvnitř posunu je šířka neomezená.
+            BoxWithConstraints(Modifier.weight(1f)) {
+                val chipMaxWidth = replyChipMaxWidth(maxWidth)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .horizontalFadingEdges(scroll)
+                        .horizontalScrollWithWheel(scroll)
+                        .padding(vertical = 4.dp),
+                ) {
+                    // Klíč podle sady: nová sada přichází znovu postupně, ne naráz.
+                    key(shown.value) {
+                        shown.value.forEachIndexed { index, suggestion ->
+                            ReplyChip(
+                                text = suggestion,
+                                index = index,
+                                maxWidth = chipMaxWidth,
+                                onClick = { pick(suggestion) },
+                            )
+                        }
                     }
                 }
             }
@@ -151,11 +161,11 @@ fun ReplySuggestionChips(
  * kam se vloží, a neplete se s příchozí bublinou (ta je `surfaceContainerHigh` bez přitónování)
  * ani s odchozí. Text `onSurface` — výchozí `onSurfaceVariant` je na kartě zašedlý.
  *
- * Šířka má strop a text jde na jeden řádek s výpustkou: dlouhý návrh by zabral celý řádek
- * a další schoval mimo obrazovku. Celý text se stejně vloží do pole.
+ * Šířka má strop ([replyChipMaxWidth]) a text jde na jeden řádek s výpustkou: dlouhý návrh by
+ * zabral celý řádek a další schoval mimo obrazovku. Celý text se stejně vloží do pole.
  */
 @Composable
-private fun ReplyChip(text: String, index: Int, onClick: () -> Unit) {
+private fun ReplyChip(text: String, index: Int, maxWidth: Dp, onClick: () -> Unit) {
     val motion = MaterialTheme.motionScheme
     val fadeSpec = motion.defaultEffectsSpec<Float>()
     val moveSpec = motion.defaultSpatialSpec<Float>()
@@ -186,7 +196,7 @@ private fun ReplyChip(text: String, index: Int, onClick: () -> Unit) {
         ),
         border = null,
         modifier = Modifier
-            .widthIn(max = REPLY_CHIP_MAX_WIDTH)
+            .widthIn(max = maxWidth)
             .graphicsLayer {
                 this.alpha = alpha.value
                 translationX = direction * travel.value * STAGGER_TRAVEL.toPx()
@@ -271,7 +281,21 @@ internal fun ReplySuggestionsTurnedOffSnackbar(
     }
 }
 
-private val REPLY_CHIP_MAX_WIDTH = 240.dp
+/**
+ * Strop šířky čipu podle šířky řádku s návrhy: aspoň [REPLY_CHIP_MIN_CAP], na širokém řádku
+ * [REPLY_CHIP_ROW_SHARE] z něj.
+ *
+ * Pevných 240 dp sedí na telefon (řádek kolem 300 dp, čip zabere čtyři pětiny a soused
+ * vykoukne), ale na desktopu byl s Aya oříznutý KAŽDÝ návrh — mívají 40–60 znaků, tedy kolem
+ * 400 dp, a vedle zbývalo plno místa. Návrh se tak nedal přečíst, dokud se nevložil. Podíl
+ * z řádku drží původní důvod stropu: i nejdelší čip nechá vykouknout souseda, takže je vidět,
+ * že řada pokračuje. Na telefonu vychází podíl pod 240 dp a platí původní strop.
+ */
+internal fun replyChipMaxWidth(rowWidth: Dp): Dp = maxOf(REPLY_CHIP_MIN_CAP, rowWidth * REPLY_CHIP_ROW_SHARE)
+
+private val REPLY_CHIP_MIN_CAP = 240.dp
+
+private const val REPLY_CHIP_ROW_SHARE = 0.6f
 
 private val REPLY_ICON_SIZE = 20.dp
 
