@@ -24,7 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -40,6 +40,7 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
@@ -200,12 +201,14 @@ fun MessageMedia.shownSticker(): MessageMedia.Sticker? = (this as? MessageMedia.
 @Composable
 fun rememberPhotoBitmap(fileId: Int, targetPx: Int): ImageBitmap? {
     val files = koinInject<FileRepository>()
-    val bitmap by produceState<ImageBitmap?>(initialValue = null, fileId, targetPx) {
-        files.file(fileId).collect { state ->
-            if (state is FileState.Ready && value == null) value = withContext(Dispatchers.IO) { decodeScaled(state.path, targetPx) }
-        }
+    // `key`, ne klíče `produceState`: ty restartují jen producenta a hodnota by zůstala
+    // z minulého souboru (viz ChatAvatar). Dekóduje se jednou, po prvním `Ready`.
+    return key(fileId, targetPx) {
+        produceState<ImageBitmap?>(initialValue = null) {
+            val ready = files.file(fileId).first { it is FileState.Ready } as FileState.Ready
+            value = withContext(Dispatchers.IO) { decodeScaled(ready.path, targetPx) }
+        }.value
     }
-    return bitmap
 }
 
 /** Dekóduje obrázek zmenšený (mocninou dvou) tak, aby kratší strana byla aspoň [targetPx]. */

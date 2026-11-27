@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +24,7 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
@@ -38,11 +39,15 @@ import org.koin.compose.koinInject
 fun ChatAvatar(fileId: Int?, title: String, size: Dp, modifier: Modifier = Modifier, savedMessages: Boolean = false) {
     val files = koinInject<FileRepository>()
     val sizePx = with(LocalDensity.current) { size.roundToPx() }
-    val photo by produceState<ImageBitmap?>(initialValue = null, fileId, savedMessages) {
-        if (fileId == null || savedMessages) return@produceState
-        files.file(fileId).collect { state ->
-            if (state is FileState.Ready) value = withContext(Dispatchers.IO) { decodeScaled(state.path, sizePx) }
-        }
+    // `key`, ne klíče `produceState`: ty restartují jen producenta, hodnota zůstane z minulého
+    // souboru. Seznam chatů je bez klíčů, takže karta po přeskládání patří jinému chatu
+    // a bez fotky (fileId == null) by navždy ukazovala fotku toho předchozího.
+    val photo = key(fileId, savedMessages, sizePx) {
+        produceState<ImageBitmap?>(initialValue = null) {
+            if (fileId == null || savedMessages) return@produceState
+            val ready = files.file(fileId).first { it is FileState.Ready } as FileState.Ready
+            value = withContext(Dispatchers.IO) { decodeScaled(ready.path, sizePx) }
+        }.value
     }
     Box(
         modifier = modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
