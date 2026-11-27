@@ -379,9 +379,9 @@ private fun SearchRow(item: SearchItem, savedMessagesId: Long?, onClick: () -> U
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = when (item) {
             is SearchItem.Message -> {
-                { Text(item.found.text.resolve(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                { Text(maskSpoilers(item.found.text.resolve(), item.found.entities), maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
-            is SearchItem.Chat -> chat.lastMessagePreview?.let { last -> { Text(last.resolve(), maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+            is SearchItem.Chat -> chat.lastMessagePreview?.let { last -> { Text(maskSpoilers(last.resolve(), chat.lastMessagePreviewEntities), maxLines = 1, overflow = TextOverflow.Ellipsis) } }
         },
         trailingContent = (item as? SearchItem.Message)?.let { message ->
             {

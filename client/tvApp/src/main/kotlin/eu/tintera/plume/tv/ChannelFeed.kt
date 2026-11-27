@@ -102,6 +102,9 @@ class ChannelPost(val messages: List<ChatMessage>) {
     val id: Long get() = messages.first().id
     val timestamp: Int get() = messages.first().timestamp
     val text: String get() = messages.firstOrNull { it.text.isNotBlank() }?.text.orEmpty()
+
+    /** Formátování [text] (entity té zprávy alba, která text nese). */
+    val entities get() = messages.firstOrNull { it.text.isNotBlank() }?.entities.orEmpty()
     val media: List<MessageMedia> get() = messages.mapNotNull { message -> message.media.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video } }
     val statsMessage: ChatMessage get() = messages.firstOrNull { it.postStats?.comments != null } ?: messages.last()
 
@@ -246,7 +249,8 @@ private fun PostCard(post: ChannelPost, onClick: () -> Unit, modifier: Modifier)
                 PostMedia(media, Modifier.fillMaxHeight().aspectRatio(16f / 9f))
             }
             Column(Modifier.weight(1f).fillMaxHeight().padding(20.dp)) {
-                val text = post.text.ifBlank { post.description?.resolve().orEmpty() }
+                // Karta kreslí holý text (nadpis a výňatek): spoiler se zamaskuje, jinak by tu byl čitelný.
+                val text = maskSpoilers(post.text, post.entities).ifBlank { post.description?.resolve().orEmpty() }
                 val title = text.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()
                 // Prázdné řádky mezi odstavci by na kartě snědly místo pro text.
                 val body = text.substringAfter(title, "").trim().replace(BLANK_LINES, "\n")
@@ -385,6 +389,9 @@ private fun PostBody(
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Samotné video se pustí, fotka nebo album otevře prohlížeč na první položce.
     val open = mediaOpenAction(chatId, post.messages, post.messages, actions, videosAfter = olderVideos)
+    // Spoiler v textu příspěvku: první OK ho odkryje, teprve další pustí médium.
+    var spoilersRevealed by remember(post.id) { mutableStateOf(false) }
+    val hiddenSpoiler = !spoilersRevealed && post.entities.hasSpoiler()
     Column(
         modifier
             .clip(RoundedCornerShape(20.dp))
@@ -407,9 +414,15 @@ private fun PostBody(
                     } else {
                         false
                     }
-                    AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER -> {
-                        open?.invoke()
-                        open != null
+                    AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER -> when {
+                        hiddenSpoiler -> {
+                            spoilersRevealed = true
+                            true
+                        }
+                        else -> {
+                            open?.invoke()
+                            open != null
+                        }
                     }
                     else -> false
                 }
@@ -440,7 +453,12 @@ private fun PostBody(
             }
             Spacer(Modifier.height(20.dp))
         }
-        Text(post.text.ifBlank { post.description?.resolve().orEmpty() }, style = MaterialTheme.typography.bodyLarge)
+        val content = LocalContentColor.current
+        if (post.text.isNotBlank()) {
+            Text(rememberRichText(post.text, post.entities, content, MaterialTheme.colorScheme.primary, spoilersRevealed), style = MaterialTheme.typography.bodyLarge)
+        } else {
+            Text(post.description?.resolve().orEmpty(), style = MaterialTheme.typography.bodyLarge)
+        }
         Spacer(Modifier.height(16.dp))
         PostFooter(post)
     }

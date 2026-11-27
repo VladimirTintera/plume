@@ -177,7 +177,8 @@ private fun PreviewMessage(message: ChatMessage, chatTitle: String) {
 @Composable
 private fun ChatMessage.previewText(): String =
     // Odstavce do jednoho řádku: náhled má na zprávu dva řádky a prázdný řádek by je snědl.
-    text.ifEmpty { description?.resolve().orEmpty() }.replace(WHITESPACE, " ").trim()
+    // Spoiler zamaskovaný: náhled kreslí holý text a odkrýt ho tu nejde.
+    maskSpoilers(text, entities).ifEmpty { description?.resolve().orEmpty() }.replace(WHITESPACE, " ").trim()
 
 private val WHITESPACE = Regex("\\s+")
 

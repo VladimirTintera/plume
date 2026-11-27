@@ -59,6 +59,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -309,6 +310,9 @@ internal fun MessageRow(
     val captioned = album.firstOrNull { it.text.isNotBlank() } ?: message
     val video = message.media as? MessageMedia.Video
     val isAlbum = album.size > 1
+    // Spoiler v textu: první OK ho odkryje, teprve další dělá, co zpráva umí (médium, citace).
+    var spoilersRevealed by remember(captioned.id) { mutableStateOf(false) }
+    val hiddenSpoiler = !spoilersRevealed && captioned.text.isNotEmpty() && captioned.entities.hasSpoiler()
     // Zpráva s médiem se OK otevře (`combinedClickable` na televizi bere i DPAD_CENTER): video se
     // pustí, fotka a album otevřou prohlížeč. PODRŽENÍ OK otevře nabídku (reakce, odpověď) —
     // `combinedClickable` dlouhý stisk klávesy pozná sám. Zpráva bez akce jen drží fokus.
@@ -346,14 +350,18 @@ internal fun MessageRow(
             },
         )
         .then(
-            if (onOpen != null || onLongPress != null) {
+            if (onOpen != null || onLongPress != null || hiddenSpoiler) {
                 // Bez vlnky přes celou šířku řádku: fokus nese rámeček bubliny.
                 Modifier.combinedClickable(
                     interactionSource = null,
                     indication = null,
                     onClickLabel = if (video != null && !isAlbum) stringResource(Res.string.media_play) else null,
                     onLongClick = onLongPress,
-                    onClick = onOpen ?: {},
+                    onClick = if (hiddenSpoiler) {
+                        { spoilersRevealed = true }
+                    } else {
+                        onOpen ?: {}
+                    },
                 )
             } else {
                 Modifier.focusable()
@@ -379,6 +387,10 @@ internal fun MessageRow(
     val content = if (outgoing) colors.onPrimaryContainer else colors.onSurfaceVariant
     val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
     val forwarded = forwardLabel(message)
+    // Odkazy a zmínky v barvě motivu; v odchozí bublině `primary` na `primaryContainer` kontrast
+    // nemá, tam je barva textu a odliší je podtržení (rememberRichText).
+    val accent = if (outgoing) content else colors.primary
+    val richCaption = rememberRichText(captioned.text, captioned.entities, content, accent, spoilersRevealed)
     // Fotka, video a album jako na telefonu („Médium bez bubliny" v konverzace-zobrazeni.md):
     // bez popisku a citace holé na ploše, s nimi jedna karta, ve které jde snímek od kraje ke kraji.
     val visual = isAlbum || message.media is MessageMedia.Photo || video != null
@@ -404,7 +416,7 @@ internal fun MessageRow(
             if (captioned.text.isBlank() && quote == null && forwarded == null) {
                 BareMedia(album, sender, focused, selected)
             } else {
-                MediaCard(album, captioned.text, sender, forwarded, quote, chatTitle, container, content, focused, selected)
+                MediaCard(album, richCaption, sender, forwarded, quote, chatTitle, container, content, focused, selected)
             }
         }
         return
@@ -453,8 +465,11 @@ internal fun MessageRow(
                     Spacer(Modifier.height(8.dp))
                 }
                 val hasVisualMedia = message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio
-                val text = captioned.text.ifEmpty {
-                    if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
+                // Vlastní text s formátováním; popis zprávy bez textu (servisní, anketa…) holý.
+                val text = if (captioned.text.isNotEmpty()) {
+                    richCaption
+                } else {
+                    AnnotatedString(if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported))
                 }
                 if (text.isNotEmpty()) {
                     Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
@@ -527,7 +542,7 @@ private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolea
 @Composable
 private fun MediaCard(
     album: List<ChatMessage>,
-    caption: String,
+    caption: AnnotatedString,
     sender: String?,
     forwarded: String?,
     quote: ChatMessage?,
