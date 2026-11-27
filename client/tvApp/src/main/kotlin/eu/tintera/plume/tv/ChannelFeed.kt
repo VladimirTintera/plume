@@ -4,7 +4,6 @@ import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -533,8 +532,8 @@ private fun PostBody(
     val hiddenSpoiler = !spoilersRevealed && post.entities.hasSpoiler()
     Column(
         modifier
+            .focusRing(focused, focusRingShape(20.dp))
             .clip(RoundedCornerShape(20.dp))
-            .border(if (focused) 3.dp else 0.dp, if (focused) MaterialTheme.colorScheme.border else Color.Transparent, RoundedCornerShape(20.dp))
             .focusRequester(focus)
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { event ->
@@ -720,10 +719,12 @@ private fun CommentListContent(
             // na naposledy zaostřený, napoprvé na nejnovější.
             val newest = remember { FocusRequester() }
             // Komentář, který se do sloupce nevejde, se šipkou napřed odroluje (TallItemScroll).
-            val tall = rememberTallItemScroll(listState, reverse = true, paddingTop = 0.dp, paddingBottom = 0.dp)
+            // Okraj nahoře a dole pro fokusový prstenec, který sahá za hranice zprávy.
+            val tall = rememberTallItemScroll(listState, reverse = true, paddingTop = FOCUS_RING_OUTSET, paddingBottom = FOCUS_RING_OUTSET)
             LazyColumn(
                 state = listState,
                 reverseLayout = true,
+                contentPadding = PaddingValues(vertical = FOCUS_RING_OUTSET),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize().focusRestorer(newest).then(tall.listModifier),
             ) {
