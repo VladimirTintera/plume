@@ -3,7 +3,7 @@ package eu.tintera.plume.tv
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.Icon
@@ -36,6 +36,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,6 +129,21 @@ private fun MessageList(
     // Fokus na nejnovější zprávu, po zavření videa nebo prohlížeče zpátky na zprávu, ze které
     // se otevřel: přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
     var focusTarget by remember { mutableStateOf<Long?>(null) }
+    val interactions = remember { MessageInteractions() }
+    MessageInteractionDialogs(state, interactions, chatTitle)
+    // Po odeslání (odpověď z dialogu) fokus na novou vlastní zprávu, jinak by zůstal na té, na
+    // kterou se odpovídalo, a nová by visela pod spodním okrajem (ověřeno na emulátoru).
+    val newest = messages.last()
+    var lastSeenNewest by remember { mutableStateOf(newest.id) }
+    LaunchedEffect(newest.id) {
+        if (newest.id == lastSeenNewest) return@LaunchedEffect
+        lastSeenNewest = newest.id
+        if (!newest.isOutgoing) return@LaunchedEffect
+        focusTarget = null
+        listState.animateScrollToItem(0)
+        withFrameNanos { }
+        runCatching { focus.requestFocus() }
+    }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Dočítání starší historie, když se fokus blíží nejstarší načtené zprávě (horní okraj).
     LaunchedEffect(listState) {
@@ -156,6 +172,8 @@ private fun MessageList(
                                 it()
                             }
                         },
+                        onLongPress = { interactions.actionsFor = entry.album.first() }.takeIf { !entry.album.first().isService },
+                        quote = entry.album.first().replyToMessageId?.let(state::quote),
                         modifier = if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier,
                     )
                 }
@@ -222,6 +240,8 @@ internal fun MessageRow(
     album: List<ChatMessage>,
     chatTitle: String,
     onOpen: (() -> Unit)?,
+    onLongPress: (() -> Unit)?,
+    quote: ChatMessage?,
     modifier: Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -231,18 +251,20 @@ internal fun MessageRow(
     val captioned = album.firstOrNull { it.text.isNotBlank() } ?: message
     val video = message.media as? MessageMedia.Video
     val isAlbum = album.size > 1
-    // Zpráva s médiem se OK otevře (`clickable` na televizi bere i DPAD_CENTER): video se pustí,
-    // fotka a album otevřou prohlížeč. Ostatní jen drží fokus, aby šlo chodit šipkami.
+    // Zpráva s médiem se OK otevře (`combinedClickable` na televizi bere i DPAD_CENTER): video se
+    // pustí, fotka a album otevřou prohlížeč. PODRŽENÍ OK otevře nabídku (reakce, odpověď) —
+    // `combinedClickable` dlouhý stisk klávesy pozná sám. Zpráva bez akce jen drží fokus.
     val focusModifier = modifier
         .onFocusChanged { focused = it.isFocused }
         .then(
-            if (onOpen != null) {
+            if (onOpen != null || onLongPress != null) {
                 // Bez vlnky přes celou šířku řádku: fokus nese rámeček bubliny.
-                Modifier.clickable(
+                Modifier.combinedClickable(
                     interactionSource = null,
                     indication = null,
                     onClickLabel = if (video != null && !isAlbum) stringResource(Res.string.media_play) else null,
-                    onClick = onOpen,
+                    onLongClick = onLongPress,
+                    onClick = onOpen ?: {},
                 )
             } else {
                 Modifier.focusable()
@@ -283,6 +305,10 @@ internal fun MessageRow(
                 Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
                 Spacer(Modifier.height(4.dp))
             }
+            quote?.let {
+                QuoteBar(it, chatTitle, content)
+                Spacer(Modifier.height(8.dp))
+            }
             if (isAlbum) {
                 AlbumGrid(album.mapNotNull { it.media })
                 Spacer(Modifier.height(8.dp))
@@ -308,6 +334,11 @@ internal fun MessageRow(
             }
             if (text.isNotEmpty()) {
                 Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
+            }
+            // Reakce alba nese jedna z jeho zpráv (ta, na kterou se reagovalo).
+            album.firstOrNull { it.reactions.isNotEmpty() }?.let {
+                Spacer(Modifier.height(8.dp))
+                ReactionChips(it.reactions, content)
             }
             Text(
                 message.timestamp.asTimeOfDay(),

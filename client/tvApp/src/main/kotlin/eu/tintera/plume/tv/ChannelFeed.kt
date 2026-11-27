@@ -493,6 +493,8 @@ private fun CommentList(thread: CommentThread, actions: MediaActions) {
             // příspěvku by podle polohy padla na kterýkoli komentář; `focusRestorer` pošle fokus
             // na naposledy zaostřený, napoprvé na nejnovější.
             val newest = remember { FocusRequester() }
+            val interactions = remember { MessageInteractions() }
+            MessageInteractionDialogs(state, interactions, chatTitle = "")
             LazyColumn(
                 state = listState,
                 reverseLayout = true,
@@ -504,6 +506,9 @@ private fun CommentList(thread: CommentThread, actions: MediaActions) {
                         album = album,
                         chatTitle = "",
                         onOpen = mediaOpenAction(thread.chatId, album, comments, actions),
+                        onLongPress = { interactions.actionsFor = album.first() },
+                        // Odpověď kořeni (příspěvku) se necituje — komentáře mu odpovídají všechny.
+                        quote = album.first().replyToMessageId?.takeIf { it != thread.rootMessageId }?.let(state::quote),
                         modifier = if (album.first().id == newestFirst.first().first().id) Modifier.focusRequester(newest) else Modifier,
                     )
                 }

@@ -11,6 +11,10 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.SentMessageUpdate
+import eu.tintera.plume.core.telegram.WriteAccess
+import androidx.compose.runtime.snapshotFlow
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -30,8 +34,16 @@ private const val PAGE = 40
  * a z kompozice odchází jen zavřením. ViewModel by žil v úložišti aktivity i po zavření chatu
  * a chat by se TDLib nikdy neodhlásil (`closeChat`).
  */
-class ConversationState(private val chatId: Long, private val conversations: ConversationRepository) {
+class ConversationState(val chatId: Long, private val conversations: ConversationRepository) {
     var messages by mutableStateOf<List<ChatMessage>?>(null)
+        private set
+
+    /** Citované zprávy, které v načtené historii nejsou (dočtené z TDLib); `null` = zpráva neexistuje. */
+    var quoted by mutableStateOf<Map<Long, ChatMessage?>>(emptyMap())
+        private set
+
+    /** Smí se do chatu psát (odpovídat)? Kanál ne, diskusní skupina a soukromý chat ano. */
+    var canWrite by mutableStateOf(false)
         private set
     var failed by mutableStateOf(false)
         private set
@@ -61,6 +73,25 @@ class ConversationState(private val chatId: Long, private val conversations: Con
                 messages = messages?.map { if (it.id == change.messageId) it.copy(reactions = change.reactions) else it }
             }
         }
+        launch {
+            // TDLib po potvrzení zprávě změní id: dočasnou je potřeba nahradit, ne aktualizovat.
+            conversations.sentMessageUpdates(chatId).collect { update ->
+                val (oldId, message) = when (update) {
+                    is SentMessageUpdate.Succeeded -> update.oldMessageId to update.message
+                    is SentMessageUpdate.Failed -> update.oldMessageId to update.message
+                }
+                messages = (messages.orEmpty().filterNot { it.id == oldId || it.id == message.id } + message).sortedBy { it.id }
+            }
+        }
+        launch {
+            conversations.chatInfo(chatId)
+                .onSuccess { canWrite = it.writeAccess == WriteAccess.Allowed }
+                .onFailure { logger.w(it) { "Práva chatu $chatId se na televizi nenačetla." } }
+        }
+        // Citace odpovědi bere zprávu z načtené historie; co v ní není, dočte jednou z TDLib.
+        launch {
+            snapshotFlow { messages }.collect { loaded -> fetchMissingQuotes(loaded.orEmpty()) }
+        }
         loadHistory()
             .onSuccess { loaded ->
                 messages = (loaded + messages.orEmpty()).distinctBy { it.id }.sortedBy { it.id }
@@ -84,6 +115,42 @@ class ConversationState(private val chatId: Long, private val conversations: Con
             }
             .onFailure { logger.w(it) { "Starší historie chatu $chatId se na televizi nenačetla." } }
         loadingOlder = false
+    }
+
+    /** Citovaná zpráva [id]: z načtené historie, nebo dočtená. */
+    fun quote(id: Long): ChatMessage? = messages?.firstOrNull { it.id == id } ?: quoted[id]
+
+    /** Pošle text jako odpověď na [replyTo] (`null` = bez citace; ve vláknu komentářů odpoví kořeni). */
+    suspend fun send(text: String, replyTo: Long?): Result<Unit> =
+        conversations.send(chatId, text, replyToMessageId = replyTo)
+            .onSuccess { upsert(it) }
+            .onFailure { logger.w(it) { "Zpráva do chatu $chatId se z televize neodeslala." } }
+            .map { }
+
+    /**
+     * Přidá nebo odebere reakci [emoji] u [message] — hned v zobrazení (odezva na ovladač nemá
+     * čekat na server), potvrdí ji update interakcí od TDLib. Nepovedená se vrátí zpátky.
+     */
+    suspend fun toggleReaction(message: ChatMessage, emoji: String) {
+        val chosen = message.reactions.any { it.emoji == emoji && it.isChosen }
+        val before = messages
+        messages = messages?.map { if (it.id == message.id) it.copy(reactions = toggled(it.reactions, emoji, add = !chosen)) else it }
+        conversations.setReaction(chatId, message.id, emoji, add = !chosen).onFailure {
+            logger.w(it) { "Reakce na zprávu ${message.id} se z televize neposlala." }
+            messages = before
+        }
+    }
+
+    /** Emoji, která jdou u zprávy [messageId] dát. */
+    suspend fun reactionChoices(messageId: Long): List<String> =
+        conversations.availableReactions(chatId, messageId).getOrNull()?.emoji.orEmpty()
+
+    private suspend fun fetchMissingQuotes(loaded: List<ChatMessage>) {
+        val missing = loaded.mapNotNull { it.replyToMessageId }
+            .filter { id -> id !in quoted && loaded.none { it.id == id } }
+            .distinct()
+        if (missing.isEmpty()) return
+        quoted = quoted + missing.associateWith { id -> conversations.message(chatId, id).getOrNull() }
     }
 
     private fun upsert(message: ChatMessage) {
@@ -127,4 +194,16 @@ fun rememberConversationState(chatId: Long, threadRootId: Long? = null): Convers
     // Zavření v aplikačním scope: scope kompozice je v tu chvíli už zrušený.
     DisposableEffect(chatId) { onDispose { appScope.launch { conversations.closeChat(chatId) } } }
     return state
+}
+
+/** Reakce po přidání nebo odebrání [emoji] přihlášeným uživatelem (počty i příznak „moje"). */
+internal fun toggled(reactions: List<MessageReaction>, emoji: String, add: Boolean): List<MessageReaction> {
+    val existing = reactions.firstOrNull { it.emoji == emoji }
+    return when {
+        add && existing == null -> reactions + MessageReaction(emoji, count = 1, isChosen = true)
+        add -> reactions.map { if (it.emoji == emoji) it.copy(count = it.count + 1, isChosen = true) else it }
+        existing == null -> reactions
+        existing.count <= 1 -> reactions.filterNot { it.emoji == emoji }
+        else -> reactions.map { if (it.emoji == emoji) it.copy(count = it.count - 1, isChosen = false) else it }
+    }
 }

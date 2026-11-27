@@ -141,6 +141,29 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **`MediaActions`** (přehrát video, otevřít prohlížeč) jde cestou od navigace ke zprávě jako
   jedna skupina, ne dva callbacky v každé funkci.
 
+## Reakce a odpovědi
+
+- **Reakce jsou pod zprávou jako čipy** (emoji a počet, moje zvýrazněná), citace odpovědi nad
+  textem (proužek, odesílatel, první řádek). Citovaná zpráva se bere z načtené historie a co
+  v ní není, dočte se jednou z TDLib (`ConversationState.quote`, jako na hodinkách). Vlastní
+  emoji se v čipech i v nabídce vynechávají, televize je kreslit neumí.
+- **Nabídka nad zprávou je PODRŽENÍ OK** (`combinedClickable` s `onLongClick` — dlouhý stisk
+  klávesy pozná sám; v adb `input keyevent --longpress KEYCODE_DPAD_CENTER`). Krátké OK zůstává
+  médiu (video, prohlížeč, zvuk). V nabídce rychlé reakce ze sady chatu (`availableReactions`,
+  nejvýš 7 — víc se do řady nevejde) a „Odpovědět", jen když se smí psát (`writeAccess`).
+- **Nabídka i odpověď jsou `Dialog`** (vlastní okno): fokus z nich šipkou neuteče na zprávy pod
+  nimi, Zpět zavře dialog, ne konverzaci, a po zavření se fokus vrátí na zprávu v hlavním okně.
+- **Reakce se přepne hned** (`toggleReaction`, optimisticky), potvrdí ji update interakcí;
+  nepovedená se vrátí.
+- **Pole odpovědi je jednořádkové a šipka dolů ho výslovně posílá na Odeslat.** Víceřádkové
+  pole si šipku dolů bralo na pohyb kurzoru a z pole se ovladačem nedalo odejít (ověřeno na
+  emulátoru). Pole dostane fokus hned, takže naskočí systémová klávesnice; její „odeslat"
+  zprávu rovnou pošle.
+- **Po odeslání jde fokus na novou vlastní zprávu** a seznam k ní odroluje; jinak zůstal na
+  zprávě, na kterou se odpovídalo, a nová visela pod spodním okrajem.
+- **V komentářích pod příspěvkem totéž** (vlastní `MessageInteractions`); odpověď bez citace
+  jde kořeni vlákna (`ThreadConversationRepository.send`), citace kořene se v bublině nekreslí.
+
 ## Hlasovky a hudba
 
 - **Jeden přehrávač zvuku pro celou aplikaci** (`TvAudioPlayer`, žije v `TvNavigation` a dává se
@@ -205,6 +228,10 @@ položek se to může projevit cizím avatarem u recyklované karty; neověřen�
 
 ## Ověření
 
+- **Reakce a odpovědi ověřeny 27. 11. 2026** v chatu s Notifikátorem: podržení OK, reakce 👍
+  (čip hned), odpověď přes systémovou klávesnici, citace v odeslané bublině, fokus na nové
+  zprávě. V komentářích pod veřejným příspěvkem jen přeloženo (reakce i komentář by byly vidět
+  všem odběratelům).
 - **Hlasovky a hudba ověřeny 27. 11. 2026** (hlasovka a dvě skladby od Notifikátora): vlna
   s průběhem, dock, hraní dál po odchodu do seznamu, pauza a „další" z ovladače
   (`input keyevent KEYCODE_MEDIA_PLAY_PAUSE` / `KEYCODE_MEDIA_NEXT`), stav v `dumpsys media_session`.

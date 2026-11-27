@@ -4924,4 +4924,9 @@
     <string name="tv_comments_title">Comments</string>
     <string name="tv_comments_empty">No comments yet</string>
     <string name="tv_comments_off">This channel doesn't have comments</string>
+    <string name="tv_action_reply">Reply</string>
+    <string name="tv_reply_title">Reply</string>
+    <string name="tv_reply_hint">Message</string>
+    <string name="tv_reply_send">Send</string>
+    <string name="tv_send_failed">Couldn't send the message.</string>
 </resources>
