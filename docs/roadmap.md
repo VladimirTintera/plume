@@ -588,7 +588,7 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    média konverzace, album jako mřížka v bublině). Přiblížení fotky hotové. Zbývá: pás alba v detailu
    příspěvku ověřit na kanálu s alby, otevření prohlížeče na N-té položce alba (dnes vždy první).
 4. ~~**Hlasovky a hudba**~~ — hotovo (jeden přehrávač pro aplikaci, dock, fronta, `MediaSession`
-   s dalším a předchozím). Zbývá: skok v hlasovce a skladbě (dnes jen od začátku), přepis
+   s dalším a předchozím). Přetáčení v hlasovce a skladbě hotové (šipky na bublině, tlačítka médií). Zbývá: přepis
    hlasovky, kolečka (video zprávy), streamování dlouhých skladeb místo stažení celých.
 5. ~~**Reakce a odpovědi**~~ — hotovo (čipy reakcí, citace, nabídka podržením OK, odpověď přes
    systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod

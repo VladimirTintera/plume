@@ -5182,6 +5182,7 @@
     <string name="tv_compose_voice">Nadiktovat zprávu</string>
     <string name="tv_compose_voice_prompt">Řekněte zprávu</string>
     <string name="tv_forward_done">Přeposláno do: %1$s</string>
+    <string name="tv_audio_seek_hint">◀ ▶ přetáčení</string>
     <string name="tv_reply_send">Odeslat</string>
     <string name="tv_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="tv_compose_button">Napsat zprávu</string>

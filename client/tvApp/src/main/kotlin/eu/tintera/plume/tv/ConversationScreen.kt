@@ -48,6 +48,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -303,8 +308,28 @@ internal fun MessageRow(
     // Zpráva s médiem se OK otevře (`combinedClickable` na televizi bere i DPAD_CENTER): video se
     // pustí, fotka a album otevřou prohlížeč. PODRŽENÍ OK otevře nabídku (reakce, odpověď) —
     // `combinedClickable` dlouhý stisk klávesy pozná sám. Zpráva bez akce jen drží fokus.
+    // Právě hrající hlasovka nebo skladba: šipky vlevo a vpravo ji přetáčejí. Jinde šipka do
+    // strany nic nedělá (zprávy jsou pod sebou), takže ji nikomu nebere.
+    val audio = LocalAudioPlayer.current
+    val playingHere = audio != null && audio.current?.messageId == message.id &&
+        (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio)
     val focusModifier = modifier
         .onFocusChanged { focused = it.isFocused }
+        .then(
+            if (playingHere) {
+                Modifier.onPreviewKeyEvent { event ->
+                    val step = if (message.media is MessageMedia.VoiceNote) SEEK_VOICE_MS else SEEK_AUDIO_MS
+                    when {
+                        event.type != KeyEventType.KeyDown -> false
+                        event.key == Key.DirectionLeft -> { audio.seekBy(-step); true }
+                        event.key == Key.DirectionRight -> { audio.seekBy(step); true }
+                        else -> false
+                    }
+                }
+            } else {
+                Modifier
+            },
+        )
         .then(
             if (onOpen != null || onLongPress != null) {
                 // Bez vlnky přes celou šířku řádku: fokus nese rámeček bubliny.
@@ -397,7 +422,7 @@ internal fun MessageRow(
                     Spacer(Modifier.height(6.dp))
                 }
                 if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
-                    AudioBubbleContent(message, content)
+                    AudioBubbleContent(message, content, seekHint = focused && playingHere)
                     Spacer(Modifier.height(8.dp))
                 }
                 val hasVisualMedia = message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio
