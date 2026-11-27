@@ -215,7 +215,8 @@ private fun MessageList(
                     val id = entry.album.first().id
                     val quotedId = entry.album.first().replyToMessageId
                     // OK na zprávě bez média, která na něco odpovídá, skočí na citovanou zprávu.
-                    val open = mediaOpenAction(chatId, entry.album, messages, actions)
+                    val pick = if (entry.album.size > 1) remember(id) { AlbumPick() } else null
+                    val open = mediaOpenAction(chatId, entry.album, messages, actions, pick = pick)
                         ?: quotedId?.let { quoted -> { scope.launch { state.jumpTo(quoted) } } }
                     MessageRow(
                         album = entry.album,
@@ -228,6 +229,7 @@ private fun MessageList(
                         },
                         onLongPress = { interactions.actionsFor = entry.album.first() }.takeIf { !entry.album.first().isService },
                         quote = quotedId?.let(state::quote),
+                        albumPick = pick,
                         modifier = tall.item(entry.key).then(if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier),
                     )
                 }
@@ -297,6 +299,8 @@ internal fun MessageRow(
     onLongPress: (() -> Unit)?,
     quote: ChatMessage?,
     modifier: Modifier,
+    /** Výběr položky alba šipkami do strany; `null` = album se otevírá na první. */
+    albumPick: AlbumPick? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
@@ -316,7 +320,18 @@ internal fun MessageRow(
     val focusModifier = modifier
         .onFocusChanged { focused = it.isFocused }
         .then(
-            if (playingHere) {
+            if (albumPick != null && album.size > 1) {
+                // Šipky do strany vybírají položku alba (v konverzaci jinak nic nedělají, zprávy
+                // jsou pod sebou); na krajích se drží, ať fokus neuteče stranou.
+                Modifier.onPreviewKeyEvent { event ->
+                    when {
+                        event.type != KeyEventType.KeyDown -> false
+                        event.key == Key.DirectionLeft -> { albumPick.index = (albumPick.index - 1).coerceAtLeast(0); true }
+                        event.key == Key.DirectionRight -> { albumPick.index = (albumPick.index + 1).coerceAtMost(album.lastIndex); true }
+                        else -> false
+                    }
+                }
+            } else if (playingHere) {
                 Modifier.onPreviewKeyEvent { event ->
                     val step = if (message.media is MessageMedia.VoiceNote) SEEK_VOICE_MS else SEEK_AUDIO_MS
                     when {
@@ -384,10 +399,12 @@ internal fun MessageRow(
         ) {
             // Přeposlané médium jde do karty: „Přeposláno od …" potřebuje plochu, na holé fotce
             // by se nedalo přečíst.
+            // Vybraná položka alba se ukazuje jen na zaostřeném albu.
+            val selected = albumPick?.index?.takeIf { focused && isAlbum }
             if (captioned.text.isBlank() && quote == null && forwarded == null) {
-                BareMedia(album, sender, focused)
+                BareMedia(album, sender, focused, selected)
             } else {
-                MediaCard(album, captioned.text, sender, forwarded, quote, chatTitle, container, content, focused)
+                MediaCard(album, captioned.text, sender, forwarded, quote, chatTitle, container, content, focused, selected)
             }
         }
         return
@@ -465,7 +482,7 @@ internal fun MessageRow(
  * jako text v bublině. Fokus nese rámeček po tvaru snímku.
  */
 @Composable
-private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolean) {
+private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolean, selected: Int?) {
     val colors = MaterialTheme.colorScheme
     val message = album.first()
     Column(horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start) {
@@ -482,7 +499,7 @@ private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolea
                 .clip(BUBBLE_SHAPE)
                 .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
         ) {
-            VisualMedia(album, timeOnMedia = true)
+            VisualMedia(album, timeOnMedia = true, selected = selected)
             Text(
                 timeLabel(message),
                 style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
@@ -518,6 +535,7 @@ private fun MediaCard(
     container: Color,
     content: Color,
     focused: Boolean,
+    selected: Int?,
 ) {
     val colors = MaterialTheme.colorScheme
     val message = album.first()
@@ -552,7 +570,7 @@ private fun MediaCard(
         if (forwarded != null) {
             ForwardedLabel(forwarded, content, Modifier.padding(start = 16.dp, end = 16.dp, top = if (sender != null && quote == null) 4.dp else 12.dp, bottom = 8.dp))
         }
-        VisualMedia(album, timeOnMedia = false)
+        VisualMedia(album, timeOnMedia = false, selected = selected)
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
             if (caption.isNotBlank()) Text(caption, style = MaterialTheme.typography.bodyLarge, color = content)
             album.firstOrNull { it.reactions.isNotEmpty() }?.let {
@@ -574,10 +592,10 @@ private fun MediaCard(
  * fotka, nebo video. [timeOnMedia]: v pravém dolním rohu leží čas, délka videa jde nahoru.
  */
 @Composable
-private fun VisualMedia(album: List<ChatMessage>, timeOnMedia: Boolean) {
+private fun VisualMedia(album: List<ChatMessage>, timeOnMedia: Boolean, selected: Int? = null) {
     val message = album.first()
     when {
-        album.size > 1 -> AlbumGrid(album.mapNotNull { it.media })
+        album.size > 1 -> AlbumGrid(album.mapNotNull { it.media }, selected)
         message.media is MessageMedia.Photo -> MessagePhoto((message.media as MessageMedia.Photo).fileId, RectangleShape)
         message.media is MessageMedia.Video -> MessageVideo(message.media as MessageMedia.Video, RectangleShape, durationOnTop = timeOnMedia)
     }
@@ -588,22 +606,39 @@ private fun VisualMedia(album: List<ChatMessage>, timeOnMedia: Boolean) {
  * Celé album se prochází v prohlížeči (OK na bublině), mřížka jen ukazuje, co v něm je.
  */
 @Composable
-private fun AlbumGrid(media: List<MessageMedia>) {
+private fun AlbumGrid(media: List<MessageMedia>, selected: Int?) {
     val shown = media.take(ALBUM_TILES)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        shown.chunked(2).forEachIndexed { row, pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                pair.forEachIndexed { column, item ->
-                    val position = row * 2 + column
-                    AlbumTile(item, more = if (position == shown.lastIndex) media.size - shown.size else 0)
+    // Vybraná položka za posledním náhledem („+N") zvýrazní poslední náhled; které to je, říká
+    // počítadlo nahoře.
+    val highlighted = selected?.coerceAtMost(shown.lastIndex)
+    Box {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            shown.chunked(2).forEachIndexed { row, pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    pair.forEachIndexed { column, item ->
+                        val position = row * 2 + column
+                        AlbumTile(item, more = if (position == shown.lastIndex) media.size - shown.size else 0, selected = position == highlighted)
+                    }
                 }
             }
+        }
+        if (selected != null) {
+            Text(
+                "${selected + 1} / ${media.size}",
+                style = MaterialTheme.typography.labelMedium.tabular(),
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun AlbumTile(media: MessageMedia, more: Int) {
+private fun AlbumTile(media: MessageMedia, more: Int, selected: Boolean) {
     val fileId = when (media) {
         is MessageMedia.Photo -> media.fileId
         is MessageMedia.Video -> media.thumbnailFileId
@@ -620,6 +655,9 @@ private fun AlbumTile(media: MessageMedia, more: Int) {
         contentAlignment = Alignment.Center,
     ) {
         image?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        if (selected) {
+            Box(Modifier.fillMaxSize().border(4.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)))
+        }
         if (media is MessageMedia.Video) {
             Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
         }

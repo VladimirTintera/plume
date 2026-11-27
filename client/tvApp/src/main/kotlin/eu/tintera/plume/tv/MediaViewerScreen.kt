@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -114,6 +115,16 @@ class MediaActions(
     val toggleVideoNote: (Long, Long) -> Unit = { _, _ -> },
 )
 
+/**
+ * Která položka alba je v bublině vybraná: šipky vlevo a vpravo na zaostřeném albu ji mění, OK
+ * otevře prohlížeč rovnou na ní ([mediaOpenAction]). Dřív se otevíral vždy na první a k desáté
+ * fotce se muselo dojít šipkami v prohlížeči. Drží ho položka seznamu, ať ho vidí obojí.
+ */
+@Stable
+class AlbumPick {
+    var index by mutableIntStateOf(0)
+}
+
 /** Fotky a videa ze zpráv (od nejstarší) v pořadí, v jakém je prohlížeč prochází. */
 fun viewerItems(chatId: Long, messages: List<ChatMessage>): List<ViewerItem> = messages.mapNotNull { message ->
     val media = message.media
@@ -136,6 +147,8 @@ fun mediaOpenAction(
     allMessages: List<ChatMessage>,
     actions: MediaActions,
     videosAfter: List<VideoRequest>? = null,
+    /** Položka alba vybraná šipkami v bublině ([AlbumPick]); prohlížeč se otevře na ní. */
+    pick: AlbumPick? = null,
 ): (() -> Unit)? {
     val first = album.first()
     val media = first.media
@@ -158,7 +171,8 @@ fun mediaOpenAction(
         album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video } -> {
             {
                 val items = viewerItems(chatId, allMessages)
-                actions.openViewer(items, items.indexOfFirst { it.messageId == first.id }.coerceAtLeast(0))
+                val target = album.getOrNull(pick?.index ?: 0)?.id ?: first.id
+                actions.openViewer(items, items.indexOfFirst { it.messageId == target }.coerceAtLeast(0))
             }
         }
         else -> null

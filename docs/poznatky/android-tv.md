@@ -398,6 +398,13 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   stejným `mediaAlbumId`) s mřížkou 2 × 2 a „+N" na posledním náhledu. Popisek alba nese jen
   jedna zpráva, odesílatel a čas jsou z první. V detailu příspěvku je pod hlavním médiem pás
   dalších náhledů alba (jen na ukázku, prochází se v prohlížeči).
+- **Šipky vlevo a vpravo na zaostřeném albu vyberou položku, OK otevře prohlížeč rovnou na
+  ní** (`AlbumPick`, drží ho položka seznamu a dostává ho `mediaOpenAction` i bublina). Dřív se
+  otevíral vždy na první a k desáté fotce se šlo šipkami v prohlížeči. Vybraný náhled má rámeček
+  a nahoře počítadlo „5 / 6"; položka za posledním náhledem („+N") zvýrazní ten poslední.
+  Na krajích šipka zůstává v albu (fokus neuteče stranou). V konverzaci i v komentářích;
+  karta příspěvku ve feedu kanálu výběr nemá. Ověřeno na emulátoru s albem šesti barevných
+  fotek od testovacího bota (`sendMediaGroup`): 5 / 6 a OK otevře pátou.
 - **`MediaActions`** (přehrát video, otevřít prohlížeč) jde cestou od navigace ke zprávě jako
   jedna skupina, ne dva callbacky v každé funkci.
 - **Přiblížení fotky v prohlížeči**: OK na fotce ji přiblíží na 2×, další OK na 3×, třetí zpátky.
