@@ -107,6 +107,26 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   textové pole nemá. Píše se systémovou klávesnicí televize (na Google TV i hlasem z ovladače).
   Telefonní číslo a kód se na televizi nezadávají — přihlášení je jen QR kódem, jako na hodinkách.
 
+## Formátovaný text a spoilery
+
+- **Text zpráv se kreslí s entitami** (`rememberRichText` v `RichText.kt`): tučné, kurzíva,
+  podtržení, přeškrtnutí, kód (neproporcionální písmo na tónovaném podkladu), citace
+  (podklad a kurzíva), odkazy, zmínky, tagy a příkazy v barvě motivu. Dřív byl všechno holý
+  text. V bublině konverzace, v popisku média a v detailu příspěvku kanálu.
+- **Odkazy jen vypadají jako odkaz, otevřít je nejde**: ovladač by musel vybírat mezi odkazy
+  v textu a OK má zpráva už obsazené (médium, citace). V odchozí bublině jsou odkazy v barvě
+  textu s podtržením — `primary` na `primaryContainer` nemá kontrast.
+- **Spoiler je nečitelný blok (průhledné písmo na podkladu), první OK na zprávě ho odkryje**;
+  teprve další OK dělá, co zpráva umí (médium, skok na citaci). V detailu příspěvku stejně.
+  Jiná barva písma místo průhledné by obsah vyzradila.
+- **Kde se text kreslí holý, spoiler se zamaskuje znaky „▒"** (`maskSpoilers`): řádek seznamu
+  chatů, náhled zaostřeného chatu, výsledky hledání a karta příspěvku ve feedu. Bez toho by
+  tam spoiler byl čitelný, přestože ho bublina skrývá.
+- Vlastní emoji zůstávají náhradním emoji, datum a čas textem od pisatele.
+- Ověřeno na emulátoru se zprávou od testovacího bota (`parse_mode=HTML`, všechny styly,
+  `tg-spoiler`, `blockquote`): bublina, maska v náhledu chatu, odkrytí OK. Detail příspěvku
+  kanálu se spoilerem ověřený není.
+
 ## Video
 
 - **Přehrávání za běhu stahování je v `:client:core`** (`core/video`: `StreamingSource`,

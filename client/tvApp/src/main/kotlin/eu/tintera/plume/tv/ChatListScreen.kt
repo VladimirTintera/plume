@@ -412,7 +412,8 @@ private fun ChatRow(
             }
         },
         supportingContent = {
-            val text = typing?.activity?.label() ?: chat.lastMessagePreview?.resolve()
+            // Spoiler v poslední zprávě zamaskovaný — řádek kreslí holý text.
+            val text = typing?.activity?.label() ?: chat.lastMessagePreview?.resolve()?.let { maskSpoilers(it, chat.lastMessagePreviewEntities) }
             if (text != null) Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         trailingContent = {
