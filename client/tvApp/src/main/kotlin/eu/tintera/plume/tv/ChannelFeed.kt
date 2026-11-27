@@ -389,7 +389,9 @@ private fun PostBody(
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
     // Samotné video se pustí, fotka nebo album otevře prohlížeč na první položce.
     // Médium se pustí, příspěvek bez média s odkazem na Telegram (jiný příspěvek, kanál) ho otevře.
+    val articlePreview = post.messages.firstNotNullOfOrNull { it.linkPreview?.takeIf { preview -> preview.instantView } }
     val open = mediaOpenAction(chatId, post.messages, post.messages, actions, videosAfter = olderVideos)
+        ?: articlePreview?.let { preview -> { actions.openArticle(preview.url) } }
         ?: telegramLinkOf(post.entities)?.let { url -> { actions.openLink(url, post.id) } }
     // Spoiler v textu příspěvku: první OK ho odkryje, teprve další pustí médium.
     var spoilersRevealed by remember(post.id) { mutableStateOf(false) }
@@ -460,6 +462,10 @@ private fun PostBody(
             Text(rememberRichText(post.text, post.entities, content, MaterialTheme.colorScheme.primary, spoilersRevealed), style = MaterialTheme.typography.bodyLarge)
         } else {
             Text(post.description?.resolve().orEmpty(), style = MaterialTheme.typography.bodyLarge)
+        }
+        post.messages.firstNotNullOfOrNull { it.linkPreview }?.let { preview ->
+            Spacer(Modifier.height(12.dp))
+            LinkPreviewCard(preview, content, MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(16.dp))
         PostFooter(post)

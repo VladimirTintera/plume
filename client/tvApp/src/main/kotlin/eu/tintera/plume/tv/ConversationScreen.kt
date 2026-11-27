@@ -221,7 +221,9 @@ private fun MessageList(
                     // citovanou zprávu. Odkaz má přednost před citací — v odpovědi s odkazem je
                     // odkaz to nové, co zpráva nese.
                     val link = entry.album.firstOrNull { it.text.isNotBlank() }?.let { telegramLinkOf(it.entities) }
+                    val article = entry.album.firstNotNullOfOrNull { it.linkPreview?.takeIf { preview -> preview.instantView } }
                     val open = mediaOpenAction(chatId, entry.album, messages, actions, pick = pick)
+                        ?: article?.let { preview -> { actions.openArticle(preview.url) } }
                         ?: link?.let { url -> { actions.openLink(url, id) } }
                         ?: quotedId?.let { quoted -> { scope.launch { state.jumpTo(quoted) } } }
                     MessageRow(
@@ -478,6 +480,11 @@ internal fun MessageRow(
                 }
                 if (text.isNotEmpty()) {
                     Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
+                }
+                // Náhled odkazu (web, nadpis, popis; u článku výzva ke čtení v aplikaci).
+                captioned.linkPreview?.let { preview ->
+                    Spacer(Modifier.height(8.dp))
+                    LinkPreviewCard(preview, content, accent)
                 }
                 // Reakce alba nese jedna z jeho zpráv (ta, na kterou se reagovalo).
                 album.firstOrNull { it.reactions.isNotEmpty() }?.let {

@@ -136,6 +136,25 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   `tg-spoiler`, `blockquote`): bublina, maska v náhledu chatu, odkrytí OK. Detail příspěvku
   kanálu se spoilerem ověřený není.
 
+## Náhled odkazu a Instant View
+
+- **Náhled odkazu pod textem zprávy** (`LinkPreviewCard`): web, nadpis a popis v tónovaném
+  bloku, v konverzaci i v detailu příspěvku. Dřív televize náhled nekreslila vůbec a zpráva
+  s článkem byla jen adresa. **Obrázek náhledu se vynechává** — bublina by s ním byla vyšší
+  než obrazovka a na rozhodnutí, jestli článek otevřít, stačí nadpis.
+- **Stránka s Instant View má na kartě výzvu „OK: číst v aplikaci"** a OK na zprávě otevře
+  čtečku (`InstantViewScreen`, `MediaActions.openArticle`; pořadí OK: médium, článek, odkaz na
+  Telegram, citace). Stránku dává `InstantViewRepository` z `core` jako text s entitami
+  a médii (`MessageBody` + `Article.media`), tentýž převod jako u článku ve zprávě.
+- **Čtečka**: sloupec na čtení (900 dp) uprostřed, nadpis, text s formátováním
+  (`rememberRichText`) rozdělený v místech médií (úsek textu, který médium zastupuje, se
+  nahradí obrázkem; entity se do každého kusu ořežou a posunou), fotky a náhledy videí.
+  Šipky nahoru a dolů rolují, Zpět zavře a fokus se vrátí na zprávu. Média se jen ukazují —
+  ovladačem by se mezi nimi v textu nedalo vybírat. Neúplný článek končí větou, že zbytek je
+  na webu; stránka bez Instant View hláškou.
+- Ověřeno na emulátoru s `telegra.ph/api` od testovacího bota: karta s výzvou, čtečka
+  s formátováním, rolování, návrat Zpět. Článek s obrázky ověřený není.
+
 ## Video
 
 - **Přehrávání za běhu stahování je v `:client:core`** (`core/video`: `StreamingSource`,
