@@ -9,7 +9,8 @@ Struktura:
     play/listing/<locale>/full_description.txt   – nejvýš 4000 znaků
     play/graphics/<locale>/<typ>/*.png           – obrázky pro jazyk; typ = icon, featureGraphic,
                                                    phoneScreenshots, sevenInchScreenshots,
-                                                   tenInchScreenshots, wearScreenshots
+                                                   tenInchScreenshots, wearScreenshots,
+                                                   tvBanner, tvScreenshots
     play/graphics/<typ>/*.png                    – společné pro všechny jazyky ze `listing/`
 
 Obrázky jednoho typu se NAHRAZUJÍ celé (deleteall + upload v abecedním pořadí), takže pořadí
@@ -22,6 +23,10 @@ Snímky hodinek (`wearScreenshots`) se kontrolují už tady: Play je chce čtver
 384 px na stranu — snímek z emulátoru `Plume_Wear` (`adb exec-out screencap -p`) má 454 × 454
 a projde bez úprav. Chyba by se jinak ukázala až v `edits:validate`, tedy po nahrání všeho
 ostatního.
+
+Televize totéž: `tvBanner` (banner v obchodě pro Android TV) musí mít přesně 1280 × 720
+a `tvScreenshots` poměr 16 : 9 a aspoň 1280 × 720 — snímek z emulátoru `Plume_TV` má 1920 × 1080.
+Banner se generuje z `play/tools/icon.py` z téže geometrie pírka jako banner v launcheru.
 """
 
 import struct
@@ -33,9 +38,16 @@ API = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications
 UPLOAD = f"https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/{PACKAGE}/edits"
 ROOT = Path(__file__).resolve().parents[2] / "play"
 LIMITS = {"title": 30, "short_description": 80, "full_description": 4000}
-IMAGE_TYPES = ("icon", "featureGraphic", "phoneScreenshots", "sevenInchScreenshots", "tenInchScreenshots", "wearScreenshots")
-# Typy, jejichž rozměry se ověřují předem: (čtverec, nejmenší strana, největší strana).
-SIZE_RULES = {"wearScreenshots": (True, 384, 3840)}
+IMAGE_TYPES = (
+    "icon", "featureGraphic", "phoneScreenshots", "sevenInchScreenshots", "tenInchScreenshots",
+    "wearScreenshots", "tvBanner", "tvScreenshots",
+)
+# Typy, jejichž rozměry se ověřují předem: (poměr šířka : výška, nejmenší a největší šířka).
+SIZE_RULES = {
+    "wearScreenshots": ((1, 1), 384, 3840),
+    "tvBanner": ((16, 9), 1280, 1280),
+    "tvScreenshots": ((16, 9), 1280, 3840),
+}
 
 
 def check(response):
@@ -85,13 +97,13 @@ def check_images(locale):
         rule = SIZE_RULES.get(image_type)
         if rule is None:
             continue
-        square, low, high = rule
+        (ratio_w, ratio_h), low, high = rule
         for file in files:
             width, height = png_size(file)
-            if square and width != height:
-                raise SystemExit(f"{file}: {width} × {height}, {image_type} musí být čtverec")
-            if not low <= min(width, height) <= max(width, height) <= high:
-                raise SystemExit(f"{file}: {width} × {height}, {image_type} chce strany {low}–{high} px")
+            if width * ratio_h != height * ratio_w:
+                raise SystemExit(f"{file}: {width} × {height}, {image_type} chce poměr {ratio_w} : {ratio_h}")
+            if not low <= width <= high:
+                raise SystemExit(f"{file}: {width} × {height}, {image_type} chce šířku {low}–{high} px")
 
 
 def main():

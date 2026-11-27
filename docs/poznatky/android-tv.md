@@ -251,6 +251,12 @@ hodnotu vynulovat sám (`rememberImage` v `ChatAvatar.kt`). **Hodinky to mají t
 (`ChatAvatar.kt` ve `wearApp`: při změně na `null` zůstane stará fotka) — v seznamu bez klíčů
 položek se to může projevit cizím avatarem u recyklované karty; neověřené.
 
+## Vydání
+
+Do Play z téhož tagu jako telefon a hodinky, track `tv:internal`, za repo proměnnou
+`TV_RELEASE` — postup, banner do obchodu, snímky a ověření release buildu jsou v
+`docs/poznatky/release.md`, „Televize (Android TV)".
+
 ## Ověření
 
 - **Nová zpráva ověřena 27. 11. 2026** v chatu s Notifikátorem: šipka dolů na tlačítko,

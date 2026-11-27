@@ -17,6 +17,11 @@
 # (Nastavení → Rozšířená nastavení → Formáty), track wear:internal neexistuje a upload by shodil
 # i vydání telefonu.
 #
+# Televize (Android TV, `client/tvApp`) totéž: týž tag a týž záznam, track **tv:internal**,
+# poznámky jen s `units: tv` a `versionCode` + 200 000 000. Zapíná ji repo proměnná
+# TV_RELEASE = true — až po povolení formátu Android TV v Play Console (Nastavení → Rozšířená
+# nastavení → Formáty), jinak track tv:internal neexistuje a upload by shodil celé vydání.
+#
 # AAB se NIKAM nepřikládá — ani jako artefakt běhu, ani jako příloha releasu. Bundl má přes
 # 50 MB a artefakty se počítají do kvóty Actions (na free účtu 500 MB, tedy deset releasů).
 # Kopii drží Play a **build je z tagu reprodukovatelný** — verze se bere z něj, ne z commitu,
@@ -31,7 +36,7 @@
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #   PLAY_SERVICE_ACCOUNT_JSON   – JSON klíč service accountu s právem nahrávat do Play Console
 #   GOOGLE_SERVICES_JSON        – obsah client/androidApp/google-services.json (Firebase: push
-#                                 a Crashlytics, telefon i hodinky); v repu není
+#                                 a Crashlytics, telefon, hodinky i televize); v repu není
 #
 # Běží na hostovaném runneru GitHubu (ve veřejném repu zdarma). Repo proměnná ANDROID_RUNS_ON
 # ho umí přesměrovat jinam (třeba na self-hosted), viz docs/poznatky/release.md, „Runnery".
@@ -77,6 +82,7 @@ jobs:
             echo "versionCode=$VERSION_CODE"
             echo "aab=plume-${VERSION_NAME}-${VERSION_CODE}.aab"
             echo "wearAab=plume-wear-${VERSION_NAME}-${VERSION_CODE}.aab"
+            echo "tvAab=plume-tv-${VERSION_NAME}-${VERSION_CODE}.aab"
           } >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
@@ -174,6 +180,8 @@ jobs:
           python3 -c 'import json,sys; json.load(open(sys.argv[1]))' client/androidApp/google-services.json \
             || { echo "::error::Secret GOOGLE_SERVICES_JSON není platný JSON."; exit 1; }
           cp client/androidApp/google-services.json client/wearApp/google-services.json
+          # Televize jen kvůli hlášení pádů (Crashlytics); push zatím nemá.
+          cp client/androidApp/google-services.json client/tvApp/google-services.json
 
       # Monitor zdrojů běží UVNITŘ tohohle kroku, ne jako samostatný krok: když runner umře na
       # paměť, žádný další krok se nespustí — ani ten s `if: always()`. Odsud jde výstup do logu
@@ -225,12 +233,30 @@ jobs:
           mv client/wearApp/build/outputs/bundle/release/wearApp-release.aab \
              "${{ steps.tag.outputs.wearAab }}"
 
+      # Televize: týž upload klíč a týž tag, versionCode (+200 000 000) si posune plugin sám.
+      - name: Build TV release bundle
+        if: vars.TV_RELEASE == 'true'
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          ./gradlew :client:tvApp:bundleRelease \
+            -PandroidVersionName=${{ steps.tag.outputs.versionName }} \
+            -PandroidVersionCode=${{ steps.tag.outputs.versionCode }}
+
+          mv client/tvApp/build/outputs/bundle/release/tvApp-release.aab \
+             "${{ steps.tag.outputs.tvAab }}"
+
       # Attestace původu (SLSA build provenance): podepsaný záznam, že tenhle bundl postavil
       # tenhle workflow z tohohle commitu. Ukládá se k repu (Attestations), ne jako artefakt —
       # bundl se nikam nepřikládá. Ověřit jde jen se souborem v ruce
       # (`gh attestation verify <soubor> --repo VladimirTintera/plume`); APK z Play ověřit nejde,
       # Play ho z bundlu skládá a přepodepisuje (docs/poznatky/release.md, „Původ buildu").
-      # Glob chytí telefon i hodinky (plume-wear-…), ať je WEAR_RELEASE zapnuté, nebo ne.
+      # Glob chytí telefon, hodinky i televizi (plume-wear-…, plume-tv-…), ať jsou zapnuté, nebo ne.
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
@@ -260,6 +286,10 @@ jobs:
             # Hodinky jen s poznámkami, které je jmenují (`units: wear`), jinak „Drobné opravy".
             python3 .github/scripts/release_notes.py play "$PREV" "$TAG" whatsnew-wear wear
           fi
+          if [ "${{ vars.TV_RELEASE }}" = "true" ]; then
+            # Televize jen s poznámkami, které ji jmenují (`units: tv`).
+            python3 .github/scripts/release_notes.py play "$PREV" "$TAG" whatsnew-tv tv
+          fi
 
       # POZOR: úplně první AAB musí do Play Console nahrát člověk ručně — dokud appka nemá žádný
       # release, androidpublisher API upload odmítne. Tenhle krok je až pro další verze.
@@ -288,6 +318,18 @@ jobs:
           tracks: wear:internal
           whatsNewDirectory: whatsnew-wear
 
+      # Track televize v témže záznamu: `tv:<track>`. Existuje až po povolení Android TV v Play
+      # Console (jako u hodinek).
+      - name: Upload TV to Google Play (tv:internal track)
+        if: vars.TV_RELEASE == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5  # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: eu.tintera.plume
+          releaseFiles: ${{ steps.tag.outputs.tvAab }}
+          tracks: tv:internal
+          whatsNewDirectory: whatsnew-tv
+
       - name: Generate changelog
         run: |
           TAG="${GITHUB_REF_NAME}"
@@ -300,6 +342,11 @@ jobs:
               echo "**Wear OS** ${{ steps.tag.outputs.versionName }} ($((100000000 + ${{ steps.tag.outputs.versionCode }}))) → Play wear:internal track"
               echo
               python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" wear
+            fi
+            if [ "${{ vars.TV_RELEASE }}" = "true" ]; then
+              echo "**Android TV** ${{ steps.tag.outputs.versionName }} ($((200000000 + ${{ steps.tag.outputs.versionCode }}))) → Play tv:internal track"
+              echo
+              python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" tv
             fi
             bash .github/scripts/release-notes.sh "$PREV" "$TAG" "target"
           } > release-notes.md

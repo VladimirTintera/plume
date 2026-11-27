@@ -185,6 +185,35 @@ releaseKeyPassword=...
 `verifyReleaseConfiguration` běží před každým `assembleRelease`/`bundleRelease` a shodí build,
 když něco z toho chybí — nepodepsaný AAB by Play stejně nevzal.
 
+### Televize (Android TV)
+
+- **Z téhož tagu do téhož záznamu jako telefon a hodinky**, na track `tv:internal`
+  (`android-release.yml`, kroky „TV"). Zapíná je repo proměnná **`TV_RELEASE = true`** — dokud
+  formát Android TV není v Play Console povolený (Nastavení → Rozšířená nastavení → Formáty),
+  track `tv:internal` neexistuje a upload by shodil i vydání telefonu a hodinek v témže běhu.
+- **`versionCode` televize = číslo z tagu + 200 000 000** (hodinky + 100 000 000). Telefon
+  bundl televize nedostane (`uses-feature android.software.leanback` povinné), takže vyšší číslo
+  nic nezastíní. Posun se po prvním vydání už nedá zmenšit (jako u hodinek).
+- **Poznámky jen s `units: tv`** (`release_notes.py play … tv`, adresář `whatsnew-tv`), jinak
+  „Drobné opravy a vylepšení". V aplikaci televize „Co je nového" zatím nemá (Nastavení není).
+- **`google-services.json` se kopíruje i do `client/tvApp`** — televize ho potřebuje kvůli
+  hlášení pádů (Crashlytics), push zatím nemá.
+- **Banner do obchodu** (`tvBanner`, přesně 1280 × 720) je v `play/graphics/tvBanner/`, společný
+  pro jazyky; generuje ho `play/tools/icon.py tv` spolu s bannerem v launcheru. **Snímky TV**
+  (`tvScreenshots`, 16 : 9, aspoň 1280 × 720 — emulátor `Plume_TV` dělá 1920 × 1080) patří do
+  `play/graphics/<locale>/tvScreenshots/`; `play_listing.py --check` hlídá rozměry obou předem.
+  **Snímky se dělají z testovacího účtu**: seznam chatů a náhled by na skutečném účtu ukázaly
+  jména a fotky lidí. Pro interní test snímky potřeba nejsou, pro přihlášení k distribuci na
+  Android TV ano (jako u hodinek).
+- **Release je minifikovaný (R8)**: APK se třemi ABI 60 MB. Ověřeno 27. 11. 2026 na emulátoru
+  (release přepodepsaný ladicím klíčem přes `apksigner`, nainstalovaný `adb install -r -d` přes
+  ladicí build — přihlášení zůstalo): seznam chatů, konverzace, hudba s `MediaSession`, video
+  za běhu stahování; intent s `CHAT_ID` se v release (ne ladicím) buildu ignoruje.
+- **Postup v Play Console**: povolit formát Android TV, nastavit `TV_RELEASE = true`, vydat
+  (bundl jde na `tv:internal`), u kanálu interního testování televize zaškrtnout testery (vlastní
+  seznam, jako hodinky); pro veřejné vydání pak snímky TV a přihlášení k distribuci na Android TV
+  s kontrolou kvality (ovládání D-padem všude, banner, žádná funkce jen na dotyk).
+
 ### Hodinky (Wear OS)
 
 - **Z téhož tagu do téhož záznamu**, na track `wear:internal` (`android-release.yml`, kroky
