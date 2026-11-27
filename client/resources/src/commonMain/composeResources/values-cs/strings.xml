@@ -4901,6 +4901,66 @@
     </plurals>
     <!-- Statistiky kanálu, skupiny a příspěvku -->
     <string name="statistics_title">Statistiky</string>
+    <string name="chat_insights_title">Statistika chatu</string>
+    <string name="chat_insights_failed">Statistiku chatu se nepodařilo spočítat</string>
+    <string name="chat_insights_scanning">Počítám zprávy…</string>
+    <plurals name="chat_insights_period">
+        <item quantity="one">%1$s zpráva od %2$s</item>
+        <item quantity="few">%1$s zprávy od %2$s</item>
+        <item quantity="other">%1$s zpráv od %2$s</item>
+    </plurals>
+    <plurals name="chat_insights_period_all">
+        <item quantity="one">Celá historie chatu · %1$s zpráva</item>
+        <item quantity="few">Celá historie chatu · %1$s zprávy</item>
+        <item quantity="other">Celá historie chatu · %1$s zpráv</item>
+    </plurals>
+    <string name="chat_insights_local_note">Spočteno ze zpráv, které už jsou v zařízení. Starší jde načíst z Telegramu.</string>
+    <string name="chat_insights_load_older">Načíst starší zprávy</string>
+    <string name="chat_insights_older_failed">Starší zprávy se nepodařilo načíst</string>
+    <string name="chat_insights_empty">Zatím není co počítat</string>
+    <string name="chat_insights_empty_text">Statistika se ukáže, až v chatu budou nějaké zprávy.</string>
+    <string name="chat_insights_overview">Přehled</string>
+    <string name="chat_insights_messages">Zpráv</string>
+    <string name="chat_insights_active_days">Dnů se zprávami</string>
+    <string name="chat_insights_per_day">Zpráv za aktivní den</string>
+    <string name="chat_insights_longest_streak">Nejdelší série</string>
+    <string name="chat_insights_current_streak">Současná série</string>
+    <string name="chat_insights_busiest_day">Nejrušnější den</string>
+    <plurals name="chat_insights_days">
+        <item quantity="one">%1$d den</item>
+        <item quantity="few">%1$d dny</item>
+        <item quantity="other">%1$d dní</item>
+    </plurals>
+    <string name="chat_insights_range">%1$s – %2$s</string>
+    <string name="chat_insights_senders">Kdo píše</string>
+    <plurals name="chat_insights_others">
+        <item quantity="one">%1$d další člověk</item>
+        <item quantity="few">%1$d další lidé</item>
+        <item quantity="other">%1$d dalších lidí</item>
+    </plurals>
+    <string name="chat_insights_replies">Odpovědi</string>
+    <string name="chat_insights_reply_time_you">Vy obvykle odpovídáte za</string>
+    <string name="chat_insights_reply_time_them">%1$s obvykle odpovídá za</string>
+    <string name="chat_insights_starts_you">Konverzaci začínáte vy</string>
+    <string name="chat_insights_starts_them">Konverzaci začíná %1$s</string>
+    <string name="chat_insights_replies_note">Medián doby odpovědi, počítají se odpovědi do šesti hodin. Konverzace začíná po osmi hodinách ticha.</string>
+    <string name="chat_insights_under_minute">do minuty</string>
+    <string name="chat_insights_minutes">%1$d min</string>
+    <string name="chat_insights_hours">%1$d h</string>
+    <string name="chat_insights_hours_minutes">%1$d h %2$d min</string>
+    <string name="chat_insights_when">Kdy se píše</string>
+    <string name="chat_insights_peak">Nejvíc %1$s kolem %2$s</string>
+    <string name="chat_insights_by_month">Zprávy po měsících</string>
+    <string name="chat_insights_series_messages">Zprávy</string>
+    <string name="chat_insights_reactions">Nejčastější reakce</string>
+    <string name="chat_insights_content">Za celou historii</string>
+    <string name="chat_insights_media">Fotky a videa</string>
+    <string name="chat_insights_files">Soubory</string>
+    <string name="chat_insights_links">Odkazy</string>
+    <string name="chat_insights_voice">Hlasovky</string>
+    <string name="chat_insights_video_notes">Kolečka</string>
+    <string name="chat_insights_gifs">GIFy</string>
+    <string name="chat_insights_music">Hudba</string>
     <string name="statistics_row_help">Růst, dosah a aktivita</string>
     <string name="statistics_period">%1$s – %2$s</string>
     <string name="statistics_failed">Statistiky se nepodařilo načíst.</string>

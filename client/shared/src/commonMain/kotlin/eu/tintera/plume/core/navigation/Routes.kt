@@ -271,6 +271,10 @@ data class ArchiveEventLogRoute(override val slot: AccountSlot, val chatId: Long
 @Serializable
 data class ArchiveChatStatisticsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
+/** [ChatInsightsRoute] konverzace z archivu. */
+@Serializable
+data class ArchiveChatInsightsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
+
 /** Statistika příspěvku otevřená v archivní větvi. */
 @Serializable
 data class ArchivePostStatisticsRoute(override val slot: AccountSlot, val chatId: Long, val messageId: Long) : AccountRoute
@@ -407,6 +411,13 @@ data class EventLogRoute(override val slot: AccountSlot, val chatId: Long) : Acc
 /** Statistiky kanálu nebo skupiny. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
 data class ChatStatisticsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
+
+/**
+ * Statistika chatu spočtená aplikací z historie (kdo kolik píše, kdy, odpovědi) — z ⋮ konverzace,
+ * taky jako detailový panel. Jiná věc než [ChatStatisticsRoute] (statistiky od serveru pro správce).
+ */
+@Serializable
+data class ChatInsightsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Statistika příspěvku v kanálu — ze statistik kanálu, nebo z „Informace o zprávě" nad
@@ -793,6 +804,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveRemovedMembersRoute::class, ArchiveRemovedMembersRoute.serializer())
             subclass(ArchiveEventLogRoute::class, ArchiveEventLogRoute.serializer())
             subclass(ArchiveChatStatisticsRoute::class, ArchiveChatStatisticsRoute.serializer())
+            subclass(ArchiveChatInsightsRoute::class, ArchiveChatInsightsRoute.serializer())
             subclass(ArchivePostStatisticsRoute::class, ArchivePostStatisticsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
@@ -806,6 +818,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(RemovedMembersRoute::class, RemovedMembersRoute.serializer())
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(ChatStatisticsRoute::class, ChatStatisticsRoute.serializer())
+            subclass(ChatInsightsRoute::class, ChatInsightsRoute.serializer())
             subclass(PostStatisticsRoute::class, PostStatisticsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())

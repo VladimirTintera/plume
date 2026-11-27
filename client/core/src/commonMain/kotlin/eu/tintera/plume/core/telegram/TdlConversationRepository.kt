@@ -213,6 +213,12 @@ import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageSourceMessageThreadHistory
 import dev.g000sha256.tdl.dto.MessageThreadInfo
 import dev.g000sha256.tdl.dto.MessageText
+import dev.g000sha256.tdl.dto.MessageDice
+import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
+import dev.g000sha256.tdl.dto.MessageVenue
+import dev.g000sha256.tdl.dto.MessageLocation
+import dev.g000sha256.tdl.dto.MessageVideoNote
+import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.ReactionType
 import dev.g000sha256.tdl.dto.ReactionTypeCustomEmoji
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
@@ -393,6 +399,48 @@ class TdlConversationRepository(
             reachedEnd = reachedEnd,
         )
     }.onFailure { logger.w(it) { "Zprávy po dnech se nepodařilo spočítat." } }
+
+    /**
+     * Týž průchod jako [messageCountsByDay], jen s otiskem zprávy místo času. Jen celý chat —
+     * téma Uložených zpráv a vlákno přímých zpráv statistiku nemají.
+     */
+    override suspend fun messageStats(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+    ): Result<MessageStatsPage> = runCatching {
+        check(savedTopicId == null && directTopicId == null) { "Statistika jen pro celý chat" }
+        var from = fromMessageId
+        val seen = HashSet<Long>().apply { if (fromMessageId != 0L) add(fromMessageId) }
+        val stats = mutableListOf<MessageStat>()
+        var oldest: Long? = null
+        var walked = 0
+        var idle = 0
+        var reachedEnd = false
+        val saved = chatId == myId()
+        while (walked < maxMessages) {
+            val page = client.getChatHistory(chatId = chatId, fromMessageId = from, offset = 0, limit = HISTORY_PAGE, onlyLocal = onlyLocal)
+                .toResult().getOrThrow().messages.filterNotNull()
+            // Jako u počtů po dnech: co už bylo, se nepočítá znovu; prázdná stránka ze serveru
+            // se zkusí ještě jednou, než se vezme jako začátek chatu.
+            val fresh = page.filter { seen.add(it.id) }
+            if (fresh.isEmpty()) {
+                if (onlyLocal || ++idle >= EMPTY_PAGE_ATTEMPTS) {
+                    reachedEnd = true
+                    break
+                }
+                continue
+            }
+            idle = 0
+            walked += fresh.size
+            fresh.mapNotNullTo(stats) { it.toMessageStat(saved) }
+            val last = fresh.minBy { it.id }
+            oldest = last.id
+            from = last.id
+        }
+        MessageStatsPage(messages = stats, oldestMessageId = oldest, reachedEnd = reachedEnd)
+    }.onFailure { logger.w(it) { "Zprávy pro statistiku se nepodařilo projít." } }
 
     override fun inForumTopic(topicId: Int): ConversationRepository =
         TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics, directTopics = directTopics)
@@ -4821,3 +4869,37 @@ internal fun TargetChatTypes.toChosen() = SwitchInlineTarget.Chosen(
     groups = allowGroupChats,
     channels = allowChannelChats,
 )
+
+/**
+ * Otisk zprávy pro statistiku chatu; servisní oznámení `null`. [savedMessages]: v Uložených
+ * zprávách je všechno vlastní, i přeposlané (jako v [ChatMessage.isOutgoing]).
+ */
+private fun Message.toMessageStat(savedMessages: Boolean): MessageStat? {
+    val content = content
+    if (content.serviceText(isChannelPost) != null) return null
+    val (kind, text) = when (content) {
+        is MessageText -> MessageStatKind.Text to content.text.text
+        is MessagePhoto -> MessageStatKind.Photo to content.caption.text
+        is MessageVideo -> MessageStatKind.Video to content.caption.text
+        is MessageAnimation -> MessageStatKind.Gif to content.caption.text
+        is MessageDocument -> MessageStatKind.File to content.caption.text
+        is MessageAudio -> MessageStatKind.Music to content.caption.text
+        is MessageVoiceNote -> MessageStatKind.Voice to content.caption.text
+        is MessageVideoNote -> MessageStatKind.VideoNote to ""
+        is MessageSticker, is MessageAnimatedEmoji, is MessageDice -> MessageStatKind.Sticker to ""
+        is MessagePoll -> MessageStatKind.Poll to ""
+        is MessageLocation, is MessageVenue -> MessageStatKind.Location to ""
+        else -> MessageStatKind.Other to ""
+    }
+    return MessageStat(
+        id = id,
+        timestamp = date,
+        senderId = senderId.plainId(),
+        isOutgoing = isOutgoing || savedMessages,
+        kind = kind,
+        characters = text.length,
+        reactions = interactionInfo?.reactions?.reactions?.filterNotNull().orEmpty().mapNotNull { reaction ->
+            reaction.type.toReactionKey()?.let { ReactionCount(it, reaction.totalCount) }
+        },
+    )
+}

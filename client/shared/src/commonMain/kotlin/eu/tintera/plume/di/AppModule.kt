@@ -28,6 +28,7 @@ import eu.tintera.plume.core.secrets.MiniAppSecretStore
 import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogViewModel
 import eu.tintera.plume.features.statistics.ChatStatisticsViewModel
+import eu.tintera.plume.features.chatinsights.ChatInsightsViewModel
 import eu.tintera.plume.features.statistics.PostStatisticsViewModel
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
 import eu.tintera.plume.features.instantview.InstantViewViewModel
@@ -821,6 +822,10 @@ fun appAccountModule() = module {
 
     viewModel { parameters ->
         ChatStatisticsViewModel(chatId = parameters.get(), repository = get())
+    }
+
+    viewModel { parameters ->
+        ChatInsightsViewModel(chatId = parameters.get(), repository = get())
     }
 
     viewModel { parameters ->

@@ -145,6 +145,7 @@ internal fun ConversationTopBar(
             onViewAsTopics = navigation.onViewAsTopics?.takeIf { state.info?.isForum == true && !state.narrowed },
             onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
             onOpenCalendar = navigation.onOpenCalendar?.let { open -> { open(viewModel.calendarAnchor()) } },
+            onOpenInsights = navigation.onOpenInsights,
             onShareContact = navigation.onShareContact,
             onAddMembers = navigation.onAddMembers,
             onEditChat = navigation.onEditChat,

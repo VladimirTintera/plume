@@ -17,6 +17,8 @@ import eu.tintera.plume.core.navigation.ArchiveRemovedMembersRoute
 import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
+import eu.tintera.plume.core.navigation.ChatInsightsRoute
+import eu.tintera.plume.core.navigation.ArchiveChatInsightsRoute
 import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import androidx.navigation3.runtime.NavKey
@@ -129,13 +131,13 @@ internal fun MutableList<NavKey>.moveConversationToMain(slot: AccountSlot, chatI
             is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveDirectTopicsRoute,
             is ArchiveChatProfileRoute, is ArchiveChatCalendarRoute,
             is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute,
-            is ArchiveRemovedMembersRoute, is ArchiveEventLogRoute, is ArchiveChatStatisticsRoute, is ArchivePostStatisticsRoute,
+            is ArchiveRemovedMembersRoute, is ArchiveEventLogRoute, is ArchiveChatStatisticsRoute, is ArchivePostStatisticsRoute, is ArchiveChatInsightsRoute,
             -> true
             // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
             // zpět z něj vedlo do profilu toho předchozího.
             is ConversationRoute, is ForumTopicsRoute, is SavedTopicsRoute, is DirectTopicsRoute, is ChatProfileRoute, is ChatCalendarRoute,
             is EditChatRoute, is MemberRightsRoute, is InviteLinksRoute, is JoinRequestsRoute, is RemovedMembersRoute, is EventLogRoute,
-            is ChatStatisticsRoute, is PostStatisticsRoute,
+            is ChatStatisticsRoute, is PostStatisticsRoute, is ChatInsightsRoute,
             -> true
             else -> false
         }
@@ -177,6 +179,8 @@ internal fun MutableList<NavKey>.closeChat(slot: AccountSlot, chatId: Long) {
             is ArchiveEventLogRoute -> it.chatId == chatId
             is ChatStatisticsRoute -> it.chatId == chatId
             is ArchiveChatStatisticsRoute -> it.chatId == chatId
+            is ChatInsightsRoute -> it.chatId == chatId
+            is ArchiveChatInsightsRoute -> it.chatId == chatId
             is PostStatisticsRoute -> it.chatId == chatId
             is ArchivePostStatisticsRoute -> it.chatId == chatId
             else -> false
@@ -212,6 +216,8 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(slot: AccountSlot, old: Lon
             is ArchiveEventLogRoute -> it.chatId == old
             is ChatStatisticsRoute -> it.chatId == old
             is ArchiveChatStatisticsRoute -> it.chatId == old
+            is ChatInsightsRoute -> it.chatId == old
+            is ArchiveChatInsightsRoute -> it.chatId == old
             else -> false
         }
     }

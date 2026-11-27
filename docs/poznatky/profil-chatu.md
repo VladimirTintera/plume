@@ -843,6 +843,46 @@ Doména je v `core/telegram/ChatStatistics.kt`, TDLib v `TdlStatisticsRepository
   z „Informace o zprávě". **Neověřené:** skutečný kanál a skupina, žebříčky skupiny, statistika
   příspěvku od serveru.
 
+### Statistika chatu
+
+⋮ v konverzaci → **Statistika chatu** (`ChatInsightsRoute`, v archivu `ArchiveChatInsightsRoute`,
+třetí panel jako statistiky kanálu): co Telegram nepočítá — přehled (zprávy, dny se zprávami,
+průměr za aktivní den, nejrušnější den, nejdelší a současná série), kdo kolik píše (podíl
+s pruhem, deset jménem a „N dalších lidí"), v soukromém chatu jak rychle kdo odpovídá a kdo
+rozhovor začíná, kdy se píše (týden × hodina), zprávy po měsících, nejčastější reakce a počty
+obsahu za celou historii. Výpočet `features/chatinsights/ChatInsights.kt`, stav
+`ChatInsightsViewModel`, testy `ChatInsightsTest`, `ChatInsightsViewModelTest`.
+
+- **Jiná věc než statistiky kanálu a skupiny od serveru** (`ChatStatisticsRoute`, jen pro
+  správce velkých chatů). Proto vlastní jméno v kódu (`ChatInsights`), aby se nepletly.
+- **Historie se prochází jako u kalendáře zpráv**: napřed lokální databáze TDLib po úsecích
+  2 000 zpráv, strop 30 000 (obrazovka se plní po každém úseku), pak „Načíst starší" po 1 000
+  ze serveru, až server nic staršího nemá („Celá historie chatu"). Proč ne odhad z čísel zpráv,
+  viz `konverzace-pohyb.md`, „Kalendář zpráv z nabídky". Když zařízení nemá nic, jde první
+  dávka rovnou ze serveru.
+- **Z každé zprávy jen otisk** (`ConversationRepository.messageStats` → `MessageStat`:
+  odesílatel, čas, hrubý druh, délka textu, reakce), ne `ChatMessage` — převod tisíců zpráv
+  s jmény a náhledy by byl práce navíc. Servisní oznámení se nepočítají.
+- **Počty obsahu jsou přesné za celou historii** (`sharedMediaCounts`, `getChatMessageCount`),
+  zbytek jen z prošlého úseku — proto sekce „Za celou historii" zvlášť a nahoře věta, z čeho
+  je statistika spočtená.
+- **Odpovědi a začátky jen v soukromém chatu** (`ChatInfo`: ne skupina, kanál ani Uložené).
+  Napřed rozhodoval počet píšících a skupina, kde zatím psali jen dva, ukázala „kdo začíná"
+  (viděno na emulátoru). Odpověď = zpráva druhé strany do šesti hodin, medián; začátek =
+  první zpráva po osmi hodinách ticha; první zpráva úseku se za začátek nepočítá.
+- **Strany odpovědí stojí proti sobě**: vlevo vy, vpravo protějšek, chybějící údaj je „–".
+  Bez pomlčky dlaždice pod ním zaplnily díru a strany se přestaly krýt (bot, který nikdy
+  neodpoví).
+- **Podíly se zaokrouhlují** (`shareText`). `percentText` ze statistik kanálu desetiny useká,
+  takže 40 a 5 zpráv dalo 88 % a 11 %.
+- **Graf po měsících je karta grafu ze statistik kanálu** (`StatChartCard`, osa po měsících
+  `XLabel.Month`) s výběrem bodu; body jsou začátky měsíců v UTC, protože karta popisuje v UTC.
+- **Týden × hodina je v místním čase zařízení.** Na emulátoru s jiným pásmem vyšla zpráva
+  odeslaná ve 22:07 SEČ jako 17:00 — správně.
+- **Ověřeno na emulátoru** (anglicky) ve skupině „Plume test triaze" a v chatu s Notifikátorem:
+  přehled, žebříček, odpovědi, mřížka, měsíce, počty obsahu, „Načíst starší" až k začátku chatu.
+  Čeština, velká skupina (tisíce zpráv, strop průchodu) a iOS / desktop ověřené nejsou.
+
 ### Gigaskupina
 
 Úprava supergroupy nabízí vlastníkovi **Převést na gigaskupinu** (`toggleSupergroupIsBroadcastGroup`,
