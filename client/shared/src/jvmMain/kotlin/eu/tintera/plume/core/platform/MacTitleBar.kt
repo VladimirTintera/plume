@@ -49,6 +49,9 @@ internal object MacTitleBar {
      */
     fun startDrag(window: java.awt.Frame) = call("Tah oknem") { nativeStartDrag(window.title) }
 
+    /** Připraví tah oknem (hlídač stisků v AppKitu); jednou, než může přijít první tah. */
+    fun prepareDrag() = call("Příprava tahu oknem") { nativeInstallDragMonitor() }
+
     /** Dvojklik na pruh titulku: zvětšení / minimalizace podle nastavení systému. */
     fun titleBarDoubleClick(window: java.awt.Frame) = call("Dvojklik na titulek") { nativeTitleBarDoubleClick(window.title) }
 
@@ -59,6 +62,9 @@ internal object MacTitleBar {
 
     @JvmStatic
     private external fun nativeStartDrag(title: String)
+
+    @JvmStatic
+    private external fun nativeInstallDragMonitor()
 
     @JvmStatic
     private external fun nativeTitleBarDoubleClick(title: String)

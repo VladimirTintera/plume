@@ -114,6 +114,7 @@ object DesktopTitleBar {
             titleBar.height = height.value
             if (windows) titleBar.putProperty("controls.dark", isDark)
             decorations.setCustomTitleBar(window, titleBar)
+            if (mac) MacTitleBar.prepareDrag()
             // Na Macu je v `leftInset` i okraj ZA semafory (stejný jako před nimi) a hlavičky mají
             // vlastní odsazení začátku; bez ubrání vycházela mezera ~36 b k pilulce a ~45 b k holé ikoně místo ~20 jako u aplikací
             // pro Mac (Zprávy, Finder). Měří se k viditelnému tvaru, tedy u holé ikony ke glyfu,
@@ -166,8 +167,8 @@ object DesktopTitleBar {
      *   působit jako systémový titulek), **prvek** (tlačítko, avatar, název chatu) po
      *   [CONTROL_DRAG_THRESHOLD], jako tlačítka v nástrojové liště aplikací pro Mac: stisk bez
      *   pohybu je klik, s pohybem tah oknem a prvek o klik přijde (puštění se mu spotřebuje).
-     *   Okno se chytí v místě, kde práh přešel, ne kde byl stisk — o práh pak zaostává za
-     *   kurzorem; s `touchSlop` (18 dp) to bylo znát.
+     *   Okno posouvá most sám podle myši od místa stisku (ne systémový tah oknem, ten se na
+     *   trackpadu chytal v místě předchozího tahu), viz `nativeStartDrag` v `PlumeWindow.m`.
      * - **Textové pole si tah nechá** (výběr textu myší), pozná se podle kurzoru ([overTextField]).
      *   Podle toho, jestli pohyb spotřeboval prvek, to nejde: lišta s hledáním v seznamu chatů
      *   ho spotřebuje taky (táhnout jde i za ni) a ikona hledání v ní by oknem nehnula.
