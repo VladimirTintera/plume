@@ -1262,6 +1262,39 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
   - **Na zařízení zatím neověřeno.** Reprodukce: podržet chat (nabídka otevřená), screenshot,
     z náhledu screenshotu sdílet do Uložených zpráv přes Plume, odeslat, gesto zpět.
 
+### Vlastní štítky
+
+Štítky, které si uživatel založí sám („Rodina", „Vyřídit"), s barvou z téže palety jako barvy
+chatů. Telegram má štítky složek jen s Premium a o těchhle neví (`core/chatlabels/ChatLabels.kt`,
+`features/chatlabels/`, testy `ChatLabelsTest`, `ChatLabelSyncTest`).
+
+- **Přiřazení**: sheet „Štítky" (`ChatLabelsSheet`) z nabídky nad chatem v seznamu (vedle
+  složek) i z ⋮ konverzace a profilu (`ChatActions`, pod „Další"). Zaškrtnutí se ukládá hned
+  a sheet zůstává otevřený. Tužka u štítku otevře editor (název, barva, smazání s potvrzením)
+  v témže sheetu místo seznamu, ne druhé okno nad ním. Nový štítek dostane rovnou chat, ze
+  kterého se zakládal.
+- **V řádku chatu** za jménem nejvýš dva čipy a „+N" (`ChatRowMarks.labels`, `LabelChip`).
+  Barva čipu je `secondaryContainer` / `onSecondaryContainer` ze schématu barvy štítku
+  (`chatColorScheme`), ne hex — dvojice z téhož schématu je čitelná ve světlém i tmavém motivu.
+- **Filtr nad seznamem** (`LabelFilterRow`): čipy štítků, které nějaký chat má, jen když
+  nějaký má. Jeden naráz, druhé ťuknutí filtr zruší. **Filtruje se v seznamu
+  (`ChatListContent`), ne ve stavu ViewModelu**: prázdný výsledek by jinak spadl do prázdného
+  stavu účtu („Žádné chaty") a filtr by zmizel, takže by nešel zrušit. Proto filtrovaný prázdný
+  seznam ukáže větu pod filtrem. **Jen načtené chaty** — hlavní seznam se dotahuje po stránkách;
+  společný seznam víc účtů filtr zatím nemá (štítky v řádcích ano).
+- **Uložení po účtech** (`AppSettings.chatLabels`, `labelAssignments`, s `accountId` jako barvy
+  chatů): definice štítků a jeden záznam na dvojici chat–štítek. Přiřazení ke smazanému štítku
+  se při čtení vynechá — smazání a přiřazení můžou přijít z různých zařízení. Barva NÁZVEM
+  (`ThemeColor.name`), neznámá spadne na modrou.
+- **Synchronizace** je skupina `ChatLabels` (`plume_chat_labels`): položka `label:<id>` na
+  štítek a `chat:<chat>:<štítek>` na přiřazení, takže smazání štítku na telefonu a nové
+  přiřazení na desktopu se slijí po kusech. Do `combine` v `CloudSync.watch` jdou štítky
+  a přiřazení jako jeden tok (`Pair`) — typované `combine` končí pěti toky.
+- **Ověřeno na emulátoru**: založení štítku z nabídky nad chatem (název, zelená), čip u chatu,
+  filtr (jen chat se štítkem, druhé ťuknutí vrátí všechny), položka v ⋮ konverzace a smazání
+  přes editor s potvrzením (štítek zmizel i z chatu). Synchronizace mezi dvěma zařízeními jen
+  testy.
+
 ### Odložení chatu
 
 „Odložit" v nabídce nad chatem (za hodinu, dnes večer, ráno / zítra ráno) chat do zvolené doby

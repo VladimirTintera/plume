@@ -2,6 +2,8 @@ package eu.tintera.plume.core.settings.sync
 
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.chatcolor.StoredChatColor
+import eu.tintera.plume.core.chatlabels.StoredChatLabel
+import eu.tintera.plume.core.chatlabels.StoredLabelAssignment
 import eu.tintera.plume.core.video.MAX_VIDEO_POSITIONS
 import eu.tintera.plume.core.video.VideoPosition
 import kotlinx.serialization.Serializable
@@ -38,6 +40,13 @@ enum class CloudSyncGroup(val cloudKey: String) {
 
     /** Barvy, které si uživatel dal ke konverzacím účtu ([StoredChatColor]). */
     ChatColors("plume_chat_colors"),
+
+    /**
+     * Vlastní štítky účtu a jejich přiřazení k chatům ([StoredChatLabel], [StoredLabelAssignment]).
+     * Jedna skupina, ale položka na štítek a na dvojici chat–štítek: smazání štítku nebo
+     * odebrání z chatu na jednom zařízení se tak slévá po kusech, ne přepsáním celého seznamu.
+     */
+    ChatLabels("plume_chat_labels"),
 }
 
 /** Názvy klíčů `AppSettings` po skupinách; zapisovat jde jen ty, které `AppSettings` zná. */
@@ -158,6 +167,37 @@ fun chatColorEntries(colors: List<StoredChatColor>, accountId: Long): SyncEntrie
 fun chatColorsWith(entries: SyncEntries, current: List<StoredChatColor>, accountId: Long): List<StoredChatColor> =
     current.filterNot { it.accountId == accountId } +
         entries.mapNotNull { (chat, color) -> chat.toLongOrNull()?.let { StoredChatColor(accountId, it, color) } }
+
+/** Štítek v úložišti: id je v klíči položky, účet dává úložiště samo. */
+@kotlinx.serialization.Serializable
+private data class SyncedLabel(val name: String, val color: String, val order: Int = 0)
+
+private const val LABEL_PREFIX = "label:"
+private const val ASSIGNMENT_PREFIX = "chat:"
+
+/** Štítky a přiřazení účtu [accountId] jako položky: `label:<id>` → štítek, `chat:<chat>:<štítek>` → „1". */
+fun chatLabelEntries(labels: List<StoredChatLabel>, assignments: List<StoredLabelAssignment>, accountId: Long): SyncEntries =
+    labels.filter { it.accountId == accountId }.associate {
+        LABEL_PREFIX + it.id to syncJson.encodeToString(SyncedLabel.serializer(), SyncedLabel(it.name, it.color, it.order))
+    } + assignments.filter { it.accountId == accountId }.associate { "$ASSIGNMENT_PREFIX${it.chatId}:${it.labelId}" to "1" }
+
+/** Štítky po sloučení: štítky účtu ze [entries] a štítky ostatních účtů. */
+fun chatLabelsWith(entries: SyncEntries, current: List<StoredChatLabel>, accountId: Long): List<StoredChatLabel> =
+    current.filterNot { it.accountId == accountId } + entries.mapNotNull { (key, value) ->
+        val id = key.removePrefix(LABEL_PREFIX).takeIf { key.startsWith(LABEL_PREFIX) && it.isNotEmpty() } ?: return@mapNotNull null
+        runCatching { syncJson.decodeFromString(SyncedLabel.serializer(), value) }.getOrNull()
+            ?.let { StoredChatLabel(accountId, id, it.name, it.color, it.order) }
+    }
+
+/** Přiřazení po sloučení: přiřazení účtu ze [entries] a přiřazení ostatních účtů. */
+fun labelAssignmentsWith(entries: SyncEntries, current: List<StoredLabelAssignment>, accountId: Long): List<StoredLabelAssignment> =
+    current.filterNot { it.accountId == accountId } + entries.keys.mapNotNull { key ->
+        if (!key.startsWith(ASSIGNMENT_PREFIX)) return@mapNotNull null
+        val parts = key.removePrefix(ASSIGNMENT_PREFIX).split(":", limit = 2)
+        val chat = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+        val label = parts.getOrNull(1)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+        StoredLabelAssignment(accountId, chat, label)
+    }
 
 /** Záložky účtu [accountId] jako položky (klíč je chat a zpráva). */
 fun bookmarkEntries(bookmarks: List<MessageBookmark>, accountId: Long): SyncEntries =
