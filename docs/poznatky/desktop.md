@@ -429,12 +429,24 @@ knihovny) rozhoduje JBR podle odpovědí na jednotlivé události (`jbrHitTest`)
   (tlačítko, avatar, ikona hledání, název chatu) po 6 dp, jako tlačítka nástrojové lišty
   aplikací pro Mac — stisk bez pohybu je klik, s pohybem tah oknem a prvek o klik přijde (kořen
   mu spotřebuje pohyby i puštění v průchodu `Initial`, `clickable` se zruší).
-  - **Okno se chytí v místě, kde práh přešel**, ne kde byl stisk, a o práh pak zaostává za
-    kurzorem. S `touchSlop` (18 dp) u prvků to bylo znát, proto 6 dp.
-  - **Most bere `NSApp.currentEvent`** z hlavní fronty — v tu chvíli poslední tah myší, protože
-    se volá až po zpracování události ve frontě AWT. Tak to dělá i `drag_window` v knihovně tao
-    (Tauri). Okno se do té doby nehnulo, takže poloha v události sedí. Událost z jiného okna
-    (popup), bez stisknutého levého tlačítka nebo jiná než tah / stisk se zahodí.
+  - **Okno posouvá náš nativní kód sám, ne systémový tah** (`PlumeMoveWindowWithMouse`
+    v `PlumeWindow.m`): lokální hlídač `NSEvent` si u každého stisku zapamatuje polohu myši
+    a okna, a jakmile Compose tah ohlásí, s každým `LeftMouseDragged` okno posune tak, aby
+    místo stisku zůstalo pod kurzorem (titulek ne pod lištu nabídek). Puštění tah ukončí.
+    Hlídač se instaluje předem (`MacTitleBar.prepareDrag` při nastavení titulku), jinak by
+    prvnímu tahu chyběl stisk. Přichytávání ke krajům ani přetažení na jinou plochu to nemá.
+    Okno se chytí v místě stisku, i když tah začne až po prahu.
+  - **`performWindowDragWithEvent` z naší strany na trackpadu nefunguje — dvakrát to
+    nevyšlo.** Vydání 1.2.18 bralo `NSApp.currentEvent` v bloku na hlavní frontě (jako
+    `drag_window` v knihovně tao), vývojová verze pak volala tah přímo při zpracování
+    nejbližšího `LeftMouseDragged` v okně. V obou se tah trackpadem chytil jen ob jeden
+    a okno pokaždé poskočilo, kdežto myší z computer-use prošel vždycky. Log z tahů uživatele
+    ukázal, že se systémový tah volal správně, se zpracovávaným tahem myši v našem okně —
+    a okno se pak chytilo v místě PŘEDCHOZÍHO tahu (stisk na x 748, kurzor pak stál v okně na
+    1080, kde byl minulý stisk na 1098). Systémový tah si kotvu bere ze stisku, kterým tah
+    oknem začínal, a náš stisk pro něj byl obsah. Uživatel to popsal přesně: „jako by
+    předchozí pozice byla ta, kterou to táhnu teď". Vlastní posun prošel na trackpadu
+    každým tahem (devět po sobě, odchylka na konci tahu nejvýš ~3 b).
 - **Textové pole si tah nechá a pozná se podle kurzoru**: pole si nastavuje textový kurzor
   (`pointerHoverIcon`) už při najetí, takže při stisku ho má komponenta okna (`SkiaLayer`)
   z události AWT. Výběr textu myší v poli hledání chatů (leží v pruhu) oknem nehne.
@@ -454,6 +466,10 @@ knihovny) rozhoduje JBR podle odpovědí na jednotlivé události (`jbrHitTest`)
   `Main`: spotřebovaný stisk = obsah až do puštění, nespotřebovaný v pruhu = titulek. Funguje to,
   protože Compose zpracuje událost synchronně uvnitř posluchače AWT — stejně to dělal Jewel,
   než přešel na ručně hlášené oblasti (`clientRegion`). Prvky v pruhu tam táhnout nejde.
+- **Myš z computer-use o trackpadu nic neříká.** Tah systémovým `performWindowDragWithEvent`
+  s ní prošel pokaždé, uživateli na trackpadu jen ob jeden a s poskočením (1.2.18). Ověření
+  tahu oknem patří i na trackpad; s ladicím logem (poloha myši a okna na začátku a konci
+  tahu) se z pár uživatelových tahů pozná víc než z desítek syntetických.
 - **Syntetický tah na pozadí okno neposune ani tam, kde to funguje** (computer-use `app_drag`,
   událost poslaná procesu): `performWindowDragWithEvent` chce skutečnou myš. Ověřuje se přes
   celou obrazovku (`left_mouse_down` / `mouse_move` s krátkými pauzami / `left_mouse_up`)
