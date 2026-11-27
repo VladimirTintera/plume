@@ -585,7 +585,7 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    View v textu, příspěvek z feedu otevřený přímo v přehrávači (OK na kartě s videem), zpráva vyšší než
    obrazovka v konverzaci a velké komentáře hotové (šipka je napřed odroluje).
 3. ~~**Fotky přes celou obrazovku** a procházení alba šipkami~~ — hotovo (prohlížeč přes všechna
-   média konverzace, album jako mřížka v bublině). Zbývá: přiblížení fotky, pás alba v detailu
+   média konverzace, album jako mřížka v bublině). Přiblížení fotky hotové. Zbývá: pás alba v detailu
    příspěvku ověřit na kanálu s alby, otevření prohlížeče na N-té položce alba (dnes vždy první).
 4. ~~**Hlasovky a hudba**~~ — hotovo (jeden přehrávač pro aplikaci, dock, fronta, `MediaSession`
    s dalším a předchozím). Zbývá: skok v hlasovce a skladbě (dnes jen od začátku), přepis
