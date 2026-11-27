@@ -11,6 +11,14 @@
     <!-- NetworkMonitor (core/connectivity) hlásí TDLib druh sítě. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Hlasové zadání v hledání: od Androidu 11 aplikace bez dotazu nevidí, kdo umí
+         RecognizerIntent, a tlačítko mikrofonu by se nikdy neukázalo. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <application
         android:name=".TvApplication"
         android:allowBackup="false"

@@ -5184,4 +5184,9 @@
     <string name="tv_compose_button">Napsat zprávu</string>
     <string name="tv_compose_comment">Napsat komentář</string>
     <string name="tv_compose_title">Nová zpráva</string>
+    <string name="tv_search_tab">Hledat</string>
+    <string name="tv_search_hint">Hledat chaty a zprávy</string>
+    <string name="tv_search_voice">Hledat hlasem</string>
+    <string name="tv_search_prompt">Co hledáte?</string>
+    <string name="tv_search_start">Napište nebo řekněte jméno chatu, kanálu nebo slova ze zprávy.</string>
 </resources>

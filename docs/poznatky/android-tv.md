@@ -221,6 +221,40 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zatím ne**: reakce a odpověď na příběh, ztlumení (hlasitost má ovladač), skrytí autora,
   vlastní příběh (diváci, správa), lem příběhu u avataru v řádku chatu a v konverzaci.
 
+## Hledání
+
+- **První záložka, jen s lupou** — jako horní navigace samotné Google TV (hledání vlevo ikonou,
+  pak sekce). Lišta s hlavními cíli (`NavigationDrawer`), se kterou počítala roadmapa, by kvůli
+  dvěma cílům vzala šířku seznamu. Co ukazuje obrazovka pod záložkami, nese `ListSection`
+  (Chaty, Rozkoukaná videa, Hledání); složka zůstává zvlášť.
+- **Tytéž dotazy jako na telefonu** z `core`: `searchChats` napřed lokálně a pak i na serveru,
+  `searchPublicChats` (globální výsledky) a `searchMessages` napříč chaty. Bez dotazu nedávno
+  nalezené chaty (`recentlyFoundChats`). Vpravo náhled zaostřeného výsledku jako v seznamu chatů.
+- **Části výsledků chodí, jak doběhnou dotazy, a chaty bývají až po globálních.** Seznam drží
+  první viditelnou položku podle klíče, takže chaty i s nadpisem zůstaly nad horním okrajem a
+  vypadalo to, že vlastní chat nenašel (ověřeno na emulátoru). Dokud v seznamu není fokus, drží
+  se na začátku. **A výsledek se zapíše, jen když dotaz pořád platí**: volání TDLib nemusí na
+  zrušení korutiny reagovat a výsledek staršího dotazu („Notifik" při psaní po částech) by
+  přepsal novější.
+- **Stav hledání drží navigace** (`TvSearchState`): z výsledku se otevírá chat, seznam i s
+  hledáním odchází z kompozice a po návratu musí stát dotaz, výsledky i fokus na položce, ze
+  které se odcházelo — bez nového dotazu.
+- **Šipku vlevo si pole bere na posun kurzoru**, takže se z něj na mikrofon nedalo dostat. Na
+  začátku textu šipka vlevo z pole odejde (`TextFieldValue` kvůli kurzoru); šipka dolů se posílá
+  výslovně jako v okně odpovědi.
+- **Hlasové zadání je systémové** (`RecognizerIntent.ACTION_RECOGNIZE_SPEECH`): na Google TV ho
+  obslouží aplikace Google vlastním okénkem a vrátí text. Od Androidu 11 je k tomu potřeba
+  `<queries>` v manifestu, jinak `resolveActivity` vrátí `null` a tlačítko se nikdy neukáže.
+  **Jazyk se předává z aplikace** (`EXTRA_LANGUAGE`): na emulátoru s anglickým systémem
+  a českou aplikací poslouchalo rozpoznávání anglicky.
+- **Tlačítko hledání na ovladači** (`KEYCODE_SEARCH`, má ho část ovladačů) odkudkoli zavře, co je
+  otevřené, přepne na hledání a spustí hlasové zadání; fokus jde na mikrofon (jinak zůstal na
+  záložce a šipka vpravo přepnula složku). **Mikrofon na ovladači Google TV si ale bere Asistent
+  systému**, aplikace ho nedostane — globální hledání přes Asistenta („najdi … v Plume") by
+  chtělo `searchable` a obsahového poskytovatele, zatím není.
+- **Zpráva z výsledků otevře svůj chat**, ne zprávu: skok na zprávu konverzace na televizi
+  zatím neumí (roadmapa).
+
 ## Fotky a alba
 
 - **Prohlížeč přes celou obrazovku** (`MediaViewerScreen`): šipky vlevo a vpravo jdou po VŠECH
@@ -355,6 +389,12 @@ Do Play z téhož tagu jako telefon a hodinky, track `tv:internal`, za repo prom
 
 ## Ověření
 
+- **Hledání ověřeno 27. 11. 2026**: záložka s lupou, pole se systémovou klávesnicí, dotaz
+  „Notifikator" psaný po částech → Chaty (vlastní Notifikátor) a Globální výsledky, šipka dolů
+  na výsledek a náhled vpravo, otevření chatu a Zpět s fokusem na výsledku; „TV" → Zprávy
+  s časy; šipka vlevo z pole na mikrofon; mikrofon i `input keyevent KEYCODE_SEARCH` otevřou
+  okénko Googlu s výzvou „Co hledáte?" česky. Skutečný hlas a text vrácený rozpoznáváním ověřené
+  nejsou (emulátor mikrofon nemá připojený).
 - **Příběhy ověřeny 27. 11. 2026 jen částečně**: účet v tu chvíli neměl žádné aktivní příběhy
   (řada se správně neukázala) a příběhy lidí se na skutečném účtu otevírat nesmí (autor vidí,
   kdo je zhlédl). Dočasným ladicím háčkem (odstraněným): řada s kanálem Pavla Durova a dvěma

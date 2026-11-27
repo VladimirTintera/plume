@@ -597,8 +597,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    přeposlání, skok na citovanou zprávu.
 6. **Úklid mezipaměti** jako na hodinkách (`WearStorageCleaner`): levné televize mají kolem 8 GB
    a videa z kanálů by je zaplnila.
-7. **Hlavní cíle v liště** (`NavigationDrawer`: Chaty, Hledání, Nastavení), až budou; složky
-   zůstávají záložkami.
+7. ~~**Hlavní cíle v liště**~~ — hledání je první záložka s lupou (jako horní navigace Google
+   TV), lišta by kvůli dvěma cílům vzala šířku seznamu. Vrátit se k ní, až přibude Nastavení.
 8. ~~**Vydání do Play:** bundl ze stejného tagu, track `tv:internal`, jednotka `tv`, banner do
    obchodu~~ — připraveno (release workflow za `TV_RELEASE`, R8 ověřený na emulátoru). Zbývá na
    uživateli: povolit formát Android TV v Play Console, nastavit repo proměnnou `TV_RELEASE`,
@@ -611,8 +611,10 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 10. ~~**Příběhy**~~ — hotovo (řada nad Všemi chaty, prohlížeč ovladačem). Zbývá: reakce
     a odpověď, vlastní příběh, lem u avatarů v řádcích chatů, ověřit přechod mezi autory na
     účtu s příběhy lidí (testovací účet).
-11. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **hledání i hlasem** (mikrofon na ovladači; s ním
-    lišta s hlavními cíli z bodu 7), **kanál jako pořad** (po dohrání videa v kanálu další video
+11. ~~**Hledání i hlasem**~~ — hotovo (záložka s lupou, chaty, globální výsledky a zprávy,
+    hlasové zadání a tlačítko hledání na ovladači). Zbývá: skok ze zprávy ve výsledcích přímo
+    na zprávu v konverzaci, globální hledání přes Asistenta Google TV (`searchable`).
+12. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **kanál jako pořad** (po dohrání videa v kanálu další video
     téhož kanálu), **spořič obrazovky s fotkami** (systémový `DreamService` z vybraného chatu nebo
     Uložených zpráv).
 
