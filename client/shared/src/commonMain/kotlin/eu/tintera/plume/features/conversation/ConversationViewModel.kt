@@ -790,6 +790,19 @@ class ConversationViewModel(
     )
     fun stopPendingReply() = pendingReplies.stop()
 
+    /** Vlákno odpovědí kolem zprávy — viz [ConversationReplyThread]. */
+    private val replyThread: ConversationReplyThread = ConversationReplyThread(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        jumpTo = { messageId, returnTo -> jumpToMessage(messageId, returnTo = returnTo) },
+        logger = logger,
+    )
+    fun scanReplyThreadMore() = replyThread.scanMore()
+    fun closeReplyThread() = replyThread.closeThread()
+    fun pickReplyThreadMessage(messageId: Long) = replyThread.pickThreadMessage(messageId)
+
     fun openScheduled() = scheduled.openScheduled()
     fun closeScheduled() = scheduled.closeScheduled()
     fun reschedule(messageId: Long, schedule: MessageSchedule?) = scheduled.reschedule(messageId, schedule)
@@ -2369,6 +2382,7 @@ class ConversationViewModel(
             MessageMenuAction.ReplyElsewhere -> messageActions.requestReplyElsewhere(messageId)
             MessageMenuAction.Remind -> messageActions.requestRemind(messageId)
             MessageMenuAction.Info -> menu.showMessageInfo(messageId)
+            MessageMenuAction.ShowReplyThread -> replyThread.openThread(messageId)
             MessageMenuAction.Translate -> translation.showTranslation(messageId)
             MessageMenuAction.Summarize -> translation.showSummary(messageId)
             // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.

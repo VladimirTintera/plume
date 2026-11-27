@@ -103,6 +103,14 @@ class MessageActionTest {
         assertEquals(3L, menu(items = emptyList()).copy(pressedMessageId = 3L).replyTarget)
     }
 
+    /** „Zobrazit vlákno" jen tam, kde vlákno je — jinak by sheet ukázal jedinou zprávu. */
+    @Test
+    fun vlaknoJenUZpravyVeVlakne() {
+        val items = listOf(MessageMenuAction.ShowReplyThread)
+        assertEquals(null, MessageMenuAction.ShowReplyThread.presentation(menu(items)))
+        assertNotNull(MessageMenuAction.ShowReplyThread.presentation(menu(items).copy(inReplyThread = true)))
+    }
+
     @Test
     fun textNabiziUpravuAKopirovaniVPoradiNabidky() {
         assertEquals(
@@ -110,6 +118,7 @@ class MessageActionTest {
                 MessageMenuAction.Resend,
                 MessageMenuAction.Edit,
                 MessageMenuAction.Reply,
+                MessageMenuAction.ShowReplyThread,
                 MessageMenuAction.Copy,
                 MessageMenuAction.Forward,
                 MessageMenuAction.Translate,

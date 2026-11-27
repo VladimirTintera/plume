@@ -352,6 +352,12 @@ data class MessageMenu(
     /** Je zpráva v záložkách (`MessageBookmarks`)? `null` = záložky nejsou k dispozici, položka se nenabízí. */
     val bookmarked: Boolean? = null,
     /**
+     * Je zpráva ve vláknu odpovědí — sama na něco odpovídá, nebo na ni odpovídá některá načtená
+     * zpráva? Jen pak se nabízí „Zobrazit vlákno" (jinak by sheet ukázal jedinou zprávu).
+     * Odpovědi mimo načtené okno tím uniknou; nabídka kvůli nim historii neprochází.
+     */
+    val inReplyThread: Boolean = false,
+    /**
      * Je skladba zprávy v hudbě vlastního profilu? `null`, když zpráva skladba není (nebo to
      * zjistit nejde) — pak se položka nenabízí.
      */

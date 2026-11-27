@@ -303,6 +303,8 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
     if (message.composerEdit(customEmoji) != null) add(MessageMenuAction.Edit)
     if (message.checklist != null) add(MessageMenuAction.EditChecklist)
     add(MessageMenuAction.Reply)
+    // Ukáže se, jen když vlákno je (`MessageMenu.inReplyThread`) — to ví až nabídka.
+    add(MessageMenuAction.ShowReplyThread)
     val poll = message.poll
     // Bez textu není co kopírovat, i kdyby to server dovolil. Text ankety je jen náš popis
     // („Anketa: otázka") pro citace a náhledy, ne obsah, který by stálo za to kopírovat.

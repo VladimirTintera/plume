@@ -250,6 +250,8 @@ internal class ConversationMessageMenu(
                         favoriteSticker = favorite,
                         savedGif = savedGifTask.await(),
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
+                        inReplyThread = MessageMenuAction.ShowReplyThread in items &&
+                            (message.replyToMessageId != null || it.messages.any { m -> m.replyToMessageId == messageId }),
                         profileAudio = profileAudioTask.await(),
                         pressedMessageId = pressed?.takeIf { it != messageId },
                         blockFromReplies = it.info?.isReplies == true && !message.isOutgoing,

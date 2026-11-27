@@ -975,6 +975,19 @@
     <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>
     <string name="menu_reply">Odpovědět</string>
     <string name="menu_reply_elsewhere">Odpovědět jinde</string>
+    <string name="menu_reply_thread">Zobrazit vlákno</string>
+    <string name="reply_thread_title">Vlákno</string>
+    <plurals name="reply_thread_count">
+        <item quantity="one">%1$d zpráva</item>
+        <item quantity="few">%1$d zprávy</item>
+        <item quantity="other">%1$d zpráv</item>
+    </plurals>
+    <string name="reply_thread_scanning">Hledám odpovědi…</string>
+    <string name="reply_thread_paused">Prohledáno do %1$s</string>
+    <string name="reply_thread_more">Hledat dál</string>
+    <string name="reply_thread_root_missing">Vlákno začíná odpovědí na smazanou zprávu</string>
+    <string name="reply_thread_replying_to">Odpovídá: %1$s – %2$s</string>
+    <string name="reply_thread_failed">Vlákno se nepodařilo načíst</string>
     <string name="reply_elsewhere_title">Kam odpovědět</string>
     <string name="menu_quote">Citovat</string>
     <string name="menu_edit">Upravit</string>

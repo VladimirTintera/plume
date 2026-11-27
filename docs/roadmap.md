@@ -2089,6 +2089,79 @@ Nic z toho zatím nikdo nezačal. Velikost: S = malé, M = střední, L = velké
 
 ---
 
+## Nápady nad chaty, které Telegram nemá (26. 11. 2026)
+
+V duchu kalendáře zpráv: věci, které oficiální klient neumí a dají se postavit z dat, která
+TDLib dává. Ověřeno grepem v `docs/`, že nic z toho ještě není. Velikost: S = malé,
+M = střední, L = velké. Vědomě vynechané: historie úprav a zachytávání smazaných zpráv —
+technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu smaže.
+
+**Nad historií jednoho chatu**
+
+- ~~**Vlákno odpovědí ve skupině bez témat**~~ — hotovo jako sheet: nabídka nad zprávou →
+  „Zobrazit vlákno", řetěz citací ke kořeni a odpovědi z historie od kořene po kolech
+  (`docs/poznatky/konverzace-pohyb.md`, „Vlákno odpovědí"). Zbývá: ověřit ve skutečně rušné
+  skupině (rychlost prvního kola, kořen z minulého měsíce).
+- **Vlákna jako v Google Chatu** (L, odložené 26. 11. 2026). Uživatel by to rád („troška
+  pořádku do toho chaosu"), ale teď to důležité není. Rozhovor uvnitř konverzace: zpráva v hlavním
+  proudu s čipem „3 odpovědi", vlákno jako vlastní konverzace, ve které se píše.
+  - **Proč to musí stavět klient:** skutečná vlákna vede server jen u komentářů kanálu
+    (diskusní skupina, `replyInfo`, `getMessageThread`; obrazovku pro ně už máme,
+    `ThreadConversationRepository`) a u témat ve skupinách. V obyčejné skupině je jen
+    `replyTo` — ověřeno v API wrapperu 17.0.0 a v `docs/poznatky/typy-zprav.md` („Komentáře jen
+    v kanálu").
+  - **Fáze, jak by šly po sobě:**
+    1. Vlákno jako konverzace místo sheetu: plné bubliny, reakce, psaní do vlákna. Odeslaná
+       zpráva jde jako odpověď na poslední zprávu vlákna, takže ostatní v oficiálním klientovi
+       vidí běžnou odpověď a řetěz se nepřetrhne. Vzor obalu je `ThreadConversationRepository`.
+       Pod kořenem čip „N odpovědí" s tvářemi posledních (jako u komentářů).
+    2. Index odpovědí v zařízení (kdo na co odpovídá) z updatů a načtené historie — vlákno se
+       otevře hned a počty na čipu sedí i u starších zpráv; procházení historie zůstane jako
+       záloha.
+    3. Režim „sbalená vlákna" pro jeden chat: v hlavním proudu jen začátky vláken
+       a samostatné zprávy, odpovědi pod čipem; nová odpověď ve starém vlákně dole jako řádek
+       „Petr odpověděl ve vlákně: …".
+    4. Přehled vláken napříč chaty (kde píšu, kde jsou nové odpovědi).
+  - **Hlavní obava, kvůli které se to odložilo:** funguje to jen tam, kde lidé opravdu
+    odpovídají přes „Odpovědět". Kdo napíše bez citace (a v oficiálním klientovi to dělá většina),
+    do vlákna se nedostane — ve sbaleném režimu by se půlka rozhovoru ztrácela a místo pořádku
+    by vznikl zmatek. Struktura je navíc jen naše, ostatní ji nevidí. Než se začne, rozmyslet,
+    jak zprávy bez citace neztratit: nechat je v hlavním proudu vždy viditelné, sbalovat jen
+    v chatech, kde se citace opravdu používá (měřit podíl odpovědí), nebo je k vláknu přiřadit
+    modelem v zařízení (nejisté, jen jako návrh).
+  - Fáze 1 dává smysl i bez ostatních (je to rozšíření dnešního sheetu); obava se týká hlavně
+    fáze 3.
+- **Statistika chatu** (M). Kdo kolik píše, aktivita podle hodin a dnů v týdnu (heatmapa),
+  nejčastější reakce, nejdelší série dnů, kdy jste si psali — „Wrapped" pro jeden chat,
+  počítané lokálně. Grafy jsou ze statistik kanálu (`StatGraphCard`); počty po dnech dává
+  už kalendář (`getChatMessageCalendar`), na hodiny a autory se musí projít historie
+  (pozor na velké skupiny: strop a průběh).
+- **„Před rokem"** (S). Nenápadný řádek v konverzaci nebo profilu: „Dnes před rokem jste si
+  psali o…" se skokem na místo. Tatáž cesta jako kalendář a skok na datum.
+- **Mapa poloh v chatu** (S–M). Všechny sdílené polohy a místa z chatu na jedné mapě, nejspíš
+  záložka ve sdílených médiích (`searchChatMessages` s filtrem polohy? — ověřit, jestli TDLib
+  filtr má; jinak průchod historií).
+
+**Napříč chaty**
+
+- **Galerie fotek přes všechny chaty** (M). Jedna časová osa fotek a videí s kalendářem
+  a rychlým rolováním (jako Google Photos), `searchMessages` s filtrem médií. Navazuje na
+  hledání fotek podle obsahu.
+- **Ranní přehled kanálů** (M, AI). Jedna obrazovka „co se od včera stalo" ve ztlumených
+  kanálech, u každého dva řádky od modelu v zařízení; skládá existující shrnutí chatu.
+  AICore počítá jen v popředí, takže se přehled počítá při otevření, ne v noci.
+- **Vlastní štítky chatů bez Premium** (S–M). Barevné lokální štítky („rodina", „vyřídit")
+  a filtr podle nich; Telegram má štítky složek jen s Premium. `AppSettings`, mezi zařízeními
+  přes CloudStorage (`docs/poznatky/nastaveni.md`, „Synchronizace bez backendu").
+
+**Psaní**
+
+- **Vlastní textové zkratky** (S). `/adresa` nebo `;iban` se rozbalí na uložený text.
+  Telegram má rychlé odpovědi jen v placeném Business. Další zdroj návrhů pro napovídání
+  ve vstupním poli; správa v Nastavení → Chaty.
+
+---
+
 ## Nastavení
 
 Nastavení je list-detail: vlevo karta účtu, sekce, řádek Jazyk, Pomoc a odhlášení, vpravo obsah vybrané sekce (nebo úprava profilu).
