@@ -58,6 +58,10 @@ import eu.tintera.plume.resources.tv_message_you
 import eu.tintera.plume.resources.tv_reply_hint
 import eu.tintera.plume.resources.tv_reply_send
 import eu.tintera.plume.resources.tv_reply_title
+import eu.tintera.plume.resources.tv_compose_title
+import eu.tintera.plume.resources.edit_24dp
+import androidx.tv.material3.Icon
+import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.tv_send_failed
 import eu.tintera.plume.resources.tv_message_unsupported
 import androidx.compose.ui.input.key.Key
@@ -69,13 +73,15 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Co je nad zprávou otevřené: nabídka (podržení OK, [actionsFor]) a psaní odpovědi ([replyTo]).
+ * Co je nad zprávou otevřené: nabídka (podržení OK, [actionsFor]), psaní odpovědi ([replyTo])
+ * a psaní nové zprávy bez citace ([composing], tlačítko pod seznamem).
  * Jeden držák na obrazovku — konverzace i komentáře pod příspěvkem mají svůj.
  */
 @Stable
 class MessageInteractions {
     var actionsFor by mutableStateOf<ChatMessage?>(null)
     var replyTo by mutableStateOf<ChatMessage?>(null)
+    var composing by mutableStateOf(false)
 }
 
 /**
@@ -99,6 +105,9 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
     }
     interactions.replyTo?.let { message ->
         ReplyDialog(state, message, chatTitle, onDismiss = { interactions.replyTo = null })
+    }
+    if (interactions.composing) {
+        ReplyDialog(state, replyTo = null, chatTitle, onDismiss = { interactions.composing = false })
     }
 }
 
@@ -158,11 +167,12 @@ private fun MessageActionsDialog(
 }
 
 /**
- * Odpověď: citace, pole a Odeslat. Pole dostane fokus hned, takže naskočí systémová klávesnice
+ * Odpověď ([replyTo]) nebo nová zpráva (`null`, bez citace; ve vlákně komentářů jde kořeni):
+ * citace, pole a Odeslat. Pole dostane fokus hned, takže naskočí systémová klávesnice
  * televize (na Google TV i s diktováním z ovladače); OK na klávesnici rovnou odešle.
  */
 @Composable
-private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage, chatTitle: String, onDismiss: () -> Unit) {
+private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTitle: String, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -172,7 +182,7 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage, chatTitl
             sending = true
             failed = false
             scope.launch {
-                state.send(text.trim(), replyTo.id)
+                state.send(text.trim(), replyTo?.id)
                     .onSuccess { onDismiss() }
                     .onFailure { failed = true }
                 sending = false
@@ -184,9 +194,14 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage, chatTitl
     LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
     Dialog(onDismissRequest = onDismiss) {
         DialogPanel {
-            Text(stringResource(Res.string.tv_reply_title), style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(12.dp))
-            QuoteBar(replyTo, chatTitle, MaterialTheme.colorScheme.onSurface)
+            Text(
+                stringResource(if (replyTo != null) Res.string.tv_reply_title else Res.string.tv_compose_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            if (replyTo != null) {
+                Spacer(Modifier.height(12.dp))
+                QuoteBar(replyTo, chatTitle, MaterialTheme.colorScheme.onSurface)
+            }
             Spacer(Modifier.height(20.dp))
             var focused by remember { mutableStateOf(false) }
             val colors = MaterialTheme.colorScheme
@@ -241,6 +256,20 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage, chatTitl
                 Text(stringResource(Res.string.tv_reply_send))
             }
         }
+    }
+}
+
+/**
+ * Tlačítko pod seznamem zpráv, které otevře psaní nové zprávy. Pod seznamem, ne v něm: je vidět
+ * pořád a šipka dolů z nejnovější zprávy na něj skočí. Pole se rovnou nekreslí — na televizi by
+ * klávesnice naskočila při každém průchodu fokusu.
+ */
+@Composable
+fun ComposeButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(onClick = onClick, modifier = modifier) {
+        Icon(painterResource(Res.drawable.edit_24dp), contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label)
     }
 }
 

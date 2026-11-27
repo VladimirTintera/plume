@@ -161,6 +161,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   zprávu rovnou pošle.
 - **Po odeslání jde fokus na novou vlastní zprávu** a seznam k ní odroluje; jinak zůstal na
   zprávě, na kterou se odpovídalo, a nová visela pod spodním okrajem.
+- **Nová zpráva je tlačítko „Napsat zprávu" POD seznamem** (`ComposeButton`), ne pole: šipka
+  dolů z nejnovější zprávy na něj skočí a OK otevře tentýž dialog jako odpověď, jen bez citace.
+  Pole přímo pod konverzací by na televizi otevíralo klávesnici při každém průchodu fokusu.
+  Tlačítko je jen tam, kde se smí psát (kanál ho nemá); pod komentáři „Napsat komentář".
+  Seznam má, když je tlačítko vidět, dole jen malou mezeru — bezpečný okraj a místo pro dock
+  nese tlačítko.
 - **V komentářích pod příspěvkem totéž** (vlastní `MessageInteractions`); odpověď bez citace
   jde kořeni vlákna (`ThreadConversationRepository.send`), citace kořene se v bublině nekreslí.
 
@@ -228,6 +234,8 @@ položek se to může projevit cizím avatarem u recyklované karty; neověřen�
 
 ## Ověření
 
+- **Nová zpráva ověřena 27. 11. 2026** v chatu s Notifikátorem: šipka dolů na tlačítko,
+  dialog „Nová zpráva", odeslání, fokus na nové zprávě. Pod komentáři jen přeloženo.
 - **Reakce a odpovědi ověřeny 27. 11. 2026** v chatu s Notifikátorem: podržení OK, reakce 👍
   (čip hned), odpověď přes systémovou klávesnici, citace v odeslané bublině, fokus na nové
   zprávě. V komentářích pod veřejným příspěvkem jen přeloženo (reakce i komentář by byly vidět

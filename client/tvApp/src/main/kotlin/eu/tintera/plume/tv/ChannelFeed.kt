@@ -83,6 +83,7 @@ import eu.tintera.plume.resources.post_views
 import eu.tintera.plume.resources.tv_comments_empty
 import eu.tintera.plume.resources.tv_comments_off
 import eu.tintera.plume.resources.tv_comments_title
+import eu.tintera.plume.resources.tv_compose_comment
 import eu.tintera.plume.resources.tv_conversation_empty
 import eu.tintera.plume.resources.tv_conversation_failed
 import eu.tintera.plume.resources.visibility_24dp
@@ -478,6 +479,29 @@ private fun CommentList(thread: CommentThread, actions: MediaActions) {
     // Kořen vlákna (kopie příspěvku v diskusní skupině) je vlevo, mezi komentáři by byl podruhé.
     val comments = state.messages?.filter { it.id != thread.rootMessageId && !it.isService }
     val listState = rememberLazyListState()
+    val interactions = remember { MessageInteractions() }
+    MessageInteractionDialogs(state, interactions, chatTitle = "")
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxWidth()) { CommentListContent(thread, state, comments, listState, interactions, actions) }
+        if (state.canWrite && comments != null) {
+            ComposeButton(
+                label = stringResource(Res.string.tv_compose_comment),
+                onClick = { interactions.composing = true },
+                modifier = Modifier.padding(top = 12.dp, bottom = audioDockInset()),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommentListContent(
+    thread: CommentThread,
+    state: ConversationState,
+    comments: List<ChatMessage>?,
+    listState: LazyListState,
+    interactions: MessageInteractions,
+    actions: MediaActions,
+) {
     when {
         state.failed -> MessageScreen(stringResource(Res.string.comments_unavailable), Res.drawable.cloud_off_24dp, error = true)
         comments == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
@@ -493,8 +517,6 @@ private fun CommentList(thread: CommentThread, actions: MediaActions) {
             // příspěvku by podle polohy padla na kterýkoli komentář; `focusRestorer` pošle fokus
             // na naposledy zaostřený, napoprvé na nejnovější.
             val newest = remember { FocusRequester() }
-            val interactions = remember { MessageInteractions() }
-            MessageInteractionDialogs(state, interactions, chatTitle = "")
             LazyColumn(
                 state = listState,
                 reverseLayout = true,

@@ -66,6 +66,7 @@ import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.tv_conversation_empty
 import eu.tintera.plume.resources.tv_conversation_failed
 import eu.tintera.plume.resources.tv_message_unsupported
+import eu.tintera.plume.resources.tv_compose_button
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
@@ -75,7 +76,7 @@ import org.koin.compose.koinInject
  * ukazuje, kde uživatel je; seznam sám roluje za fokusem. U horního okraje se dočte starší
  * historie.
  *
- * Psaní a komentáře v kanálech přijdou v dalších krocích (docs/roadmap.md, „Android TV").
+ * Pod seznamem je „Napsat zprávu", kde se smí psát; odpověď a reakce jsou v nabídce podržením OK.
  */
 @Composable
 fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions) {
@@ -84,14 +85,25 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions)
     val info by produceState<ChatInfo?>(null, chatId) { value = conversations.chatInfo(chatId).getOrNull() }
     val title = chatTitle(chatId, info?.title.orEmpty(), savedMessagesChatId())
 
+    val interactions = remember { MessageInteractions() }
+    MessageInteractionDialogs(state, interactions, title)
     Column(Modifier.fillMaxSize()) {
         ChatHeader(chatId, info)
         val messages = state.messages
-        when {
-            state.failed -> MessageScreen(stringResource(Res.string.tv_conversation_failed), Res.drawable.cloud_off_24dp, error = true)
-            messages == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-            messages.isEmpty() -> MessageScreen(stringResource(Res.string.tv_conversation_empty), Res.drawable.chat_bubble_24dp)
-            else -> MessageList(chatId, state, messages, title, playerOpen, actions)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                state.failed -> MessageScreen(stringResource(Res.string.tv_conversation_failed), Res.drawable.cloud_off_24dp, error = true)
+                messages == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
+                messages.isEmpty() -> MessageScreen(stringResource(Res.string.tv_conversation_empty), Res.drawable.chat_bubble_24dp)
+                else -> MessageList(chatId, state, messages, title, playerOpen, actions, interactions)
+            }
+        }
+        if (state.canWrite && messages != null) {
+            ComposeButton(
+                label = stringResource(Res.string.tv_compose_button),
+                onClick = { interactions.composing = true },
+                modifier = Modifier.padding(start = SAFE_HORIZONTAL, top = 8.dp, bottom = SAFE_VERTICAL + audioDockInset()),
+            )
         }
     }
 }
@@ -119,6 +131,7 @@ private fun MessageList(
     chatTitle: String,
     playerOpen: Boolean,
     actions: MediaActions,
+    interactions: MessageInteractions,
 ) {
     // Obrácený seznam: index 0 je nejnovější zpráva dole a nová zpráva se přidá pod ni, aniž by
     // seznam odjel. Předěl dne stojí nad první zprávou dne, v obráceném seznamu tedy ZA ní.
@@ -129,8 +142,6 @@ private fun MessageList(
     // Fokus na nejnovější zprávu, po zavření videa nebo prohlížeče zpátky na zprávu, ze které
     // se otevřel: přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
     var focusTarget by remember { mutableStateOf<Long?>(null) }
-    val interactions = remember { MessageInteractions() }
-    MessageInteractionDialogs(state, interactions, chatTitle)
     // Po odeslání (odpověď z dialogu) fokus na novou vlastní zprávu, jinak by zůstal na té, na
     // kterou se odpovídalo, a nová by visela pod spodním okrajem (ověřeno na emulátoru).
     val newest = messages.last()
@@ -153,7 +164,13 @@ private fun MessageList(
     LazyColumn(
         state = listState,
         reverseLayout = true,
-        contentPadding = PaddingValues(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = SAFE_VERTICAL + audioDockInset()),
+        // Dole je tlačítko psaní (pak stačí malá mezera) nebo nic (bezpečný okraj a místo pro dock).
+        contentPadding = PaddingValues(
+            start = SAFE_HORIZONTAL,
+            end = SAFE_HORIZONTAL,
+            top = SAFE_VERTICAL,
+            bottom = if (state.canWrite) 8.dp else SAFE_VERTICAL + audioDockInset(),
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {

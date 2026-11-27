@@ -5119,4 +5119,7 @@
     <string name="tv_reply_hint">Zpráva</string>
     <string name="tv_reply_send">Odeslat</string>
     <string name="tv_send_failed">Zprávu se nepodařilo odeslat.</string>
+    <string name="tv_compose_button">Napsat zprávu</string>
+    <string name="tv_compose_comment">Napsat komentář</string>
+    <string name="tv_compose_title">Nová zpráva</string>
 </resources>

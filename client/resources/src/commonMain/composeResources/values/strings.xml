@@ -4929,4 +4929,7 @@
     <string name="tv_reply_hint">Message</string>
     <string name="tv_reply_send">Send</string>
     <string name="tv_send_failed">Couldn't send the message.</string>
+    <string name="tv_compose_button">Write a message</string>
+    <string name="tv_compose_comment">Write a comment</string>
+    <string name="tv_compose_title">New message</string>
 </resources>
