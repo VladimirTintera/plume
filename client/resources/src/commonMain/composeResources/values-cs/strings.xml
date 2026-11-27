@@ -4901,6 +4901,14 @@
     </plurals>
     <!-- Statistiky kanálu, skupiny a příspěvku -->
     <string name="statistics_title">Statistiky</string>
+    <plurals name="on_this_day_title">
+        <item quantity="one">Před rokem</item>
+        <item quantity="few">Před %1$d lety</item>
+        <item quantity="other">Před %1$d lety</item>
+    </plurals>
+    <string name="on_this_day_preview">%1$s: %2$s</string>
+    <string name="settings_on_this_day">Před rokem v chatech</string>
+    <string name="settings_on_this_day_summary">Nad konverzací připomene, o čem jste si psali v tentýž den před rokem nebo dřív</string>
     <string name="chat_insights_title">Statistika chatu</string>
     <string name="chat_insights_failed">Statistiku chatu se nepodařilo spočítat</string>
     <string name="chat_insights_scanning">Počítám zprávy…</string>

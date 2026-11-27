@@ -2135,8 +2135,9 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
   `docs/poznatky/profil-chatu.md`, „Statistika chatu"). Zbývá: ověřit ve velké skupině (strop
   průchodu, rychlost) a česky; vstup i z profilu chatu; ťuknutí na nejrušnější den nebo měsíc
   jako skok do konverzace.
-- **„Před rokem"** (S). Nenápadný řádek v konverzaci nebo profilu: „Dnes před rokem jste si
-  psali o…" se skokem na místo. Tatáž cesta jako kalendář a skok na datum.
+- ~~**„Před rokem"**~~ — hotovo jako pruh nad konverzací se skokem na ten den, i před víc lety
+  (`docs/poznatky/konverzace-pohyb.md`, „Před rokem"). Zbývá ověřit v soukromém chatu, ve
+  skupině a česky.
 - **Mapa poloh v chatu** (S–M). Všechny sdílené polohy a místa z chatu na jedné mapě, nejspíš
   záložka ve sdílených médiích (`searchChatMessages` s filtrem polohy? — ověřit, jestli TDLib
   filtr má; jinak průchod historií).

@@ -514,7 +514,29 @@ interface AppSettings {
 
     /** Zapne nebo vypne rychlou reakci dvojitým ťuknutím. Neblokuje. */
     fun setDoubleTapReaction(enabled: Boolean)
+
+    /**
+     * Pruh „Před rokem" nad konverzací: o čem se v chatu psalo v tentýž den před rokem (nebo
+     * před víc lety). Výchozí `true`. Viz `ConversationOnThisDay`.
+     */
+    val onThisDay: StateFlow<Boolean>
+
+    /** Zapne nebo vypne pruh „Před rokem". Neblokuje. */
+    fun setOnThisDay(enabled: Boolean)
+
+    /**
+     * Pruhy „Před rokem" zavřené DNES, jako „den:chat" (den = `LocalDate.toEpochDays`). Zavřený
+     * pruh se týž den neukáže znovu; záznamy jiných dnů se při dalším zavření zahodí, takže
+     * seznam nikdy nenaroste přes chaty jednoho dne.
+     */
+    val onThisDayDismissed: StateFlow<Set<String>>
+
+    /** Zavře pruh „Před rokem" chatu [chatId] na den [epochDay]. Neblokuje. */
+    fun dismissOnThisDay(epochDay: Long, chatId: Long)
 }
+
+/** Klíč zavřeného pruhu „Před rokem" v [AppSettings.onThisDayDismissed]. */
+fun onThisDayKey(epochDay: Long, chatId: Long): String = "$epochDay:$chatId"
 
 /** Výchozí velikost písma zpráv (sp) — `bodyLarge`, jak ho zprávy měly odjakživa. */
 const val DEFAULT_MESSAGE_TEXT_SIZE = 16
@@ -1293,6 +1315,31 @@ class DataStoreAppSettings(
         }
     }
 
+    override val onThisDay: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[ON_THIS_DAY] ?: true
+    }
+
+    override fun setOnThisDay(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[ON_THIS_DAY] = enabled }
+        }
+    }
+
+    override val onThisDayDismissed: StateFlow<Set<String>> = value(emptySet()) { preferences ->
+        preferences[ON_THIS_DAY_DISMISSED].orEmpty().split(" ").filter { it.isNotEmpty() }.toSet()
+    }
+
+    override fun dismissOnThisDay(epochDay: Long, chatId: Long) {
+        scope.launch {
+            edit { preferences ->
+                // Jen dnešní záznamy: včerejší zavření už nic neznamená.
+                val today = preferences[ON_THIS_DAY_DISMISSED].orEmpty().split(" ")
+                    .filter { it.startsWith("$epochDay:") }
+                preferences[ON_THIS_DAY_DISMISSED] = (today + onThisDayKey(epochDay, chatId)).distinct().joinToString(" ")
+            }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -1443,6 +1490,7 @@ class DataStoreAppSettings(
                 SyncedKey.Text(VIDEO_SPEED),
                 SyncedKey.Flag(SKIP_SILENCE),
                 SyncedKey.Flag(DOUBLE_TAP_REACTION),
+                SyncedKey.Flag(ON_THIS_DAY),
                 SyncedKey.Flag(OPEN_LINKS_IN_APP),
                 SyncedKey.Flag(STRIP_TRACKING_PARAMETERS),
                 SyncedKey.Text(CHAT_SWIPE_RIGHT),
@@ -1514,6 +1562,8 @@ class DataStoreAppSettings(
         val STICKER_SIZE = intPreferencesKey("sticker_size")
         val OPEN_LINKS_IN_APP = booleanPreferencesKey("open_links_in_app")
         val DOUBLE_TAP_REACTION = booleanPreferencesKey("double_tap_reaction")
+        val ON_THIS_DAY = booleanPreferencesKey("on_this_day")
+        val ON_THIS_DAY_DISMISSED = stringPreferencesKey("on_this_day_dismissed")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "

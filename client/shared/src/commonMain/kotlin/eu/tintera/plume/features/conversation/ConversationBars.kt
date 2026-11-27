@@ -282,6 +282,25 @@ internal fun BoxScope.ConversationBars(
                     glass = pillGlass(listHaze),
                 )
             }
+            // „Před rokem" poslední: nic nehlásí a nečeká na rozhodnutí, jen připomíná.
+            val lastOnThisDay = remember { arrayOf<OnThisDay?>(null) }
+            if (state.onThisDay != null) lastOnThisDay[0] = state.onThisDay
+            AnimatedVisibility(
+                visible = state.onThisDay != null && !chatHidden,
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
+                lastOnThisDay[0]?.let { memory ->
+                    OnThisDayBar(
+                        memory = memory,
+                        partnerName = state.info?.title,
+                        isChannel = state.info?.isChannel == true,
+                        onOpen = viewModel::openOnThisDay,
+                        onDismiss = viewModel::dismissOnThisDay,
+                        glass = pillGlass(listHaze),
+                    )
+                }
+            }
         }
 
         /*

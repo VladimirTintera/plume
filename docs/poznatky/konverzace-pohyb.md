@@ -729,6 +729,36 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   panel s ✕ vedle konverzace, 19. 11. → „Čtvrtek · 00:03" a panel zůstal, jiný archivní kanál
   přepnul panel na svůj kalendář, ✕ ho zavřel.
 
+## Před rokem
+
+Při otevření chatu se aplikace podívá, jestli se v něm psalo v tentýž den před rokem, a když
+ne, před dvěma až pěti lety. Najde-li, ukáže pod ostatními pruhy pilulku „Před rokem" / „Před
+3 lety" s počtem zpráv a ukázkou první z nich („3 zprávy · Jana: Sraz v sobotu…"). Ťuknutí
+skočí na začátek toho dne, křížek pruh zavře (`ConversationOnThisDay`, `OnThisDayBar`, testy
+`ConversationOnThisDayTest`). Vypnout jde v Nastavení → Chaty → „Před rokem v chatech"
+(`AppSettings.onThisDay`, synchronizuje se).
+
+- **Den se čte stejně jako shrnutí dne v kalendáři** (`messagesBetween`, vytažené
+  z `ConversationCalendar.messagesOfDay`): první zpráva po dni (`firstMessageFrom`) a od ní
+  historie ke starším, přes server, takže funguje i u dne, který zařízení nemá. Nejvýš dvě
+  stránky; nedočtený den má počet „N+" (`MessagesBetween.complete`). Porovnávat počet se
+  stropem nešlo: první zpráva každé stránky je ta, od které se čte, takže ze dvou stránek po
+  stu vyšlo 198, ne 200.
+- **Chat, který začal po tom dni, se dál neprohledává** (`chatStartsAfter`): chat starý půl
+  roku by jinak stál pět zbytečných dotazů na server.
+- **S odstupem 1,5 s po otevření** (`START_DELAY_MS`) — dotaz jde přes server a nemá zdržet
+  úvodní historii. Jen nad celým chatem (`canJumpToDate`), ne ve vlákně nebo tématu.
+- **Zavření i ťuknutí platí do konce dne** (`AppSettings.dismissOnThisDay`, „den:chat"
+  v jednom řetězci; záznamy jiných dnů se při dalším zavření zahodí, takže seznam nenaroste).
+- **Počet stojí PŘED ukázkou** („3 zprávy · …"). Za ní ho jeden řádek pilulky usekl
+  (viděno na emulátoru u dlouhého příspěvku kanálu).
+- **V kanálu bez jména autora** — příspěvky píše kanál sám a „Pavel Durov: …" pod hlavičkou
+  „Pavel Durov" jen opakovalo.
+- **Ověřeno na emulátoru** v kanálech: Pavel Durov (před rokem nic, před 2 lety jeden
+  příspěvek — skok na 27. 11. 2024), GFN Catalog (před rokem 3 zprávy, pod pruhem připnutých);
+  křížek pruh zavře a po novém otevření chatu se týž den neukáže. Soukromý chat a skupina
+  (předpona „Vy:" / jméno člena) a čeština ověřené nejsou.
+
 ## Okno v historii
 
 Skok na zprávu mimo načtené (hledání, citace, stovky nepřečtených) NENAČÍTÁ historii od

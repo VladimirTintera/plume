@@ -17,6 +17,9 @@ import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.settings_message_context
 import eu.tintera.plume.resources.settings_message_context_summary
 import eu.tintera.plume.resources.settings_open_links_in_app
+import eu.tintera.plume.resources.settings_on_this_day
+import eu.tintera.plume.resources.settings_on_this_day_summary
+import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.resources.settings_open_links_in_app_summary
 import eu.tintera.plume.resources.headphones_24dp
 import eu.tintera.plume.resources.settings_skip_silence
@@ -120,6 +123,7 @@ internal fun ChatsSettings(
 
     TitledGroup(Res.string.settings_messages) {
         QuickReactionSettings(quickReaction)
+        OnThisDayRow()
         MessageContextRow()
         if (skipSilenceSupported) SkipSilenceRow()
         ListItem(
@@ -141,6 +145,20 @@ internal fun ChatsSettings(
         TelegramLinksRow()
     }
 
+}
+
+/** Pruh „Před rokem" nad konverzací (`ConversationOnThisDay`). */
+@Composable
+private fun OnThisDayRow() {
+    val settings = koinInject<AppSettings>()
+    val enabled by settings.onThisDay.collectAsStateWithLifecycle()
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_on_this_day),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_on_this_day_summary),
+        icon = Res.drawable.history_24dp,
+        onCheckedChange = settings::setOnThisDay,
+    )
 }
 
 /**

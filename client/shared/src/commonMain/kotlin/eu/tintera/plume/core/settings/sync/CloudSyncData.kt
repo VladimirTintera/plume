@@ -53,6 +53,7 @@ val SYNCED_PREFERENCE_GROUPS: Map<CloudSyncGroup, Set<String>> = mapOf(
         "video_speed",
         "skip_silence",
         "double_tap_reaction",
+        "on_this_day",
         "open_links_in_app",
         "strip_tracking_parameters",
         "chat_swipe_right",

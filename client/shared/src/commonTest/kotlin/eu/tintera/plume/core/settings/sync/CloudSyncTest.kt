@@ -182,6 +182,7 @@ class CloudSyncTest {
             "video_speed" to JsonPrimitive("Fast"),
             "skip_silence" to JsonPrimitive(true),
             "double_tap_reaction" to JsonPrimitive(false),
+            "on_this_day" to JsonPrimitive(false),
             "open_links_in_app" to JsonPrimitive(false),
             "strip_tracking_parameters" to JsonPrimitive(false),
             "chat_swipe_right" to JsonPrimitive("Archive"),

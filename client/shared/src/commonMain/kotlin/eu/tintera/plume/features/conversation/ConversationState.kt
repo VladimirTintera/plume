@@ -585,6 +585,8 @@ data class ConversationState(
      * `null` = žádný. Nejvýš jeden — viz [ConversationSheet].
      */
     val sheet: ConversationSheet? = null,
+    /** Pruh „Před rokem" ([ConversationOnThisDay]); `null` = není co ukázat, nebo je zavřený. */
+    val onThisDay: OnThisDay? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
     /** Počet členů (odběratelů) a kolik je online, pro podtitul hlavičky skupiny a kanálu. */
