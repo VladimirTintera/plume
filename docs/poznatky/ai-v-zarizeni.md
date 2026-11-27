@@ -1758,6 +1758,16 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
     Zkrácení umí ubrat to podstatné: z „To je škoda. Můžu se zastavit… Jak se cítíš?" na
     babičku v nemocnici zbude „To je škoda." — smysl to nezmění, ale ubere tón; častější je
     „To je výborná zpráva! Už jsi vyzkoušel, jak jezdí?" a podobně celé odpovědi.
+  - **Ověřeno v ladicím desktopu s Aya** (27. 11. 2026, účet VT, zprávy od Notifikátoru přes
+    Bot API): pokaždé tři čipy, celé české věty bez odrážek, překladů a poznámek („To je skvělý!
+    Gratuluju! A jak se ti líbí?", „Je mi to líto s babičkou, doufám, že bude brzy v pořádku.").
+    Generování trvá jednotky vteřin. Model se do ladicí instance nemusí stahovat znovu: stačí
+    odkaz na soubor z nainstalované Plume (`ln -s ~/Library/Application\ Support/Plume/ai-models/<model>
+    .desktop-data/ai-models/`), aplikace ho ověří a hlásí „Model připravený".
+  - **Past testu přes bota: všechny jeho zprávy jsou JEDEN blok.** Zkouška, kolo i babička
+    od Notifikátoru po sobě se odpovídají najednou (`replyBlockSize`, až čtyři zprávy od téhož
+    autora), takže na babičku přišlo i „Skvělé, že máš nové kolo!". Chyba to není; na čisté
+    téma mezi testovací zprávy vložit vlastní odpověď.
 - **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na TŘECH systémech —
   Android 16, Android 9 (API 28, Play služby 21.45.15) a **Android 8 (API 26, tedy `minSdk`
   projektu)** —, všude bez balíčku `com.google.android.aicore`. Pokaždé stejně: `status` vrátí
