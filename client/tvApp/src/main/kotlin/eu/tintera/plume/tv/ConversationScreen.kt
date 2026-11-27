@@ -217,7 +217,12 @@ private fun MessageList(
                     val quotedId = entry.album.first().replyToMessageId
                     // OK na zprávě bez média, která na něco odpovídá, skočí na citovanou zprávu.
                     val pick = if (entry.album.size > 1) remember(id) { AlbumPick() } else null
+                    // OK: médium, jinak odkaz na Telegram v textu (chat, příspěvek), jinak skok na
+                    // citovanou zprávu. Odkaz má přednost před citací — v odpovědi s odkazem je
+                    // odkaz to nové, co zpráva nese.
+                    val link = entry.album.firstOrNull { it.text.isNotBlank() }?.let { telegramLinkOf(it.entities) }
                     val open = mediaOpenAction(chatId, entry.album, messages, actions, pick = pick)
+                        ?: link?.let { url -> { actions.openLink(url, id) } }
                         ?: quotedId?.let { quoted -> { scope.launch { state.jumpTo(quoted) } } }
                     MessageRow(
                         album = entry.album,

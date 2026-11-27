@@ -4992,6 +4992,7 @@
     <string name="tv_forward_done">Forwarded to %1$s</string>
     <string name="tv_audio_seek_hint">◀ ▶ to skip back or forward</string>
     <string name="tv_reactors_unavailable">Telegram does not say who reacted here.</string>
+    <string name="tv_link_unsupported">The TV can’t open this link.</string>
     <string name="tv_reply_send">Send</string>
     <string name="tv_send_failed">Couldn't send the message.</string>
     <string name="tv_compose_button">Write a message</string>

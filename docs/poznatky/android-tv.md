@@ -113,9 +113,18 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   podtržení, přeškrtnutí, kód (neproporcionální písmo na tónovaném podkladu), citace
   (podklad a kurzíva), odkazy, zmínky, tagy a příkazy v barvě motivu. Dřív byl všechno holý
   text. V bublině konverzace, v popisku média a v detailu příspěvku kanálu.
-- **Odkazy jen vypadají jako odkaz, otevřít je nejde**: ovladač by musel vybírat mezi odkazy
-  v textu a OK má zpráva už obsazené (médium, citace). V odchozí bublině jsou odkazy v barvě
-  textu s podtržením — `primary` na `primaryContainer` nemá kontrast.
+- **Odkaz na Telegram otevře OK na zprávě** (`telegramLinkOf`: první `t.me/…`, `telegram.me/…`,
+  `tg://…` nebo `@zmínka` v textu; `MediaActions.openLink`). Pořadí OK: médium, odkaz, skok na
+  citovanou zprávu — v odpovědi s odkazem je odkaz to nové. Cíl rozhodne `resolveLink`: chat
+  se otevře, odkaz na zprávu skočí na ni; co televize neumí (pozvánka, bot se startem,
+  samolepky), ohlásí toast. **Odkazy na web se nechávají být**: prohlížeč televize obvykle
+  nemá a OK by jen ohlásilo „neotevřu" a vzalo zprávě skok na citaci. V odchozí bublině jsou
+  odkazy v barvě textu s podtržením — `primary` na `primaryContainer` nemá kontrast.
+- **Zpět vrací do chatu, ze kterého se odkazem přišlo**, na zprávu s odkazem (zásobník
+  `linkHistory` v `TvNavigation`); až když je prázdný, na seznam. Otevření chatu ze seznamu
+  nebo z hledání zásobník zahodí. V detailu příspěvku kanálu otevírá odkaz OK, když příspěvek
+  nemá médium. Ověřeno na emulátoru: odkaz `t.me/DurgerKingBot` z chatu s testovacím botem
+  otevřel Durger King, Zpět vrátil na zprávu s odkazem.
 - **Spoiler je nečitelný blok (průhledné písmo na podkladu), první OK na zprávě ho odkryje**;
   teprve další OK dělá, co zpráva umí (médium, skok na citaci). V detailu příspěvku stejně.
   Jiná barva písma místo průhledné by obsah vyzradila.

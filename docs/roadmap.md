@@ -581,8 +581,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    synchronizace s telefonem). Zbývá: výběr kvality (`alternatives`), titulky/storyboard při skoku,
    video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
 2. ~~**Kanály jako feed a komentáře**~~ — hotovo (karty příspěvků, detail s rolovaným textem
-   a vláknem komentářů). Formátovaný text a spoilery hotové. Zbývá: otevírání odkazů a Instant
-   View v textu, příspěvek z feedu otevřený přímo v přehrávači (OK na kartě s videem), zpráva vyšší než
+   a vláknem komentářů). Formátovaný text, spoilery a odkazy na Telegram hotové. Zbývá:
+   Instant View, příspěvek z feedu otevřený přímo v přehrávači (OK na kartě s videem), zpráva vyšší než
    obrazovka v konverzaci a velké komentáře hotové (šipka je napřed odroluje).
 3. ~~**Fotky přes celou obrazovku** a procházení alba šipkami~~ — hotovo (prohlížeč přes všechna
    média konverzace, album jako mřížka v bublině). Přiblížení fotky hotové. Zbývá: pás alba v detailu
