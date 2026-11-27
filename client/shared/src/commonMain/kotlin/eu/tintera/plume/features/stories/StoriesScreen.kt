@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.stories.StoriesState
+import eu.tintera.plume.core.stories.StoryKey
+import eu.tintera.plume.core.stories.showPoster
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable

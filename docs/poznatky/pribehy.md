@@ -14,7 +14,7 @@ Skladba:
 | Doménové rozhraní, `ActiveStories`, `StoryRef` | `core/telegram/StoryRepository.kt` |
 | Nad TDLib (updaty, načtení seznamů, `openStory` / `closeStory`) | `core/telegram/TdlStoryRepository.kt` |
 | Lem po tvaru avataru s dílky | `core/ui/StoryRing.kt` (`Modifier.storyRing`) |
-| Pořadí autorů a pohyb mezi příběhy (čisté funkce, testy `StoryCursorTest`) | `features/stories/StoryCursor.kt` |
+| Pořadí autorů a pohyb mezi příběhy (čisté funkce, testy `StoryCursorTest`) | `core/stories/StoryCursor.kt` v `:client:core` (sdílí ho televize, viz „Příběhy" v `android-tv.md`) |
 | ViewModel prohlížeče | `features/stories/StoriesViewModel.kt` |
 | Prohlížeč | `features/stories/StoriesScreen.kt`, routa `StoriesRoute` |
 | Hromádka v pilulce | `features/stories/StoryStack.kt` |

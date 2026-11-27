@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.stories.storyListOrder
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.SharedChats
 import eu.tintera.plume.core.share.ShareTargets
@@ -80,7 +81,6 @@ import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.resources.story_photo_only
 import eu.tintera.plume.resources.story_posted
-import eu.tintera.plume.features.stories.storyListOrder
 import kotlinx.coroutines.launch
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res

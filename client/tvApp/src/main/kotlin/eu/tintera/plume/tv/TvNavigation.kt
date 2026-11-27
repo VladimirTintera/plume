@@ -47,6 +47,8 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var opened by rememberSaveable { mutableStateOf<Long?>(null) }
     var lastOpened by rememberSaveable { mutableStateOf<Long?>(null) }
     var watching by rememberSaveable { mutableStateOf(false) }
+    var storiesOf by remember { mutableStateOf<Long?>(null) }
+    var lastStories by remember { mutableStateOf<Long?>(null) }
     val listStates = remember { mutableMapOf<ChatFolder, LazyListState>() }
     var playing by remember { mutableStateOf<VideoRequest?>(null) }
     var viewer by remember { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
@@ -110,15 +112,23 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     onWatching = { watching = true },
                     listStateFor = { listStates.getOrPut(it) { LazyListState() } },
                     lastOpenedChat = lastOpened,
-                    playerOpen = playing != null,
+                    overlayOpen = playing != null || storiesOf != null,
                     onPlay = actions.playVideo,
+                    onOpenStories = {
+                        lastStories = it
+                        storiesOf = it
+                    },
+                    lastStoriesChat = lastStories,
                     onOpen = { chatId ->
                         lastOpened = chatId
                         opened = chatId
                     },
                 )
             }
-            if (playing == null) AudioDock(audio, Modifier.align(Alignment.BottomCenter))
+            storiesOf?.let { chatId ->
+                key(chatId) { StoriesViewerScreen(startChatId = chatId, onClose = { storiesOf = null }) }
+            }
+            if (playing == null && storiesOf == null) AudioDock(audio, Modifier.align(Alignment.BottomCenter))
             playing?.let { request ->
                 key(request.video.fileId) { VideoPlayerScreen(request = request, onClose = { playing = null }) }
             }

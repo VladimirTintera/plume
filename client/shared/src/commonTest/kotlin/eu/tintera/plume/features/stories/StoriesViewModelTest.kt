@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.stories.StoryKey
 import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.MessageMedia
