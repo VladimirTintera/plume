@@ -44,17 +44,24 @@ internal object MacTitleBar {
     }
 
     /**
-     * Začne tah oknem za myší, dokud je stisknuté levé tlačítko. Pro tah, který začal na prvku
-     * v pruhu titulku (`DesktopTitleBar.hitTest`); na prázdném místě pruhu táhne JBR sám.
+     * Začne tah oknem za myší, dokud je stisknuté levé tlačítko. Na Macu jediná cesta, jak tah
+     * za pruh titulku začíná (`DesktopTitleBar`).
      */
-    fun startDrag(window: java.awt.Frame) {
+    fun startDrag(window: java.awt.Frame) = call("Tah oknem") { nativeStartDrag(window.title) }
+
+    /** Dvojklik na pruh titulku: zvětšení / minimalizace podle nastavení systému. */
+    fun titleBarDoubleClick(window: java.awt.Frame) = call("Dvojklik na titulek") { nativeTitleBarDoubleClick(window.title) }
+
+    private inline fun call(what: String, block: () -> Unit) {
         if (!MacNative.loaded) return
-        runCatching { nativeStartDrag(window.title) }
-            .onFailure { Logger.withTag("TitleBar").w(it) { "Tah oknem se nepodařilo začít" } }
+        runCatching(block).onFailure { Logger.withTag("TitleBar").w(it) { "$what: nativní volání selhalo" } }
     }
 
     @JvmStatic
     private external fun nativeStartDrag(title: String)
+
+    @JvmStatic
+    private external fun nativeTitleBarDoubleClick(title: String)
 
     @JvmStatic
     private external fun nativeApply(title: String, dark: Boolean, red: Float, green: Float, blue: Float)

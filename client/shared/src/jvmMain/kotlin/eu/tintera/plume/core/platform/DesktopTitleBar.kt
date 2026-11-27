@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -34,7 +35,6 @@ import eu.tintera.plume.core.adaptive.LocalWindowControls
 import eu.tintera.plume.core.adaptive.WindowControls
 import eu.tintera.plume.core.adaptive.WindowControlsSide
 import java.awt.Cursor
-import java.awt.Point
 import java.awt.event.MouseEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -51,9 +51,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
  *   na Macu, nejpravější panel na Windows, i jediný panel úzkého okna) nechá v hlavičce místo
  *   vedle nich. Pilulka hledání i hlavička konverzace tak leží v jednom řádku se semafory, jako
  *   ve Zprávách; sbalený seznam jen s avatary je na to úzký a jde pod ně.
- * - **Tah oknem a klik** se rozlišují v každé události myši v pruhu titulku ([hitTest]): co si
- *   prvek Compose vzal (tlačítko, pole, avatar), je obsah, zbytek titulek — tah posune oknem,
- *   dvojklik ho maximalizuje, jak to má systém nastavené.
+ * - **Tah oknem a klik** v pruhu titulku rozlišuje [hitTest]: na Macu za celý pruh i za prvky
+ *   v něm (kromě textových polí), dvojklik okno zvětší, jak to má systém nastavené.
  * - **Jen na JetBrains Runtime a jen na macOS a Windows.** Jinde (jiné JDK, Linux) zůstává
  *   systémový titulek přebarvený motivem (`WindowTitleBarAppearance`) a nic se nehlásí.
  *
@@ -143,6 +142,102 @@ object DesktopTitleBar {
     }
 
     /**
+     * Tah oknem a klik v pruhu titulku. Na Macu s naším mostem do AppKitu ([MacTitleBar]) tah
+     * začíná jen náš kód ([macTitleBarGestures]), jinde (Windows, Mac bez nativní knihovny)
+     * rozhoduje JBR podle odpovědí na jednotlivé události ([jbrHitTest]).
+     */
+    private fun Modifier.hitTest(window: ComposeWindow, titleBar: WindowDecorations.CustomTitleBar, heightPx: Int): Modifier =
+        pointerInput(window, titleBar, heightPx) {
+            if (mac && MacNative.loaded) macTitleBarGestures(window, titleBar, heightPx) else jbrHitTest(titleBar, heightPx)
+        }
+
+    /**
+     * Tah oknem za pruh titulku na Macu, celý v Compose: stisk v pruhu a pohyb přes práh začne
+     * tah naším mostem ([MacTitleBar.startDrag]), JBR dostává na každou událost „obsah"
+     * a sám nikdy netáhne.
+     *
+     * - **Proč ne JBR.** `AWTWindowDragView` (`AWTWindow.m`) rozhoduje při prvním `mouseDragged`
+     *   pohledem do pole `customTitleBarHitTest` na vlákně AppKitu, tedy podle odpovědi na
+     *   PŘEDCHOZÍ zpracovanou událost — stisk v tu chvíli často ještě čeká ve frontě AWT. Tah
+     *   proto chodil jen někdy (první ano, druhý ne), a když tah začal JBR i náš most (za prvky
+     *   v pruhu), okno uskočilo: druhý `performWindowDragWithEvent` dostal polohu myši vůči
+     *   místu, kde okno stálo před tahem. Rozhodnutí v Compose zná stisk i to, kdo si ho vzal.
+     * - **Prázdné místo** táhne po pohybu o [EMPTY_DRAG_THRESHOLD] (nic jiného ho nechce, má to
+     *   působit jako systémový titulek), **prvek** (tlačítko, avatar, název chatu) po
+     *   [CONTROL_DRAG_THRESHOLD], jako tlačítka v nástrojové liště aplikací pro Mac: stisk bez
+     *   pohybu je klik, s pohybem tah oknem a prvek o klik přijde (puštění se mu spotřebuje).
+     *   Okno se chytí v místě, kde práh přešel, ne kde byl stisk — o práh pak zaostává za
+     *   kurzorem; s `touchSlop` (18 dp) to bylo znát.
+     * - **Textové pole si tah nechá** (výběr textu myší), pozná se podle kurzoru ([overTextField]).
+     *   Podle toho, jestli pohyb spotřeboval prvek, to nejde: lišta s hledáním v seznamu chatů
+     *   ho spotřebuje taky (táhnout jde i za ni) a ikona hledání v ní by oknem nehnula.
+     * - **Tah oknem obsah nevidí**: pohyby (a po začátku tahu i puštění) se spotřebují
+     *   v průchodu `Initial`, dřív než je uvidí prvky. Jinak lišta s hledáním tahem odjela
+     *   (`enterAlways`) a už se nevrátila — nad seznamem pak nebylo za co chytit.
+     * - **Stav se nuluje při každém stisku a při pohybu bez tlačítka.** Puštění po tahu oknem
+     *   dorazit nemusí; zaseknutý tah by spotřebovával i najetí myší.
+     * - **Dvojklik** (zvětšení podle nastavení systému) dělá taky most
+     *   ([MacTitleBar.titleBarDoubleClick]): JBR ho dělal jen tam, kde o pruhu rozhodoval on.
+     */
+    private suspend fun PointerInputScope.macTitleBarGestures(
+        window: ComposeWindow,
+        titleBar: WindowDecorations.CustomTitleBar,
+        heightPx: Int,
+    ) {
+        val emptyThreshold = EMPTY_DRAG_THRESHOLD.toPx()
+        val controlThreshold = CONTROL_DRAG_THRESHOLD.toPx()
+        awaitPointerEventScope {
+            // Co by stisk mohl táhnout: null nic, true prázdné místo, false prvek.
+            var dragFromEmpty: Boolean? = null
+            var dragging = false
+            var pressPosition = Offset.Zero
+            while (true) {
+                val initial = awaitPointerEvent(PointerEventPass.Initial)
+                if (initial.type != PointerEventType.Release && initial.changes.none { it.pressed }) {
+                    dragFromEmpty = null
+                    dragging = false
+                }
+                if (dragging || dragFromEmpty == true) {
+                    initial.changes.forEach { if (it.positionChanged() || (dragging && it.changedToUp())) it.consume() }
+                }
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                // JBR o pruhu nerozhoduje: všechno je obsah, tah začíná jen most.
+                titleBar.forceHitTest(true)
+                val change = event.changes.firstOrNull() ?: continue
+                when (event.type) {
+                    PointerEventType.Press -> {
+                        dragging = false
+                        dragFromEmpty = when {
+                            change.position.y >= heightPx || !event.buttons.isPrimaryPressed -> null
+                            !change.isConsumed -> true
+                            event.overTextField() -> null
+                            else -> false
+                        }
+                        pressPosition = change.position
+                    }
+                    PointerEventType.Move -> {
+                        val fromEmpty = dragFromEmpty
+                        if (fromEmpty != null && !dragging && change.pressed) {
+                            val threshold = if (fromEmpty) emptyThreshold else controlThreshold
+                            if ((change.position - pressPosition).getDistance() > threshold) {
+                                dragging = true
+                                MacTitleBar.startDrag(window)
+                            }
+                        }
+                    }
+                    PointerEventType.Release -> {
+                        if (dragFromEmpty == true && !dragging && (event.nativeEvent as? MouseEvent)?.clickCount == 2) {
+                            MacTitleBar.titleBarDoubleClick(window)
+                        }
+                        dragFromEmpty = null
+                        dragging = false
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Rozhodne o každé události myši, jestli patří obsahu, nebo titulku
      * (`CustomTitleBar.forceHitTest`). JBR se ptá na KAŽDOU událost zvlášť a bez odpovědi bere
      * celé plátno Compose jako obsah (má posluchače myši), takže by oknem nešlo táhnout vůbec.
@@ -150,96 +245,39 @@ object DesktopTitleBar {
      * Ptá se v průchodu `Main` na kořeni: ten jde od listů ke kořeni, takže tu už je vidět, jestli
      * si událost vzal nějaký prvek pod kurzorem — tlačítka, `clickable` i pole stisk spotřebují.
      * Co si stisk vzalo, drží obsah až do puštění (tah po posuvníku přes pruh titulku nesmí
-     * přejít v tah oknem). Odpověď platí pro tutéž událost, protože Compose ji na desktopu
-     * zpracuje synchronně uvnitř posluchače AWT, ze kterého se JBR ptá.
+     * přejít v tah oknem). Po stisku na prázdném místě pruhu se pohyby spotřebují v průchodu
+     * `Initial`, aby tah oknem neviděl obsah (viz [macTitleBarGestures]).
      *
-     * - **Na Macu JBR rozhoduje podle PŘEDCHOZÍ odpovědi.** Tah začne pohledem do pole
-     *   `customTitleBarHitTest` při prvním `mouseDragged` (`AWTWindowDragView` v `AWTWindow.m`),
-     *   a to na vlákně AppKitu, zatímco stisk teprve čeká ve frontě AWT. Byla-li poslední
-     *   zpracovaná událost nad obsahem (právě otevřený chat zdržel frontu a pohyb do pruhu se
-     *   nestihl zpracovat), tah se odmítl a stisk šel obsahu. Pohled do pole ale dělá jen
-     *   pohled v pruhu titulku, takže pod pruhem na odpovědi nezáleží: na Macu se tam hlásí
-     *   titulek a zastaralá odpověď tah nezablokuje. Obsah je jen to, co si v pruhu vzal prvek.
-     * - **Tah oknem obsah nevidí.** Při tahu na Macu chodí pohyby myši dál i obsahu (okno se
-     *   hýbe za kurzorem, ale ne přesně), takže lišta s hledáním v seznamu chatů se tahem
-     *   odsunula (`enterAlways`) a zůstala schovaná — nad seznamem pak nebylo za co chytit
-     *   a semafory ležely přes první chat. Po stisku v pruhu, který si nic nevzalo, proto kořen
-     *   pohyby spotřebuje v průchodu `Initial`, dřív než je uvidí lišta, až do puštění.
-     * - **Oknem jde táhnout i za prvky v pruhu** (tlačítka, avatar, název chatu), jako za
-     *   tlačítka v nástrojové liště aplikací pro Mac: stisk bez pohybu je klik, pohyb přes práh
-     *   tahu začne tah oknem a prvek o klik přijde (puštění se mu spotřebuje). Tah začíná náš
-     *   most ([MacTitleBar.startDrag]), protože JBR stisk, který si vzal prvek, oknem nehne.
-     *   Textové pole si tah nechá (výběr textu myší); pozná se podle kurzoru, viz [overTextField].
-     *   Podle toho, jestli pohyb spotřeboval prvek, to nejde: lišta s hledáním v seznamu chatů
-     *   ho spotřebuje taky (táhnout jde i za ni), a ikona hledání v ní by pak oknem nehnula.
-     *   Týž most dotáhne i prázdné místo, když JBR tah přesto odmítl a okno stojí.
+     * Na Windows, kde to ověřené není; na Macu jen bez nativní knihovny, a tam pod pruhem hlásí
+     * titulek — JBR se na pole dívá jen v pruhu a zastaralá odpověď „obsah" z události pod ním
+     * by tah odmítla.
      */
-    private fun Modifier.hitTest(window: ComposeWindow, titleBar: WindowDecorations.CustomTitleBar, heightPx: Int): Modifier =
-        pointerInput(window, titleBar, heightPx) {
-            // Vlastní tah oknem umí jen most na Macu; na Windows prvky v pruhu táhnout nejde.
-            val ownDragAvailable = mac && MacNative.loaded
-            awaitPointerEventScope {
-                var inControl = false
-                // Stisk na prázdném místě pruhu: táhne JBR, obsah pohyby nevidí.
-                var windowDrag = false
-                // Stisk na prvku v pruhu: po prahu tahu se z něj stane tah oknem.
-                var controlDrag = false
-                // Tah oknem začal náš most: prvek už nedostane ani puštění.
-                var ownDrag = false
-                var pressPosition = Offset.Zero
-                var pressWindowLocation: Point? = null
-                while (true) {
-                    val initial = awaitPointerEvent(PointerEventPass.Initial)
-                    if (windowDrag || ownDrag) {
-                        initial.changes.forEach { if (it.positionChanged() || (ownDrag && it.changedToUp())) it.consume() }
-                    }
-                    val event = awaitPointerEvent(PointerEventPass.Main)
-                    // Kolečko a odchod z okna se podle JBR neodpovídají.
-                    if (event.type == PointerEventType.Scroll || event.type == PointerEventType.Exit) continue
-                    val change = event.changes.firstOrNull() ?: continue
-                    val inTitle = change.position.y < heightPx
-                    // Pohyby spotřebované kvůli tahu oknem si nevzal prvek.
-                    val consumed = !windowDrag && !ownDrag && event.changes.any { it.isConsumed }
-                    when (event.type) {
-                        PointerEventType.Press -> {
-                            if (consumed) {
-                                inControl = true
-                                controlDrag = ownDragAvailable && inTitle && event.buttons.isPrimaryPressed &&
-                                    !event.overTextField()
-                            } else if (inTitle) {
-                                windowDrag = true
-                            }
-                            pressPosition = change.position
-                            pressWindowLocation = window.location
-                        }
-                        PointerEventType.Move -> if ((controlDrag || windowDrag) && change.pressed) {
-                            val beyondSlop = (change.position - pressPosition).getDistance() > viewConfiguration.touchSlop
-                            when {
-                                controlDrag && beyondSlop -> {
-                                    controlDrag = false
-                                    ownDrag = true
-                                    MacTitleBar.startDrag(window)
-                                }
-                                // Prázdné místo a okno stojí: JBR tah odmítl, dotáhne ho most.
-                                windowDrag && beyondSlop && ownDragAvailable && pressWindowLocation != null -> {
-                                    if (window.location == pressWindowLocation) MacTitleBar.startDrag(window)
-                                    pressWindowLocation = null
-                                }
-                            }
-                        }
-                    }
-                    val control = inTitle && (consumed || inControl) && !ownDrag
-                    // Na Windows pod pruhem obsah jako dřív — jak se tam JBR ptá, ověřené není.
-                    titleBar.forceHitTest(control || (!mac && !inTitle))
-                    if (event.type == PointerEventType.Release) {
-                        inControl = false
-                        windowDrag = false
-                        controlDrag = false
-                        ownDrag = false
-                    }
+    private suspend fun PointerInputScope.jbrHitTest(titleBar: WindowDecorations.CustomTitleBar, heightPx: Int) {
+        awaitPointerEventScope {
+            var inControl = false
+            var windowDrag = false
+            while (true) {
+                val initial = awaitPointerEvent(PointerEventPass.Initial)
+                if (windowDrag) initial.changes.forEach { if (it.positionChanged()) it.consume() }
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                // Kolečko a odchod z okna se podle JBR neodpovídají.
+                if (event.type == PointerEventType.Scroll || event.type == PointerEventType.Exit) continue
+                val change = event.changes.firstOrNull() ?: continue
+                val inTitle = change.position.y < heightPx
+                // Pohyby spotřebované kvůli tahu oknem si nevzal prvek.
+                val consumed = !windowDrag && event.changes.any { it.isConsumed }
+                if (event.type == PointerEventType.Press) {
+                    if (consumed) inControl = true else if (inTitle) windowDrag = true
+                }
+                val control = inTitle && (consumed || inControl)
+                titleBar.forceHitTest(control || (!mac && !inTitle))
+                if (event.type == PointerEventType.Release) {
+                    inControl = false
+                    windowDrag = false
                 }
             }
         }
+    }
 
     /**
      * Je pod myší textové pole? Pole si nastavuje textový kurzor (`pointerHoverIcon`) už při
@@ -251,6 +289,12 @@ object DesktopTitleBar {
         (nativeEvent as? MouseEvent)?.component?.cursor?.type == Cursor.TEXT_CURSOR
 
     private const val TAG = "TitleBar"
+
+    /** O kolik se myš musí pohnout po stisku na prázdném místě pruhu, než začne tah oknem. */
+    private val EMPTY_DRAG_THRESHOLD = 2.dp
+
+    /** Totéž po stisku na prvku v pruhu: menší pohyb je pořád klik. */
+    private val CONTROL_DRAG_THRESHOLD = 6.dp
 
     /** Kolik z `leftInset` na Macu ubrat, viz `controlsWidth`. */
     private const val MAC_CONTROLS_TRIM = 24f
