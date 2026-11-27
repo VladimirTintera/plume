@@ -68,6 +68,7 @@ import eu.tintera.plume.core.settings.sync.BotCloudStore
 import eu.tintera.plume.core.settings.sync.CloudSync
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.chatcolor.ChatColors
+import eu.tintera.plume.core.chatlabels.ChatLabels
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
 import eu.tintera.plume.features.forward.BotShareViewModel
@@ -401,6 +402,7 @@ fun appAccountModule() = module {
     single { PendingDownloadRemovals(scope = get(named(APP_SCOPE))) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull(), slot = get()) }
     single { ChatColors(settings = get(), chats = get()) }
+    single { ChatLabels(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
     single { SponsoredLinkRequests() }
     single { InlineQueryRequests() }
