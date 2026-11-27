@@ -16,7 +16,11 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatRepository
 import kotlinx.coroutines.flow.first
@@ -46,7 +50,8 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var folder by rememberSaveable(stateSaver = FolderSaver) { mutableStateOf<ChatFolder>(ChatFolder.Main) }
     var opened by rememberSaveable { mutableStateOf<Long?>(null) }
     var lastOpened by rememberSaveable { mutableStateOf<Long?>(null) }
-    var watching by rememberSaveable { mutableStateOf(false) }
+    var section by rememberSaveable { mutableStateOf(ListSection.Chats) }
+    val search = remember { TvSearchState() }
     var storiesOf by remember { mutableStateOf<Long?>(null) }
     var lastStories by remember { mutableStateOf<Long?>(null) }
     val listStates = remember { mutableMapOf<ChatFolder, LazyListState>() }
@@ -80,7 +85,20 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     }
 
     CompositionLocalProvider(LocalAudioPlayer provides audio) {
-        Box(Modifier.fillMaxSize()) {
+        // Tlačítko hledání na ovladači (KEYCODE_SEARCH, má ho část ovladačů): odkudkoli rovnou
+        // na hledání s hlasovým zadáním. Mikrofon na ovladači Google TV si bere Asistent systému.
+        Box(
+            Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || event.nativeKeyEvent.keyCode != AndroidKeyEvent.KEYCODE_SEARCH) return@onPreviewKeyEvent false
+                opened = null
+                viewer = null
+                playing = null
+                storiesOf = null
+                section = ListSection.Search
+                search.voiceRequests++
+                true
+            },
+        ) {
             val current = opened
             if (current != null) {
                 BackHandler {
@@ -103,13 +121,13 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                 // zůstane); pozice seznamu je zvlášť pro každou složku.
                 ChatListScreen(
                     folder = folder,
-                    watching = watching,
+                    section = section,
                     onFolder = {
                         folder = it
-                        watching = false
+                        section = ListSection.Chats
                         lastOpened = null
                     },
-                    onWatching = { watching = true },
+                    onSection = { section = it },
                     listStateFor = { listStates.getOrPut(it) { LazyListState() } },
                     lastOpenedChat = lastOpened,
                     overlayOpen = playing != null || storiesOf != null,
@@ -119,6 +137,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                         storiesOf = it
                     },
                     lastStoriesChat = lastStories,
+                    search = search,
                     onOpen = { chatId ->
                         lastOpened = chatId
                         opened = chatId

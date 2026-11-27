@@ -65,7 +65,9 @@ import eu.tintera.plume.resources.continue_watching_empty
 import eu.tintera.plume.resources.continue_watching_title
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
+import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.tv_chats_empty
+import eu.tintera.plume.resources.tv_search_tab
 import kotlin.time.Clock
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -87,16 +89,17 @@ import org.koin.compose.koinInject
  * [listStateFor] a [lastOpenedChat] drží navigace, ne obrazovka: po návratu z konverzace musí
  * seznam stát na stejném místě a fokus na chatu, ze kterého uživatel odešel.
  *
- * **Rozkoukaná videa** ([watching]) jsou záložka hned za Všemi chaty, jen když nějaká jsou:
+ * **Hledání** ([ListSection.Search]) je první záložka, jen s lupou — jako horní navigace Google
+ * TV. **Rozkoukaná videa** ([ListSection.ContinueWatching]) jsou záložka hned za Všemi chaty, jen když nějaká jsou:
  * mřížka karet ([ContinueWatchingPane]) místo seznamu a náhledu. Na plochu Google TV (řada
  * „Pokračovat ve sledování") je dát nejde — viz docs/poznatky/android-tv.md, „Rozkoukaná videa".
  */
 @Composable
 fun ChatListScreen(
     folder: ChatFolder,
-    watching: Boolean,
+    section: ListSection,
     onFolder: (ChatFolder) -> Unit,
-    onWatching: () -> Unit,
+    onSection: (ListSection) -> Unit,
     listStateFor: (ChatFolder) -> LazyListState,
     lastOpenedChat: Long?,
     /** Leží nad seznamem přehrávač nebo prohlížeč příběhů: seznam si pak fokus nebere. */
@@ -106,11 +109,13 @@ fun ChatListScreen(
     /** Příběhy autora (řada nad Všemi chaty); [lastStoriesChat] dostane po zavření fokus. */
     onOpenStories: (Long) -> Unit,
     lastStoriesChat: Long?,
+    search: TvSearchState,
 ) {
+    val watching = section == ListSection.ContinueWatching
     val chats = koinInject<ChatRepository>()
     // Náhled patří zaostřenému chatu VYBRANÉ složky; po přepnutí složky by jinak zůstal chat
     // z předchozí, dokud fokus nesjede do seznamu.
-    var focusedChat by remember(folder, watching) { mutableStateOf<ChatSummary?>(null) }
+    var focusedChat by remember(folder, section) { mutableStateOf<ChatSummary?>(null) }
     var tabsFocused by remember { mutableStateOf(false) }
     val preview = rememberChatPreview(focusedChat?.id)
     val watchingPositions = rememberWatchingPositions()
@@ -120,15 +125,28 @@ fun ChatListScreen(
         Column(Modifier.fillMaxSize()) {
             FolderTabs(
                 selected = folder,
-                watching = watching,
+                section = section,
                 // Záložka zůstane i s prázdným seznamem, dokud je vybraná (poslední video odebrané).
                 showWatching = watching || watchingPositions.isNotEmpty(),
                 onFolder = onFolder,
-                onWatching = onWatching,
+                onSection = onSection,
                 modifier = Modifier
                     .padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = 8.dp)
                     .onFocusChanged { tabsFocused = it.hasFocus },
             )
+            if (section == ListSection.Search) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    SearchPane(
+                        state = search,
+                        takeFocus = !tabsFocused && !overlayOpen,
+                        focusedChat = focusedChat,
+                        preview = preview,
+                        onFocusChat = { focusedChat = it },
+                        onOpen = onOpen,
+                    )
+                }
+                return@Column
+            }
             if (watching) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     if (watchingPositions.isEmpty()) {
@@ -176,17 +194,20 @@ fun ChatListScreen(
     }
 }
 
-/** Záložka: složka chatů, nebo Rozkoukaná videa (`folder == null`). */
-private data class TabEntry(val folder: ChatFolder?, val title: String, val count: Int)
+/** Co ukazuje hlavní obrazovka pod záložkami. */
+enum class ListSection { Chats, ContinueWatching, Search }
 
-/** Záložky složek: Všechny chaty, Rozkoukaná videa, složky Telegramu v pořadí uživatele, Archiv. */
+/** Záložka: složka chatů ([section] Chats), Rozkoukaná videa, nebo Hledání (jen ikona). */
+private data class TabEntry(val section: ListSection, val folder: ChatFolder?, val title: String, val count: Int)
+
+/** Záložky: Hledání, Všechny chaty, Rozkoukaná videa, složky Telegramu v pořadí uživatele, Archiv. */
 @Composable
 private fun FolderTabs(
     selected: ChatFolder,
-    watching: Boolean,
+    section: ListSection,
     showWatching: Boolean,
     onFolder: (ChatFolder) -> Unit,
-    onWatching: () -> Unit,
+    onSection: (ListSection) -> Unit,
     modifier: Modifier,
 ) {
     val chats = koinInject<ChatRepository>()
@@ -196,22 +217,24 @@ private fun FolderTabs(
     val all = stringResource(Res.string.chat_folders_all)
     val archive = stringResource(Res.string.chats_archive)
     val continueWatching = stringResource(Res.string.continue_watching_title)
+    val searchLabel = stringResource(Res.string.tv_search_tab)
     val tabs = buildList {
-        add(TabEntry(ChatFolder.Main, all, 0))
-        if (showWatching) add(TabEntry(null, continueWatching, 0))
-        folders.folders.forEach { add(TabEntry(ChatFolder.Custom(it.id), it.title, unread[it.id]?.chats ?: 0)) }
-        add(TabEntry(ChatFolder.Archive, archive, archiveUnread.chats))
+        add(TabEntry(ListSection.Search, null, searchLabel, 0))
+        add(TabEntry(ListSection.Chats, ChatFolder.Main, all, 0))
+        if (showWatching) add(TabEntry(ListSection.ContinueWatching, null, continueWatching, 0))
+        folders.folders.forEach { add(TabEntry(ListSection.Chats, ChatFolder.Custom(it.id), it.title, unread[it.id]?.chats ?: 0)) }
+        add(TabEntry(ListSection.Chats, ChatFolder.Archive, archive, archiveUnread.chats))
     }
-    val selectedIndex = tabs.indexOfFirst { if (watching) it.folder == null else it.folder == selected }.coerceAtLeast(0)
+    val selectedIndex = tabs.indexOfFirst { it.section == section && (section != ListSection.Chats || it.folder == selected) }.coerceAtLeast(0)
     // Šipka nahoru ze seznamu jde na VYBRANOU záložku, ne na tu, která je nad zaostřeným řádkem
     // nejblíž: záložka se vybírá už zaostřením, takže by šipka nahoru přepnula složku.
     val selectedTab = remember { FocusRequester() }
     TabRow(selectedTabIndex = selectedIndex, modifier = modifier.focusRestorer(selectedTab).focusGroup()) {
-        tabs.forEachIndexed { index, (folder, title, count) ->
+        tabs.forEachIndexed { index, (tabSection, folder, title, count) ->
             val choose = {
                 when {
-                    folder == null -> if (!watching) onWatching()
-                    watching || folder != selected -> onFolder(folder)
+                    folder == null -> if (section != tabSection) onSection(tabSection)
+                    section != ListSection.Chats || folder != selected -> onFolder(folder)
                 }
             }
             Tab(
@@ -220,12 +243,20 @@ private fun FolderTabs(
                 onClick = choose,
                 modifier = if (index == selectedIndex) Modifier.focusRequester(selectedTab) else Modifier,
             ) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
+                if (tabSection == ListSection.Search) {
+                    Icon(
+                        painterResource(Res.drawable.search_24dp),
+                        contentDescription = title,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).size(20.dp),
+                    )
+                } else {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
+                }
                 if (count > 0) {
                     Text(
                         count.toString(),

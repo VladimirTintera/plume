@@ -4992,4 +4992,9 @@
     <string name="tv_compose_button">Write a message</string>
     <string name="tv_compose_comment">Write a comment</string>
     <string name="tv_compose_title">New message</string>
+    <string name="tv_search_tab">Search</string>
+    <string name="tv_search_hint">Search chats and messages</string>
+    <string name="tv_search_voice">Search by voice</string>
+    <string name="tv_search_prompt">What are you looking for?</string>
+    <string name="tv_search_start">Type or say the name of a chat or channel, or words from a message.</string>
 </resources>
