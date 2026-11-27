@@ -4920,4 +4920,5 @@
     <string name="tv_conversation_empty">No messages yet</string>
     <string name="tv_conversation_failed">Couldn't load the messages.</string>
     <string name="tv_message_unsupported">This message can only be viewed on your phone.</string>
+    <string name="tv_message_you">You</string>
 </resources>

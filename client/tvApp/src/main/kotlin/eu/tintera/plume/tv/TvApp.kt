@@ -32,17 +32,18 @@ fun PrimaryAccountScope(content: @Composable () -> Unit) {
 
 /**
  * Rozcestník podle stavu přihlášení: na televizi jen QR kód (a heslo dvoufázového ověření),
- * pak seznam chatů. Telefonní číslo a kód se ovladačem nepíšou.
+ * pak seznam chatů. Telefonní číslo a kód se ovladačem nepíšou. [openChat] je chat k otevření
+ * zvenčí; otevře se až po přihlášení.
  */
 @Composable
-fun TvApp() {
+fun TvApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val session = koinInject<TelegramSession>()
     val stage by session.authStage.collectAsState()
     val scope = rememberCoroutineScope()
 
     TvTheme {
         when (val current = stage) {
-            AuthStage.Ready -> TvNavigation()
+            AuthStage.Ready -> TvNavigation(openChat = openChat, onChatOpened = onChatOpened)
             is AuthStage.WaitQrConfirmation -> QrLoginScreen(link = current.link)
             is AuthStage.WaitPassword -> PasswordScreen(stage = current)
             AuthStage.WaitPhoneNumber -> {

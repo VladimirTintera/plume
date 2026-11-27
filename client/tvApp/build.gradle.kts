@@ -93,6 +93,12 @@ dependencies {
     implementation(libs.kermit)
     implementation(libs.androidx.core.ktx)
 
+    // Video přes celou obrazovku: přehrávač, jeho povrch (`PlayerView` bez vlastního ovládání)
+    // a `MediaSession` pro tlačítka médií na ovladači. Zdroj nad souborem TDLib je v `core`.
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.session)
+
     // QR kód pro přihlášení (jako telefon a hodinky).
     implementation(libs.zxing.core)
 }

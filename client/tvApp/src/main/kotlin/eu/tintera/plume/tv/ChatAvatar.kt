@@ -29,6 +29,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.saved_messages
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -66,15 +67,21 @@ fun ChatAvatar(fileId: Int?, title: String, size: Dp, modifier: Modifier = Modif
     }
 }
 
-/** Obrázek souboru TDLib zmenšený na [targetPx] (kratší strana); `null`, dokud se nestáhne. */
+/**
+ * Obrázek souboru TDLib zmenšený na [targetPx] (kratší strana); `null`, dokud se nestáhne.
+ *
+ * **`produceState` hodnotu při změně klíče NEVYNULUJE** (stav je `remember` bez klíčů, znovu se
+ * spustí jen producent). Náhled chatu a pozadí proto ukazovaly obrázek prvního zaostřeného chatu
+ * u všech dalších (ověřeno na emulátoru). Producent ji vynuluje sám a čeká na hotový soubor.
+ */
 @Composable
 fun rememberImage(fileId: Int?, targetPx: Int): ImageBitmap? {
     val files = koinInject<FileRepository>()
     val image by produceState<ImageBitmap?>(initialValue = null, fileId, targetPx) {
+        value = null
         if (fileId == null) return@produceState
-        files.file(fileId).collect { state ->
-            if (state is FileState.Ready && value == null) value = withContext(Dispatchers.IO) { decodeScaled(state.path, targetPx) }
-        }
+        val ready = files.file(fileId).first { it is FileState.Ready } as FileState.Ready
+        value = withContext(Dispatchers.IO) { decodeScaled(ready.path, targetPx) }
     }
     return image
 }

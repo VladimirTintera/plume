@@ -1037,7 +1037,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
   s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
 - **Video se streamuje z rozestavěného souboru** (Android; `StreamingSource`,
-  `PartialFileDataSource`). ExoPlayer dostane vlastní `DataSource`, který čte soubor TDLib
+  `PartialFileDataSource` — od 27. 11. 2026 v `:client:core` (`core/video`), aby je mohla
+  použít i televize, viz `docs/poznatky/android-tv.md`, „Video"). ExoPlayer dostane vlastní `DataSource`, který čte soubor TDLib
   a místo konce vstupu POČKÁ, až data dorazí — `FileDataSource` by na konci rozestavěného
   souboru ohlásil konec a přehrávání by po pár vteřinách skončilo. Stahovat začne až vybraná
   stránka; soused složený dopředu ne.

@@ -86,35 +86,6 @@ expect fun rememberVideoPlayer(): VideoPlayer
 expect fun VideoSurface(player: VideoPlayer, modifier: Modifier = Modifier)
 
 /**
- * Rozestavěný soubor pro streamování.
- *
- * [path] je soubor TDLib, který na disku roste. Číst se z něj smí **jen uvnitř [downloaded]** —
- * mimo ten úsek jsou díry: TDLib stahuje od `downloadOffset` a souvisle má jen
- * `downloadedPrefixSize` bajtů.
- *
- * **[path] je funkce, ne hodnota: hotový soubor TDLib PŘESUNE** z `files/tdlib-files/temp/`
- * na konečnou cestu. Přehrávač soubor otevírá znovu při každém skoku i při přehrání od začátku,
- * a se zapamatovanou dočasnou cestou by skončil na `FileNotFoundException` (ENOENT). Už otevřený
- * soubor přesun přežije, takže hrající video nic nepozná.
- *
- * [requestFrom] přesune stahování jinam. **Bez toho streamování nestačí:** přehrávač si hned na
- * začátku řekne o `moov` atom, a ten u většiny videí leží na KONCI souboru — příznak
- * `supportsStreaming` od serveru říká jen to, co tvrdí odesílatel, ne kde index doopravdy je.
- *
- * [hlsPlaylist] je HLS seznam přepočítané kvality (text souboru `alternativeVideo.hlsFile`), kde
- * ho platforma potřebuje ([videoFragmentedStreamingNeedsHls]); jinak `null`.
- *
- * Obě funkce se volají z vlákna přehrávače, ne z kompozice.
- */
-class StreamingSource(
-    val path: () -> String,
-    val totalSize: Long,
-    val downloaded: () -> LongRange,
-    val requestFrom: (Long) -> Unit,
-    val hlsPlaylist: String? = null,
-)
-
-/**
  * Umí tahle platforma přehrát rozestavěný soubor?
  *
  * Android i iOS ano: vlastní zdroj nad souborem TDLib (`PartialFileDataSource` pro ExoPlayer,

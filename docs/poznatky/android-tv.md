@@ -29,6 +29,36 @@ Samostatná aplikace pro televize (`client/tvApp`). Plán a co zbývá: `docs/ro
   druhý ji ukáže v „Aplikacích" Google TV a dá se spustit `am start` i na emulátoru bez
   televizního launcheru.
 
+## Skladba obrazovky (podle návodů Google)
+
+Podle [TV components](https://developer.android.com/design/ui/tv/guides/components) a
+[Layouts](https://developer.android.com/design/ui/tv/guides/styles/layouts), procházeno
+27. 11. 2026. Co z nich plyne pro Plume:
+
+- **Seznam chatů je svislý dvouřádkový seznam s kulatými avatary** (`ListItem`). Přesně to
+  Google doporučuje na kolekci, ze které se vybírá jedna položka (lidé a entity kulatě).
+  **Immersive list** (řada karet a velký náhled na pozadí, který sleduje fokus) je podle návodu
+  pro pár vybraných položek (novinky, populární), ne pro dlouhý seznam — na chaty se nehodí.
+  Karty v řadách jsou pro vizuální katalog (objevování kanálů, feed příspěvků).
+- **Z immersive listu si seznam bere náhled**: vpravo zaostřený chat (`ChatPreview`), jeho
+  poslední fotka nebo video přes pozadí celé obrazovky (prolíná se i pod záložky) a poslední
+  zprávy. Obraz je zarovnaný doprava nahoru (Google: hlavní motiv vpravo nahoře) a zleva
+  a zespodu ho kryje přechod do plochy, takže text zůstává čitelný. Načítá se se zpožděním
+  300 ms (`getChatHistory`, 20 zpráv) — rychlé projíždění šipkou nemá číst historii každého
+  řádku. `getChatHistory` chat neotevírá ani nehlásí přečtení.
+- **Složky jsou záložky nahoře** (`TabRow` s pilulkou), ne lišta: záložky jsou podle návodu
+  pro rovnocenné sekce jedné obrazovky a smí jich být kolik je potřeba. `NavigationDrawer` je
+  „páteř" aplikace jen pro hlavní cíle (pět až šest, s ikonami) — první verze ho měla na složky
+  a s víc složkami by přetekl. Lišta se vrátí, až budou hlavní cíle (Chaty, Hledání,
+  Nastavení). Záložka se vybírá už zaostřením (`onFocus`), jako všude na TV.
+- **Bezpečné okraje 58 dp po stranách a 28 dp nahoře a dole** (`SAFE_HORIZONTAL`,
+  `SAFE_VERTICAL`; 5 % z 960 × 540 dp). Návod má na téže stránce i 48 / 27 dp; drží se
+  přísnější varianta. Pozadí okraje nerespektuje (Google: „fill the full screen").
+- **Návrh v 960 × 540 dp** (televize 1080p má hustotu 320), mřížka 12 sloupců po 52 dp
+  s mezerou 20 dp; šířky karet pro N vedle sebe: 1 = 844, 2 = 412, 3 = 268, 4 = 196 dp.
+- **Přehrávač návod nepopisuje** (stránka o médiích mezi komponentami není); ovládání je
+  podle systémových přehrávačů, viz „Video".
+
 ## UI
 
 - **Compose for TV (`androidx.tv:tv-material` 1.1)**, ne M3 z telefonu: televize se ovládá
@@ -55,8 +85,8 @@ Samostatná aplikace pro televize (`client/tvApp`). Plán a co zbývá: `docs/ro
   dolů pak „naskočila" kdesi uprostřed seznamu (ověřeno na emulátoru při prvním otevření složky
   Kanály). Řešení: dokud fokus nedostane jiný řádek, každá změna seznamu znovu posune
   zaostřený řádek do obrazu a vyžádá fokus (`navigated` v `ChatList`).
-- **Lišta složek je `NavigationDrawer`** (ne modální): sbalená ukazuje ikony, rozbalí se
-  s popisky a počty nepřečtených, jakmile do ní uživatel šipkou vlevo vjede.
+- **Při procházení záložek si seznam fokus nebere** (`takeFocus`): přenastavování fokusu výš
+  by ho při každém přepnutí složky (záložka se vybírá už zaostřením) vytáhlo ze záložek dolů.
 - **Konverzace je stav v kompozici, ne ViewModel** (`ConversationState`): ViewModel by žil
   v úložišti aktivity i po zavření chatu a `closeChat` by TDLib nikdy nedostala. Zprávy jsou
   zaostřitelné jednotlivě (`focusable` s rámečkem), seznam je obrácený (nejnovější dole)
@@ -69,6 +99,36 @@ Samostatná aplikace pro televize (`client/tvApp`). Plán a co zbývá: `docs/ro
 - **Heslo dvoufázového ověření je `BasicTextField`** v plošce s rámečkem fokusu: tv-material
   textové pole nemá. Píše se systémovou klávesnicí televize (na Google TV i hlasem z ovladače).
   Telefonní číslo a kód se na televizi nezadávají — přihlášení je jen QR kódem, jako na hodinkách.
+
+## Video
+
+- **Přehrávání za běhu stahování je v `:client:core`** (`core/video`: `StreamingSource`,
+  `streamOriginalVideo`, `downloadHeadsTo` v `commonMain`, `PartialFileDataSource` v
+  `androidMain`). Dřív bylo ve `shared` a televize by ho musela kopírovat. Balíček zůstal
+  stejný, takže telefon se změnou importů nemusel měnit. `core` kvůli tomu táhne jen
+  `media3-datasource` (`api`, typ je ve veřejném API zdroje), přehrávač si přidává, kdo přehrává.
+- **`VideoPlayerScreen`**: ExoPlayer, obraz v `PlayerView` bez vlastního ovládání (jen povrch
+  a poměr stran), ovládání v Compose. OK / Přehrát-Pozastavit přepíná, šipky vlevo a vpravo
+  (i přetáčení na ovladači) skáčou o 10 s, Zpět zavře. Ovládání se po 4 s přehrávání schová,
+  vrátí se s každým stiskem; první OK při schovaném ovládání ho jen ukáže, jako u systémových
+  přehrávačů. Fokus zvuku a „sluchátka vytažena" řeší ExoPlayer (`handleAudioFocus`).
+- **`MediaSession` (media3-session)** dává přehrávač systému: tlačítka médií na ovladači
+  a karta „Právě hraje" na Google TV. Ověřeno `dumpsys media_session` (stav PAUSED s pozicí).
+- **Přehrávač leží NAD konverzací**, ta zůstává v kompozici — po zavření videa se historie
+  nenačítá znovu. Zpět zavře nejdřív video: jeho `BackHandler` je složený později.
+- **Po zavření videa se fokus vrací na zprávu s videem** (`focusTarget` v `MessageList`).
+  Přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
+- **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
+  ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
+
+## Past: `produceState` hodnotu při změně klíče nevynuluje
+
+Stav uvnitř `produceState` je `remember` BEZ klíčů; klíče jen znovu spustí producenta. Kdo
+čte obrázek podle `fileId` a hlídá `if (value == null)`, ukáže po změně klíče pořád ten první:
+náhled chatu i pozadí tak měly fotku prvního zaostřeného chatu u všech dalších. Producent musí
+hodnotu vynulovat sám (`rememberImage` v `ChatAvatar.kt`). **Hodinky to mají taky**
+(`ChatAvatar.kt` ve `wearApp`: při změně na `null` zůstane stará fotka) — v seznamu bez klíčů
+položek se to může projevit cizím avatarem u recyklované karty; neověřené.
 
 ## Ověření
 
@@ -83,3 +143,11 @@ Samostatná aplikace pro televize (`client/tvApp`). Plán a co zbývá: `docs/ro
   s předělem „Dnes", posun po zprávách šipkou, zpět s fokusem na otevřeném chatu. Heslo
   dvoufázového ověření a fotky v bublině na emulátoru vyvolané nejsou (účet heslo nemá, otevřený
   kanál fotky neměl); skutečná televize ověřená není.
+- **Ověřeno 27. 11. 2026 odpoledne** (česky): záložky složek s počty, přepnutí složky
+  zaostřením záložky (fokus zůstane v záložkách, náhled se vynuluje), náhled zaostřeného chatu
+  s pozadím z posledního média a živým „píše…", přehrání 40s videa (poslané Notifikátorem do
+  jeho chatu) za běhu stahování, skok o 10 s, pauza, schování ovládání, `MediaSession`, zpět
+  s fokusem na zprávě s videem. Otevření chatu intentem:
+  `am start -n eu.tintera.plume/eu.tintera.plume.tv.MainActivity --el eu.tintera.plume.tv.CHAT_ID 8875105705`
+  (Notifikátor) — do testovacího chatu se neťuká přes seznam, ten se mezi snímkem a stiskem
+  přeskládá.

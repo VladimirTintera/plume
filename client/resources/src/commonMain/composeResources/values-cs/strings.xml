@@ -5110,4 +5110,5 @@
     <string name="tv_conversation_empty">Zatím žádné zprávy</string>
     <string name="tv_conversation_failed">Zprávy se nepodařilo načíst.</string>
     <string name="tv_message_unsupported">Tuhle zprávu zatím ukáže jen telefon.</string>
+    <string name="tv_message_you">Ty</string>
 </resources>
