@@ -63,12 +63,22 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.media_sticker
+import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.conversation_voice_message
+import eu.tintera.plume.resources.content_video_note
+import eu.tintera.plume.resources.content_gif
+import eu.tintera.plume.resources.content_file
+import eu.tintera.plume.resources.content_audio
 import eu.tintera.plume.resources.menu_forward
+import eu.tintera.plume.resources.reactions_title
 import eu.tintera.plume.resources.tv_compose_voice
 import eu.tintera.plume.resources.tv_compose_voice_prompt
 import eu.tintera.plume.resources.common_cancel
@@ -113,6 +123,9 @@ class MessageInteractions {
 
     /** Zpráva (album celé), pro kterou se vybírá chat, kam ji přeposlat. */
     var forwarding by mutableStateOf<ChatMessage?>(null)
+
+    /** Zpráva, u které se ukazuje, kdo reagoval. */
+    var reactors by mutableStateOf<ChatMessage?>(null)
 }
 
 /**
@@ -153,6 +166,10 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
                 interactions.actionsFor = null
                 interactions.forwarding = message
             },
+            onReactors = {
+                interactions.actionsFor = null
+                interactions.reactors = message
+            },
             onDismiss = { interactions.actionsFor = null },
         )
     }
@@ -164,6 +181,9 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
     }
     interactions.forwarding?.let { message ->
         ForwardDialog(state, message, chatTitle, scope, onDismiss = { interactions.forwarding = null })
+    }
+    interactions.reactors?.let { message ->
+        ReactorsDialog(state, message, chatTitle, onDismiss = { interactions.reactors = null })
     }
     interactions.replyTo?.let { message ->
         ReplyDialog(state, message, chatTitle, onDismiss = { interactions.replyTo = null })
@@ -189,6 +209,7 @@ private fun MessageActionsDialog(
     onEdit: () -> Unit,
     onDelete: (MessageActions) -> Unit,
     onForward: () -> Unit,
+    onReactors: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Upravit a smazat jen tam, kde to server dovolí (`messageActions`): vlastní zprávu jde
@@ -236,6 +257,11 @@ private fun MessageActionsDialog(
                 val allowed = actions
                 if (allowed?.canEdit == true && message.text.isNotBlank()) {
                     Button(onClick = onEdit) { Text(stringResource(Res.string.menu_edit)) }
+                }
+                // Kdo reagoval: jen u zprávy s reakcemi. V kanálu to server neprozradí (dialog
+                // to pak řekne), ve skupině a v soukromém chatu ano.
+                if (message.reactions.isNotEmpty()) {
+                    Button(onClick = onReactors) { Text(stringResource(Res.string.reactions_title)) }
                 }
                 if (allowed?.canForward == true) {
                     Button(onClick = onForward) { Text(stringResource(Res.string.menu_forward)) }
@@ -515,7 +541,7 @@ fun QuoteContent(message: ChatMessage, chatTitle: String) {
         }
         Spacer(Modifier.height(2.dp))
         Text(
-            message.text.ifEmpty { message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported) }.replace('\n', ' '),
+            message.text.ifEmpty { message.description?.resolve() ?: mediaLabel(message) }.replace('\n', ' '),
             style = MaterialTheme.typography.bodyMedium,
             color = color.copy(alpha = 0.8f),
             maxLines = 1,
@@ -561,3 +587,22 @@ fun ReactionChips(reactions: List<MessageReaction>, contentColor: Color) {
 
 /** Kolik rychlých reakcí nabídka ukáže; víc se do řady na televizi nevejde. */
 private const val MAX_QUICK_REACTIONS = 7
+
+/**
+ * Co je zpráva bez textu a bez popisu (`description` mají jen popisné a servisní zprávy):
+ * „Fotka", „Video zpráva"… jako náhled v seznamu chatů. Dřív citace fotky nebo alba říkala
+ * „Tuhle zprávu zatím ukáže jen telefon", přestože ji televize ukáže.
+ */
+@Composable
+private fun mediaLabel(message: ChatMessage): String = when (val media = message.media) {
+    is MessageMedia.Photo -> stringResource(Res.string.media_photo)
+    is MessageMedia.Video -> stringResource(Res.string.media_video)
+    is MessageMedia.VideoNote -> stringResource(Res.string.content_video_note)
+    is MessageMedia.VoiceNote -> stringResource(Res.string.conversation_voice_message)
+    is MessageMedia.Audio -> listOfNotNull(media.performer, media.title).filter { it.isNotBlank() }.joinToString(" – ")
+        .ifBlank { stringResource(Res.string.content_audio) }
+    is MessageMedia.Animation -> stringResource(Res.string.content_gif)
+    is MessageMedia.Document -> stringResource(Res.string.content_file)
+    is MessageMedia.Sticker -> stringResource(Res.string.media_sticker)
+    else -> stringResource(Res.string.tv_message_unsupported)
+}

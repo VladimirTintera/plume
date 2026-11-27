@@ -449,6 +449,15 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   klávesy pozná sám; v adb `input keyevent --longpress KEYCODE_DPAD_CENTER`). Krátké OK zůstává
   médiu (video, prohlížeč, zvuk). V nabídce rychlé reakce ze sady chatu (`availableReactions`,
   nejvýš 7 — víc se do řady nevejde) a „Odpovědět", jen když se smí psát (`writeAccess`).
+- **Kdo reagoval: tlačítko „Reakce" v nabídce u zprávy s reakcemi** otevře `ReactorsDialog`
+  (`reactionDetails` z `core`, jedna stránka od nejnovější): avatar, jméno („Vy" u vlastní)
+  a emoji, vlastní emoji bez obrázku jako v čipech. Řádky jsou zaostřitelné jen kvůli rolování.
+  V kanálu server seznam nedá (reakce jsou anonymní) — dialog to řekne větou; tlačítko se
+  neschovává, zpráva sama neví, v jakém chatu leží.
+- **Citace zprávy bez textu říká, co to je** („Fotka", „Video zpráva", „Hlasová zpráva"…,
+  `mediaLabel`). `description` mají jen popisné a servisní zprávy, takže citace fotky nebo alba
+  v nabídce a v dialozích ukazovala „Tuhle zprávu zatím ukáže jen telefon", přestože ji
+  televize ukáže (všimnuto při ověřování reakcí na albu).
 - **Nabídka i odpověď jsou `Dialog`** (vlastní okno): fokus z nich šipkou neuteče na zprávy pod
   nimi, Zpět zavře dialog, ne konverzaci, a po zavření se fokus vrátí na zprávu v hlavním okně.
   **`usePlatformDefaultWidth = false`**: výchozí šířka dialogu je kolem 440 dp, takže strop

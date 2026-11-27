@@ -594,7 +594,7 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 5. ~~**Reakce a odpovědi**~~ — hotovo (čipy reakcí, citace, nabídka podržením OK, odpověď přes
    systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod
    konverzací (hotovo). Úprava a smazání vlastní zprávy hotové, zprávu jde nadiktovat (mikrofon v dialogu psaní). Přeposlání hotové (do jednoho chatu,
-   Uložené první). Zbývá: kdo reagoval, vlastní emoji (kreslení), zachování formátování při
+   Uložené první). Kdo reagoval hotové (dialog z nabídky). Zbývá: vlastní emoji (kreslení), zachování formátování při
    úpravě, hledání a víc cílů při přeposlání. Skok na citovanou zprávu hotový.
 6. ~~**Úklid mezipaměti**~~ — hotovo (`AutoStorageCleaner` v `core`, společný s hodinkami;
    3 dny a 1 GB). Zbývá: ověřit, že úklid nad stropem na televizi opravdu maže.
