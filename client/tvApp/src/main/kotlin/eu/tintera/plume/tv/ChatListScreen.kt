@@ -99,9 +99,13 @@ fun ChatListScreen(
     onWatching: () -> Unit,
     listStateFor: (ChatFolder) -> LazyListState,
     lastOpenedChat: Long?,
-    playerOpen: Boolean,
+    /** Leží nad seznamem přehrávač nebo prohlížeč příběhů: seznam si pak fokus nebere. */
+    overlayOpen: Boolean,
     onPlay: (VideoRequest) -> Unit,
     onOpen: (Long) -> Unit,
+    /** Příběhy autora (řada nad Všemi chaty); [lastStoriesChat] dostane po zavření fokus. */
+    onOpenStories: (Long) -> Unit,
+    lastStoriesChat: Long?,
 ) {
     val chats = koinInject<ChatRepository>()
     // Náhled patří zaostřenému chatu VYBRANÉ složky; po přepnutí složky by jinak zůstal chat
@@ -110,6 +114,7 @@ fun ChatListScreen(
     var tabsFocused by remember { mutableStateOf(false) }
     val preview = rememberChatPreview(focusedChat?.id)
     val watchingPositions = rememberWatchingPositions()
+    val storyPosters = rememberStoryPosters()
     Box(Modifier.fillMaxSize()) {
         ChatPreviewBackdrop(preview)
         Column(Modifier.fillMaxSize()) {
@@ -131,7 +136,7 @@ fun ChatListScreen(
                     } else {
                         ContinueWatchingPane(
                             positions = watchingPositions,
-                            playerOpen = playerOpen,
+                            playerOpen = overlayOpen,
                             takeFocus = !tabsFocused,
                             onPlay = onPlay,
                             onOpenChat = onOpen,
@@ -149,9 +154,12 @@ fun ChatListScreen(
                             listState = listStateFor(folder),
                             lastOpenedChat = lastOpenedChat,
                             // Dokud uživatel prochází záložky, seznam si fokus nebere.
-                            takeFocus = !tabsFocused,
+                            takeFocus = !tabsFocused && !overlayOpen,
                             onFocusChat = { focusedChat = it },
                             onOpen = onOpen,
+                            // Řada příběhů jen nad Všemi chaty, jako hromádka na telefonu.
+                            stories = storyPosters.takeIf { folder == ChatFolder.Main && it.isNotEmpty() }
+                                ?.let { StoryRow(it, lastStoriesChat, overlayOpen, onOpenStories) },
                         )
                     }
                 }
@@ -239,6 +247,7 @@ private fun ChatListPane(
     takeFocus: Boolean,
     onFocusChat: (ChatSummary) -> Unit,
     onOpen: (Long) -> Unit,
+    stories: StoryRow?,
 ) {
     val state by remember(folder) { chats.chats(folder) }.collectAsState()
     // Hlavní seznam načítá repository sama po přihlášení; archiv a složky až otevřením.
@@ -250,7 +259,7 @@ private fun ChatListPane(
             if (current.chats.isEmpty()) {
                 MessageScreen(stringResource(Res.string.tv_chats_empty), Res.drawable.chat_bubble_24dp)
             } else {
-                ChatList(chats, folder, current.chats, listState, lastOpenedChat, takeFocus, onFocusChat, onOpen)
+                ChatList(chats, folder, current.chats, listState, lastOpenedChat, takeFocus, onFocusChat, onOpen, stories)
             }
     }
 }
@@ -265,8 +274,11 @@ private fun ChatList(
     takeFocus: Boolean,
     onFocusChat: (ChatSummary) -> Unit,
     onOpen: (Long) -> Unit,
+    stories: StoryRow?,
 ) {
     val savedMessagesId = savedMessagesChatId()
+    // Řada příběhů je první položka seznamu; indexy chatů jsou o ni posunuté.
+    val header = if (stories != null) 1 else 0
     val focus = remember { FocusRequester() }
     // Fokus na chat, ze kterého se uživatel vrátil, jinak na první. Bez toho by po návratu
     // z konverzace fokus nebyl nikde.
@@ -280,11 +292,17 @@ private fun ChatList(
     LaunchedEffect(folder, focusedId, navigated, chats, takeFocus) {
         if (navigated || !takeFocus) return@LaunchedEffect
         val index = chats.indexOfFirst { it.id == focusedId }
-        if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index }) listState.scrollToItem(index)
+        if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index + header }) listState.scrollToItem(index + header)
         runCatching { focus.requestFocus() }
     }
+    // Řada příběhů přibude nad seznamem až s updaty od TDLib. Seznam drží první viditelnou
+    // položku podle klíče, takže by řada zůstala nad horním okrajem a šipka nahoru by ukázala jen
+    // avatar bez nadpisu. Dokud se uživatel nepohnul, seznam se vrátí na začátek.
+    LaunchedEffect(header) {
+        if (header == 1 && !navigated && listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
+    }
     // Dočítání: když se fokus blíží konci načtené části, požádá se o další stránku.
-    val loaded by rememberUpdatedState(chats.size)
+    val loaded by rememberUpdatedState(chats.size + header)
     LaunchedEffect(folder, listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { last -> if (last != null && last >= loaded - LOAD_AHEAD) repository.loadMore(folder) }
@@ -295,6 +313,12 @@ private fun ChatList(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        if (stories != null) {
+            item(key = "stories") {
+                // Fokus v řadě příběhů = uživatel se pohnul: seznam mu ho už nebere zpátky na chat.
+                StoryRowContent(stories, Modifier.onFocusChanged { if (it.hasFocus) navigated = true }.padding(bottom = 8.dp))
+            }
+        }
         items(chats, key = { it.id }) { chat ->
             ChatRow(
                 chat = chat,

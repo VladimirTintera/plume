@@ -608,8 +608,10 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 9. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
    a výkon seznamu s avatary na slabém procesoru.
 
-10. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **příběhy** (řada avatarů
-    s lemem nad seznamem, prohlížeč šipkami), **hledání i hlasem** (mikrofon na ovladači; s ním
+10. ~~**Příběhy**~~ — hotovo (řada nad Všemi chaty, prohlížeč ovladačem). Zbývá: reakce
+    a odpověď, vlastní příběh, lem u avatarů v řádcích chatů, ověřit přechod mezi autory na
+    účtu s příběhy lidí (testovací účet).
+11. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **hledání i hlasem** (mikrofon na ovladači; s ním
     lišta s hlavními cíli z bodu 7), **kanál jako pořad** (po dohrání videa v kanálu další video
     téhož kanálu), **spořič obrazovky s fotkami** (systémový `DreamService` z vybraného chatu nebo
     Uložených zpráv).

@@ -186,6 +186,41 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
     neříká. Riziko, že kontrola kvality pro Android TV v Play aplikaci kvůli tomu vrátí, je
     větší než užitek.
 
+## Příběhy
+
+- **Řada příběhů nad Všemi chaty** (`StoryRowContent`), ne hromádka v pilulce jako na telefonu:
+  avatar v řádku chatu nejde ovladačem zaostřit zvlášť (OK otevře chat) a kontakt bez chatu by
+  se jinak k příběhům nedostal. Je to PRVNÍ POLOŽKA seznamu, takže s pohybem dolů odjede
+  a chatům místo nebere; jen v hlavním seznamu a jen když nějaké příběhy jsou. Pořadí TDLib
+  (`storyListOrder`), lem z dílků po kruhu (barevné nezhlédnuté, tenčí šedé zhlédnuté), vlastní
+  příběh pod nadpisem „Moje příběhy" s fotkou účtu.
+- **Řada přibude až s updaty od TDLib, kdy už seznam stojí.** Seznam drží první viditelnou
+  položku podle klíče, takže řada zůstala nad horním okrajem a šipka nahoru ukázala jen avatar
+  bez nadpisu (ověřeno na emulátoru). Dokud se uživatel nepohnul, seznam se vrátí na začátek.
+  Indexy chatů jsou o řadu posunuté (`header` v `ChatList`).
+- **Fokus v řadě znamená „uživatel se pohnul"** (`navigated`): bez toho by mu ho seznam při
+  každé změně chatů (nová zpráva) vzal zpátky na chat. A **když nad seznamem leží prohlížeč nebo
+  přehrávač, seznam si fokus nebere vůbec** (`overlayOpen`): změna chatů by ho prohlížeči
+  ukradla a šipky by šly do seznamu pod ním. Po zavření jde fokus na avatar, ze kterého se
+  příběhy otevřely.
+- **Prohlížeč** (`StoriesViewerScreen`): příběh uprostřed na výšku (9 : 16, výška obrazovky bez
+  bezpečných okrajů), nahoře dílky průběhu, autor a čas, dole popisek. Autoři i příběhy se při
+  otevření zmrazí — `StoriesState` a pohyb (`next`, `previous`, `showPoster`) jsou tytéž čisté
+  funkce jako na telefonu, kvůli tomu přesunuté do `:client:core` (`core/stories/StoryCursor.kt`).
+  Šipky vlevo a vpravo předchozí a další příběh (za posledním autora na dalšího, za posledním
+  autorem se zavře), nahoru a dolů rovnou jiný autor, OK pauza, Zpět zavře.
+- **Otevírá se rovnou na vybraném autorovi** (index v počátečním stavu). Přes nastavení až po
+  složení by se na okamžik otevřel první autor seznamu a TDLib by jeho příběh započítal jako
+  zhlédnutý — autor by to viděl.
+- **`openStory` / `closeStory`** při každém přechodu (`DisposableEffect` nad aktuálním příběhem,
+  zavření přes aplikační scope). Načítá se obsah aktuálního a dalšího příběhu.
+- **Fotka stojí 6 s od načtení, video hraje celé** — stáhne se napřed celé (příběhy mají do
+  minuty a jednotky MB), pak ExoPlayer s `RESIZE_MODE_ZOOM` jako `Crop` u fotky. Fokus zvuku
+  vezme přehrávači hudby (pozastaví se). Živé vysílání televize neumí: věta a po 6 s dál, stejně
+  jako příběh, který už není.
+- **Zatím ne**: reakce a odpověď na příběh, ztlumení (hlasitost má ovladač), skrytí autora,
+  vlastní příběh (diváci, správa), lem příběhu u avataru v řádku chatu a v konverzaci.
+
 ## Fotky a alba
 
 - **Prohlížeč přes celou obrazovku** (`MediaViewerScreen`): šipky vlevo a vpravo jdou po VŠECH
@@ -320,6 +355,13 @@ Do Play z téhož tagu jako telefon a hodinky, track `tv:internal`, za repo prom
 
 ## Ověření
 
+- **Příběhy ověřeny 27. 11. 2026 jen částečně**: účet v tu chvíli neměl žádné aktivní příběhy
+  (řada se správně neukázala) a příběhy lidí se na skutečném účtu otevírat nesmí (autor vidí,
+  kdo je zhlédl). Dočasným ladicím háčkem (odstraněným): řada s kanálem Pavla Durova a dvěma
+  vymyšlenými autory — nadpis, lemy (částečně zhlédnutý, zhlédnutý, nezhlédnutý), fokus,
+  návrat fokusu na avatar po zavření; prohlížeč nad pěti příběhy z profilu téhož kanálu —
+  video i fotka, dílky průběhu, autor a datum, popisek, pauza, šipkou dál, Zpět. Přechod mezi
+  autory (nahoru a dolů, dohrání posledního příběhu autora) na zařízení ověřený NENÍ.
 - **Rozkoukaná videa ověřena 27. 11. 2026** s tříminutovým videem od Notifikátora: po startu
   synchronizace stáhla pozice z telefonu (záložka s videem rozkoukaným na Foldu, „0:26 /
   1:02:08"), přehrání 28 s → proužek a „0:27 / 3:00" v bublině, znovu otevřené „Pokračuje od
