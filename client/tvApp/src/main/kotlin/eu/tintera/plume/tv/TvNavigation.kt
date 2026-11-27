@@ -60,11 +60,13 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var playing by remember { mutableStateOf<VideoRequest?>(null) }
     var viewer by remember { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
     val audio = rememberTvAudioPlayer()
-    val actions = remember(audio) {
+    val videoNotes = remember { VideoNotePlayback() }
+    val actions = remember(audio, videoNotes) {
         MediaActions(
             playVideo = { playing = it },
             openViewer = { items, index -> viewer = items to index },
             playAudio = audio::play,
+            toggleVideoNote = videoNotes::toggle,
         )
     }
     // Složka obnovená z uloženého stavu už nemusí existovat (smazaná v telefonu, než se proces
@@ -87,7 +89,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
         onChatOpened()
     }
 
-    CompositionLocalProvider(LocalAudioPlayer provides audio) {
+    CompositionLocalProvider(LocalAudioPlayer provides audio, LocalVideoNotes provides videoNotes) {
         // Tlačítko hledání na ovladači (KEYCODE_SEARCH, má ho část ovladačů): odkudkoli rovnou
         // na hledání s hlasovým zadáním. Mikrofon na ovladači Google TV si bere Asistent systému.
         Box(

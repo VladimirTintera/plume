@@ -110,6 +110,8 @@ class MediaActions(
     val playVideo: (VideoRequest) -> Unit,
     val openViewer: (List<ViewerItem>, Int) -> Unit,
     val playAudio: (List<AudioItem>, Int) -> Unit,
+    /** Kolečko (chat, zpráva): pustí ho na místě, hrající zastaví ([VideoNotePlayback]). */
+    val toggleVideoNote: (Long, Long) -> Unit = { _, _ -> },
 )
 
 /** Fotky a videa ze zpráv (od nejstarší) v pořadí, v jakém je prohlížeč prochází. */
@@ -143,6 +145,9 @@ fun mediaOpenAction(
                 val items = audioItems(chatId, allMessages, voice = media is MessageMedia.VoiceNote)
                 actions.playAudio(items, items.indexOfFirst { it.messageId == first.id }.coerceAtLeast(0))
             }
+        }
+        media is MessageMedia.VideoNote -> {
+            { actions.toggleVideoNote(chatId, first.id) }
         }
         album.size == 1 && media is MessageMedia.Video -> {
             {
