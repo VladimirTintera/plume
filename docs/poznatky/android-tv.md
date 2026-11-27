@@ -156,16 +156,25 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 
 ## Reakce a odpovědi
 
-- **Reakce jsou pod zprávou jako čipy** (emoji a počet, moje zvýrazněná), citace odpovědi nad
-  textem (proužek, odesílatel, první řádek). Citovaná zpráva se bere z načtené historie a co
-  v ní není, dočte se jednou z TDLib (`ConversationState.quote`, jako na hodinkách). Vlastní
-  emoji se v čipech i v nabídce vynechávají, televize je kreslit neumí.
+- **Reakce jsou pod zprávou jako čipy** (emoji a počet, moje zvýrazněná). Citovaná zpráva se
+  bere z načtené historie a co v ní není, dočte se jednou z TDLib (`ConversationState.quote`,
+  jako na hodinkách). Vlastní emoji se v čipech i v nabídce vynechávají, televize je kreslit neumí.
+- **Odpověď je karta ze dvou částí, jako na telefonu**: nahoře citace v tónované ploše
+  (`tertiaryContainer`; ikona uvozovek, jméno, první řádek), pod ní odpověď v barvě bubliny.
+  První verze měla svislý proužek v barvě motivu — jazyk M2, který telefon dávno nahradil
+  (`konverzace-zobrazeni.md`, „Odpověď je karta ze dvou částí"). Jméno odesílatele ve skupině
+  je v horním dílu, ne nad kartou. Obě části mají šířku té širší (`IntrinsicSize.Max` — uvnitř
+  bubliny nic se `SubcomposeLayout` není). Text citace je `onTertiaryContainer`, ne `tertiary`:
+  to je jediná dvojice, kterou M3 na té ploše garantuje. V nabídce a v dialogu odpovědi je
+  citace samostatná tónovaná kartička (`QuoteCard`).
 - **Nabídka nad zprávou je PODRŽENÍ OK** (`combinedClickable` s `onLongClick` — dlouhý stisk
   klávesy pozná sám; v adb `input keyevent --longpress KEYCODE_DPAD_CENTER`). Krátké OK zůstává
   médiu (video, prohlížeč, zvuk). V nabídce rychlé reakce ze sady chatu (`availableReactions`,
   nejvýš 7 — víc se do řady nevejde) a „Odpovědět", jen když se smí psát (`writeAccess`).
 - **Nabídka i odpověď jsou `Dialog`** (vlastní okno): fokus z nich šipkou neuteče na zprávy pod
   nimi, Zpět zavře dialog, ne konverzaci, a po zavření se fokus vrátí na zprávu v hlavním okně.
+  **`usePlatformDefaultWidth = false`**: výchozí šířka dialogu je kolem 440 dp, takže strop
+  panelu 640 dp se neuplatnil a sedmé emoji v řadě rychlých reakcí bylo uříznuté.
 - **Reakce se přepne hned** (`toggleReaction`, optimisticky), potvrdí ji update interakcí;
   nepovedená se vrátí — jen u té zprávy (první verze vracela celý seznam z doby před reakcí
   a zahodila by, co mezitím přišlo). **Běží ve scope obrazovky, ne nabídky**: nabídka se po

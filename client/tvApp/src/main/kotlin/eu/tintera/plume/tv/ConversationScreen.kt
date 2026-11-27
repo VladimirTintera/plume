@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -306,60 +307,76 @@ internal fun MessageRow(
         focusModifier.fillMaxWidth(),
         contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
+        val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
+        // Odpověď je karta ze dvou částí, jako na telefonu: nahoře citace v tónované ploše, pod
+        // ní odpověď v barvě bubliny, bez čáry a bez vnořené kartičky. Obě části mají šířku
+        // širší z nich (`IntrinsicSize.Max`) — uvnitř bubliny není nic se `SubcomposeLayout`.
         Column(
             Modifier
                 .widthIn(max = BUBBLE_MAX_WIDTH)
+                .width(IntrinsicSize.Max)
                 .clip(BUBBLE_SHAPE)
                 .background(container)
-                .border(if (focused) 3.dp else 0.dp, if (focused) colors.border else container, BUBBLE_SHAPE)
-                .padding(16.dp),
+                .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
         ) {
-            val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
-            if (sender != null) {
-                Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
-                Spacer(Modifier.height(4.dp))
-            }
-            quote?.let {
-                QuoteBar(it, chatTitle, content)
-                Spacer(Modifier.height(8.dp))
-            }
-            if (isAlbum) {
-                AlbumGrid(album.mapNotNull { it.media })
-                Spacer(Modifier.height(8.dp))
-            } else if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
-                AudioBubbleContent(message, content)
-                Spacer(Modifier.height(8.dp))
-            } else {
-                (message.media as? MessageMedia.Photo)?.let { photo ->
-                    MessagePhoto(photo.fileId)
-                    Spacer(Modifier.height(8.dp))
-                }
-                video?.let {
-                    MessageVideo(it)
-                    Spacer(Modifier.height(8.dp))
+            if (quote != null) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(colors.tertiaryContainer)
+                        .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp),
+                ) {
+                    // Má-li karta hlavičku, je jméno odesílatele v ní (jako na telefonu).
+                    if (sender != null) {
+                        Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.onTertiaryContainer)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    QuoteContent(quote, chatTitle)
                 }
             }
-            val hasVisualMedia = album.any {
-                it.media is MessageMedia.Photo || it.media is MessageMedia.Video ||
-                    it.media is MessageMedia.VoiceNote || it.media is MessageMedia.Audio
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                if (sender != null && quote == null) {
+                    Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                    Spacer(Modifier.height(4.dp))
+                }
+                if (isAlbum) {
+                    AlbumGrid(album.mapNotNull { it.media })
+                    Spacer(Modifier.height(8.dp))
+                } else if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
+                    AudioBubbleContent(message, content)
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    (message.media as? MessageMedia.Photo)?.let { photo ->
+                        MessagePhoto(photo.fileId)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    video?.let {
+                        MessageVideo(it)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+                val hasVisualMedia = album.any {
+                    it.media is MessageMedia.Photo || it.media is MessageMedia.Video ||
+                        it.media is MessageMedia.VoiceNote || it.media is MessageMedia.Audio
+                }
+                val text = captioned.text.ifEmpty {
+                    if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
+                }
+                if (text.isNotEmpty()) {
+                    Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
+                }
+                // Reakce alba nese jedna z jeho zpráv (ta, na kterou se reagovalo).
+                album.firstOrNull { it.reactions.isNotEmpty() }?.let {
+                    Spacer(Modifier.height(8.dp))
+                    ReactionChips(it.reactions, content)
+                }
+                Text(
+                    message.timestamp.asTimeOfDay(),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = content.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.End),
+                )
             }
-            val text = captioned.text.ifEmpty {
-                if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
-            }
-            if (text.isNotEmpty()) {
-                Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
-            }
-            // Reakce alba nese jedna z jeho zpráv (ta, na kterou se reagovalo).
-            album.firstOrNull { it.reactions.isNotEmpty() }?.let {
-                Spacer(Modifier.height(8.dp))
-                ReactionChips(it.reactions, content)
-            }
-            Text(
-                message.timestamp.asTimeOfDay(),
-                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                color = content.copy(alpha = 0.7f),
-                modifier = Modifier.align(Alignment.End),
-            )
         }
     }
 }

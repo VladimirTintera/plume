@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Button
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
@@ -60,6 +61,7 @@ import eu.tintera.plume.resources.tv_reply_send
 import eu.tintera.plume.resources.tv_reply_title
 import eu.tintera.plume.resources.tv_compose_title
 import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.format_quote_24dp
 import androidx.tv.material3.Icon
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.tv_send_failed
@@ -132,9 +134,9 @@ private fun MessageActionsDialog(
     val choices by produceState<List<String>?>(null, message.id) {
         value = state.reactionChoices(message.id).filter { customEmojiIdOf(it) == null }.take(MAX_QUICK_REACTIONS)
     }
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
         DialogPanel {
-            QuoteBar(message, chatTitle, MaterialTheme.colorScheme.onSurface)
+            QuoteCard(message, chatTitle)
             Spacer(Modifier.height(20.dp))
             val first = remember { FocusRequester() }
             val shown = choices
@@ -197,7 +199,7 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTit
     val field = remember { FocusRequester() }
     val sendButton = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
         DialogPanel {
             Text(
                 stringResource(if (replyTo != null) Res.string.tv_reply_title else Res.string.tv_compose_title),
@@ -205,7 +207,7 @@ private fun ReplyDialog(state: ConversationState, replyTo: ChatMessage?, chatTit
             )
             if (replyTo != null) {
                 Spacer(Modifier.height(12.dp))
-                QuoteBar(replyTo, chatTitle, MaterialTheme.colorScheme.onSurface)
+                QuoteCard(replyTo, chatTitle)
             }
             Spacer(Modifier.height(20.dp))
             var focused by remember { mutableStateOf(false) }
@@ -278,6 +280,12 @@ fun ComposeButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
     }
 }
 
+/**
+ * Dialog bez výchozí šířky platformy: ta je kolem 440 dp a strop panelu (640 dp) by se neuplatnil
+ * — řada rychlých reakcí v nabídce se pak uřízla (ověřeno na emulátoru).
+ */
+private val WideDialog = DialogProperties(usePlatformDefaultWidth = false)
+
 /** Plocha dialogu: zaoblená, v barvě nad stránkou, šířka do 640 dp. */
 @Composable
 private fun DialogPanel(content: @Composable () -> Unit) {
@@ -291,29 +299,49 @@ private fun DialogPanel(content: @Composable () -> Unit) {
 }
 
 /**
- * Citace zprávy: proužek v barvě motivu, odesílatel a první řádek textu (nebo popis obsahu).
- * V bublině nad textem odpovědi i v nabídce a dialogu odpovědi.
+ * Obsah citace: ikona uvozovek a jméno citovaného, pod nimi první řádek textu (nebo popis obsahu).
+ * Bez svislého proužku — ten je jazyk M2 a telefon ho dávno nahradil tónovanou plochou
+ * (docs/poznatky/konverzace-zobrazeni.md, „Odpověď je karta ze dvou částí"). Plochu si dává
+ * volající: v bublině horní díl karty odpovědi ([QuotedCard]), v dialogu samostatná kartička
+ * ([QuoteCard]). Barvy jsou `onTertiaryContainer` na `tertiaryContainer` — dvojice, kterou M3
+ * garantuje; `tertiary` na `tertiaryContainer` kontrast nezaručuje (CLAUDE.md, „Akcent na
+ * tónované ploše").
  */
 @Composable
-fun QuoteBar(message: ChatMessage, chatTitle: String, contentColor: Color, modifier: Modifier = Modifier) {
+fun QuoteContent(message: ChatMessage, chatTitle: String) {
     val sender = when {
         message.isOutgoing -> stringResource(Res.string.tv_message_you)
         else -> message.senderName ?: chatTitle
     }
-    Row(modifier.height(IntrinsicHeightFallback), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(3.dp).height(IntrinsicHeightFallback).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
-        Spacer(Modifier.width(10.dp))
-        Column {
-            Text(sender, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, maxLines = 1)
-            Text(
-                message.text.ifEmpty { message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported) }.replace('\n', ' '),
-                style = MaterialTheme.typography.bodyMedium,
-                color = contentColor.copy(alpha = 0.8f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+    val color = MaterialTheme.colorScheme.onTertiaryContainer
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Ikona vždy před jménem, jako na telefonu: říká, k čemu se obsah vztahuje.
+            Icon(painterResource(Res.drawable.format_quote_24dp), contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(sender, style = MaterialTheme.typography.labelLarge, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            message.text.ifEmpty { message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported) }.replace('\n', ' '),
+            style = MaterialTheme.typography.bodyMedium,
+            color = color.copy(alpha = 0.8f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
+}
+
+/** Citace jako samostatná tónovaná kartička — v nabídce nad zprávou a v dialogu odpovědi. */
+@Composable
+fun QuoteCard(message: ChatMessage, chatTitle: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) { QuoteContent(message, chatTitle) }
 }
 
 /**
@@ -338,9 +366,6 @@ fun ReactionChips(reactions: List<MessageReaction>, contentColor: Color) {
         }
     }
 }
-
-/** Výška citace (dva řádky textu); proužek ji kopíruje bez intrinsických měr. */
-private val IntrinsicHeightFallback = 44.dp
 
 /** Kolik rychlých reakcí nabídka ukáže; víc se do řady na televizi nevejde. */
 private const val MAX_QUICK_REACTIONS = 7
