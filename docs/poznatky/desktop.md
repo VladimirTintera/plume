@@ -348,7 +348,15 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   panelu: akce konverzace, profilu nebo podstránky Nastavení uhnou před minimalizací a zavřením.
   Úzké okno s jedním panelem taky: jediný panel je pod tlačítky a jeho hlavička jim dá místo
   (aplikace pro Mac mají semafory v řádku nástrojů i v úzkém okně). Pruh titulku zůstává jen
-  obrazovkám přes celé okno mimo panely (prohlížeč, editory) a dialogům.
+  obrazovkám přes celé okno mimo panely (editory) a dialogům.
+- **Prohlížeč médií má lištu v řádku s tlačítky okna taky** (`FullWindowControls`
+  a `Modifier.windowTitleBarPadding()` v `WindowControls.kt`): nad rozostřenou
+  fotkou byl prázdný 64dp pruh se semafory a pod ním teprve křížek a název. Obrazovka
+  mimo `PaneCard` si místo pro tlačítka (`LocalWindowControlsClearance`) dává sama a horní inset
+  na liště nepoužije; o výšku pruhu se zmenší i místo vyhrazené nahoře pro fotku (`topInset`).
+  `FullWindowControls` obaluje jen lištu: sheet otevřený z prohlížeče by zdědil místo pro
+  tlačítka i do své lišty. Ztmavení pod lištami (`SystemBarShades`) s pruhem počítá dál,
+  ať jsou semafory vidět i nad světlou fotkou.
 - **Sbalený seznam chatů (jen avatary) je užší než semafory**, vedle nich se nic nevejde:
   `Modifier.belowWindowControls()` ho odsadí pod ně o výšku titulku
   (`WindowControlsClearance.height`). Bez toho ležely semafory přes avatar účtu.

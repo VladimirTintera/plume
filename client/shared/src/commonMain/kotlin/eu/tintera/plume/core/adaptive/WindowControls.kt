@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -109,6 +111,40 @@ fun RowScope.WindowControlsEndSpace() {
  */
 @Composable
 fun Modifier.belowWindowControls(): Modifier = padding(top = LocalWindowControlsClearance.current.height)
+
+/**
+ * Obrazovka přes celé okno mimo panely (prohlížeč médií): její horní lišta leží v řádku
+ * s tlačítky okna a nechá jim místo ([WindowControlsSpace], [WindowControlsEndSpace]), místo aby
+ * stála pod prázdným pruhem titulku. Shora se lišta odsazuje [windowTitleBarPadding], ne
+ * `statusBarsPadding`. Obalit jen lištu, ne celou obrazovku: sheet otevřený z obrazovky dědí
+ * tytéž hodnoty a jeho lišta by místo pro tlačítka dostala taky.
+ */
+@Composable
+fun FullWindowControls(content: @Composable () -> Unit) {
+    val controls = LocalWindowControls.current
+    val clearance = if (controls.side == WindowControlsSide.None) {
+        WindowControlsClearance()
+    } else {
+        // Tlačítka na fyzické levé straně jsou v LTR na začátku řádku, v RTL na konci.
+        val atStart = (controls.side == WindowControlsSide.Left) != (LocalLayoutDirection.current == LayoutDirection.Rtl)
+        WindowControlsClearance(
+            start = if (atStart) controls.width else 0.dp,
+            end = if (atStart) 0.dp else controls.width,
+            height = controls.height,
+        )
+    }
+    CompositionLocalProvider(LocalWindowControlsClearance provides clearance, content = content)
+}
+
+/**
+ * Horní odsazení lišty obrazovky přes celé okno ([FullWindowControls]): na telefonu pod
+ * stavovou lištu, na desktopu s tlačítky okna přes obsah žádné — lišta je v řádku s nimi.
+ * Podmínka se za běhu nemění (strana tlačítek zůstává i na celé obrazovce), takže se
+ * modifikátor insetů nevyměňuje (Gotchas v CLAUDE.md).
+ */
+@Composable
+fun Modifier.windowTitleBarPadding(): Modifier =
+    if (LocalWindowControls.current.side == WindowControlsSide.None) statusBarsPadding() else this
 
 /**
  * Leží tlačítka okna nad panelem, jehož okraje jsou [atStart] (začátek řádku) a [atEnd] (konec)?
