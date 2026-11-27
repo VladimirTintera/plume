@@ -10,6 +10,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.tv.material3.Icon
 import eu.tintera.plume.resources.conversation_edited
+import eu.tintera.plume.resources.conversation_forwarded
+import eu.tintera.plume.resources.conversation_forwarded_from
+import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
@@ -335,6 +338,7 @@ internal fun MessageRow(
     val container = if (outgoing) colors.primaryContainer else colors.surfaceVariant
     val content = if (outgoing) colors.onPrimaryContainer else colors.onSurfaceVariant
     val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
+    val forwarded = forwardLabel(message)
     // Fotka, video a album jako na telefonu („Médium bez bubliny" v konverzace-zobrazeni.md):
     // bez popisku a citace holé na ploše, s nimi jedna karta, ve které jde snímek od kraje ke kraji.
     val visual = isAlbum || message.media is MessageMedia.Photo || video != null
@@ -343,10 +347,12 @@ internal fun MessageRow(
             focusModifier.fillMaxWidth(),
             contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
-            if (captioned.text.isBlank() && quote == null) {
+            // Přeposlané médium jde do karty: „Přeposláno od …" potřebuje plochu, na holé fotce
+            // by se nedalo přečíst.
+            if (captioned.text.isBlank() && quote == null && forwarded == null) {
                 BareMedia(album, sender, focused)
             } else {
-                MediaCard(album, captioned.text, sender, quote, chatTitle, container, content, focused)
+                MediaCard(album, captioned.text, sender, forwarded, quote, chatTitle, container, content, focused)
             }
         }
         return
@@ -385,6 +391,10 @@ internal fun MessageRow(
                 if (sender != null && quote == null) {
                     Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
                     Spacer(Modifier.height(4.dp))
+                }
+                if (forwarded != null) {
+                    ForwardedLabel(forwarded, content)
+                    Spacer(Modifier.height(6.dp))
                 }
                 if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
                     AudioBubbleContent(message, content)
@@ -467,6 +477,7 @@ private fun MediaCard(
     album: List<ChatMessage>,
     caption: String,
     sender: String?,
+    forwarded: String?,
     quote: ChatMessage?,
     chatTitle: String,
     container: Color,
@@ -500,8 +511,11 @@ private fun MediaCard(
                 sender,
                 style = MaterialTheme.typography.labelLarge,
                 color = colors.primary,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = if (forwarded != null) 0.dp else 8.dp),
             )
+        }
+        if (forwarded != null) {
+            ForwardedLabel(forwarded, content, Modifier.padding(start = 16.dp, end = 16.dp, top = if (sender != null && quote == null) 4.dp else 12.dp, bottom = 8.dp))
         }
         VisualMedia(album, timeOnMedia = false)
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
@@ -669,4 +683,23 @@ private const val LOAD_AHEAD = 8
 private fun timeLabel(message: ChatMessage): String {
     val time = message.timestamp.asTimeOfDay()
     return if (message.isEdited) "${stringResource(Res.string.conversation_edited)} $time" else time
+}
+
+/**
+ * „Přeposláno od …" nad obsahem přeposlané zprávy; bez známého jména jen „Přeposlaná zpráva"
+ * (smazaný účet, chat, který TDLib nezná). `null` u zprávy, která přeposlaná není.
+ */
+@Composable
+private fun forwardLabel(message: ChatMessage): String? {
+    val origin = message.forwardOrigin ?: return null
+    return origin.name?.let { stringResource(Res.string.conversation_forwarded_from, it) } ?: stringResource(Res.string.conversation_forwarded)
+}
+
+@Composable
+private fun ForwardedLabel(text: String, content: Color, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(painterResource(Res.drawable.forward_24dp), contentDescription = null, tint = content.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = content.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }

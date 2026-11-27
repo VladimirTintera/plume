@@ -487,6 +487,29 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Po smazání fokus nezmizí**: přejde na sousední prvek (tlačítko „Napsat zprávu" nebo
   předchozí zprávu), šipka nahoru dál vede do historie (ověřeno na emulátoru).
 
+## Přeposlání
+
+- **„Přeposlat" v nabídce nad zprávou** (jen s `MessageActions.canForward` — chráněný obsah ho
+  zakazuje) otevře `ForwardDialog`: citace toho, co se posílá, a chaty ze seznamu, **Uložené
+  zprávy první** jako na telefonu. OK na řádku zprávu rovnou přepošle; album celé
+  (`ConversationState.albumIds`, společné se smazáním), id vzestupně, jak to chce TDLib.
+- **Bez hledání, voleb (skrýt odesílatele, komentář) a víc cílů**: s ovladačem se vybírá
+  z prvních obrazovek seznamu a zaškrtávání víc chatů by chtělo další krok potvrzení. Kam psát
+  nejde (cizí kanál), se nefiltruje — telefon to dělá stejně a chyba se ukáže v dialogu.
+- **Potvrzení je systémový toast** („Přeposláno do: …"): konverzace pod dialogem žádnou změnu
+  neukáže, zpráva odešla jinam. Spouští se ze scope obrazovky — dialog se po úspěchu zavře.
+- **Řádek během odesílání NEZAKAZOVAT** (`enabled = false`): zakázaný `ListItem` přestane být
+  zaostřitelný a fokus by z dialogu utekl. Druhé OK hlídá příznak `sending`.
+- **Seznam má strop asi čtyř řádků** (280 dp): s 360 dp panel s nadpisem a citací sahal ke
+  spodní hraně obrazovky, mimo bezpečné okraje (ověřeno na emulátoru).
+- **Uložené zprávy TDLib nemusí znát**, dokud se neotevřou: bez id se nejdřív zavolá
+  `openSavedMessages()`.
+- **Přeposlaná zpráva má nad obsahem „Přeposláno od …"** (ikona a jméno z `forwardOrigin`, bez
+  jména „Přeposlaná zpráva"). Přeposlaná fotka nebo video bez popisku jde do karty místo
+  holého média — na holé fotce by štítek nebyl čitelný.
+- Ověřeno na emulátoru: testovací zpráva z chatu s botem přeposlaná do Uložených zpráv, toast
+  i štítek „Přeposláno od Notifikator" v cíli.
+
 ## Hlasovky a hudba
 
 - **Jeden přehrávač zvuku pro celou aplikaci** (`TvAudioPlayer`, žije v `TvNavigation` a dává se

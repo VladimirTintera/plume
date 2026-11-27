@@ -276,6 +276,24 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
             .onSuccess { messages = messages?.filterNot { it.id in ids } }
             .onFailure { logger.w(it) { "Zprávy $ids se z televize nesmazaly." } }
 
+    /**
+     * Zprávy, za které stojí [message]: u alba všechny jeho načtené zprávy, jinak jen ona —
+     * mazat i přeposílat se má album celé, jinak by v bublině zůstal zbytek mřížky.
+     */
+    fun albumIds(message: ChatMessage): List<Long> =
+        message.mediaAlbumId.takeIf { it != 0L }
+            ?.let { album -> messages?.filter { it.mediaAlbumId == album }?.map { it.id } }
+            ?.takeIf { it.isNotEmpty() }
+            ?: listOf(message.id)
+
+    /**
+     * Přepošle [message] (album celé) do chatu [toChatId]. TDLib chce id vzestupně; v cíli zpráva
+     * dorazí updaty jako každá jiná.
+     */
+    suspend fun forward(message: ChatMessage, toChatId: Long): Result<Unit> =
+        conversations.forward(chatId, albumIds(message).sorted(), toChatId)
+            .onFailure { logger.w(it) { "Zpráva ${message.id} se z televize nepřeposlala do $toChatId." } }
+
     /** Emoji, která jdou u zprávy [messageId] dát. */
     suspend fun reactionChoices(messageId: Long): List<String> =
         conversations.availableReactions(chatId, messageId).getOrNull()?.emoji.orEmpty()
