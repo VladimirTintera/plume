@@ -28,6 +28,80 @@ class ReplyPromptTest {
     }
 
     @Test
+    fun ayaSCislemOdrazkouAPrekladem() {
+        // Skutečný výstup Aya Expanse 8B: úvodní věta, „1. - " a anglický překlad v závorce.
+        // Se starým čištěním z něj nezbyl ani jeden návrh (řádky přetekly délku).
+        val text = """
+            Here are three different reply options for the user:
+
+            1. - Samozřejmě, pošlu ti je. (Of course, I'll send them to you.)
+            2. - Bohužel, nemám je po ruce teď. (Unfortunately, I don't have them with me right now.)
+            3. - Rád, ale musím se podívat, kde jsou uložené. (Sure, but I need to check where they are saved.)
+        """.trimIndent()
+        assertEquals(
+            listOf("Samozřejmě, pošlu ti je.", "Bohužel, nemám je po ruce teď.", "Rád, ale musím se podívat, kde jsou uložené."),
+            parseReplySuggestions(text),
+        )
+    }
+
+    @Test
+    fun tucnyNavrhSKomentaremZaNim() {
+        // Aya: tučný návrh, za ním překlad a hodnocení — návrh je jen to tučné.
+        val text = """
+            1. **Jasně, přijdu.** (Sure, I'll come.) - Direct and positive confirmation.
+            2. **- Přežil jsem, ale byl to boj.** (I survived, but it was a struggle.)
+            3. "- Páni, gratuluju! Jaké to je?"
+        """.trimIndent()
+        assertEquals(listOf("Jasně, přijdu.", "Přežil jsem, ale byl to boj.", "Páni, gratuluju! Jaké to je?"), parseReplySuggestions(text))
+    }
+
+    @Test
+    fun prekladAPoznamkaNaVlastnimRadkuNejsouNavrh() {
+        // EuroLLM 9B: překlad a poznámka kurzívou na samostatných řádcích se dostaly do čipů.
+        val text = """
+            - **„Budu, hned jedu.“**
+              (I’ll come, I’m heading right now.)
+            - **- To je mi líto.**
+              *Short, direct, and open-ended.*
+        """.trimIndent()
+        assertEquals(listOf("Budu, hned jedu.", "To je mi líto."), parseReplySuggestions(text))
+    }
+
+    @Test
+    fun zavorkaKteraNeniPrekladZustane() {
+        // Krátká závorka patří k odpovědi, stejně jako závorka v anglické konverzaci.
+        assertEquals(listOf("Přijdu (asi)"), parseReplySuggestions("- Přijdu (asi)"))
+        assertEquals(
+            listOf("Sure, see you there (in the lobby)"),
+            parseReplySuggestions("- Sure, see you there (in the lobby)"),
+        )
+    }
+
+    @Test
+    fun dlouhyNavrhSeZkratiNaCeleVety() {
+        // Aya píše dvě tři věty a nevejde se do čipu; nejdelší začátek z celých vět se vejde.
+        val text = """
+            1. - To je výborná zpráva! Už jsi vyzkoušel, jak jezdí? Mám zájem se s tebou někdy svezt. (That's great news!)
+            2. - Páni, gratuluju! Doufám, že budeš mít spoustu zábavy na nových kolech. Máš nějaké oblíbené trasy?
+            3. - Skvělé! Už se těším, až uvidím tvé nové kolo v akci a vyrazíme spolu na dlouhý výlet.
+        """.trimIndent()
+        assertEquals(
+            // Třetí by zkrácením zůstala jediným slovem („Skvělé!"), tak se nenabídne.
+            listOf("To je výborná zpráva! Už jsi vyzkoušel, jak jezdí?", "Páni, gratuluju!"),
+            parseReplySuggestions(text),
+        )
+    }
+
+    @Test
+    fun zkraceniNikdyNeuseknePulVety() {
+        val long = "Bohužel, nepovedlo se mi to tak, jak jsem doufal, ale neboj, zkusím to znovu."
+        assertTrue(long.length > MAX_REPLY_CHARS)
+        assertEquals(long, shortenSuggestion(long), "jediná věta se nemá kde zkrátit")
+        assertEquals("Krátká odpověď.", shortenSuggestion("Krátká odpověď."))
+        assertTrue(parseReplySuggestions("- $long").isEmpty())
+    }
+
+    @Test
     fun cisloNaZacatkuVetySeNEUSEKNE() {
         // „5 minut" není číslování — usekávat po první číslici by zmrzačilo návrh.
         assertEquals(listOf("5 minut a jsem tam"), parseReplySuggestions("- 5 minut a jsem tam"))

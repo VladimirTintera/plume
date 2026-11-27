@@ -1728,6 +1728,46 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   model odrážky nedrží, očísluje je, obalí uvozovkami nebo přidá úvodní větu s dvojtečkou.
   Nikdy nevrátí prázdno kvůli formátu — když řádky rozpoznat nejdou, je návrhem celý text.
   Kde Gemini Nano umí strukturovaný výstup, parser se nepouští vůbec (viz „Strukturovaný výstup").
+- **Modely přes llama.cpp píšou kolem návrhu omáčku a parser ji musí sundat** (27. 11. 2026,
+  Aya Expanse 8B a EuroLLM 9B přes `llama-completion`, šablona z GGUF jako v aplikaci — Aya
+  bez systémové zprávy dostane jen tah uživatele). **Aya prakticky nebyla použitelná:** pokaždé
+  začne „Here are three … replies:", návrhy čísluje A odrážkuje („1. - …"), za každý připíše
+  anglický překlad v závorce, často je obalí tučně a za ně napíše hodnocení („**Jasně.** (Sure.)
+  - Direct and positive confirmation."). Se starým čištěním z patnácti odpovědí devět nedalo ani
+  jeden návrh (řádek s překladem přeteče 60 znaků) a v ostatních zůstávala v čipu odrážka „- ".
+  EuroLLM to dělá zřídka, ale pak se do čipů dostal překlad na samostatném řádku
+  („(I’ll come, I’m heading right now.)") nebo poznámka kurzívou („*Short, direct…*").
+  - **Čištění jde po krocích, dokud se řádek mění** (`cleanSuggestion` / `cleanStep`): odrážka,
+    číslo, tučný začátek (zbytek řádku je komentář), překlad v závorce, uvozovky — obaly se vrší
+    v libovolném pořadí. Řádek celý v závorce nebo kurzívou je poznámka (`isModelNote`).
+  - **Překlad se pozná podle diakritiky, ne podle `looksEnglish`:** závorka bez diakritiky
+    a aspoň se třemi slovy za návrhem S diakritikou. `looksEnglish` krátkou anglickou větu
+    nepozná („Sure, see you there" má jediné slovo ze seznamu) a anglický návrh by přišel
+    o závorku, která k němu patří; test `zavorkaKteraNeniPrekladZustane`.
+  - **Výsledek na týchž výstupech:** Aya z 9 prázdných běhů na 2 a z 8 návrhů na 27, bez odrážek;
+    EuroLLM beze změny počtu, jen bez překladů a poznámek v čipech.
+  - **Pokyn „write only the replies: no introduction, no translation, no notes"** Aya skoro
+    nepomohl a EuroLLM s ním psal hůř („Šla jsem na ni s kufrem.", odpověď za protějšek u nového
+    kola) — **nezkoušet znovu v promptu**, omáčka patří parseru.
+  - **Dlouhý návrh se zkrátí na celé věty** (`shortenSuggestion`): Aya nedrží „at most 8 words"
+    a píše dvě tři věty, které přetečou 60 znaků. Bere se nejdelší začátek z celých vět, který
+    se vejde, a jen když má aspoň DVĚ slova — „Skvělé!" z „Skvělé! Už se těším…" odpovědí není,
+    „Povedlo se!", „Páni, gratuluju!" a „Určitě přijdu." ano (práh tří slova by je zahodil,
+    jednoho by pustil „Skvělé!"). Uprostřed věty se nikdy neusekává. Na týchž výstupech Aya:
+    z 27 návrhů na 44, prázdný běh žádný; EuroLLM se to netýká (jeho návrhy se vejdou).
+    Zkrácení umí ubrat to podstatné: z „To je škoda. Můžu se zastavit… Jak se cítíš?" na
+    babičku v nemocnici zbude „To je škoda." — smysl to nezmění, ale ubere tón; častější je
+    „To je výborná zpráva! Už jsi vyzkoušel, jak jezdí?" a podobně celé odpovědi.
+  - **Ověřeno v ladicím desktopu s Aya** (27. 11. 2026, účet VT, zprávy od Notifikátoru přes
+    Bot API): pokaždé tři čipy, celé české věty bez odrážek, překladů a poznámek („To je skvělý!
+    Gratuluju! A jak se ti líbí?", „Je mi to líto s babičkou, doufám, že bude brzy v pořádku.").
+    Generování trvá jednotky vteřin. Model se do ladicí instance nemusí stahovat znovu: stačí
+    odkaz na soubor z nainstalované Plume (`ln -s ~/Library/Application\ Support/Plume/ai-models/<model>
+    .desktop-data/ai-models/`), aplikace ho ověří a hlásí „Model připravený".
+  - **Past testu přes bota: všechny jeho zprávy jsou JEDEN blok.** Zkouška, kolo i babička
+    od Notifikátoru po sobě se odpovídají najednou (`replyBlockSize`, až čtyři zprávy od téhož
+    autora), takže na babičku přišlo i „Skvělé, že máš nové kolo!". Chyba to není; na čisté
+    téma mezi testovací zprávy vložit vlastní odpověď.
 - **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na TŘECH systémech —
   Android 16, Android 9 (API 28, Play služby 21.45.15) a **Android 8 (API 26, tedy `minSdk`
   projektu)** —, všude bez balíčku `com.google.android.aicore`. Pokaždé stejně: `status` vrátí
@@ -1807,6 +1847,9 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
     „zvládl/a" zůstaly a EuroLLM jednou vrátil třikrát totéž; nezkoušet znovu;
   - **i blok ukázek občas prosákne**: EuroLLM jednou odpověděl na babičku v nemocnici ukázkou
     s kočkou („už se našla?"). Méně často, ale „do not copy" není záruka.
+  - **Po opravě se „Jasně, přijdu." vrátilo jednou z patnácti** (EuroLLM, třetí seed, babička
+    v nemocnici — tam aspoň dává smysl). Nejspíš z ukázky perspektivy („Will you come?" →
+    „Yes, I'll come."); ta ale prokazatelně pomohla, takže zůstává.
   Rychlé A/B promptu bez emulátoru: `cmake` z Android SDK (`~/Library/Android/sdk/cmake/3.31.0/bin`),
   `cmake -S external/ai-engine/ai-llamacpp/llama.cpp -B <mimo repo> -G Ninja -DLLAMA_CURL=OFF
   -DLLAMA_OPENSSL=OFF` a `--target llama-completion`; modely leží v `~/Library/Application
