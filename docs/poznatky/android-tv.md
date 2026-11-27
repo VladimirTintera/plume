@@ -613,12 +613,13 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   neukáže, zpráva odešla jinam. Spouští se ze scope obrazovky — dialog se po úspěchu zavře.
 - **Řádek během odesílání NEZAKAZOVAT** (`enabled = false`): zakázaný `ListItem` přestane být
   zaostřitelný a fokus by z dialogu utekl. Druhé OK hlídá příznak `sending`.
-- **Seznam má strop tří a půl řádku** (248 dp; vykouknutí dalšího řádku říká, že seznam
-  pokračuje). Panel s nadpisem, citací a polem hledání se musí vejít do 484 dp (540 dp bez
-  bezpečných okrajů 28 dp). S 360 dp sahal ke spodní hraně, a když nad seznam přibylo pole
-  hledání, panel se stropem 280 dp měl 511 dp a sahal od stavové lišty ke spodní hraně
-  (změřeno z `uiautomator dump`, panel 52–1075 px). **Kdo do dialogu přidá řádek, přepočítá
-  strop.**
+- **Výšku dialogu hlídá panel, ne seznam.** `DialogPanel` má strop výšky obrazovka minus
+  bezpečné okraje (na TV 540 − 2 × 28 = 484 dp) a seznam v něm `weight(1f, fill = false)`:
+  dostane, co zbude pod nadpisem, citací a polem hledání. Pevný strop seznamu nestačil.
+  S 360 dp sahal dialog ke spodní hraně, a když přibylo pole hledání, měl panel se stropem
+  280 dp 511 dp (52–1075 px v `uiautomator dump`). Snížení na 248 dp vydrželo jen
+  s normálním písmem: při písmu systému 1,3 roste i nadpis, citace a pole a panel měl 493 dp.
+  Totéž platí pro dialog „Kdo reagoval“.
 - **Uložené zprávy TDLib nemusí znát**, dokud se neotevřou: bez id se nejdřív zavolá
   `openSavedMessages()`.
 - **Přeposlaná zpráva má nad obsahem „Přeposláno od …"** (ikona a jméno z `forwardOrigin`, bez

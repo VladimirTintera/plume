@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -50,6 +51,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -516,14 +518,21 @@ internal val WideDialog = DialogProperties(usePlatformDefaultWidth = false)
  * vidět jen to zaostřené — ostatní vypadala jako holý text na šedé ploše.
  */
 @Composable
-internal fun DialogPanel(content: @Composable () -> Unit) {
+internal fun DialogPanel(content: @Composable ColumnScope.() -> Unit) {
+    // Strop výšky: obrazovka bez bezpečných okrajů nahoře a dole (na TV 540 − 2 × 28 = 484 dp).
+    // Seznam v dialogu (přeposlání, kdo reagoval) má `weight(1f, fill = false)` a zkrátí se,
+    // kolik je potřeba; pevný strop seznamu nestačil, protože s písmem systému roste i nadpis,
+    // citace a pole nad ním (při písmu 1,3 měl dialog přeposlání 493 dp, změřeno na emulátoru).
+    val maxHeight = LocalConfiguration.current.screenHeightDp.dp - SAFE_VERTICAL * 2
     Column(
         Modifier
             .widthIn(min = 420.dp, max = 640.dp)
+            .heightIn(max = maxHeight)
             .clip(RoundedCornerShape(28.dp))
             .background(TvColors.surfaces.containerHigh)
             .padding(28.dp),
-    ) { content() }
+        content = content,
+    )
 }
 
 /**
