@@ -72,6 +72,7 @@ import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.tv_post_play_hint
 import eu.tintera.plume.resources.chat_bubble_24dp
 import eu.tintera.plume.resources.cloud_off_24dp
 import eu.tintera.plume.resources.comments_unavailable
@@ -176,9 +177,21 @@ fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, actions
                 posts = posts,
                 listState = listState,
                 focusTarget = focusTarget,
+                playerOpen = playerOpen,
                 onOpen = { post ->
                     focusTarget = post.id
                     openPost = post.id
+                },
+                // Karta s videem: OK ho pustí rovnou (a po něm videa starších příspěvků, jako
+                // z detailu), podržení OK otevře detail s textem a komentáři.
+                playableVideo = { post ->
+                    videoQueue(chatId, post.messages).singleOrNull()?.takeIf { post.messages.size == 1 }?.let { request ->
+                        {
+                            focusTarget = post.id
+                            val older = posts.dropWhile { it.id != post.id }.drop(1).flatMap { it.messages }
+                            actions.playVideo(request.copy(queue = videoQueue(chatId, older)))
+                        }
+                    }
                 },
             )
         }
@@ -191,11 +204,16 @@ private fun PostList(
     posts: List<ChannelPost>,
     listState: LazyListState,
     focusTarget: Long?,
+    playerOpen: Boolean,
     onOpen: (ChannelPost) -> Unit,
+    /** Přehrání videa příspěvku rovnou z karty; `null` = příspěvek není jedno video. */
+    playableVideo: (ChannelPost) -> (() -> Unit)?,
 ) {
     val focus = remember { FocusRequester() }
     val targetId = focusTarget?.takeIf { id -> posts.any { it.id == id } } ?: posts.first().id
-    LaunchedEffect(Unit) {
+    // I po zavření přehrávače: fokus zpátky na kartu, ze které se video pustilo.
+    LaunchedEffect(playerOpen) {
+        if (playerOpen) return@LaunchedEffect
         val index = posts.indexOfFirst { it.id == targetId }
         if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index }) listState.scrollToItem(index)
         runCatching { focus.requestFocus() }
@@ -218,9 +236,11 @@ private fun PostList(
         modifier = Modifier.fillMaxSize(),
     ) {
         items(posts, key = { it.id }) { post ->
+            val play = playableVideo(post)
             PostCard(
                 post = post,
-                onClick = { onOpen(post) },
+                onClick = play ?: { onOpen(post) },
+                onLongClick = play?.let { { onOpen(post) } },
                 modifier = if (post.id == targetId) Modifier.focusRequester(focus) else Modifier,
             )
         }
@@ -232,10 +252,18 @@ private fun PostList(
  * menší než výchozí 1,1 — karta jde přes celou šířku a víc by přetekla přes bezpečný okraj.
  */
 @Composable
-private fun PostCard(post: ChannelPost, onClick: () -> Unit, modifier: Modifier) {
+private fun PostCard(
+    post: ChannelPost,
+    onClick: () -> Unit,
+    /** Podržení OK: u karty s videem detail příspěvku (OK video rovnou pustí). */
+    onLongClick: (() -> Unit)?,
+    modifier: Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(CARD_HEIGHT),
+        onLongClick = onLongClick,
+        modifier = modifier.fillMaxWidth().height(CARD_HEIGHT).onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
         colors = ClickableSurfaceDefaults.colors(
@@ -268,6 +296,15 @@ private fun PostCard(post: ChannelPost, onClick: () -> Unit, modifier: Modifier)
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                // Že OK video pustí a k textu a komentářům vede podržení, by se jinak nikdo nedozvěděl.
+                if (focused && onLongClick != null) {
+                    Text(
+                        stringResource(Res.string.tv_post_play_hint),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = LocalContentColor.current.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
                 PostFooter(post)
             }
         }
