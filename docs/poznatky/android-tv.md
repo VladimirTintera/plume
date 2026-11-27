@@ -58,6 +58,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   „páteř" aplikace jen pro hlavní cíle (pět až šest, s ikonami) — první verze ho měla na složky
   a s víc složkami by přetekl. Lišta se vrátí, až budou hlavní cíle (Chaty, Hledání,
   Nastavení). Záložka se vybírá už zaostřením (`onFocus`), jako všude na TV.
+- **Všechny záložky mají stejnou výšku obsahu** (`TAB_HEIGHT`, 32 dp; text na střed přes
+  `heightIn` + `wrapContentHeight`). `TabRow` kreslí záložky od HORNÍ hrany řádku, ale pilulku
+  vybrané nebo zaostřené záložky (její výšky) zarovná ke SPODNÍ. Záložka s lupou (64 px)
+  byla vyšší než textové (58 px: Figtree 14 sp s oříznutým prokladem a 6 dp odsazení), takže
+  text seděl o 3 dp nad středem pilulky. Změřeno z `uiautomator dump`: řádek i záložka
+  s lupou 104–168, textová 104–162, pilulka na snímku 110–168.
 - **Bezpečné okraje 58 dp po stranách a 28 dp nahoře a dole** (`SAFE_HORIZONTAL`,
   `SAFE_VERTICAL`; 5 % z 960 × 540 dp). Návod má na téže stránce i 48 / 27 dp; drží se
   přísnější varianta. Pozadí okraje nerespektuje (Google: „fill the full screen").

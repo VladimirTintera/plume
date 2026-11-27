@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -200,6 +202,14 @@ fun ChatListScreen(
 /** Co ukazuje hlavní obrazovka pod záložkami. */
 enum class ListSection { Chats, ContinueWatching, Search }
 
+/**
+ * Výška obsahu záložky, stejná pro ikonu i text. `TabRow` kreslí záložky od horní hrany řádku,
+ * ale pilulku vybrané záložky (výšky té záložky) zarovná ke SPODNÍ hraně. Záložka s lupou
+ * (20 dp + odsazení) byla o 3 dp vyšší než textová (Figtree 14 sp s oříznutým prokladem
+ * a odsazení), takže text ve vybrané záložce seděl o ty 3 dp nad středem pilulky.
+ */
+private val TAB_HEIGHT = 32.dp
+
 /** Záložka: složka chatů ([section] Chats), Rozkoukaná videa, nebo Hledání (jen ikona). */
 private data class TabEntry(val section: ListSection, val folder: ChatFolder?, val title: String, val count: Int)
 
@@ -250,14 +260,14 @@ private fun FolderTabs(
                     Icon(
                         painterResource(Res.drawable.search_24dp),
                         contentDescription = title,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).size(20.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp).height(TAB_HEIGHT).wrapContentHeight().size(20.dp),
                     )
                 } else {
                     Text(
                         title,
                         style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp).heightIn(min = TAB_HEIGHT).wrapContentHeight(),
                     )
                 }
                 if (count > 0) {
