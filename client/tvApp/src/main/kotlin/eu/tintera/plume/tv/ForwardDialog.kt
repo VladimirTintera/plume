@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -157,11 +156,9 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
             LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
-                // Strop výšky (tři a půl řádku, vykouknutí dalšího řádku říká, že seznam
-                // pokračuje): panel s nadpisem, citací a polem hledání se musí vejít do 484 dp
-                // (540 dp bez bezpečných okrajů 28 dp). Se 280 dp měl po přidání pole hledání
-                // 511 dp a sahal od stavové lišty ke spodní hraně (změřeno na emulátoru).
-                modifier = Modifier.fillMaxWidth().heightIn(max = 248.dp),
+                // Výšku dělí panel (`DialogPanel` má strop podle obrazovky): seznam dostane,
+                // co zbude pod nadpisem, citací a polem hledání, a zkrátí se i při větším písmu.
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
             ) {
                 if (showSaved) {
                     item(key = "saved") {

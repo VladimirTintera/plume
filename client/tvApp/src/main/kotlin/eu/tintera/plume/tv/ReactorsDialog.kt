@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
@@ -62,8 +61,8 @@ internal fun ReactorsDialog(state: ConversationState, message: ChatMessage, chat
                     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
-                        // Strop výšky jako u přeposlání: panel nesmí přerůst bezpečné okraje.
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp),
+                        // Výšku dělí panel jako u přeposlání (`DialogPanel` má strop podle obrazovky).
+                        modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                     ) {
                         itemsIndexed(shown, key = { index, it -> "${it.sender.id}-${it.emoji}-$index" }) { index, detail ->
                             ReactorRow(detail, if (index == 0) Modifier.focusRequester(first) else Modifier)
