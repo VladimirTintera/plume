@@ -442,6 +442,14 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   pole si šipku dolů bralo na pohyb kurzoru a z pole se ovladačem nedalo odejít (ověřeno na
   emulátoru). Pole dostane fokus hned, takže naskočí systémová klávesnice; její „odeslat"
   zprávu rovnou pošle.
+- **Zprávu jde nadiktovat**: vlevo od pole je mikrofon (`MicButton`, tentýž systémový
+  `RecognizerIntent` jako v hledání, sdílený přes `rememberVoiceInput` ve `VoiceInput.kt`).
+  Šipka vlevo na začátku textu z pole odejde na mikrofon. Nadiktovaný text se **připojí** za
+  napsaný (u úpravy za text zprávy), ne že ho přepíše — diktuje se po větách a oprava jedné
+  věty by smazala předchozí. Kurzor jde na konec a fokus zpátky do pole, takže systémová
+  klávesnice rovnou odešle. Kde rozpoznávání nic neobslouží, mikrofon chybí. **Na emulátoru se
+  otevřelo okénko Google v češtině s výzvou „Řekněte zprávu"; skutečné nadiktování (zvuk) se
+  ověřit nedalo**, vrácení výsledku je týž kód jako v hledání.
 - **Po odeslání jde fokus na novou vlastní zprávu** a seznam k ní odroluje; jinak zůstal na
   zprávě, na kterou se odpovídalo, a nová visela pod spodním okrajem. Jen po odeslání z televize
   (`ConversationState.sentCount`): zpráva poslaná z telefonu téhož účtu by jinak odrolovala

@@ -5179,6 +5179,8 @@
     <string name="tv_action_reply">Odpovědět</string>
     <string name="tv_reply_title">Odpověď</string>
     <string name="tv_reply_hint">Zpráva</string>
+    <string name="tv_compose_voice">Nadiktovat zprávu</string>
+    <string name="tv_compose_voice_prompt">Řekněte zprávu</string>
     <string name="tv_reply_send">Odeslat</string>
     <string name="tv_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="tv_compose_button">Napsat zprávu</string>

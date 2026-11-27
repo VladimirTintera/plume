@@ -1,10 +1,5 @@
 package eu.tintera.plume.tv
 
-import android.app.Activity
-import android.content.Intent
-import android.speech.RecognizerIntent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -47,18 +41,15 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -74,7 +65,6 @@ import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.chats_search_section_global
 import eu.tintera.plume.resources.chats_search_section_messages
 import eu.tintera.plume.resources.connection_connecting
-import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.tv_search_hint
 import eu.tintera.plume.resources.tv_search_prompt
@@ -226,53 +216,25 @@ fun SearchPane(
 }
 
 /**
- * Pole a mikrofon. Hlasové zadání je systémové (`RecognizerIntent`): na Google TV ho obslouží
- * aplikace Google s vlastním okénkem a výsledek se vrátí jako text dotazu. Kde ho nic neobslouží,
- * tlačítko není.
+ * Pole a mikrofon. Hlasové zadání je systémové ([rememberVoiceInput]) a výsledek se vrátí jako
+ * text dotazu. Kde ho nic neobslouží, tlačítko není.
  */
 @Composable
 private fun SearchField(state: TvSearchState, modifier: Modifier) {
-    val context = LocalContext.current
-    val prompt = stringResource(Res.string.tv_search_prompt)
-    val voiceIntent = remember(prompt, context) {
-        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            .putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
-            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            // Jazyk aplikace, ne systému: na emulátoru s anglickým systémem a českou aplikací
-            // poslouchalo rozpoznávání anglicky.
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, context.resources.configuration.locales[0].toLanguageTag())
-    }
-    val canVoice = remember(voiceIntent) { voiceIntent.resolveActivity(context.packageManager) != null }
-    val voice = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { state.query = it }
-        }
-    }
+    val voice = rememberVoiceInput(stringResource(Res.string.tv_search_prompt)) { state.query = it }
     // Tlačítko hledání na ovladači (KEYCODE_SEARCH) rovnou spustí hlasové zadání. Fokus jde na
     // mikrofon: obrazovka, odkud se přišlo, z kompozice odešla a fokus by zůstal na záložce —
     // šipka vpravo by pak místo pole přepnula složku.
     val micFocus = remember { FocusRequester() }
     LaunchedEffect(state.voiceRequests) {
-        if (state.voiceRequests == 0 || !canVoice) return@LaunchedEffect
+        if (state.voiceRequests == 0 || voice == null) return@LaunchedEffect
         runCatching { micFocus.requestFocus() }
-        runCatching { voice.launch(voiceIntent) }
+        voice.launch()
     }
     val focusManager = LocalFocusManager.current
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (canVoice) {
-            Surface(
-                onClick = { runCatching { voice.launch(voiceIntent) } },
-                modifier = Modifier.focusRequester(micFocus),
-                shape = ClickableSurfaceDefaults.shape(CircleShape),
-                colors = ClickableSurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Icon(
-                    painterResource(Res.drawable.mic_24dp),
-                    contentDescription = stringResource(Res.string.tv_search_voice),
-                    modifier = Modifier.padding(12.dp).size(24.dp),
-                )
-            }
+        if (voice != null) {
+            MicButton(voice, stringResource(Res.string.tv_search_voice), Modifier.focusRequester(micFocus))
         }
         var focused by remember { mutableStateOf(false) }
         val colors = MaterialTheme.colorScheme
