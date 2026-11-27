@@ -407,6 +407,9 @@ private fun ReplyDialog(
                                 .background(colors.surfaceVariant, RoundedCornerShape(16.dp))
                                 .border(if (focused) 3.dp else 1.dp, if (focused) colors.primary else colors.border, RoundedCornerShape(16.dp))
                                 .padding(horizontal = 20.dp, vertical = 14.dp),
+                            // Na střed: minimální výška (56 dp) je víc než řádek s odsazením a text
+                            // u horní hrany seděl o 4,5 dp nad středem pole (změřeno na emulátoru).
+                            contentAlignment = Alignment.CenterStart,
                         ) {
                             if (text.isEmpty()) {
                                 Text(stringResource(Res.string.tv_reply_hint), style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)

@@ -64,6 +64,15 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   byla vyšší než textové (58 px: Figtree 14 sp s oříznutým prokladem a 6 dp odsazení), takže
   text seděl o 3 dp nad středem pilulky. Změřeno z `uiautomator dump`: řádek i záložka
   s lupou 104–168, textová 104–162, pilulka na snímku 110–168.
+- **Text v poli s minimální výškou patří na střed** (`contentAlignment = CenterStart`
+  v `decorationBox`). Pole psaní zprávy má `heightIn(min = 56.dp)`, což je víc než řádek
+  s odsazením, a `Box` kreslí obsah od horní hrany: text seděl o 4,5 dp nad středem (pole
+  494–606 px, text 522–560). Pole bez minimální výšky (heslo, hledání) to nemají.
+- **Barvy uvnitř zaostřeného řádku a karty se počítají s plochou `inverseSurface`** (světlou).
+  Co bere barvu obsahu (`LocalContentColor`), přepne se samo. Barva nastavená výslovně ne:
+  odznak nepřečtených v `primary` (v tmavém schématu taky světlý tón) se zaostřeným řádkem
+  skoro splýval, a tečka bez počtu by zmizela. Zaostřený řádek mu proto dává `primaryContainer`,
+  jako má avatar vedle. Totéž řeší lem příběhů (`storyRing(onInverse)`).
 - **Bezpečné okraje 58 dp po stranách a 28 dp nahoře a dole** (`SAFE_HORIZONTAL`,
   `SAFE_VERTICAL`; 5 % z 960 × 540 dp). Návod má na téže stránce i 48 / 27 dp; drží se
   přísnější varianta. Pozadí okraje nerespektuje (Google: „fill the full screen").
@@ -604,8 +613,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   neukáže, zpráva odešla jinam. Spouští se ze scope obrazovky — dialog se po úspěchu zavře.
 - **Řádek během odesílání NEZAKAZOVAT** (`enabled = false`): zakázaný `ListItem` přestane být
   zaostřitelný a fokus by z dialogu utekl. Druhé OK hlídá příznak `sending`.
-- **Seznam má strop asi čtyř řádků** (280 dp): s 360 dp panel s nadpisem a citací sahal ke
-  spodní hraně obrazovky, mimo bezpečné okraje (ověřeno na emulátoru).
+- **Seznam má strop tří a půl řádku** (248 dp; vykouknutí dalšího řádku říká, že seznam
+  pokračuje). Panel s nadpisem, citací a polem hledání se musí vejít do 484 dp (540 dp bez
+  bezpečných okrajů 28 dp). S 360 dp sahal ke spodní hraně, a když nad seznam přibylo pole
+  hledání, panel se stropem 280 dp měl 511 dp a sahal od stavové lišty ke spodní hraně
+  (změřeno z `uiautomator dump`, panel 52–1075 px). **Kdo do dialogu přidá řádek, přepočítá
+  strop.**
 - **Uložené zprávy TDLib nemusí znát**, dokud se neotevřou: bez id se nejdřív zavolá
   `openSavedMessages()`.
 - **Přeposlaná zpráva má nad obsahem „Přeposláno od …"** (ikona a jméno z `forwardOrigin`, bez
