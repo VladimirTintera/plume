@@ -55,7 +55,10 @@ class AutoDownloadSync(
     /** Zápis, pull po přihlášení a změny od uživatele se nesmí prolnout. */
     private val mutex = Mutex()
 
-    /** Poslední změna od uživatele, kterou server ještě nemá. */
+    /**
+     * Poslední změna od uživatele, kterou server ještě nemá. Dokud tu je, stažení ze serveru
+     * ([pull]) lokální volbu nepřepíše. Maže ho jen kód za [mutex].
+     */
     private val pending = MutableStateFlow<AutoDownloadSettings?>(null)
 
     fun start() {
@@ -64,6 +67,8 @@ class AutoDownloadSync(
                 when {
                     stage == AuthStage.Ready -> mutex.withLock { afterReady() }
                     stage.signedOut -> mutex.withLock {
+                        // Nezapsaná změna patřila odhlášenému účtu; po přihlášení platí server.
+                        pending.value = null
                         if (account.autoDownloadSync() != SettingsSync.Pull) account.setAutoDownloadSync(SettingsSync.Pull)
                     }
                     else -> Unit
@@ -74,8 +79,10 @@ class AutoDownloadSync(
 
     /** Uživatel změnil úrovně. Uloží je hned lokálně a pošle na server. */
     fun change(new: AutoDownloadSettings) {
-        settings.setAutoDownload(new)
+        // Napřed [pending], pak lokální zápis: [pull] o přepsání rozhoduje uvnitř zápisu, a když
+        // se zápisy seřadí „změna, pak server", musí změnu v [pending] už vidět.
         pending.value = new
+        settings.setAutoDownload(new)
         scope.launch {
             mutex.withLock {
                 val target = pending.value ?: return@withLock
@@ -105,7 +112,10 @@ class AutoDownloadSync(
         presets.load()
             .onSuccess { server ->
                 logger.i { "Ze serveru: $server" }
-                settings.setAutoDownload(server)
+                // Uživatel mohl úrovně změnit, zatímco se stahovalo: jeho volba je novější a jde
+                // na server hned za zámkem. Rozhoduje se UVNITŘ zápisu, ne předem — lokální zápis
+                // změny ([change]) běží mimo zámek a předem přečtené [pending] by se s ním minulo.
+                settings.updateAutoDownload { local -> if (pending.value != null) local else server }
                 account.setAutoDownloadSync(SettingsSync.Synced)
             }
             .onFailure { logger.w(it) { "Předvolby automatického stahování se nenačetly." } }

@@ -33,7 +33,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -200,6 +199,12 @@ interface AppSettings {
      * ní by synchronizace ([AutoDownloadSync]) usoudila, že si uživatel nic nevybral.
      */
     suspend fun loadedAutoDownload(): AutoDownloadSettings
+
+    /**
+     * Přepíše úrovně podle uložených, ATOMICKY vůči ostatním zápisům: [transform] dostane hodnotu
+     * uloženou v okamžiku zápisu, ne tu, kterou volající přečetl dřív. Vrátí se až po zápisu.
+     */
+    suspend fun updateAutoDownload(transform: (AutoDownloadSettings) -> AutoDownloadSettings)
 
     /** Záložky zpráv všech účtů; filtruje a spravuje je [eu.tintera.plume.core.bookmarks.MessageBookmarks]. */
     /**
@@ -644,6 +649,19 @@ class DataStoreAppSettings(
         dataStore.edit(transform)
     }
 
+    /**
+     * Uložený stav TEĎ, i se zápisy, které právě doběhly — pro suspend čtení, podle kterých se
+     * rozhoduje (`autoDownloadSync()`, `loadedAutoDownload()`).
+     *
+     * [preferences] na to nestačí: o zápisu se dozví až z odběru, který běží na jiném vlákně,
+     * takže hned po `edit` ještě drží předchozí stav. `AutoDownloadSync` tak po zápisu `Synced`
+     * přečetl `null` a místo ničeho stahoval ze serveru (viz `docs/poznatky/nastaveni.md`).
+     * Jednorázové `data.first()` chybu DataStore 1.2.x z dokumentace třídy nemá: vezme keš
+     * s aktuální verzí, a když zrovna běží zápis, soubor z posledního DOBĚHLÉHO zápisu. Zaseknout
+     * se může jen odběr, který po úvodní hodnotě poslouchá dál.
+     */
+    private suspend fun current(): Preferences = dataStore.data.first()
+
     override val expressionMode: StateFlow<ExpressionMode> = value(ExpressionMode.Emoji) { preferences ->
         ExpressionMode.entries.firstOrNull { it.name == preferences[EXPRESSION_MODE] } ?: ExpressionMode.Emoji
     }
@@ -822,19 +840,22 @@ class DataStoreAppSettings(
     }
 
     override suspend fun loadedAutoDownload(): AutoDownloadSettings =
-        readAutoDownload(preferences.filterNotNull().first())
+        readAutoDownload(current())
 
     override fun setAutoDownload(settings: AutoDownloadSettings) {
+        scope.launch { updateAutoDownload { settings } }
+    }
+
+    override suspend fun updateAutoDownload(transform: (AutoDownloadSettings) -> AutoDownloadSettings) {
         val default = AutoDownloadSettings()
-        scope.launch {
-            edit { preferences ->
-                fun put(key: Preferences.Key<String>, level: AutoDownloadLevel, fallback: AutoDownloadLevel) {
-                    if (level == fallback) preferences.remove(key) else preferences[key] = level.name
-                }
-                put(AUTO_DOWNLOAD_WIFI, settings.wifi, default.wifi)
-                put(AUTO_DOWNLOAD_MOBILE, settings.mobile, default.mobile)
-                put(AUTO_DOWNLOAD_ROAMING, settings.roaming, default.roaming)
+        edit { preferences ->
+            val settings = transform(readAutoDownload(preferences))
+            fun put(key: Preferences.Key<String>, level: AutoDownloadLevel, fallback: AutoDownloadLevel) {
+                if (level == fallback) preferences.remove(key) else preferences[key] = level.name
             }
+            put(AUTO_DOWNLOAD_WIFI, settings.wifi, default.wifi)
+            put(AUTO_DOWNLOAD_MOBILE, settings.mobile, default.mobile)
+            put(AUTO_DOWNLOAD_ROAMING, settings.roaming, default.roaming)
         }
     }
 
@@ -1435,14 +1456,14 @@ class DataStoreAppSettings(
         private val storageCleanupKey = longPreferencesKey(slot.secretName("last_storage_cleanup"))
         private val cloudSyncBaseKey = stringPreferencesKey(slot.secretName("cloud_sync_base"))
 
-        override suspend fun cloudSyncBase(): String? = preferences.filterNotNull().first()[cloudSyncBaseKey]
+        override suspend fun cloudSyncBase(): String? = current()[cloudSyncBaseKey]
 
         override suspend fun setCloudSyncBase(value: String) {
             edit { preferences -> preferences[cloudSyncBaseKey] = value }
         }
 
         override suspend fun autoDownloadSync(): SettingsSync? {
-            val stored = preferences.filterNotNull().first()[autoDownloadSyncKey] ?: return null
+            val stored = current()[autoDownloadSyncKey] ?: return null
             // Neznámý název z novější verze: stáhnout ze serveru je bezpečné, nic se neztratí.
             return SettingsSync.entries.firstOrNull { it.name == stored } ?: SettingsSync.Pull
         }

@@ -3,6 +3,7 @@ package eu.tintera.plume.core.settings
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.AutoDownloadPresets
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,8 +37,12 @@ class AutoDownloadSyncTest {
         var fail = false
         val saved = mutableListOf<AutoDownloadSettings>()
         var loads = 0
+
+        /** Když je nastavená, `load` na ni počká — stahování ze serveru, které zrovna běží. */
+        var loadGate: CompletableDeferred<Unit>? = null
         override suspend fun load(): Result<AutoDownloadSettings> {
             loads++
+            loadGate?.await()
             return if (fail) Result.failure(IllegalStateException("offline")) else Result.success(server)
         }
         override suspend fun save(settings: AutoDownloadSettings): Result<Unit> {
@@ -108,6 +113,10 @@ class AutoDownloadSyncTest {
     /**
      * `Synced` se ČEKÁ, ne tvrdí: fake si zápis zapíše do [FakePresets.saved] uvnitř `save`,
      * kdežto `Synced` jde do DataStore až po něm. Mezi tím stav pořád drží `Push`.
+     *
+     * Druhé selhání („lokálně" nedoběhlo) byla skutečná chyba: `prepare` zapsal `Synced`,
+     * synchronizace ho ještě neviděla, stáhla ze serveru a stažená hodnota přepsala změnu. Hlídají
+     * to `zmenaBehemStahovaniSeNeprepise` a `DataStoreAppSettingsTest.suspendCteniVidiDobehlyZapis`.
      */
     @Test
     fun zmenaJdeNaServer() = syncTest(AuthStage.Ready, prepare = { it.forAccount(AccountSlot.Primary).setAutoDownloadSync(SettingsSync.Synced) }) {
@@ -116,6 +125,30 @@ class AutoDownloadSyncTest {
         await("zápis na server") { presets.saved.lastOrNull() == new }
         await("lokálně") { settings.autoDownload.value == new }
         await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
+    }
+
+    /**
+     * Změna od uživatele, zatímco se po přihlášení stahuje ze serveru, se nesmí přepsat staženou
+     * hodnotou. Dřív `pull` zapsal hodnotu ze serveru lokálně „odpal a zapomeň" až po změně:
+     * server pak měl novou volbu (zapsala ji změna za zámkem) a lokálně zůstala stará ze serveru.
+     * Právě to se stalo v CI v `zmenaJdeNaServer` (viz `docs/poznatky/nastaveni.md`).
+     */
+    @Test
+    fun zmenaBehemStahovaniSeNeprepise() = syncTest(AuthStage.WaitPhoneNumber) {
+        val gate = CompletableDeferred<Unit>()
+        presets.loadGate = gate
+        await("Pull po přihlašovací obrazovce") { account.autoDownloadSync() == SettingsSync.Pull }
+        stage.value = AuthStage.Ready
+        await("stahování ze serveru") { presets.loads == 1 }
+
+        val new = AutoDownloadSettings(wifi = AutoDownloadLevel.Low)
+        sync.change(new)
+        await("lokálně před koncem stahování") { settings.autoDownload.value == new }
+        gate.complete(Unit)
+
+        await("zápis na server") { presets.saved.lastOrNull() == new }
+        await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
+        assertEquals(new, settings.loadedAutoDownload(), "Stažená hodnota přepsala novější volbu.")
     }
 
     /**
