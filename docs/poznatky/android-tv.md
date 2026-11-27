@@ -575,9 +575,14 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   zakazuje) otevře `ForwardDialog`: citace toho, co se posílá, a chaty ze seznamu, **Uložené
   zprávy první** jako na telefonu. OK na řádku zprávu rovnou přepošle; album celé
   (`ConversationState.albumIds`, společné se smazáním), id vzestupně, jak to chce TDLib.
-- **Bez hledání, voleb (skrýt odesílatele, komentář) a víc cílů**: s ovladačem se vybírá
-  z prvních obrazovek seznamu a zaškrtávání víc chatů by chtělo další krok potvrzení. Kam psát
-  nejde (cizí kanál), se nefiltruje — telefon to dělá stejně a chyba se ukáže v dialogu.
+- **Nad seznamem je hledání s mikrofonem** (`ForwardSearchField`): s dotazem se místo seznamu
+  chatů ukážou nalezené (`searchChats` napřed lokálně, pak i ze serveru; 300 ms po posledním
+  písmenu), Uložené zprávy jen když odpovídají. Šipka nahoru z prvního řádku jde do pole,
+  šipka dolů z pole do výsledků, vlevo na začátku textu na mikrofon. Fokus při otevření zůstává
+  na Uložených zprávách — pole by hned otevřelo klávesnici.
+- **Bez voleb (skrýt odesílatele, komentář) a víc cílů**: zaškrtávání víc chatů by chtělo další
+  krok potvrzení. Kam psát nejde (cizí kanál), se nefiltruje — telefon to dělá stejně a chyba
+  se ukáže v dialogu.
 - **Potvrzení je systémový toast** („Přeposláno do: …"): konverzace pod dialogem žádnou změnu
   neukáže, zpráva odešla jinam. Spouští se ze scope obrazovky — dialog se po úspěchu zavře.
 - **Řádek během odesílání NEZAKAZOVAT** (`enabled = false`): zakázaný `ListItem` přestane být
