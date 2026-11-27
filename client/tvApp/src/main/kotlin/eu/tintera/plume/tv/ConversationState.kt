@@ -12,6 +12,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.WriteAccess
@@ -248,6 +249,32 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
     private fun applyReaction(messageId: Long, emoji: String, add: Boolean) {
         messages = messages?.map { if (it.id == messageId) it.copy(reactions = toggled(it.reactions, emoji, add)) else it }
     }
+
+    /** Co jde se zprávou [messageId] udělat (upravit, smazat…); `null`, když se to nepodařilo zjistit. */
+    suspend fun actions(messageId: Long): MessageActions? =
+        conversations.messageActions(chatId, messageId)
+            .onFailure { logger.w(it) { "Akce zprávy $messageId se na televizi nenačetly." } }
+            .getOrNull()
+
+    /**
+     * Uloží nový text vlastní zprávy [message]: u zprávy s médiem popisek (jiné volání než text).
+     * Výsledek přijde updatem úprav (`editedMessages`). **Formátování se nezachová** — pole na
+     * televizi je holý text a offsety původních entit by po změně textu neseděly.
+     */
+    suspend fun edit(message: ChatMessage, text: String): Result<Unit> {
+        val result = if (message.media != null) {
+            conversations.editCaption(chatId, message.id, text)
+        } else {
+            conversations.editText(chatId, message.id, text, linkPreview = message.linkPreviewOptions)
+        }
+        return result.onFailure { logger.w(it) { "Zpráva ${message.id} se z televize neupravila." } }
+    }
+
+    /** Smaže zprávy [ids] (album celé); [revoke] = i protějšku. Zmizí hned, potvrdí je update. */
+    suspend fun delete(ids: List<Long>, revoke: Boolean): Result<Unit> =
+        conversations.deleteMessages(chatId, ids, revoke)
+            .onSuccess { messages = messages?.filterNot { it.id in ids } }
+            .onFailure { logger.w(it) { "Zprávy $ids se z televize nesmazaly." } }
 
     /** Emoji, která jdou u zprávy [messageId] dát. */
     suspend fun reactionChoices(messageId: Long): List<String> =

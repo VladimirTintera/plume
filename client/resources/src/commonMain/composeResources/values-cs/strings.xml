@@ -5196,4 +5196,10 @@
     <string name="tv_dream_settings_title">Fotky pro spořič obrazovky</string>
     <string name="tv_dream_settings_hint">Spořič ukazuje fotky z chatu, který vyberete.</string>
     <string name="tv_action_show_quote">Zobrazit citovanou zprávu</string>
+    <string name="tv_edit_title">Upravit zprávu</string>
+    <string name="tv_edit_save">Uložit</string>
+    <string name="tv_edit_failed">Zprávu se nepodařilo upravit.</string>
+    <string name="tv_delete_for_all">Smazat pro všechny</string>
+    <string name="tv_delete_for_me">Smazat jen pro mě</string>
+    <string name="tv_delete_failed">Zprávu se nepodařilo smazat.</string>
 </resources>

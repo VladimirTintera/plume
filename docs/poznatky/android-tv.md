@@ -455,6 +455,30 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **V komentářích pod příspěvkem totéž** (vlastní `MessageInteractions`); odpověď bez citace
   jde kořeni vlákna (`ThreadConversationRepository.send`), citace kořene se v bublině nekreslí.
 
+## Úprava a smazání vlastní zprávy
+
+- **V nabídce nad zprávou (podržení OK) přibude „Upravit" a „Smazat"** podle toho, co dovolí
+  server (`messageActions` → `canEdit`, `canDeleteForSelf` / `canDeleteForAll`). Práva se
+  dočítají až při otevření nabídky (`produceState`), tlačítka proto naskočí o chvilku později
+  než reakce — u cizí zprávy nenaskočí vůbec.
+- **Úprava je tentýž dialog jako odpověď** (`ReplyDialog(editing = …)`), předvyplněný textem
+  zprávy; u média upravuje popisek (`editCaption`). Nezměněný text se neposílá. **Formátování
+  se nezachová** — pole na televizi je holý text a entity by po úpravě neseděly na offsetech;
+  kdo potřebuje tučné písmo, upraví zprávu na telefonu. Výsledek přijde updatem úprav, takže
+  seznam se překreslí sám.
+- **Kurzor stojí na KONCI předvyplněného textu** (`TextFieldValue` s `TextRange(délka)`).
+  S holým řetězcem byl na začátku a dopsat slovo znamenalo napřed dojet šipkami na konec —
+  ovladačem po znaku (ověřeno na emulátoru).
+- **Upravená zpráva má před časem „upraveno"**, jako na telefonu.
+- **Smazání se potvrzuje dialogem** se Zrušit a tlačítky podle práv: „Smazat pro všechny"
+  a „Smazat jen pro mě" (ve skupině a kanálu bývá jen jedno). **Výchozí fokus je na Zrušit**:
+  dialog naskočí pod prstem hned po výběru „Smazat" v nabídce a s fokusem na smazání stačilo
+  OK zmáčknuté o jednou víc — při ověřování na emulátoru tak zmizela pro všechny cizí zpráva. Album se maže celé (všechny zprávy se stejným
+  `mediaAlbumId`), jinak by v bublině zůstal zbytek mřížky. Zpráva zmizí ze seznamu hned po
+  úspěchu, update o smazání ji pak už nenajde.
+- **Po smazání fokus nezmizí**: přejde na sousední prvek (tlačítko „Napsat zprávu" nebo
+  předchozí zprávu), šipka nahoru dál vede do historie (ověřeno na emulátoru).
+
 ## Hlasovky a hudba
 
 - **Jeden přehrávač zvuku pro celou aplikaci** (`TvAudioPlayer`, žije v `TvNavigation` a dává se

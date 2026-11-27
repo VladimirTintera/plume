@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.tv.material3.Icon
+import eu.tintera.plume.resources.conversation_edited
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
@@ -402,7 +403,7 @@ internal fun MessageRow(
                     ReactionChips(it.reactions, content)
                 }
                 Text(
-                    message.timestamp.asTimeOfDay(),
+                    timeLabel(message),
                     style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                     color = content.copy(alpha = 0.7f),
                     modifier = Modifier.align(Alignment.End),
@@ -438,7 +439,7 @@ private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolea
         ) {
             VisualMedia(album, timeOnMedia = true)
             Text(
-                message.timestamp.asTimeOfDay(),
+                timeLabel(message),
                 style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                 color = Color.White,
                 modifier = Modifier
@@ -510,7 +511,7 @@ private fun MediaCard(
                 ReactionChips(it.reactions, content)
             }
             Text(
-                message.timestamp.asTimeOfDay(),
+                timeLabel(message),
                 style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                 color = content.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.End),
@@ -662,3 +663,10 @@ private const val ALBUM_TILES = 4
 
 /** Kolik zpráv před nejstarší načtenou se dočítá další stránka. */
 private const val LOAD_AHEAD = 8
+
+/** Čas pod zprávou; upravená má před ním „upraveno", jako na telefonu (`MessageFrame`). */
+@Composable
+private fun timeLabel(message: ChatMessage): String {
+    val time = message.timestamp.asTimeOfDay()
+    return if (message.isEdited) "${stringResource(Res.string.conversation_edited)} $time" else time
+}
