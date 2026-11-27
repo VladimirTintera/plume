@@ -335,7 +335,7 @@ private fun PostDetail(chatId: Long, info: ChatInfo, post: ChannelPost, playerOp
             horizontalArrangement = Arrangement.spacedBy(32.dp),
         ) {
             PostBody(chatId, post, playerOpen, actions, Modifier.weight(0.56f).fillMaxHeight())
-            PostComments(chatId, post, actions, Modifier.weight(0.44f).fillMaxHeight())
+            PostComments(chatId, info.title, post, actions, Modifier.weight(0.44f).fillMaxHeight())
         }
     }
 }
@@ -444,6 +444,7 @@ private fun AlbumStrip(media: List<MessageMedia>) {
 @Composable
 private fun PostComments(
     chatId: Long,
+    channelTitle: String,
     post: ChannelPost,
     actions: MediaActions,
     modifier: Modifier,
@@ -468,21 +469,25 @@ private fun PostComments(
         when {
             current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
             current.isFailure -> MessageScreen(stringResource(Res.string.comments_unavailable), Res.drawable.cloud_off_24dp, error = true)
-            else -> CommentList(current.getOrThrow(), actions)
+            else -> CommentList(current.getOrThrow(), channelTitle, actions)
         }
     }
 }
 
+/**
+ * Komentáře vlákna. [channelTitle] je jméno pro komentáře bez odesílatele — napsané za kanál
+ * nebo anonymním správcem; citace by jinak měla prázdný řádek se jménem.
+ */
 @Composable
-private fun CommentList(thread: CommentThread, actions: MediaActions) {
+private fun CommentList(thread: CommentThread, channelTitle: String, actions: MediaActions) {
     val state = rememberConversationState(thread.chatId, threadRootId = thread.rootMessageId)
     // Kořen vlákna (kopie příspěvku v diskusní skupině) je vlevo, mezi komentáři by byl podruhé.
     val comments = state.messages?.filter { it.id != thread.rootMessageId && !it.isService }
     val listState = rememberLazyListState()
     val interactions = remember { MessageInteractions() }
-    MessageInteractionDialogs(state, interactions, chatTitle = "")
+    MessageInteractionDialogs(state, interactions, chatTitle = channelTitle)
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) { CommentListContent(thread, state, comments, listState, interactions, actions) }
+        Box(Modifier.weight(1f).fillMaxWidth()) { CommentListContent(thread, channelTitle, state, comments, listState, interactions, actions) }
         if (state.canWrite && comments != null) {
             ComposeButton(
                 label = stringResource(Res.string.tv_compose_comment),
@@ -496,6 +501,7 @@ private fun CommentList(thread: CommentThread, actions: MediaActions) {
 @Composable
 private fun CommentListContent(
     thread: CommentThread,
+    channelTitle: String,
     state: ConversationState,
     comments: List<ChatMessage>?,
     listState: LazyListState,
@@ -526,7 +532,7 @@ private fun CommentListContent(
                 items(newestFirst, key = { it.first().id }) { album ->
                     MessageRow(
                         album = album,
-                        chatTitle = "",
+                        chatTitle = channelTitle,
                         onOpen = mediaOpenAction(thread.chatId, album, comments, actions),
                         onLongPress = { interactions.actionsFor = album.first() },
                         // Odpověď kořeni (příspěvku) se necituje — komentáře mu odpovídají všechny.

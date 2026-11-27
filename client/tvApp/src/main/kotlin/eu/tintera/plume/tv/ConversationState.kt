@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,6 +47,13 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
     var canWrite by mutableStateOf(false)
         private set
     var failed by mutableStateOf(false)
+        private set
+
+    /**
+     * Kolik zpráv se odeslalo z televize. Na změnu se fokus přesune na novou zprávu — jen na tu
+     * odeslanou odsud: zpráva z telefonu téhož účtu by jinak odrolovala čtení starší historie.
+     */
+    var sentCount by mutableIntStateOf(0)
         private set
     private var loadingOlder = false
     private var historyEnd = false
@@ -123,22 +131,29 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
     /** Pošle text jako odpověď na [replyTo] (`null` = bez citace; ve vláknu komentářů odpoví kořeni). */
     suspend fun send(text: String, replyTo: Long?): Result<Unit> =
         conversations.send(chatId, text, replyToMessageId = replyTo)
-            .onSuccess { upsert(it) }
+            .onSuccess {
+                upsert(it)
+                sentCount++
+            }
             .onFailure { logger.w(it) { "Zpráva do chatu $chatId se z televize neodeslala." } }
             .map { }
 
     /**
      * Přidá nebo odebere reakci [emoji] u [message] — hned v zobrazení (odezva na ovladač nemá
-     * čekat na server), potvrdí ji update interakcí od TDLib. Nepovedená se vrátí zpátky.
+     * čekat na server), potvrdí ji update interakcí od TDLib. Nepovedená se vrátí zpátky — jen
+     * u téhle zprávy: celý seznam z doby před reakcí by zahodil, co mezitím přišlo.
      */
     suspend fun toggleReaction(message: ChatMessage, emoji: String) {
         val chosen = message.reactions.any { it.emoji == emoji && it.isChosen }
-        val before = messages
-        messages = messages?.map { if (it.id == message.id) it.copy(reactions = toggled(it.reactions, emoji, add = !chosen)) else it }
+        applyReaction(message.id, emoji, add = !chosen)
         conversations.setReaction(chatId, message.id, emoji, add = !chosen).onFailure {
             logger.w(it) { "Reakce na zprávu ${message.id} se z televize neposlala." }
-            messages = before
+            applyReaction(message.id, emoji, add = chosen)
         }
+    }
+
+    private fun applyReaction(messageId: Long, emoji: String, add: Boolean) {
+        messages = messages?.map { if (it.id == messageId) it.copy(reactions = toggled(it.reactions, emoji, add)) else it }
     }
 
     /** Emoji, která jdou u zprávy [messageId] dát. */

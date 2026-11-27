@@ -73,7 +73,10 @@ import eu.tintera.plume.resources.media_video_playback_failed
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import java.io.File
+import eu.tintera.plume.core.di.APP_SCOPE
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import org.koin.core.qualifier.named
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -104,7 +107,18 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
     val context = LocalContext.current
     val files = koinInject<FileRepository>()
     val scope = rememberCoroutineScope()
+    val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     BackHandler(onBack = onClose)
+    // Zavřené video se přestane stahovat: odběr `files.file` stahování spustil a sám ho nezruší.
+    // Televize mívají kolem 8 GB, a náhled pár vteřin dlouhého videa z kanálu by jinak stáhl celé.
+    // V aplikačním scope: scope kompozice je při zavření už zrušený.
+    DisposableEffect(video.fileId) {
+        onDispose {
+            appScope.launch {
+                if (files.observe(video.fileId).first() is FileState.Downloading) files.cancelDownload(video.fileId)
+            }
+        }
+    }
 
     val player = remember {
         ExoPlayer.Builder(context)
@@ -223,10 +237,23 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 lastInteraction = System.nanoTime()
                 when (event.nativeKeyEvent.keyCode) {
-                    AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER,
-                    AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, AndroidKeyEvent.KEYCODE_SPACE -> {
+                    AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_SPACE -> {
                         // První stisk při schovaném ovládání ho jen ukáže, jako u systémových přehrávačů.
                         if (controlsVisible || !playing) player.togglePlayback()
+                        true
+                    }
+                    // Tlačítka médií přepínají vždycky: klávesa se tu spotřebuje a `MediaSession`
+                    // ji už nedostane, takže pauza z ovladače by jinak napoprvé jen ukázala ovládání.
+                    AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        player.togglePlayback()
+                        true
+                    }
+                    AndroidKeyEvent.KEYCODE_MEDIA_PLAY -> {
+                        player.play()
+                        true
+                    }
+                    AndroidKeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                        player.pause()
                         true
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_MEDIA_REWIND -> {

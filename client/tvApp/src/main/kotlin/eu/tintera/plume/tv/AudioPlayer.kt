@@ -168,7 +168,7 @@ class TvAudioPlayer(
 
             override fun onPlayerError(error: PlaybackException) {
                 logger.w(error) { "Zvuk ${current?.messageId} na televizi nejde přehrát." }
-                loading = false
+                skipUnplayable()
             }
         })
         scope.launch {
@@ -225,7 +225,11 @@ class TvAudioPlayer(
         loadJob = scope.launch {
             val ready = files.file(item.fileId).first { it is FileState.Ready || it is FileState.Failed }
             loading = false
-            val path = (ready as? FileState.Ready)?.path ?: return@launch
+            val path = (ready as? FileState.Ready)?.path ?: run {
+                logger.w { "Zvuk ${item.messageId} se na televizi nestáhl." }
+                skipUnplayable()
+                return@launch
+            }
             val metadata = MediaMetadata.Builder().setTitle(item.title).setArtist(item.performer).build()
             player.setMediaItem(MediaItem.Builder().setUri(Uri.fromFile(File(path))).setMediaMetadata(metadata).build())
             player.prepare()
@@ -235,6 +239,15 @@ class TvAudioPlayer(
                     .onFailure { logger.w(it) { "Poslechnutí hlasovky ${item.messageId} se nenahlásilo." } }
             }
         }
+    }
+
+    /**
+     * Položku, která nejde stáhnout ani přehrát, přeskočí na další, a na konci fronty přehrávání
+     * ukončí. Jinak by zůstala „hrající" v docku s tlačítkem, které nic nedělá.
+     */
+    private fun skipUnplayable() {
+        loading = false
+        if (index < queue.lastIndex) select(index + 1) else stop()
     }
 
     fun release() {

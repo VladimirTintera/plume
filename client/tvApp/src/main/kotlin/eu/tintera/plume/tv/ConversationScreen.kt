@@ -142,14 +142,11 @@ private fun MessageList(
     // Fokus na nejnovější zprávu, po zavření videa nebo prohlížeče zpátky na zprávu, ze které
     // se otevřel: přehrávač fokus odnesl a bez vrácení skončil na jiné zprávě (ověřeno na emulátoru).
     var focusTarget by remember { mutableStateOf<Long?>(null) }
-    // Po odeslání (odpověď z dialogu) fokus na novou vlastní zprávu, jinak by zůstal na té, na
-    // kterou se odpovídalo, a nová by visela pod spodním okrajem (ověřeno na emulátoru).
-    val newest = messages.last()
-    var lastSeenNewest by remember { mutableStateOf(newest.id) }
-    LaunchedEffect(newest.id) {
-        if (newest.id == lastSeenNewest) return@LaunchedEffect
-        lastSeenNewest = newest.id
-        if (!newest.isOutgoing) return@LaunchedEffect
+    // Po odeslání z televize fokus na novou zprávu, jinak by zůstal na té, na kterou se
+    // odpovídalo, a nová by visela pod spodním okrajem (ověřeno na emulátoru). Jen po odeslání
+    // odsud (`sentCount`), ne na každou novou vlastní zprávu — ta z telefonu by odrolovala čtení.
+    LaunchedEffect(state.sentCount) {
+        if (state.sentCount == 0) return@LaunchedEffect
         focusTarget = null
         listState.animateScrollToItem(0)
         withFrameNanos { }

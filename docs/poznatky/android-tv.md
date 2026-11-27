@@ -25,6 +25,13 @@ Samostatná aplikace pro televize (`client/tvApp`). Plán a co zbývá: `docs/ro
 - **Banner v launcheru** (`drawable-xhdpi/tv_banner.png`, 320 × 180 dp) se generuje
   z `play/tools/icon.py` (`python3 play/tools/icon.py tv`) z téže geometrie pírka jako ikona.
   Google chce v banneru jméno aplikace; vektor text neumí, proto PNG se jménem v Bricolage.
+- **Chat se intentem (`eu.tintera.plume.tv.CHAT_ID`) otevře jen v ladicím buildu**
+  (`FLAG_DEBUGGABLE`). Aktivita je exportovaná a extra by mohla poslat kterákoli aplikace
+  v televizi; otevřením se zprávy označí jako přečtené. Až chat bude otevírat notifikace nebo
+  karta Google TV, půjde to přes `PendingIntent` a neexportovanou cestu.
+- **Složka obnovená z uloženého stavu se ověří**: když se do pěti vteřin neobjeví mezi složkami
+  účtu (smazaná v telefonu, než se proces obnovil), vrátí se hlavní seznam. Jinak záložky
+  zvýraznily „Všechny chaty" a seznam zůstal prázdný.
 - **Aktivita má `LEANBACK_LAUNCHER` i `LAUNCHER`.** První dává banner v launcheru televize,
   druhý ji ukáže v „Aplikacích" Google TV a dá se spustit `am start` i na emulátoru bez
   televizního launcheru.
@@ -112,6 +119,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   (i přetáčení na ovladači) skáčou o 10 s, Zpět zavře. Ovládání se po 4 s přehrávání schová,
   vrátí se s každým stiskem; první OK při schovaném ovládání ho jen ukáže, jako u systémových
   přehrávačů. Fokus zvuku a „sluchátka vytažena" řeší ExoPlayer (`handleAudioFocus`).
+- **Tlačítka médií na ovladači přepínají vždycky**, i se schovaným ovládáním: klávesa se
+  v `onPreviewKeyEvent` spotřebuje a `MediaSession` ji už nedostane, takže pravidlo „první stisk
+  jen ukáže ovládání" (správné pro OK) by pauzu z ovladače napoprvé spolklo.
+- **Zavřené video se přestane stahovat** (`cancelDownload` při odchodu, když se ještě stahuje):
+  odběr `files.file` stahování spustil a sám ho nezruší. Telefon to má stejně, ale televize
+  mívají kolem 8 GB a náhled pár vteřin videa z kanálu by stáhl celé.
 - **`MediaSession` (media3-session)** dává přehrávač systému: tlačítka médií na ovladači
   a karta „Právě hraje" na Google TV. Ověřeno `dumpsys media_session` (stav PAUSED s pozicí).
 - **Přehrávač leží NAD konverzací**, ta zůstává v kompozici — po zavření videa se historie
@@ -154,13 +167,17 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Nabídka i odpověď jsou `Dialog`** (vlastní okno): fokus z nich šipkou neuteče na zprávy pod
   nimi, Zpět zavře dialog, ne konverzaci, a po zavření se fokus vrátí na zprávu v hlavním okně.
 - **Reakce se přepne hned** (`toggleReaction`, optimisticky), potvrdí ji update interakcí;
-  nepovedená se vrátí.
+  nepovedená se vrátí — jen u té zprávy (první verze vracela celý seznam z doby před reakcí
+  a zahodila by, co mezitím přišlo). **Běží ve scope obrazovky, ne nabídky**: nabídka se po
+  výběru hned zavře a s jejím `rememberCoroutineScope` by se zrušil i rozběhnutý požadavek.
 - **Pole odpovědi je jednořádkové a šipka dolů ho výslovně posílá na Odeslat.** Víceřádkové
   pole si šipku dolů bralo na pohyb kurzoru a z pole se ovladačem nedalo odejít (ověřeno na
   emulátoru). Pole dostane fokus hned, takže naskočí systémová klávesnice; její „odeslat"
   zprávu rovnou pošle.
 - **Po odeslání jde fokus na novou vlastní zprávu** a seznam k ní odroluje; jinak zůstal na
-  zprávě, na kterou se odpovídalo, a nová visela pod spodním okrajem.
+  zprávě, na kterou se odpovídalo, a nová visela pod spodním okrajem. Jen po odeslání z televize
+  (`ConversationState.sentCount`): zpráva poslaná z telefonu téhož účtu by jinak odrolovala
+  čtení starší historie.
 - **Nová zpráva je tlačítko „Napsat zprávu" POD seznamem** (`ComposeButton`), ne pole: šipka
   dolů z nejnovější zprávy na něj skočí a OK otevře tentýž dialog jako odpověď, jen bez citace.
   Pole přímo pod konverzací by na televizi otevíralo klávesnici při každém průchodu fokusu.
@@ -183,6 +200,8 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   a ExoPlayer má vždy jen jednu položku, takže session „další" a „předchozí" nenabídla —
   pauza z ovladače šla, další ne (ověřeno na emulátoru). Obal příkazy nabízí a posílá do fronty.
   „Předchozí" po třech vteřinách přehrávání vrací na začátek položky, jako všude.
+- **Položka, která nejde stáhnout ani přehrát, se přeskočí** (`skipUnplayable`), na konci fronty
+  přehrávání skončí; jinak zůstala v docku s tlačítkem, které nic nedělalo.
 - **Příchozí hlasovka se po spuštění nahlásí jako poslechnutá** (`openContent`), tečka
   „nepřehráno" v bublině zmizí.
 - **Dock dole uprostřed** (`AudioDock`): co hraje, průběh, čas a že je ve frontě další. Není

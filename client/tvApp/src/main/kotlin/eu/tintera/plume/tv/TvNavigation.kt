@@ -18,6 +18,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatRepository
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -54,6 +57,18 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             openViewer = { items, index -> viewer = items to index },
             playAudio = audio::play,
         )
+    }
+    // Složka obnovená z uloženého stavu už nemusí existovat (smazaná v telefonu, než se proces
+    // obnovil). Záložky by pak zvýraznily „Všechny chaty" a seznam zůstal prázdný; když se složka
+    // do pár vteřin mezi složkami účtu neobjeví (seznam složek chodí od TDLib až po startu),
+    // vrátí se na hlavní seznam.
+    val chats = koinInject<ChatRepository>()
+    LaunchedEffect(folder) {
+        val custom = folder as? ChatFolder.Custom ?: return@LaunchedEffect
+        val exists = withTimeoutOrNull(FOLDER_RESTORE_TIMEOUT_MS) {
+            chats.chatFolders.first { folders -> folders.folders.any { it.id == custom.id } }
+        }
+        if (exists == null) folder = ChatFolder.Main
     }
     LaunchedEffect(openChat) {
         if (openChat == null) return@LaunchedEffect
@@ -121,6 +136,9 @@ private fun ChatScreen(chatId: Long, overlayOpen: Boolean, actions: MediaActions
         else -> ConversationScreen(chatId = chatId, playerOpen = overlayOpen, actions = actions)
     }
 }
+
+/** Jak dlouho se čeká, než se obnovená složka objeví mezi složkami účtu. */
+private const val FOLDER_RESTORE_TIMEOUT_MS = 5_000L
 
 /** Složka do uloženého stavu: Main a Archive jménem, složka Telegramu svým id. */
 private val FolderSaver = Saver<ChatFolder, String>(

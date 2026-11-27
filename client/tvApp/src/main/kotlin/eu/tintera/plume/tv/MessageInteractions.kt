@@ -69,6 +69,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -91,10 +92,14 @@ class MessageInteractions {
  */
 @Composable
 fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInteractions, chatTitle: String) {
+    // Scope obrazovky, ne nabídky: nabídka se po výběru reakce hned zavře a s ní by skončila
+    // i rozběhnutá reakce — požadavek by se zrušil a vrácení při chybě by neproběhlo.
+    val scope = rememberCoroutineScope()
     interactions.actionsFor?.let { message ->
         MessageActionsDialog(
             state = state,
             message = message,
+            scope = scope,
             chatTitle = chatTitle,
             onReply = {
                 interactions.actionsFor = null
@@ -119,11 +124,11 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
 private fun MessageActionsDialog(
     state: ConversationState,
     message: ChatMessage,
+    scope: CoroutineScope,
     chatTitle: String,
     onReply: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     val choices by produceState<List<String>?>(null, message.id) {
         value = state.reactionChoices(message.id).filter { customEmojiIdOf(it) == null }.take(MAX_QUICK_REACTIONS)
     }
