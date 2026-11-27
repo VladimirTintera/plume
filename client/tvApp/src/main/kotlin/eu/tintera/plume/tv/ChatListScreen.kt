@@ -384,12 +384,19 @@ private fun ChatRow(
     val typing by remember(chat.id) { repository.typing(chat.id) }.collectAsState(null)
     val time = chat.lastMessageTimestamp?.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
     val unread = chat.unreadCount > 0 || chat.isMarkedAsUnread
+    var focused by remember { mutableStateOf(false) }
     ListItem(
         selected = false,
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
         leadingContent = {
-            ChatAvatar(fileId = chat.avatarFileId, title = title, size = AVATAR_SIZE, savedMessages = chat.id == savedMessagesId)
+            ChatAvatar(
+                fileId = chat.avatarFileId,
+                title = title,
+                size = AVATAR_SIZE,
+                savedMessages = chat.id == savedMessagesId,
+                modifier = Modifier.storyRing(chat.id, savedMessages = chat.id == savedMessagesId, onInverse = focused),
+            )
         },
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {

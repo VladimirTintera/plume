@@ -131,7 +131,7 @@ fun ChatHeader(chatId: Long, info: ChatInfo?) {
         Modifier.fillMaxWidth().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ChatAvatar(fileId = info?.avatarFileId, title = title, size = 56.dp, savedMessages = chatId == savedMessagesId)
+        ChatAvatar(fileId = info?.avatarFileId, title = title, size = 56.dp, savedMessages = chatId == savedMessagesId, modifier = Modifier.storyRing(chatId, savedMessages = chatId == savedMessagesId))
         Spacer(Modifier.width(16.dp))
         Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
