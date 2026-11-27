@@ -77,8 +77,17 @@ class AutoDownloadSync(
         }
     }
 
-    /** Uživatel změnil úrovně. Uloží je hned lokálně a pošle na server. */
+    /**
+     * Uživatel změnil úrovně. Uloží je hned lokálně a pošle na server — přihlášený účet bez
+     * spojení až po [AuthStage.Ready].
+     */
     fun change(new: AutoDownloadSettings) {
+        if (authStage.value.signedOut) {
+            // Odhlášený účet nemá kam zapisovat a po přihlášení platí nastavení ze serveru:
+            // volba z přihlašovací obrazovky do [pending] nepatří, jinak by [pull] zablokovala.
+            settings.setAutoDownload(new)
+            return
+        }
         // Napřed [pending], pak lokální zápis: [pull] o přepsání rozhoduje uvnitř zápisu, a když
         // se zápisy seřadí „změna, pak server", musí změnu v [pending] už vidět.
         pending.value = new
@@ -86,10 +95,19 @@ class AutoDownloadSync(
         scope.launch {
             mutex.withLock {
                 val target = pending.value ?: return@withLock
-                // Odhlášený účet nemá kam zapisovat; po přihlášení se nastavení stejně stáhne.
-                if (authStage.value != AuthStage.Ready) return@withLock
-                account.setAutoDownloadSync(SettingsSync.Push)
-                push(target)
+                val stage = authStage.value
+                when {
+                    stage == AuthStage.Ready -> {
+                        account.setAutoDownloadSync(SettingsSync.Push)
+                        push(target)
+                    }
+                    // Mezitím odhlášený (viz výš u odhlášeného účtu).
+                    stage.signedOut -> pending.compareAndSet(target, null)
+                    // Přihlášený účet jen ještě bez spojení (Connecting, Failed): bez `Push` by
+                    // stav zůstal `Synced`, další Ready by nic neposlal a server by si nechal
+                    // starou volbu. Takhle ji pošle [afterReady].
+                    else -> account.setAutoDownloadSync(SettingsSync.Push)
+                }
             }
         }
     }
@@ -97,7 +115,9 @@ class AutoDownloadSync(
     private suspend fun afterReady() {
         when (account.autoDownloadSync()) {
             SettingsSync.Synced -> Unit
-            SettingsSync.Push -> push(settings.loadedAutoDownload())
+            // Čekající změna má přednost: její lokální zápis jde mimo zámek a ještě nemusel
+            // doběhnout, takže uložená hodnota může být ta před ní.
+            SettingsSync.Push -> push(pending.value ?: settings.loadedAutoDownload())
             SettingsSync.Pull -> pull()
             // Aktualizace z verze bez synchronizace: kdo si vybral, tomu se volba nepřepíše
             // a jde na server. Kdo ne, dostane nastavení účtu.

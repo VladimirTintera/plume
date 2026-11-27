@@ -2329,10 +2329,6 @@ Odhlásit se dole v seznamu sekcí, ne v úpravě profilu; Proxy do Úložiště
 - ~~**Automatické stahování médií**~~ — hotovo (Úložiště: úroveň pro Wi-Fi, mobilní data
   a roaming, spořič dat; `docs/poznatky/prohlizec-medii.md`, „Automatické stahování"). Zbývá
   ověřit spořič dat a roaming na telefonu a případně přednačítání videí (dnes se nepřednačítá nic).
-  **Změna úrovní před `Ready` se na server nedostane:** `AutoDownloadSync.change` mimo `Ready`
-  jen odejde (komentář počítá s odhlášeným účtem), jenže stejně skončí i přihlášený účet ve stavu
-  `Connecting` nebo `Failed`. Stav zůstane `Synced`, další `Ready` nic nepošle a server si nechá
-  starou volbu. Nejspíš nastavit `Push`, když stav není přihlašovací (`signedOut`).
 - ~~**Úložiště.**~~ — hotovo (Nastavení → Úložiště: zabrané místo po druzích a chatech, mazání
   všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
   ~~**Strop velikosti mezipaměti**~~ — hotovo (1 / 2 / 5 / 10 GB; `docs/poznatky/nastaveni.md`,
