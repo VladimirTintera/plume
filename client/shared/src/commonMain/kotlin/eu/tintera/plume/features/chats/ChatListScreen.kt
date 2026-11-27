@@ -443,6 +443,7 @@ fun ChatListScreen(
             bookmarkCount = bookmarks.size,
             onBookmarks = navigation.onOpenBookmarks,
             onMyQrCode = navigation.onOpenMyQrCode,
+            onChannelDigest = navigation.onOpenChannelDigest,
             onSettings = navigation.onOpenSettings,
             switcher = accountSwitcher,
         )

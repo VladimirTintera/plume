@@ -29,6 +29,8 @@ import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogViewModel
 import eu.tintera.plume.features.statistics.ChatStatisticsViewModel
 import eu.tintera.plume.features.chatinsights.ChatInsightsViewModel
+import eu.tintera.plume.features.digest.ChannelDigestCache
+import eu.tintera.plume.features.digest.ChannelDigestViewModel
 import eu.tintera.plume.features.statistics.PostStatisticsViewModel
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
 import eu.tintera.plume.features.instantview.InstantViewViewModel
@@ -828,6 +830,11 @@ fun appAccountModule() = module {
     viewModel { parameters ->
         ChatInsightsViewModel(chatId = parameters.get(), repository = get())
     }
+
+    single { ChannelDigestCache() }
+    // Výslovně, ne `viewModelOf`: ten chce z Koinu i parametr s výchozí hodnotou (`now`) a spadne
+    // až za běhu na „No definition found for type Function0".
+    viewModel { ChannelDigestViewModel(chats = get(), conversations = get(), ai = get(), settings = get(), cache = get()) }
 
     viewModel { parameters ->
         PostStatisticsViewModel(

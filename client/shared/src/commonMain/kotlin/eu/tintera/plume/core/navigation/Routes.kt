@@ -423,6 +423,10 @@ data class ChatStatisticsRoute(override val slot: AccountSlot, val chatId: Long)
 @Serializable
 data class ChatInsightsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
+/** Přehled ztlumených kanálů za posledních 24 hodin se shrnutím modelem (menu účtu). */
+@Serializable
+data class ChannelDigestRoute(override val slot: AccountSlot) : AccountRoute
+
 /**
  * Statistika příspěvku v kanálu — ze statistik kanálu, nebo z „Informace o zprávě" nad
  * konverzací. Taky jako detailový panel.
@@ -824,6 +828,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(ChatStatisticsRoute::class, ChatStatisticsRoute.serializer())
             subclass(ChatInsightsRoute::class, ChatInsightsRoute.serializer())
+            subclass(ChannelDigestRoute::class, ChannelDigestRoute.serializer())
             subclass(PostStatisticsRoute::class, PostStatisticsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())

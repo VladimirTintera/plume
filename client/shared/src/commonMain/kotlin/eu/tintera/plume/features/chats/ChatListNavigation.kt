@@ -47,6 +47,8 @@ data class ChatListNavigation(
     val onOpenBookmarks: () -> Unit = {},
     val onOpenMyQrCode: () -> Unit = {},
     val onOpenMyStories: () -> Unit = {},
+    /** Menu účtu → Přehled kanálů. */
+    val onOpenChannelDigest: () -> Unit = {},
     val onNewChat: () -> Unit = {},
     val onNewGroup: () -> Unit = {},
     val onNewChannel: () -> Unit = {},

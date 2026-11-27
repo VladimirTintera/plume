@@ -98,6 +98,8 @@ import eu.tintera.plume.core.navigation.ChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatInsightsRoute
 import eu.tintera.plume.core.navigation.GalleryRoute
 import eu.tintera.plume.features.gallery.GalleryScreen
+import eu.tintera.plume.core.navigation.ChannelDigestRoute
+import eu.tintera.plume.features.digest.ChannelDigestScreen
 import eu.tintera.plume.core.navigation.ArchiveChatInsightsRoute
 import eu.tintera.plume.features.chatinsights.ChatInsightsScreen
 import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
@@ -954,6 +956,7 @@ private fun shellEntryProvider(
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot)) },
                 onOpenMyQrCode = { navigation.openSheet(ChatsRoute, MyQrCodeRoute) },
                 onOpenMyStories = { if (chatsStack.lastOrNull() != MyStoriesRoute) chatsStack.add(MyStoriesRoute) },
+                onOpenChannelDigest = { if (chatsStack.lastOrNull() !is ChannelDigestRoute) chatsStack.add(ChannelDigestRoute(slot)) },
                 onNewChat = {
                     if (chatsStack.lastOrNull() !is NewChatRoute) chatsStack.add(NewChatRoute(slot))
                 },
@@ -1574,6 +1577,16 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
             onOpenPost = { messageId -> chatsStack.addOnce(PostStatisticsRoute(slot, route.chatId, messageId)) },
+        )
+    }
+
+    // Přehled kanálů: seznam vlevo, kanál vedle (jako ostatní obrazovky z menu účtu).
+    entry<ChannelDigestRoute>(metadata = Panes.list()) { route ->
+        ChannelDigestScreen(
+            viewModel = koinViewModel(key = "channel-digest-${route.slot.id}"),
+            onBack = { chatsStack.remove(route) },
+            onOpenChannel = { chatId -> chatsStack.openConversation(route.slot, chatId) },
+            onOpenAiSettings = { navigation.openAiSettings(route.slot) },
         )
     }
 

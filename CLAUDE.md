@@ -78,7 +78,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, hledání v Nastavení, pomoc (Zeptat se), soukromí, úprava profilu a ořez fotky, narozeniny, osobní kanál, víc uživatelských jmen, dvoufázové ověření, přihlašovací e-mail, přístupové klíče, změna čísla, smazání účtu, velikost písma zpráv (i štípnutím v konverzaci), diskrétní čtení, zařízení, úložiště a přenesená data, „Co je nového“, O aplikaci (verze aplikace a TDLib, ruční kontrola aktualizace, odkazy) a licence knihoven (AboutLibraries, `exportLicenses`), jazykový balíček Telegramu, synchronizace bez backendu (WebApp CloudStorage)
 - [Zámek aplikace](docs/poznatky/zamek-aplikace.md) — PIN a biometrie, záznam v Keystore / Keychainu, kdy se zamyká, brzda pokusů, co zámek nechrání
 - [Zamčené chaty](docs/poznatky/zamcene-chaty.md) — filtr v `core` (seznamy, hledání, počty nepřečtených, notifikace, příběhy), sada až po načtení, odemčení PINem zámku aplikace a brána v `ChatColorTheme`, notifikace bez zkratky, co zamčení nechrání
-- [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano, Gemma a Qwen (i víc naráz a co čím počítat, porovnání modelů, další modely přes LiteRT-LM, EuroLLM a Aya přes llama.cpp, runtime jako součást z Google Play), shrnutí hlasovky, úsporný režim a přehřátí, Apple Intelligence na iOS, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, triáž chatů, přepis a kontrola tónu před odesláním (i úpravy od Telegramu na serveru), vysvětlení zprávy, popis fotky, hřiště Vyzkoušet model (volný rozhovor s měřením)
+- [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — přehled ztlumených kanálů, Gemini Nano, Gemma a Qwen (i víc naráz a co čím počítat, porovnání modelů, další modely přes LiteRT-LM, EuroLLM a Aya přes llama.cpp, runtime jako součást z Google Play), shrnutí hlasovky, úsporný režim a přehřátí, Apple Intelligence na iOS, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, triáž chatů, přepis a kontrola tónu před odesláním (i úpravy od Telegramu na serveru), vysvětlení zprávy, popis fotky, hřiště Vyzkoušet model (volný rozhovor s měřením)
 - [Release, R8 a hlášení pádů](docs/poznatky/release.md) — vydání do Play, runnery (hostované, dřív vlastní Mac a Windows), původ buildu (attestace), R8 a keep pravidla, Crashlytics (i iOS přes Swift most), aktualizace z obchodu
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, měření ne-debuggable buildu, start a plynulost, víc účtů (paměť, start, baterie)
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
@@ -931,6 +931,10 @@ obrazovku.
   vyhoď `android:tint="?attr/…"` a nahraď `@android:color/white` literální barvou. Resource
   reference commonMain parser nezná. `material-icons-core` **nepoužívej** — Google ho neudržuje,
   poslední verze je 1.7.3.
+- **`viewModelOf(::Třída)` dodává z Koinu i parametry s VÝCHOZÍ hodnotou.** ViewModel
+  s `now: () -> Int = { … }` v konstruktoru spadl při otevření obrazovky na „No definition found
+  for type Function0" — překlad i testy prošly. Kde má konstruktor výchozí parametry (hodiny,
+  dispečer pro testy), registrace je výslovná lambda (`viewModel { X(a = get(), …) }`).
 - **Repository seznamu chatů MUSÍ vznikat eagerně** (`createdAtStart = true` v Koinu). Odběry
   chat updatů se registrují v konstruktoru; při líné konstrukci vznikne až při první kompozici
   seznamu, což je (naměřeno) ~480 ms po `AuthorizationStateReady` — a první dávku `UpdateNewChat`

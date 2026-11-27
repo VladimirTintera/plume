@@ -180,6 +180,9 @@ class AppNavigation internal constructor(
         }
     }
 
+    /** Nastavení → AI v zařízení (zapnout nebo stáhnout model) — z přehledu kanálů. */
+    fun openAiSettings(slot: AccountSlot) = openSettingsAt(slot, SettingsSection.Ai)
+
     private fun openSettingsAt(slot: AccountSlot, section: SettingsSection, screen: NavKey? = null) =
         openSettingsWith(slot, *listOfNotNull(SettingsSectionRoute(section), screen).toTypedArray())
 

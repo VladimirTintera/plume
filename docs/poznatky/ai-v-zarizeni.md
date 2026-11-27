@@ -1271,6 +1271,39 @@ v zařízení, výchozí vypnuto — model běží sám, bez ťuknutí, jako u v
   poděkování a oznámení o vodě → bez odznaku, skutečné chaty („Nehoda pri teste hahaha") bez
   odznaku. Přečtení chatu odznak schová. **Gemini Nano neověřené.**
 
+### Přehled kanálů
+
+Menu účtu → **Přehled kanálů** (`ChannelDigestRoute`, seznamový panel): ztlumené kanály
+s nepřečtenými příspěvky za posledních 24 hodin, u každého nejvýš dvě věty od modelu v zařízení
+(`ChannelDigestViewModel`, prompt `ChannelDigestPrompt.kt`, testy `ChannelDigestViewModelTest`).
+Ťuknutí na kanál ho otevře. Telegram nic takového nemá; ztlumené kanály se jinak čtou po jednom.
+
+- **Počítá se při otevření, kanál po kanálu**, a text se streamuje do řádku. AICore pustí
+  inferenci jen aplikaci v popředí, takže přes noc dopředu to nejde.
+- **Úloha na ťuknutí, ne automatická** (`variantFor(AiTask.Summary)`, ne `proactiveVariant`):
+  přehled otevřel uživatel, takže běží i v úsporném režimu, jako shrnutí chatu. Nic se kvůli
+  němu nestahuje.
+- **Vlastní prompt, ne shrnutí konverzace**: to chce 3–6 odrážek se jmény mluvčích, příspěvky
+  kanálu píše jeden autor a řádek má být čitelný na první pohled. Do modelu jdou jen příspěvky
+  za 24 hodin (nejvýš 20 na kanál, od nejstaršího); když se nevejdou, padají NEJSTARŠÍ.
+  Odpověď se slije do jednoho odstavce (`digestLine`).
+- **Nejvýš 8 kanálů** (nejnovější napřed) — Gemma na jedno shrnutí potřebuje desítky sekund.
+  Jedno shrnutí má strop 90 s, pak řádek ukáže náhled poslední zprávy.
+- **Hotová shrnutí si pamatuje v paměti** (`ChannelDigestCache`, klíč kanál + poslední zpráva):
+  znovu otevřený přehled model nepouští, nový příspěvek klíč změní. Na disk ne — ráno má být
+  přehled čerstvý.
+- **Bez modelu zůstane seznamem** s počtem a náhledem poslední zprávy a nahoře řekne, že AI je
+  vypnutá nebo model není stažený, s tlačítkem do Nastavení → AI v zařízení
+  (`AppNavigation.openAiSettings`). Shrnutí chatu na to dřív mělo jen větu bez odkazu.
+- **Nad seznamem stojí, že shrnutí píše model a může se splést** (pravidla Google Play pro
+  generativní AI).
+- **Jen hlavní seznam**: archivované kanály by chtěly načíst archiv (`chats(Archive)` je do
+  `loadMore` prázdný); zamčené chaty v seznamu nejsou, filtruje je core.
+- **Ověřeno na emulátoru bez modelu** (Gemma 4 E2B nebyla stažená): ztlumený kanál s počtem
+  a náhledem, věta o chybějícím modelu, „Otevřít nastavení" vede do AI v zařízení, ťuknutí na
+  kanál ho otevře. Skutečné shrnutí Gemmou a Gemini Nano ověřené není — jen testy s falešným
+  modelem.
+
 ### Akce ze zpráv
 
 Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, telefon

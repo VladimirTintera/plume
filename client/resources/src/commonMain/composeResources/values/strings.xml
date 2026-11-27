@@ -4743,6 +4743,20 @@
     <string name="on_this_day_preview">%1$s: %2$s</string>
     <string name="settings_on_this_day">A year ago in chats</string>
     <string name="settings_on_this_day_summary">Above a conversation, show what you wrote on this day a year or more ago</string>
+    <string name="digest_title">Channel digest</string>
+    <string name="digest_subtitle">Muted channels, last 24 hours</string>
+    <string name="digest_empty_title">Nothing new</string>
+    <string name="digest_empty">No new posts in muted channels in the last 24 hours.</string>
+    <plurals name="digest_unread">
+        <item quantity="one">%1$d new post</item>
+        <item quantity="other">%1$d new posts</item>
+    </plurals>
+    <string name="digest_summarizing">Summarizing…</string>
+    <string name="digest_waiting">Waiting to be summarized</string>
+    <string name="digest_ai_note">Summaries are written by the on-device model and may be inaccurate.</string>
+    <string name="digest_ai_off">Summaries are written by the on-device model. Turn it on in Settings.</string>
+    <string name="digest_ai_missing">Summaries need the on-device model to be downloaded.</string>
+    <string name="digest_open_settings">Open settings</string>
     <string name="chat_insights_title">Chat stats</string>
     <string name="chat_insights_failed">Couldn't compute chat stats</string>
     <string name="chat_insights_scanning">Counting messages…</string>

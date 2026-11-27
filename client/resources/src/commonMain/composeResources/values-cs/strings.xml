@@ -4914,6 +4914,21 @@
     <string name="on_this_day_preview">%1$s: %2$s</string>
     <string name="settings_on_this_day">Před rokem v chatech</string>
     <string name="settings_on_this_day_summary">Nad konverzací připomene, o čem jste si psali v tentýž den před rokem nebo dřív</string>
+    <string name="digest_title">Přehled kanálů</string>
+    <string name="digest_subtitle">Ztlumené kanály za posledních 24 hodin</string>
+    <string name="digest_empty_title">Nic nového</string>
+    <string name="digest_empty">Ve ztlumených kanálech za posledních 24 hodin nic nepřibylo.</string>
+    <plurals name="digest_unread">
+        <item quantity="one">%1$d nový příspěvek</item>
+        <item quantity="few">%1$d nové příspěvky</item>
+        <item quantity="other">%1$d nových příspěvků</item>
+    </plurals>
+    <string name="digest_summarizing">Shrnuji…</string>
+    <string name="digest_waiting">Čeká na shrnutí</string>
+    <string name="digest_ai_note">Shrnutí píše model v zařízení a může se splést.</string>
+    <string name="digest_ai_off">Shrnutí píše model v zařízení. Zapnout ho jde v Nastavení.</string>
+    <string name="digest_ai_missing">Ke shrnutí je potřeba stáhnout model v zařízení.</string>
+    <string name="digest_open_settings">Otevřít nastavení</string>
     <string name="chat_insights_title">Statistika chatu</string>
     <string name="chat_insights_failed">Statistiku chatu se nepodařilo spočítat</string>
     <string name="chat_insights_scanning">Počítám zprávy…</string>

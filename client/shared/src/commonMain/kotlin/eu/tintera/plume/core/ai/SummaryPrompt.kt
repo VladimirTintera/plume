@@ -244,7 +244,7 @@ fun withoutIntro(text: String): String {
     return rest.joinToString("\n")
 }
 
-private fun languageInstruction(languageCode: String): String = when (languageCode) {
+internal fun languageInstruction(languageCode: String): String = when (languageCode) {
     "cs" -> "write the summary in Czech"
     "en" -> "write the summary in English"
     else -> "write the summary in the language of the conversation"

@@ -56,6 +56,8 @@ import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.gallery_title
+import eu.tintera.plume.resources.digest_title
+import eu.tintera.plume.resources.summarize_24dp
 import eu.tintera.plume.resources.download_24dp
 import eu.tintera.plume.resources.downloads_title
 import eu.tintera.plume.resources.continue_watching_title
@@ -124,6 +126,8 @@ internal fun AccountMenu(
     bookmarkCount: Int,
     onBookmarks: () -> Unit,
     onMyQrCode: () -> Unit,
+    /** Přehled ztlumených kanálů. */
+    onChannelDigest: () -> Unit,
     onSettings: () -> Unit,
     /** Přihlášené účty, přepnutí a přidání účtu. */
     switcher: AccountSwitcher,
@@ -267,6 +271,7 @@ internal fun AccountMenu(
                     MenuAction(stringResource(Res.string.downloads_title), Res.drawable.download_24dp, onClick = onDownloads),
                     onContinueWatching?.let { MenuAction(stringResource(Res.string.continue_watching_title), Res.drawable.resume_24dp, onClick = it) },
                     MenuAction(stringResource(Res.string.my_stories_title), Res.drawable.history_toggle_off_24dp, onClick = onMyStories),
+                    MenuAction(stringResource(Res.string.digest_title), Res.drawable.summarize_24dp, onClick = onChannelDigest),
                     // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
                     // si žádalo pozornost jako nepřečtené.
                     if (draftCount > 0) {
