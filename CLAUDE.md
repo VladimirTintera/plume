@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Material 3 Expressive klient pro Telegram. Kotlin Multiplatform, Android + iOS + desktop (JVM), sdílené Compose UI.
+Material 3 Expressive klient pro Telegram. Kotlin Multiplatform, Android + iOS + desktop (JVM), sdílené Compose UI; vlastní klienti pro Wear OS a Android TV nad `:client:core`.
 
 **Pracovní název je „Plume"**, balíček `eu.tintera.plume`. Podle [Telegram API ToS](https://core.telegram.org/api/terms)
 nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí se použít oficiální logo.
@@ -84,6 +84,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
 - [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, sdílení obrazovky a ukazovátko, hovor z konverzace a chybové hlášky, historie hovorů (sloučení opakovaných, smazání jednoho) a hodnocení, jeden hovor přes víc účtů, desktop (JNA, zvonění a okénko příchozího hovoru, video)
 - [Wear OS](docs/poznatky/wear-os.md) — skladba `wearApp` nad `:client:core`, vzhled M3 Expressive (zmenšování u okraje, barvy z ciferníku, potvrzovací dialogy), přihlášení QR kódem na kulatém displeji a heslo přes `RemoteInput`, seznam chatů bez klíčů položek, dlaždice a komplikace s počtem nepřečtených, dlaždice s chaty (fotky přes `onTileResourcesRequest`, `singleTop`), emulátor `Plume_Wear`
+- [Android TV](docs/poznatky/android-tv.md) — skladba `tvApp` nad `:client:core` (ABI i 32bitové, `leanback`, banner z `icon.py`, `versionCode` +200 000 000), Compose for TV a fokus (lišta složek, návrat na otevřený chat, fokus při dočítání složky), konverzace jako stav v kompozici, písma telefonu na škále tv-material, emulátor `Plume_TV`
 - [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (jen knihovna systému, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter, tlačítka oznámení), záznamy o pádech do souborů (log, výjimky, log TDLib, hs_err), vlastní titulek okna (JetBrains Runtime, titulek jako inset, tah oknem v hlavičce), titulek okna v barvách motivu (Linux), celá obrazovka okna pro video, vložení ze schránky a přetažení souborů, kopírování příloh do schránky a jejich přetažení ven, release MSI a DMG a ikony, rychlejší start (AOT cache a tréninkový běh), aktualizace z GitHub Release, bubliny z kořene kompozice, insety a textové pole při změně scény (zúžení okna), zubaté a rozmazané obrázky (dekodér Coilu, přiblížení), úprava fotky a EXIF, zvuk a nahrávání hlasovek (FFmpeg a javax.sound), co desktop neumí
 
 ## Pracovní postup
@@ -218,6 +219,7 @@ client/
   androidApp/  :client:androidApp – com.android.application, jen vstupní bod
   desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
   wearApp/     :client:wearApp    – Wear OS (com.android.application) jen nad :client:core
+  tvApp/       :client:tvApp      – Android TV (com.android.application) jen nad :client:core
   litertFeature/ :client:litertFeature – součást z Google Play na požádání, balí :ai-litert (Android)
   llamacppFeature/ :client:llamacppFeature – součást z Google Play na požádání, balí :ai-llamacpp-android
 external/

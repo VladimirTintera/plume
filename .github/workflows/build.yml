@@ -111,7 +111,7 @@ jobs:
 
       # `check` = kontroly zdrojáků a překladů, testy commonTest na JVM (androidHostTest, jvmTest)
       # a unit testy vstupních bodů. Bez lintu (`-x lint`): ten tu nikdy neběžel a není jisté,
-      # že projde. iOS testy se na Linuxu přeskočí samy. Navíc APK telefonu a hodinek (dex,
+      # že projde. iOS testy se na Linuxu přeskočí samy. Navíc APK telefonu, hodinek a televize (dex,
       # balení) a jar desktopu. Bez api_id/api_hash: build se přeloží, jen by se nepřihlásil.
       - name: Build and test
         run: |
@@ -119,6 +119,7 @@ jobs:
             check -x lint \
             :client:androidApp:assembleDebug \
             :client:wearApp:assembleDebug \
+            :client:tvApp:assembleDebug \
             :client:desktopApp:jar
 
       - name: Upload test reports

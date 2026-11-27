@@ -43,6 +43,7 @@ include(":client:core-testing")
 include(":client:shared")
 include(":client:androidApp")
 include(":client:wearApp")
+include(":client:tvApp")
 include(":client:desktopApp")
 // Součásti z Google Play s runtime modelu v zařízení (LiteRT-LM, llama.cpp); kód runtime je
 // v knihovně ai-engine níž, tyhle moduly ho jen balí (viz docs/poznatky/ai-v-zarizeni.md).

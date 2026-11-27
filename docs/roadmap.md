@@ -564,6 +564,38 @@ přehrávání videa a hudby, mapy u polohy, Instant View, formátování textu 
 drahé na baterii a výkon, nebo skoro nic nepřidají. Gemini Nano na hodinkách není, návrhy
 odpovědí jsou jen ze systému.
 
+## Android TV
+
+**Stav (27. 11. 2026):** základ samostatné aplikace `:client:tvApp` nad `:client:core`, stejně
+poskládaný jako hodinky: přihlášení QR kódem (a heslo dvoufázového ověření systémovou
+klávesnicí), seznam chatů s lištou složek (Všechny chaty, složky Telegramu, Archiv) a konverzace
+jen ke čtení (text, fotky, servisní zprávy). Ovládá se fokusem a šipkami ovladače (tv-material).
+Jak je to poskládané a co se při tom zjistilo: `docs/poznatky/android-tv.md`.
+
+**Další kroky (podle užitku):**
+
+1. **Video a přehrávání médií** — hlavní důvod mít Plume na televizi. Přehrávání za běhu
+   stahování z TDLib (`PartialFileDataSource` ve `shared`, `VideoPlayer.android.kt`) přesunout
+   do `androidMain` v `:client:core`, aby ho mohl použít telefon i televize bez `shared`; video
+   přes celou obrazovku, `MediaSession` (tlačítka přehrávání na ovladači), pokračování tam, kde
+   uživatel skončil (rozkoukaná videa).
+2. **Kanály jako feed a komentáře** — příspěvek s médii přes šířku obrazovky, počet komentářů,
+   vlákno komentářů (`getMessageThread`, `core` ho umí).
+3. **Fotky přes celou obrazovku** a procházení alba šipkami.
+4. **Hlasovky a hudba** (přehrávání, dock).
+5. **Reakce** (rychlá reakce na zaostřenou zprávu), případně odpověď hlasem přes systémovou
+   klávesnici.
+6. **Úklid mezipaměti** jako na hodinkách (`WearStorageCleaner`): levné televize mají kolem 8 GB
+   a videa z kanálů by je zaplnila.
+7. **Vydání do Play:** bundl ze stejného tagu (`versionCodeOffset` 200 000 000 už je), track
+   `tv:internal` v release workflow, jednotka `tv` v `release_notes.py`, snímky z televize do
+   `play/graphics/`, přihlášení k distribuci pro Android TV s kontrolou kvality.
+8. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
+   a výkon seznamu s avatary na slabém procesoru.
+
+Vědomě ne (aspoň zatím): hovory, psaní dlouhých zpráv, správa skupin a nastavení účtu,
+notifikace (centrum notifikací na televizi skoro není).
+
 ## Obrazovky a sekce, které nejsou
 
 Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou). Routy: `ChatsRoute`, `SettingsRoute`,
