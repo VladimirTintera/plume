@@ -230,6 +230,15 @@ private fun formalityInstruction(languageCode: String): String = when (languageC
  * tolerantní a **nikdy nevrátí prázdno kvůli formátu** — když se řádky rozpoznat nedají, vezme
  * se celý text jako jeden návrh.
  *
+ * **Modely přes llama.cpp přidávají k návrhu, co do čipu nepatří** (změřeno na Aya Expanse 8B
+ * a EuroLLM 9B, viz „Návrhy odpovědí" v poznatcích): kombinují číslo s odrážkou („1. - …"),
+ * obalí návrh tučně a za něj napíšou komentář („**Jasně.** (Sure.) - Direct and positive"),
+ * připíšou anglický překlad v závorce, nebo ho dají na samostatný řádek, a přidají poznámku
+ * kurzívou. Aya to dělá skoro vždycky: se starým čištěním z patnácti odpovědí devět nedalo
+ * ani jeden návrh (řádek s překladem přeteče [MAX_REPLY_CHARS]), z ostatních zůstávala
+ * v čipu odrážka „- ". Čistí se proto opakovaně, dokud se řádek mění, a řádek celý
+ * v závorce nebo kurzívou je poznámka modelu, ne návrh.
+ *
  * Čistá funkce s testy: je to jediné místo, kde se výstup modelu překládá na to, co uživatel
  * uvidí, a hraniční případy (prázdno, samé odrážky, příliš dlouhý text) se v UI neověří.
  */
@@ -239,6 +248,7 @@ fun parseReplySuggestions(text: String): List<String> {
         .filter { it.isNotBlank() }
         // Úvodní věta modelu končí dvojtečkou a není to návrh.
         .filterNot { it.endsWith(":") }
+        .filterNot { isModelNote(it) }
         .filter { it.length <= MAX_REPLY_CHARS }
         .distinct()
 
@@ -246,7 +256,7 @@ fun parseReplySuggestions(text: String): List<String> {
 
     // Žádný použitelný řádek: zkusit celý text jako jediný návrh.
     val whole = cleanSuggestion(text.replace('\n', ' '))
-    return if (whole.isNotBlank() && whole.length <= MAX_REPLY_CHARS) listOf(whole) else emptyList()
+    return if (whole.isNotBlank() && whole.length <= MAX_REPLY_CHARS && !isModelNote(whole)) listOf(whole) else emptyList()
 }
 
 /**
@@ -269,20 +279,79 @@ data class ReplySuggestionsOutput(val replies: List<String>? = null)
 fun cleanReplySuggestions(output: ReplySuggestionsOutput): List<String> =
     output.replies.orEmpty()
         .map { cleanSuggestion(it) }
-        .filter { it.isNotBlank() && it.length <= MAX_REPLY_CHARS }
+        .filter { it.isNotBlank() && it.length <= MAX_REPLY_CHARS && !isModelNote(it) }
         .distinct()
         .take(MAX_REPLY_SUGGESTIONS)
 
-/** Sundá odrážku, číslování a uvozovky, které model kolem návrhu občas nechá. */
+/**
+ * Sundá z návrhu, co kolem něj model nechal: odrážku, číslování, tučné písmo i s komentářem
+ * za ním, anglický překlad v závorce a uvozovky. Po jednom kroku a znovu, dokud se řádek mění —
+ * obaly se vrší v libovolném pořadí („1. - …", „"- …"", „- **„…“**").
+ */
 private fun cleanSuggestion(raw: String): String {
     var s = raw.trim()
-    s = s.removePrefix("- ").removePrefix("* ").removePrefix("• ")
-    // Číslování „1. ", „2) " — jen na začátku a jen jedna číslice, ať se neusekne „5 minut".
-    if (s.length > 2 && s[0].isDigit() && (s[1] == '.' || s[1] == ')') && s[2] == ' ') {
-        s = s.substring(3)
+    repeat(MAX_CLEAN_STEPS) {
+        val next = cleanStep(s).trim()
+        if (next == s) return s
+        s = next
     }
-    s = s.trim()
-    if (s.length >= 2 && s.first() == '"' && s.last() == '"') s = s.substring(1, s.length - 1)
-    if (s.length >= 2 && s.first() == '„' && s.last() == '“') s = s.substring(1, s.length - 1)
-    return s.trim()
+    return s
+}
+
+/** Pojistka proti zacyklení; skutečné obaly mají nejvýš čtyři vrstvy. */
+private const val MAX_CLEAN_STEPS = 8
+
+private val BULLETS = listOf("- ", "* ", "• ")
+private val BOLD_MARKS = listOf("**", "__")
+private val QUOTE_PAIRS = listOf('"' to '"', '„' to '“', '“' to '”')
+private val TRAILING_PARENTHESES = Regex("""^(.*\S)\s*\(([^()]*)\)$""")
+
+/** Jeden krok [cleanSuggestion]; vrací řádek beze změny, když už není co sundat. */
+private fun cleanStep(s: String): String {
+    BULLETS.firstOrNull { s.startsWith(it) }?.let { return s.removePrefix(it) }
+    // Číslování „1. ", „2) " — jen na začátku a jen jedna číslice, ať se neusekne „5 minut".
+    if (s.length > 2 && s[0].isDigit() && (s[1] == '.' || s[1] == ')') && s[2] == ' ') return s.substring(3)
+    // Tučný začátek je návrh, co za ním, je komentář modelu („**Jasně.** (Sure.) - Direct…").
+    for (mark in BOLD_MARKS) {
+        if (s.startsWith(mark)) {
+            val end = s.indexOf(mark, startIndex = mark.length)
+            if (end > mark.length) return s.substring(mark.length, end)
+        }
+    }
+    TRAILING_PARENTHESES.matchEntire(s)?.let { match ->
+        val (reply, inner) = match.destructured
+        if (isTranslation(inner, reply)) return reply
+    }
+    for ((open, close) in QUOTE_PAIRS) {
+        if (s.length >= 2 && s.first() == open && s.last() == close) return s.substring(1, s.length - 1)
+    }
+    return s
+}
+
+/**
+ * Je text v závorce za návrhem překlad (do angličtiny), ne součást odpovědi? Závorka bez písmen
+ * s diakritikou a aspoň se třemi slovy, za návrhem S diakritikou. Na diakritice to stojí
+ * schválně: [looksEnglish] krátkou anglickou větu nepozná („Sure, see you there" má jediné slovo
+ * ze seznamu), takže by anglický návrh přišel o závorku, která k němu patří — a v anglické
+ * konverzaci překlad model nepíše. Krátké „(asi)" taky zůstane. Česká odpověď bez jediné
+ * diakritiky s překladem v závorce přeteče délku a nenabídne se, jako dřív.
+ */
+private fun isTranslation(inner: String, reply: String): Boolean {
+    if (inner.any { it.isNonAsciiLetter() }) return false
+    if (Regex("[A-Za-z']+").findAll(inner).count() < 3) return false
+    return reply.any { it.isNonAsciiLetter() }
+}
+
+private fun Char.isNonAsciiLetter(): Boolean = isLetter() && code > 127
+
+/**
+ * Řádek celý v závorce (překlad na samostatném řádku) nebo kurzívou („*Short, direct, and
+ * open-ended…*") je poznámka modelu, ne návrh. Tučné písmo sundá už [cleanStep], takže
+ * hvězdička tu zbyde jen u kurzívy.
+ */
+private fun isModelNote(s: String): Boolean {
+    if (s.length < 2) return false
+    return (s.first() == '(' && s.last() == ')') ||
+        (s.first() == '*' && s.last() == '*') ||
+        (s.first() == '_' && s.last() == '_')
 }
