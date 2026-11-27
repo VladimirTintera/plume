@@ -67,6 +67,8 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val listStates = remember { mutableMapOf<ChatFolder, LazyListState>() }
     var playing by remember { mutableStateOf<VideoRequest?>(null) }
     var viewer by remember { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
+    // Otevřený článek (Instant View): adresa stránky.
+    var article by remember { mutableStateOf<String?>(null) }
     val audio = rememberTvAudioPlayer()
     val videoNotes = remember { VideoNotePlayback() }
     // Chaty, ze kterých se přešlo odkazem (chat a zpráva s odkazem): Zpět se vrací po nich,
@@ -81,6 +83,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             openViewer = { items, index -> viewer = items to index },
             playAudio = audio::play,
             toggleVideoNote = videoNotes::toggle,
+            openArticle = { article = it },
             openLink = { url, fromMessageId ->
                 scope.launch {
                     val target = when (val link = chatsRepository.resolveLink(url).getOrNull()) {
@@ -142,6 +145,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                 BackHandler {
                     viewer = null
                     playing = null
+                    article = null
                     // Přišlo se odkazem z jiného chatu: zpátky do něj, na zprávu s odkazem.
                     val previous = linkHistory.removeLastOrNull()
                     if (previous != null) {
@@ -153,7 +157,10 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     }
                 }
                 key(current, openedAt) {
-                    ChatScreen(chatId = current, startAt = openedAt, overlayOpen = playing != null || viewer != null, actions = actions)
+                    ChatScreen(chatId = current, startAt = openedAt, overlayOpen = playing != null || viewer != null || article != null, actions = actions)
+                }
+                article?.let { url ->
+                    key(url) { InstantViewScreen(url = url, onClose = { article = null }) }
                 }
                 viewer?.let { (items, index) ->
                     MediaViewerScreen(

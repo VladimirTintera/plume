@@ -118,6 +118,8 @@ class MediaActions(
      * aplikace. [fromMessageId] je zpráva s odkazem — Zpět se na ni vrátí.
      */
     val openLink: (url: String, fromMessageId: Long?) -> Unit = { _, _ -> },
+    /** Článek z náhledu odkazu s Instant View: otevře čtečku přes celou obrazovku. */
+    val openArticle: (url: String) -> Unit = {},
 )
 
 /**

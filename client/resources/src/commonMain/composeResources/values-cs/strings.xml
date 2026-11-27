@@ -5185,6 +5185,8 @@
     <string name="tv_audio_seek_hint">◀ ▶ přetáčení</string>
     <string name="tv_reactors_unavailable">Kdo tu reagoval, Telegram neukazuje.</string>
     <string name="tv_link_unsupported">Tenhle odkaz televize neotevře.</string>
+    <string name="tv_instant_view_read">OK: číst v aplikaci</string>
+    <string name="tv_instant_view_partial">Zbytek článku je jen na webu.</string>
     <string name="tv_reply_send">Odeslat</string>
     <string name="tv_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="tv_compose_button">Napsat zprávu</string>
