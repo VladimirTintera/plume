@@ -580,6 +580,12 @@ Androidu (`liteRtMain` v `:ai-core`, `LiteRtPlatform`); co je jinak (Java 21, na
 balíčku, modely mimo Roaming, stahování v procesu), je v `docs/poznatky/desktop.md`, „Model
 v zařízení (LiteRT-LM)". Gemini Nano a Apple tam nejsou.
 
+**Texty mluví o modelu „v zařízení“, ne „v telefonu“** (en „on-device model“, „on this device“).
+Model běží i na desktopu a tabletu a na Macu se hlavní přepínač jmenoval „Funkce s modelem
+v telefonu“; totéž štítky pod výsledky (popis fotky, přepis, varování před podvodem, místo
+navržené modelem) a chybové hlášky. „Telefon“ zůstává jen tam, kde opravdu je: Gemini Nano
+a AICore (jen Android) a hodinky, které přepis posílají do telefonu.
+
 ### Runtime jako součást z Google Play
 
 Knihovna LiteRT-LM (nativní `liblitertlm_jni.so`, 23 MB na arm64, k tomu Gson a kotlin-reflect)
