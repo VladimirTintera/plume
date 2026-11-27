@@ -183,18 +183,21 @@ private fun MessageList(
             .collect { first -> if (first != null && first <= LOAD_AHEAD) state.loadNewer() }
     }
     val scope = rememberCoroutineScope()
+    // Dole je tlačítko psaní (pak stačí malá mezera) nebo nic (bezpečný okraj a místo pro dock).
+    val bottomPadding = if (state.canWrite) 8.dp else SAFE_VERTICAL + audioDockInset()
+    // Zpráva vyšší než seznam se šipkou napřed odroluje (TallItemScroll).
+    val tall = rememberTallItemScroll(listState, reverse = true, paddingTop = SAFE_VERTICAL, paddingBottom = bottomPadding)
     LazyColumn(
         state = listState,
         reverseLayout = true,
-        // Dole je tlačítko psaní (pak stačí malá mezera) nebo nic (bezpečný okraj a místo pro dock).
         contentPadding = PaddingValues(
             start = SAFE_HORIZONTAL,
             end = SAFE_HORIZONTAL,
             top = SAFE_VERTICAL,
-            bottom = if (state.canWrite) 8.dp else SAFE_VERTICAL + audioDockInset(),
+            bottom = bottomPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().then(tall.listModifier),
     ) {
         items(entries, key = { it.key }) { entry ->
             when (entry) {
@@ -216,7 +219,7 @@ private fun MessageList(
                         },
                         onLongPress = { interactions.actionsFor = entry.album.first() }.takeIf { !entry.album.first().isService },
                         quote = quotedId?.let(state::quote),
-                        modifier = if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier,
+                        modifier = tall.item(entry.key).then(if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier),
                     )
                 }
             }

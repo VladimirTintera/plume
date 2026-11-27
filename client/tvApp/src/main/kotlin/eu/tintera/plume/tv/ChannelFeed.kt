@@ -558,11 +558,13 @@ private fun CommentListContent(
             // příspěvku by podle polohy padla na kterýkoli komentář; `focusRestorer` pošle fokus
             // na naposledy zaostřený, napoprvé na nejnovější.
             val newest = remember { FocusRequester() }
+            // Komentář, který se do sloupce nevejde, se šipkou napřed odroluje (TallItemScroll).
+            val tall = rememberTallItemScroll(listState, reverse = true, paddingTop = 0.dp, paddingBottom = 0.dp)
             LazyColumn(
                 state = listState,
                 reverseLayout = true,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize().focusRestorer(newest),
+                modifier = Modifier.fillMaxSize().focusRestorer(newest).then(tall.listModifier),
             ) {
                 items(newestFirst, key = { it.first().id }) { album ->
                     MessageRow(
@@ -572,7 +574,8 @@ private fun CommentListContent(
                         onLongPress = { interactions.actionsFor = album.first() },
                         // Odpověď kořeni (příspěvku) se necituje — komentáře mu odpovídají všechny.
                         quote = album.first().replyToMessageId?.takeIf { it != thread.rootMessageId }?.let(state::quote),
-                        modifier = if (album.first().id == newestFirst.first().first().id) Modifier.focusRequester(newest) else Modifier,
+                        modifier = tall.item(album.first().id)
+                            .then(if (album.first().id == newestFirst.first().first().id) Modifier.focusRequester(newest) else Modifier),
                     )
                 }
             }
