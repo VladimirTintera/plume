@@ -255,7 +255,7 @@ private fun MessageActionsDialog(
                     }
                 }
                 val allowed = actions
-                if (allowed?.canEdit == true && message.text.isNotBlank()) {
+                if (allowed?.canEdit == true && message.text.isNotBlank() && state.canEditKeepingFormat(message)) {
                     Button(onClick = onEdit) { Text(stringResource(Res.string.menu_edit)) }
                 }
                 // Kdo reagoval: jen u zprávy s reakcemi. V kanálu to server neprozradí (dialog
