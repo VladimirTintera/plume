@@ -41,6 +41,7 @@ import eu.tintera.plume.core.accounts.SharedChats
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.settings.ChatSwipeActions
 import eu.tintera.plume.core.settings.ThemeColor
+import eu.tintera.plume.core.chatlabels.ChatLabel
 import eu.tintera.plume.core.snooze.ChatSnoozeState
 import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.ActiveStories
@@ -71,6 +72,8 @@ internal data class ChatRowsContext(
     val chatColors: Map<Long, ThemeColor>,
     val chatAccents: Map<ThemeColor, ColorScheme>,
     val rowGaps: Boolean,
+    /** Chat → jeho vlastní štítky (`ChatLabels`). */
+    val labels: Map<Long, List<ChatLabel>> = emptyMap(),
     /** Účet řádku pro odznak u avataru; `null` = seznam jednoho účtu, odznak není. */
     val account: AccountInfo? = null,
 )
@@ -532,6 +535,7 @@ private fun rememberRowsContext(source: ChatSource, rowGaps: Boolean): ChatRowsC
         chatAccents = rememberChatAccents(chatColors.values.toSet()),
         rowGaps = rowGaps,
         account = source.info,
+        labels = viewModel.chatLabels.collectAsStateWithLifecycle().value,
     )
 }
 

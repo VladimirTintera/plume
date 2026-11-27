@@ -4939,6 +4939,7 @@
     <string name="labels_delete">Smazat štítek</string>
     <string name="labels_delete_title">Smazat štítek „%1$s"?</string>
     <string name="labels_delete_text">Zmizí ze všech chatů.</string>
+    <string name="labels_filter_empty">Tenhle štítek nemá žádný načtený chat. Dalším ťuknutím se ukážou všechny.</string>
     <string name="labels_filter">Filtr podle štítku</string>
     <string name="chat_insights_title">Statistika chatu</string>
     <string name="chat_insights_failed">Statistiku chatu se nepodařilo spočítat</string>

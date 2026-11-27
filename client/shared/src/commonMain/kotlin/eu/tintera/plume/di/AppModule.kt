@@ -471,6 +471,7 @@ fun appAccountModule() = module {
             commentDrafts = get(),
             snoozes = get(),
             chatColorStore = get(),
+            labelStore = get(),
             accountNotices = get(),
             session = get(),
             triage = get(),

@@ -4767,6 +4767,7 @@
     <string name="labels_delete">Delete label</string>
     <string name="labels_delete_title">Delete the label “%1$s”?</string>
     <string name="labels_delete_text">It will be removed from every chat.</string>
+    <string name="labels_filter_empty">No loaded chat has this label. Tap it again to show all chats.</string>
     <string name="labels_filter">Filter by label</string>
     <string name="chat_insights_title">Chat stats</string>
     <string name="chat_insights_failed">Couldn't compute chat stats</string>

@@ -159,6 +159,8 @@ import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.labels_filter_empty
+import eu.tintera.plume.features.chatlabels.LabelFilterRow
 import eu.tintera.plume.features.chatlabels.ChatLabelsSheet
 import eu.tintera.plume.resources.chats_archived
 import eu.tintera.plume.resources.chats_archived_many
@@ -1085,6 +1087,8 @@ internal fun ChatListContent(
     val snoozes by viewModel.snoozeState.collectAsStateWithLifecycle()
     val chatColors by viewModel.chatColors.collectAsStateWithLifecycle()
     val awaitingReply by viewModel.awaitingReply.collectAsStateWithLifecycle()
+    val labels by viewModel.labels.collectAsStateWithLifecycle()
+    val chatLabels by viewModel.chatLabels.collectAsStateWithLifecycle()
     val chatAccents = rememberChatAccents(chatColors.values.toSet())
     val rows = ChatRowsContext(
         viewModel = viewModel,
@@ -1098,10 +1102,15 @@ internal fun ChatListContent(
         chatColors = chatColors,
         chatAccents = chatAccents,
         rowGaps = rowGaps,
+        labels = chatLabels,
     )
+    // Filtr podle štítku: jen chaty s ním (z načtených). Smazaný štítek filtr zruší sám.
+    val labelFilter = viewModel.labelFilter.collectAsStateWithLifecycle().value?.takeIf { id -> labels.any { it.id == id } }
+    val showLabelFilter = chatLabels.isNotEmpty() && reorder == null
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
-        remember(chats, hiddenSavedMessagesChatId, snoozes.due) {
-            chatGroups(chats, hiddenSavedMessagesChatId, snoozes.due)
+        remember(chats, hiddenSavedMessagesChatId, snoozes.due, labelFilter, chatLabels) {
+            val shown = if (labelFilter == null) chats else chats.filter { chat -> chatLabels[chat.id].orEmpty().any { it.id == labelFilter } }
+            chatGroups(shown, hiddenSavedMessagesChatId, snoozes.due)
         }
     }.orEmpty()
 
@@ -1135,7 +1144,7 @@ internal fun ChatListContent(
                 it.key == chatId && it.offset >= info.viewportStartOffset + info.beforeContentPadding &&
                     it.offset + it.size <= info.viewportEndOffset - info.afterContentPadding
             }
-            if (!fullyVisible) listState.animateScrollToItem(1 + headerItemCount + position)
+            if (!fullyVisible) listState.animateScrollToItem(1 + headerItemCount + (if (showLabelFilter) 1 else 0) + position)
         }
         if (scrollToChat != null) onScrolledToChat() else shortcutTarget = null
     }
@@ -1235,6 +1244,26 @@ internal fun ChatListContent(
                 }
 
                 header()
+
+                if (showLabelFilter) {
+                    item(key = LABEL_FILTER_KEY, contentType = LABEL_FILTER_KEY) {
+                        LabelFilterRow(
+                            labels = labels.filter { label -> chatLabels.values.any { list -> list.any { it.id == label.id } } },
+                            selected = labelFilter,
+                            onSelect = viewModel::setLabelFilter,
+                        )
+                    }
+                    if (groups.isEmpty()) {
+                        item(key = LABEL_FILTER_EMPTY_KEY) {
+                            Text(
+                                stringResource(Res.string.labels_filter_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            )
+                        }
+                    }
+                }
 
                 groups.forEachIndexed { groupIndex, group ->
                     itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
@@ -1337,6 +1366,7 @@ internal fun LazyItemScope.ChatListItem(
                 awaitingReply = chat.unreadCount > 0 &&
                     chat.lastMessageId != null && rows.awaitingReply[chat.id] == chat.lastMessageId,
                 accounts = accounts ?: listOfNotNull(rows.account?.let(::BadgeAccount)),
+                labels = rows.labels[chat.id].orEmpty(),
                 stories = rows.storyRings[chat.id]?.let {
                     // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
                     // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.
@@ -1438,3 +1468,6 @@ internal fun <T, K> ChatSwitchShortcuts(
         }
     }
 }
+
+private const val LABEL_FILTER_KEY = "label-filter"
+private const val LABEL_FILTER_EMPTY_KEY = "label-filter-empty"
