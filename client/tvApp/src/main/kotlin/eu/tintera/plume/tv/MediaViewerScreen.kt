@@ -31,6 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -160,7 +165,8 @@ private const val OVERLAY_TIMEOUT_MS = 4_000L
 
 /**
  * Fotky a videa přes celou obrazovku. Šipky vlevo a vpravo jdou na předchozí a další položku,
- * OK na videu ho pustí ([MediaActions.playVideo], přehrávač leží nad prohlížečem), Zpět zavře.
+ * OK na videu ho pustí ([MediaActions.playVideo], přehrávač leží nad prohlížečem), OK na fotce
+ * ji přiblíží (2×, 3×, zpátky) a šipky ji pak posouvají, Zpět napřed zruší přiblížení, pak zavře.
  * Fotka se ukáže hned ve variantě z bubliny (už je stažená) a vymění se za plnou, jakmile
  * dorazí. Popisek a „3 / 12" dole zmizí po čtyřech vteřinách a vrátí se s každým stiskem.
  *
@@ -177,6 +183,18 @@ fun MediaViewerScreen(
     BackHandler(onBack = onClose)
     var index by remember { mutableIntStateOf(startIndex.coerceIn(0, items.lastIndex)) }
     val item = items[index]
+    // Přiblížení fotky: OK přiblíží (2×, 3×, pak zpátky), šipky v přiblížení posouvají místo
+    // přechodu na jinou fotku, Zpět napřed přiblížení zruší. Posun je podíl největšího možného
+    // posunu na každou stranu (-1..1), takže nezávisí na velikosti obrazovky.
+    var zoom by remember(index) { mutableFloatStateOf(1f) }
+    var panX by remember(index) { mutableFloatStateOf(0f) }
+    var panY by remember(index) { mutableFloatStateOf(0f) }
+    val zoomed = zoom > 1f
+    BackHandler(enabled = zoomed) {
+        zoom = 1f
+        panX = 0f
+        panY = 0f
+    }
     var lastInteraction by remember { mutableLongStateOf(0L) }
     var overlayVisible by remember { mutableStateOf(true) }
     LaunchedEffect(lastInteraction, index) {
@@ -196,7 +214,31 @@ fun MediaViewerScreen(
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 lastInteraction = System.nanoTime()
-                when (event.nativeKeyEvent.keyCode) {
+                val key = event.nativeKeyEvent.keyCode
+                if (zoomed) {
+                    // Krok posunu jako podíl největšího posunu: při větším přiblížení víc kroků.
+                    val step = PAN_STEP / (zoom - 1f).coerceAtLeast(1f)
+                    when (key) {
+                        AndroidKeyEvent.KEYCODE_DPAD_LEFT -> panX = (panX - step).coerceIn(-1f, 1f)
+                        AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> panX = (panX + step).coerceIn(-1f, 1f)
+                        AndroidKeyEvent.KEYCODE_DPAD_UP -> panY = (panY - step).coerceIn(-1f, 1f)
+                        AndroidKeyEvent.KEYCODE_DPAD_DOWN -> panY = (panY + step).coerceIn(-1f, 1f)
+                        AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER -> {
+                            zoom = ZOOM_LEVELS.firstOrNull { it > zoom } ?: 1f
+                            if (zoom == 1f) {
+                                panX = 0f
+                                panY = 0f
+                            }
+                        }
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    return@onPreviewKeyEvent true
+                }
+                if ((key == AndroidKeyEvent.KEYCODE_DPAD_CENTER || key == AndroidKeyEvent.KEYCODE_ENTER) && item.media is MessageMedia.Photo) {
+                    zoom = ZOOM_LEVELS.first()
+                    return@onPreviewKeyEvent true
+                }
+                when (key) {
                     AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                         if (index > 0) index--
                         true
@@ -215,11 +257,28 @@ fun MediaViewerScreen(
                 }
             },
     ) {
+        val scale by animateFloatAsState(zoom, tween(ZOOM_ANIMATION_MS), label = "viewer-zoom")
+        val offsetX by animateFloatAsState(panX, tween(ZOOM_ANIMATION_MS), label = "viewer-pan-x")
+        val offsetY by animateFloatAsState(panY, tween(ZOOM_ANIMATION_MS), label = "viewer-pan-y")
         Crossfade(targetState = item, animationSpec = tween(250), label = "viewer-item") { shown ->
-            ViewerContent(shown)
+            ViewerContent(shown, PhotoZoom(scale, offsetX, offsetY), sharp = zoomed)
         }
-        if (index > 0) EdgeHint(Res.drawable.chevron_left_24dp, Modifier.align(Alignment.CenterStart))
-        if (index < items.lastIndex) EdgeHint(Res.drawable.chevron_right_24dp, Modifier.align(Alignment.CenterEnd))
+        if (!zoomed) {
+            if (index > 0) EdgeHint(Res.drawable.chevron_left_24dp, Modifier.align(Alignment.CenterStart))
+            if (index < items.lastIndex) EdgeHint(Res.drawable.chevron_right_24dp, Modifier.align(Alignment.CenterEnd))
+        } else {
+            // Kolikrát je fotka přiblížená; Zpět přiblížení zruší.
+            Text(
+                "${zoom.toInt()}×",
+                style = MaterialTheme.typography.titleMedium.tabular(),
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = SAFE_VERTICAL, end = SAFE_HORIZONTAL)
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
+        }
         AnimatedVisibility(
             visible = overlayVisible,
             enter = fadeIn(tween(200)),
@@ -255,16 +314,41 @@ fun MediaViewerScreen(
     }
 }
 
+/** Přiblížení fotky a posun jako podíl největšího možného posunu (-1..1) na každou osu. */
+private class PhotoZoom(val scale: Float, val panX: Float, val panY: Float)
+
+/**
+ * Přiblížení a posun obrázku [image] zobrazeného s `ContentScale.Fit`. Posun se omezí na to,
+ * o kolik přiblížený obrázek SKUTEČNĚ přesahuje plochu — fotka užší než obrazovka (svislá,
+ * 4 : 3) by jinak při posunu do strany vyjela a odkryla černý pruh (ověřeno na emulátoru).
+ * Obrázek jede opačně, než se „dívá": šipka vpravo ukáže pravou část.
+ */
+private fun Modifier.zoomed(zoom: PhotoZoom, image: ImageBitmap): Modifier = graphicsLayer {
+    val fit = minOf(size.width / image.width, size.height / image.height)
+    val maxX = maxOf(0f, (image.width * fit * zoom.scale - size.width) / 2f)
+    val maxY = maxOf(0f, (image.height * fit * zoom.scale - size.height) / 2f)
+    scaleX = zoom.scale
+    scaleY = zoom.scale
+    translationX = -zoom.panX * maxX
+    translationY = -zoom.panY * maxY
+}
+
+/**
+ * Obsah položky. [zoom] nese přiblížení a posun fotky; [sharp]: fotka je přiblížená a dekóduje
+ * se ve dvojnásobném rozlišení (v 1080 px by při 3× byla rozmazaná).
+ */
 @Composable
-private fun ViewerContent(item: ViewerItem) {
+private fun ViewerContent(item: ViewerItem, zoom: PhotoZoom = PhotoZoom(1f, 0f, 0f), sharp: Boolean = false) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (val media = item.media) {
             is MessageMedia.Photo -> {
-                // Plná fotka, a dokud nedorazí, ta z bubliny (bývá už stažená).
+                // Plná fotka, a dokud nedorazí, ta z bubliny (bývá už stažená). Ostrá varianta
+                // se dekóduje až při přiblížení; než se dekóduje, stojí tam ta v 1080 px.
                 val full = rememberImage(media.fullFileId, FULL_PX)
+                val zoomedFull = if (sharp) rememberImage(media.fullFileId, ZOOMED_PX) else null
                 val preview = rememberImage(media.fileId, PREVIEW_PX)
-                (full ?: preview)?.let {
-                    Image(it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                (zoomedFull ?: full ?: preview)?.let {
+                    Image(it, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().zoomed(zoom, it))
                 } ?: LoadingScreen("")
             }
             is MessageMedia.Video -> {
@@ -309,4 +393,14 @@ private fun EdgeHint(icon: org.jetbrains.compose.resources.DrawableResource, mod
 
 /** Plná fotka v rozlišení 1080p (kratší strana), náhled z bubliny v polovičním. */
 private const val FULL_PX = 1080
+
+/** Přiblížená fotka: dvojnásobné rozlišení, ať je při 3× ostrá. */
+private const val ZOOMED_PX = 2160
+
+/** Stupně přiblížení po stisku OK; po posledním zpátky na celou fotku. */
+private val ZOOM_LEVELS = listOf(2f, 3f)
+
+/** Krok posunu šipkou jako podíl největšího posunu na jednu stranu (při 2×). */
+private const val PAN_STEP = 0.5f
+private const val ZOOM_ANIMATION_MS = 220
 private const val PREVIEW_PX = 540

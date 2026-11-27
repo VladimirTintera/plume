@@ -388,6 +388,15 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   dalších náhledů alba (jen na ukázku, prochází se v prohlížeči).
 - **`MediaActions`** (přehrát video, otevřít prohlížeč) jde cestou od navigace ke zprávě jako
   jedna skupina, ne dva callbacky v každé funkci.
+- **Přiblížení fotky v prohlížeči**: OK na fotce ji přiblíží na 2×, další OK na 3×, třetí zpátky.
+  V přiblížení šipky fotku posouvají (místo přechodu na jinou), Zpět napřed přiblížení zruší
+  (`BackHandler` složený po zavíracím má přednost). Vpravo nahoře „2×", šipky u krajů zmizí.
+  Posun je podíl největšího možného posunu (-1..1) a **omezuje se na to, o kolik přiblížená
+  fotka skutečně přesahuje plochu** (`ContentScale.Fit`: fotka 4 : 3 je užší než obrazovka) —
+  s posunem počítaným z velikosti plochy fotka vyjela a odkryla černý pruh (ověřeno na emulátoru).
+  Přiblížená fotka se dekóduje ve 2160 px, v 1080 px by při 3× byla rozmazaná.
+- **Ověřeno 27. 11. 2026** na fotce 4 : 3 od testovacího bota: 2×, posun vpravo a dolů až na kraj
+  fotky (bez černého pruhu), 3×, Zpět zpátky na celou fotku a druhé Zpět zavře prohlížeč.
 - **Fotka, video a album bez bubliny, jako na telefonu** („Médium bez bubliny"
   v `konverzace-zobrazeni.md`). Bez popisku a citace leží snímek holý na ploše (`BareMedia`):
   tvar bubliny, rámeček fokusu po něm, čas na tmavé pilulce v pravém dolním rohu (délka videa
