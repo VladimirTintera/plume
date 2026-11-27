@@ -560,6 +560,27 @@ class DataStoreAppSettingsTest {
         }
     }
 
+    /**
+     * Suspend čtení vidí zápis, který už doběhl („read your writes"). Dřív se četlo z odběru
+     * [DataStoreAppSettings], a ten se o zápisu dozví až o kus později na jiném vlákně: hned po
+     * `setAutoDownloadSync(Synced)` tak `autoDownloadSync()` vracelo předchozí stav (v prázdném
+     * souboru `null`). Tím padal `AutoDownloadSyncTest.zmenaJdeNaServer`, viz
+     * `docs/poznatky/nastaveni.md`. Okno je krátké, proto kol stovky.
+     */
+    @Test
+    fun suspendCteniVidiDobehlyZapis() = settingsTest { settings, _ ->
+        val account = settings.forAccount(AccountSlot.Primary)
+        repeat(ROUNDS) { round ->
+            val state = SettingsSync.entries[round % SettingsSync.entries.size]
+            withTimeout(WAIT_MS) { account.setAutoDownloadSync(state) }
+            assertEquals(state, account.autoDownloadSync(), "stav synchronizace v kole $round")
+
+            val chosen = AutoDownloadSettings(wifi = AutoDownloadLevel.entries[round % AutoDownloadLevel.entries.size])
+            withTimeout(WAIT_MS) { settings.updateAutoDownload { chosen } }
+            assertEquals(chosen, settings.loadedAutoDownload(), "úrovně v kole $round")
+        }
+    }
+
     @Test
     fun modelyAPrirazeniUloh() = settingsTest { settings, _ ->
         assertEquals(AiModels(), settings.onDeviceAiModels.value)

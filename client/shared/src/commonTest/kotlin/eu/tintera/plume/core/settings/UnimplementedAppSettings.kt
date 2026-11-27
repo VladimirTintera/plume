@@ -65,6 +65,8 @@ open class UnimplementedAppSettings : AppSettings {
     override val autoDownload: StateFlow<AutoDownloadSettings> get() = error("autoDownload")
     override fun setAutoDownload(settings: AutoDownloadSettings): Unit = error("setAutoDownload")
     override suspend fun loadedAutoDownload() : AutoDownloadSettings = error("loadedAutoDownload")
+    override suspend fun updateAutoDownload(transform: (AutoDownloadSettings) -> AutoDownloadSettings): Unit =
+        error("updateAutoDownload")
     override val messageBookmarks: StateFlow<List<MessageBookmark>> get() = error("messageBookmarks")
     override fun setMessageBookmarks(bookmarks: List<MessageBookmark>): Unit = error("setMessageBookmarks")
     override val commentDraftThreads: StateFlow<List<eu.tintera.plume.core.drafts.CommentDraftThread>>

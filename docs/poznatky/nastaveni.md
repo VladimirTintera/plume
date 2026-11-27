@@ -1244,6 +1244,29 @@ vyšlo, je níž.
     návratu z něj. Při plném `jvmTest` na Windows to jednou vyšlo `Push`. Potvrzeno vloženým
     `delay(300)` mezi `save` a `Synced`: test pak padal pokaždé, s `await("Synced")` prošel.
     Obecně: co je v testu pozorovatelné dřív než konec operace, není znamení, že doběhla.
+  - **Druhé selhání téhož testu byla skutečná chyba, ne artefakt** (CI 2026-11-27, `testAndroidHostTest`):
+    zápis na server proběhl, ale `autoDownload` zůstalo na hodnotě ZE SERVERU. Stopa byla
+    ve standardním výstupu testu v reportu (artefakt `test-reports`): „Ze serveru: …", tedy
+    `pull()`, ačkoli test začíná se stavem `Synced`. Sešly se dvě chyby:
+    - **Suspend čtení nevidělo právě doběhlý zápis.** `autoDownloadSync()`
+      a `loadedAutoDownload()` četly ze sdíleného odběru `preferences`, a ten se o zápisu dozví
+      až o kus později na jiném vlákně. Test zapsal `Synced` a hned spustil synchronizaci;
+      `afterReady` přečetl ještě prázdný soubor (`null`, „aktualizace ze starší verze"), lokální
+      úrovně ještě výchozí, a tak stahoval. Teď čtou `current()` = jednorázové
+      `dataStore.data.first()`, které bere keš DataStore s aktuální verzí (chyba 1.2.x výš se
+      týká jen odběru, který poslouchá dál). Pod plnou zátěží (`yes > /dev/null`, dvakrát na
+      jádro) to `suspendCteniVidiDobehlyZapis` s původním čtením rozbilo v 9. kole ze 300.
+    - **`pull()` přepisoval změnu, kterou uživatel udělal během stahování.** Lokální zápis změny
+      (`change`) běží „odpal a zapomeň" mimo zámek, `pull` zapsal hodnotu ze serveru stejně,
+      a když se zápisy seřadily „změna, pak server", měl server novou volbu (zapíše ji změna
+      za zámkem hned po stažení) a lokálně zůstala stará ze serveru. V aplikaci: přihlášení,
+      stahování předvoleb, a uživatel mezitím přepne úroveň. Teď `pull` rozhoduje UVNITŘ zápisu
+      (`AppSettings.updateAutoDownload`, read-modify-write v DataStore): dokud čeká změna
+      v `pending`, nechá lokální hodnotu. `change` proto nastaví `pending` PŘED lokálním
+      zápisem, a odhlášení `pending` maže (nezapsaná změna patřila odhlášenému účtu). Rozhodnout
+      předem podle `pending` by nestačilo — změna by se mohla vejít mezi čtení a zápis.
+      Deterministicky to hlídá `zmenaBehemStahovaniSeNeprepise` (stahování drží závora
+      ve fake): s původním kódem selže pokaždé.
 - **Kandidát: CloudStorage mini aplikací.** Je to úložiště klíč–hodnota pro dvojici „bot,
   uživatel“ na serverech Telegramu: nejvýš **1024 klíčů**, klíč 1–128 znaků `A-Za-z0-9_-`,
   hodnota 0–4096 znaků. Bot API pro něj žádnou metodu nemá, takže ho ani majitel bota nepřečte.
