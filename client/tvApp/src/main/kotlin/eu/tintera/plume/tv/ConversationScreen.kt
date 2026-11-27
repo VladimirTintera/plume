@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.tv.material3.Icon
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.play_arrow_24dp
@@ -328,11 +330,27 @@ internal fun MessageRow(
     val outgoing = message.isOutgoing
     val container = if (outgoing) colors.primaryContainer else colors.surfaceVariant
     val content = if (outgoing) colors.onPrimaryContainer else colors.onSurfaceVariant
+    val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
+    // Fotka, video a album jako na telefonu („Médium bez bubliny" v konverzace-zobrazeni.md):
+    // bez popisku a citace holé na ploše, s nimi jedna karta, ve které jde snímek od kraje ke kraji.
+    val visual = isAlbum || message.media is MessageMedia.Photo || video != null
+    if (visual) {
+        Box(
+            focusModifier.fillMaxWidth(),
+            contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
+        ) {
+            if (captioned.text.isBlank() && quote == null) {
+                BareMedia(album, sender, focused)
+            } else {
+                MediaCard(album, captioned.text, sender, quote, chatTitle, container, content, focused)
+            }
+        }
+        return
+    }
     Box(
         focusModifier.fillMaxWidth(),
         contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
-        val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
         // Odpověď je karta ze dvou částí, jako na telefonu: nahoře citace v tónované ploše, pod
         // ní odpověď v barvě bubliny, bez čáry a bez vnořené kartičky. Obě části mají šířku
         // širší z nich (`IntrinsicSize.Max`) — uvnitř bubliny není nic se `SubcomposeLayout`.
@@ -364,26 +382,11 @@ internal fun MessageRow(
                     Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
                     Spacer(Modifier.height(4.dp))
                 }
-                if (isAlbum) {
-                    AlbumGrid(album.mapNotNull { it.media })
-                    Spacer(Modifier.height(8.dp))
-                } else if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
+                if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
                     AudioBubbleContent(message, content)
                     Spacer(Modifier.height(8.dp))
-                } else {
-                    (message.media as? MessageMedia.Photo)?.let { photo ->
-                        MessagePhoto(photo.fileId)
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    video?.let {
-                        MessageVideo(it)
-                        Spacer(Modifier.height(8.dp))
-                    }
                 }
-                val hasVisualMedia = album.any {
-                    it.media is MessageMedia.Photo || it.media is MessageMedia.Video ||
-                        it.media is MessageMedia.VoiceNote || it.media is MessageMedia.Audio
-                }
+                val hasVisualMedia = message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio
                 val text = captioned.text.ifEmpty {
                     if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported)
                 }
@@ -403,6 +406,127 @@ internal fun MessageRow(
                 )
             }
         }
+    }
+}
+
+/**
+ * Snímek bez popisku a citace: holý na ploše konverzace, bez bubliny — bublina kolem obrázku
+ * nemá co ohraničovat a jen přidává rám (jako na telefonu a v Google Zprávách). Čas leží v rohu
+ * snímku na tmavé pilulce, reakce pod ním na ploše. Jméno odesílatele nad snímkem je odsazené
+ * jako text v bublině. Fokus nese rámeček po tvaru snímku.
+ */
+@Composable
+private fun BareMedia(album: List<ChatMessage>, sender: String?, focused: Boolean) {
+    val colors = MaterialTheme.colorScheme
+    val message = album.first()
+    Column(horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start) {
+        if (sender != null) {
+            Text(
+                sender,
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.primary,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+            )
+        }
+        Box(
+            Modifier
+                .clip(BUBBLE_SHAPE)
+                .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
+        ) {
+            VisualMedia(album, timeOnMedia = true)
+            Text(
+                message.timestamp.asTimeOfDay(),
+                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(10.dp)
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        album.firstOrNull { it.reactions.isNotEmpty() }?.let {
+            Spacer(Modifier.height(6.dp))
+            ReactionChips(it.reactions, colors.onSurface)
+        }
+    }
+}
+
+/**
+ * Snímek s popiskem nebo citací: JEDNA karta v barvě bubliny — nahoře citace, pod ní snímek od
+ * kraje ke kraji (bez vlastního zaoblení, ořezává karta) a pod ním popisek, reakce a čas.
+ * Popisek má přesně šířku snímku (`IntrinsicSize.Min`: snímek má pevnou šířku, text jen
+ * nejdelší slovo), jinak by se dlouhý roztáhl vedle úzké fotky.
+ */
+@Composable
+private fun MediaCard(
+    album: List<ChatMessage>,
+    caption: String,
+    sender: String?,
+    quote: ChatMessage?,
+    chatTitle: String,
+    container: Color,
+    content: Color,
+    focused: Boolean,
+) {
+    val colors = MaterialTheme.colorScheme
+    val message = album.first()
+    Column(
+        Modifier
+            .width(IntrinsicSize.Min)
+            .clip(BUBBLE_SHAPE)
+            .background(container)
+            .then(if (focused) Modifier.border(3.dp, colors.border, BUBBLE_SHAPE) else Modifier),
+    ) {
+        if (quote != null) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(colors.tertiaryContainer)
+                    .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp),
+            ) {
+                if (sender != null) {
+                    Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.onTertiaryContainer)
+                    Spacer(Modifier.height(6.dp))
+                }
+                QuoteContent(quote, chatTitle)
+            }
+        } else if (sender != null) {
+            Text(
+                sender,
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.primary,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+            )
+        }
+        VisualMedia(album, timeOnMedia = false)
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
+            if (caption.isNotBlank()) Text(caption, style = MaterialTheme.typography.bodyLarge, color = content)
+            album.firstOrNull { it.reactions.isNotEmpty() }?.let {
+                Spacer(Modifier.height(8.dp))
+                ReactionChips(it.reactions, content)
+            }
+            Text(
+                message.timestamp.asTimeOfDay(),
+                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                color = content.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.End),
+            )
+        }
+    }
+}
+
+/**
+ * Snímek zprávy bez vlastního rámu (tvar dává holý snímek nebo karta): album jako mřížka,
+ * fotka, nebo video. [timeOnMedia]: v pravém dolním rohu leží čas, délka videa jde nahoru.
+ */
+@Composable
+private fun VisualMedia(album: List<ChatMessage>, timeOnMedia: Boolean) {
+    val message = album.first()
+    when {
+        album.size > 1 -> AlbumGrid(album.mapNotNull { it.media })
+        message.media is MessageMedia.Photo -> MessagePhoto((message.media as MessageMedia.Photo).fileId, RectangleShape)
+        message.media is MessageMedia.Video -> MessageVideo(message.media as MessageMedia.Video, RectangleShape, durationOnTop = timeOnMedia)
     }
 }
 
@@ -456,13 +580,13 @@ private fun AlbumTile(media: MessageMedia, more: Int) {
 
 /** Fotka v bublině: varianta pro bublinu (ne největší), zmenšená na šířku bubliny. */
 @Composable
-private fun MessagePhoto(fileId: Int) {
+private fun MessagePhoto(fileId: Int, shape: Shape = RoundedCornerShape(12.dp)) {
     val targetPx = with(LocalDensity.current) { PHOTO_HEIGHT.roundToPx() }
     val image = rememberImage(fileId, targetPx)
     Box(
         Modifier
             .height(PHOTO_HEIGHT)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(shape)
             .background(MaterialTheme.colorScheme.surface),
     ) {
         image?.let {
@@ -479,7 +603,12 @@ private fun MessagePhoto(fileId: Int) {
 
 /** Náhled videa v bublině: první snímek, uprostřed tlačítko přehrát, v rohu délka. */
 @Composable
-internal fun MessageVideo(video: MessageMedia.Video) {
+internal fun MessageVideo(
+    video: MessageMedia.Video,
+    shape: Shape = RoundedCornerShape(12.dp),
+    /** Délka nahoře vlevo — dole vpravo leží čas holé zprávy. */
+    durationOnTop: Boolean = false,
+) {
     val targetPx = with(LocalDensity.current) { PHOTO_HEIGHT.roundToPx() }
     val thumbnail = rememberImage(video.thumbnailFileId, targetPx)
     val watched = rememberWatched(video)
@@ -488,7 +617,7 @@ internal fun MessageVideo(video: MessageMedia.Video) {
         Modifier
             .height(PHOTO_HEIGHT)
             .width(PHOTO_HEIGHT * ratio.coerceIn(0.5f, 2f))
-            .clip(RoundedCornerShape(12.dp))
+            .clip(shape)
             .background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
@@ -506,8 +635,8 @@ internal fun MessageVideo(video: MessageMedia.Video) {
             style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
             color = Color.White,
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(8.dp)
+                .align(if (durationOnTop) Alignment.TopStart else Alignment.BottomEnd)
+                .padding(if (durationOnTop) 10.dp else 8.dp)
                 .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )

@@ -366,6 +366,21 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   dalších náhledů alba (jen na ukázku, prochází se v prohlížeči).
 - **`MediaActions`** (přehrát video, otevřít prohlížeč) jde cestou od navigace ke zprávě jako
   jedna skupina, ne dva callbacky v každé funkci.
+- **Fotka, video a album bez bubliny, jako na telefonu** („Médium bez bubliny"
+  v `konverzace-zobrazeni.md`). Bez popisku a citace leží snímek holý na ploše (`BareMedia`):
+  tvar bubliny, rámeček fokusu po něm, čas na tmavé pilulce v pravém dolním rohu (délka videa
+  proto jde nahoru vlevo), reakce pod snímkem na ploše, jméno odesílatele nad ním odsazené jako
+  text v bublině. Dřív ležel snímek v bublině s odsazením 16 dp a vlastním zaoblením — rám, který
+  nic neohraničoval.
+- **S popiskem nebo citací je to JEDNA karta** (`MediaCard`): citace nahoře, snímek od kraje ke
+  kraji (bez vlastního zaoblení, ořezává karta), pod ním popisek, reakce a čas. **Popisek má
+  šířku snímku**: karta je `IntrinsicSize.Min` — snímek má pevnou šířku, text jen nejdelší slovo —
+  jinak by se dlouhý popisek roztáhl vedle úzké fotky. Uvnitř karty není nic se
+  `SubcomposeLayout`, intrinsické míry tedy jdou.
+- **Ověřeno 27. 11. 2026** v chatu s Notifikátorem (fotka a video bez popisku poslané testovacím
+  botem): holá fotka s časem v rohu, holé video s délkou nahoře a časem dole, rámeček fokusu po
+  tvaru snímku; video a album s popiskem jako karta, popisek na šířku snímku. Citace nad snímkem
+  a jméno odesílatele ve skupině na zařízení ověřené nejsou.
 
 ## Reakce a odpovědi
 
