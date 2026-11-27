@@ -67,6 +67,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import eu.tintera.plume.core.ui.contextClickable
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.text.appendInlineContent
 import eu.tintera.plume.features.conversation.items.DeliveryStateIcon
@@ -129,6 +130,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.chatlabels.ChatLabel
+import eu.tintera.plume.features.chatlabels.LabelChip
 import eu.tintera.plume.resources.chats_sponsor_announcement
 import eu.tintera.plume.resources.chats_sponsor_proxy
 import eu.tintera.plume.resources.archive_24dp
@@ -461,6 +464,8 @@ internal data class ChatRowMarks(
      * a pletly by se.
      */
     val accounts: List<BadgeAccount> = emptyList(),
+    /** Vlastní štítky chatu (`ChatLabels`), v pořadí štítků; prázdné = žádné. */
+    val labels: List<ChatLabel> = emptyList(),
 )
 
 @Composable
@@ -655,6 +660,15 @@ internal fun ChatRow(
                         )
                         chat.verification?.let { VerificationBadge(verification = it, accent = badgeAccent) }
                         chat.emojiStatus?.let { EmojiStatusBadge(it, accent = badgeAccent) }
+                        // Štítky za jménem: nejvýš dva a „+N", ať jméno nevytlačí úplně.
+                        marks.labels.take(MAX_ROW_LABELS).forEach { LabelChip(it, Modifier.widthIn(max = LABEL_CHIP_MAX)) }
+                        if (marks.labels.size > MAX_ROW_LABELS) {
+                            Text(
+                                "+${marks.labels.size - MAX_ROW_LABELS}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
 
                     if (chat.isMuted) {
@@ -924,3 +938,9 @@ internal val CHAT_ROW_AVATAR_SIZE = 52.dp
 
 /** Jak daleko za okraj avataru sahá kroužek příběhů (mezera a čára, `storyRing`). */
 private val STORY_RING_OUTSET = 5.dp
+
+/** Kolik štítků řádek ukáže jménem; další jsou „+N". */
+private const val MAX_ROW_LABELS = 2
+
+/** Nejširší čip štítku v řádku — delší název se zkrátí. */
+private val LABEL_CHIP_MAX = 96.dp

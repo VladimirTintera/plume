@@ -2152,9 +2152,10 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
 - ~~**Ranní přehled kanálů**~~ — hotovo (menu účtu → Přehled kanálů;
   `docs/poznatky/ai-v-zarizeni.md`, „Přehled kanálů"). Zbývá: ověřit shrnutí skutečnou Gemmou
   a Gemini Nano na telefonu; archivované kanály; „označit vše jako přečtené" z přehledu.
-- **Vlastní štítky chatů bez Premium** (S–M). Barevné lokální štítky („rodina", „vyřídit")
-  a filtr podle nich; Telegram má štítky složek jen s Premium. `AppSettings`, mezi zařízeními
-  přes CloudStorage (`docs/poznatky/nastaveni.md`, „Synchronizace bez backendu").
+- ~~**Vlastní štítky chatů bez Premium**~~ — hotovo (nabídka nad chatem a ⋮ → Štítky, čipy
+  v řádku, filtr nad seznamem, synchronizace; `docs/poznatky/seznam-chatu.md`, „Vlastní štítky").
+  Zbývá: filtr i v nenačtených chatech (dočíst je přes `summaries`) a ve společném seznamu víc
+  účtů; správa štítků v Nastavení → Chaty (pořadí); ověřit synchronizaci na dvou zařízeních.
 
 **Psaní**
 

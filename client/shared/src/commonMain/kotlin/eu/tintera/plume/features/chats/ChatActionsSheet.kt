@@ -58,6 +58,8 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.label_24dp
+import eu.tintera.plume.resources.labels_title
 import eu.tintera.plume.resources.chats_reorder_pinned
 import eu.tintera.plume.resources.menu_select
 import eu.tintera.plume.resources.select_check_box_24dp
@@ -139,6 +141,8 @@ fun ChatActionsSheet(
     /** Složky, do kterých chat jde přidat nebo ve kterých je; prázdné = „Přidat do složky" není. */
     folders: List<FolderChoice>,
     onToggleFolder: (Int) -> Unit,
+    /** Vlastní štítky chatu — otevře jejich sheet. */
+    onLabels: () -> Unit,
     /** Zástupce chatu na ploše; `null` = nenabízet (platforma nebo launcher to neumí). */
     onAddToHomeScreen: (() -> Unit)?,
     /**
@@ -312,6 +316,14 @@ fun ChatActionsSheet(
                 }
 
                 if (folders.isNotEmpty()) FolderChoices(folders, onToggleFolder)
+
+                // Štítky vedle složek: obojí třídí chaty, štítky jen v zařízení a bez Premium.
+                SheetActionRow(
+                    icon = Res.drawable.label_24dp,
+                    label = stringResource(Res.string.labels_title),
+                    shape = ShapeDefaults.ExtraSmall,
+                    onClick = onLabels,
+                )
 
                 if (onAddToHomeScreen != null) {
                     SheetActionRow(

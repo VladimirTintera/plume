@@ -9,6 +9,8 @@ import eu.tintera.plume.core.drafts.CommentDraftThread
 import eu.tintera.plume.core.snooze.ChatSnooze
 import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.chatcolor.StoredChatColor
+import eu.tintera.plume.core.chatlabels.StoredChatLabel
+import eu.tintera.plume.core.chatlabels.StoredLabelAssignment
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
@@ -244,6 +246,18 @@ interface AppSettings {
 
     /** Uloží barvy konverzací. Neblokuje. */
     fun setChatColors(colors: List<StoredChatColor>)
+
+    /** Štítky chatů všech účtů; filtruje a spravuje je [eu.tintera.plume.core.chatlabels.ChatLabels]. */
+    val chatLabels: StateFlow<List<StoredChatLabel>>
+
+    /** Uloží štítky. Neblokuje. */
+    fun setChatLabels(labels: List<StoredChatLabel>)
+
+    /** Které chaty mají který štítek (všechny účty). */
+    val labelAssignments: StateFlow<List<StoredLabelAssignment>>
+
+    /** Uloží přiřazení štítků. Neblokuje. */
+    fun setLabelAssignments(assignments: List<StoredLabelAssignment>)
 
     /**
      * Hotové přepisy hlasovek a koleček z modelu v telefonu, všech účtů; filtruje a spravuje je
@@ -962,6 +976,38 @@ class DataStoreAppSettings(
         }
     }
 
+    override val chatLabels: StateFlow<List<StoredChatLabel>> = value(emptyList()) { preferences ->
+        preferences[CHAT_LABELS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<StoredChatLabel>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setChatLabels(labels: List<StoredChatLabel>) {
+        scope.launch {
+            edit { preferences ->
+                if (labels.isEmpty()) preferences.remove(CHAT_LABELS) else preferences[CHAT_LABELS] = storedListJson.encodeToString(labels)
+            }
+        }
+    }
+
+    override val labelAssignments: StateFlow<List<StoredLabelAssignment>> = value(emptyList()) { preferences ->
+        preferences[LABEL_ASSIGNMENTS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<StoredLabelAssignment>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setLabelAssignments(assignments: List<StoredLabelAssignment>) {
+        scope.launch {
+            edit { preferences ->
+                if (assignments.isEmpty()) {
+                    preferences.remove(LABEL_ASSIGNMENTS)
+                } else {
+                    preferences[LABEL_ASSIGNMENTS] = storedListJson.encodeToString(assignments)
+                }
+            }
+        }
+    }
+
     override val quietHours: StateFlow<QuietHours> = value(QuietHours()) { preferences ->
         val default = QuietHours()
         // Čas mimo den (poškozený nebo cizí zápis) spadne na výchozí, jinak by úsek nedával smysl.
@@ -1525,6 +1571,8 @@ class DataStoreAppSettings(
         val CHAT_SNOOZES = stringPreferencesKey("chat_snoozes")
         val VIDEO_POSITIONS = stringPreferencesKey("video_positions")
         val CHAT_COLORS = stringPreferencesKey("chat_colors")
+        val CHAT_LABELS = stringPreferencesKey("chat_labels")
+        val LABEL_ASSIGNMENTS = stringPreferencesKey("chat_label_assignments")
         val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
         val STORED_PHOTO_DESCRIPTIONS = stringPreferencesKey("stored_photo_descriptions")
         val STORED_TRIAGE_VERDICTS = stringPreferencesKey("stored_triage_verdicts")

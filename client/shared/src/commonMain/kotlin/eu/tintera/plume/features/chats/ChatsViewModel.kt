@@ -13,6 +13,8 @@ import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import eu.tintera.plume.core.chatcolor.ChatColors
+import eu.tintera.plume.core.chatlabels.ChatLabel
+import eu.tintera.plume.core.chatlabels.ChatLabels
 import eu.tintera.plume.core.settings.ThemeColor
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.telegram.ChatDraft
@@ -118,6 +120,8 @@ class ChatsViewModel(
     private val snoozes: ChatSnoozes? = null,
     /** Barvy konverzací; bez nich mají všechny odznaky barvu aplikace. */
     private val chatColorStore: ChatColors? = null,
+    /** Vlastní štítky chatů; bez nich řádky štítky nemají a filtr není. */
+    private val labelStore: ChatLabels? = null,
     /** Zmrazení účtu a doporučené akce pro karty nahoře v seznamu; bez něj karty nejsou. */
     private val accountNotices: AccountNotices? = null,
     /** Formát telefonního čísla v doporučené akci; bez něj číslo zůstane bez mezer. */
@@ -566,6 +570,28 @@ class ChatsViewModel(
     val chatColors: StateFlow<Map<Long, ThemeColor>> =
         chatColorStore?.colors?.stateIn(viewModelScope, SharingStarted.Eagerly, chatColorStore.current())
             ?: MutableStateFlow(emptyMap())
+
+    /** Štítky účtu v pořadí (`ChatLabels`). */
+    val labels: StateFlow<List<ChatLabel>> =
+        labelStore?.labels?.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList()) ?: MutableStateFlow(emptyList())
+
+    /** Chat → jeho štítky. */
+    val chatLabels: StateFlow<Map<Long, List<ChatLabel>>> =
+        labelStore?.assignments?.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap()) ?: MutableStateFlow(emptyMap())
+
+    private val _labelFilter = MutableStateFlow<String?>(null)
+
+    /**
+     * Vybraný štítek ve filtru nad seznamem; `null` = všechny chaty. Filtruje se v seznamu
+     * (`ChatListContent`), ne ve [state]: prázdný výsledek nesmí vypadat jako prázdný účet
+     * a filtr musí zůstat vidět, aby šel zrušit.
+     */
+    val labelFilter: StateFlow<String?> = _labelFilter
+
+    /** Vybere štítek ve filtru; znovu ťuknutý (nebo `null`) filtr zruší. */
+    fun setLabelFilter(id: String?) {
+        _labelFilter.value = id.takeIf { it != _labelFilter.value }
+    }
 
     val snoozeState: StateFlow<ChatSnoozeState> =
         snoozes?.state?.stateIn(viewModelScope, SharingStarted.Eagerly, ChatSnoozeState())

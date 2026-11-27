@@ -1152,7 +1152,8 @@ vyšlo, je níž.
 - **Skupiny** (`CloudSyncGroup`), každá v úložišti zvlášť: **vzhled** (mezery v seznamu, písmo
   zpráv, řádky náhledu, samolepky), **přehrávání a chování** (rychlost hlasovek a videa, ticho,
   rychlá reakce, odkazy v aplikaci, čištění odkazů, tahy v seznamu, viděné nápovědy gest),
-  **rozkoukaná videa**, **záložky zpráv** a **barvy chatů** (`StoredChatColor`).
+  **rozkoukaná videa**, **záložky zpráv**, **barvy chatů** (`StoredChatColor`) a **vlastní
+  štítky** (`ChatLabels`, viz „Vlastní štítky" v `seznam-chatu.md`).
 - **Motiv a barva aplikace se vědomě NEsynchronizují** (dřív ve skupině vzhledu byly): uživatel
   chce desktop vždy tmavý a telefon podle tapety, je to volba zařízení. Synchronizuje se barva
   jednotlivých chatů — kamarád modře, kanál fialově všude. Klíče, které ze skupiny vypadly, se

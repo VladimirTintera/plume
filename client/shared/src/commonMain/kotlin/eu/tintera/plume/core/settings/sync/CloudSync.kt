@@ -77,8 +77,10 @@ class CloudSync(
             settings.videoPositions,
             settings.messageBookmarks,
             settings.chatColors,
-        ) { preferences, positions, bookmarks, colors ->
-            localEntries(preferences, positions, bookmarks, colors, accountId)
+            // Štítky a přiřazení jako jeden tok: `combine` se pěti toky typově končí.
+            combine(settings.chatLabels, settings.labelAssignments, ::Pair),
+        ) { preferences, positions, bookmarks, colors, (labels, assignments) ->
+            localEntries(preferences, positions, bookmarks, colors, labels, assignments, accountId)
         }
             .distinctUntilChanged()
             .filter { it != synced }
@@ -97,7 +99,15 @@ class CloudSync(
         val remote = readRemote().getOrElse { return false }
         val base = decodeBase(account.cloudSyncBase())?.takeIf { it.accountId == accountId } ?: CloudSyncBase(accountId)
         val preferences = settings.syncedPreferences.filterNotNull().first()
-        val local = localEntries(preferences, settings.videoPositions.value, settings.messageBookmarks.value, settings.chatColors.value, accountId)
+        val local = localEntries(
+            preferences,
+            settings.videoPositions.value,
+            settings.messageBookmarks.value,
+            settings.chatColors.value,
+            settings.chatLabels.value,
+            settings.labelAssignments.value,
+            accountId,
+        )
 
         val merged = CloudSyncGroup.entries.filterNot { remote[it] is RemoteGroup.Unsupported }.associateWith { group ->
             val theirs = (remote[group] as? RemoteGroup.Present)?.entries.orEmpty()
@@ -119,6 +129,10 @@ class CloudSync(
         merged[CloudSyncGroup.ChatColors]?.takeIf { it != local[CloudSyncGroup.ChatColors] }?.let { entries ->
             settings.setChatColors(chatColorsWith(entries, settings.chatColors.value, accountId))
         }
+        merged[CloudSyncGroup.ChatLabels]?.takeIf { it != local[CloudSyncGroup.ChatLabels] }?.let { entries ->
+            settings.setChatLabels(chatLabelsWith(entries, settings.chatLabels.value, accountId))
+            settings.setLabelAssignments(labelAssignmentsWith(entries, settings.labelAssignments.value, accountId))
+        }
 
         // Tam: skupiny, které se v úložišti liší.
         merged.forEach { (group, entries) ->
@@ -139,16 +153,19 @@ class CloudSync(
         positions: List<eu.tintera.plume.core.video.VideoPosition>,
         bookmarks: List<eu.tintera.plume.core.bookmarks.MessageBookmark>,
         colors: List<eu.tintera.plume.core.chatcolor.StoredChatColor>,
+        labels: List<eu.tintera.plume.core.chatlabels.StoredChatLabel>,
+        assignments: List<eu.tintera.plume.core.chatlabels.StoredLabelAssignment>,
         accountId: Long,
     ): Map<CloudSyncGroup, SyncEntries> = buildMap {
         SYNCED_PREFERENCE_GROUPS.forEach { (group, names) -> put(group, preferenceEntries(preferences, names)) }
         put(CloudSyncGroup.Positions, positionEntries(positions, accountId))
         put(CloudSyncGroup.Bookmarks, bookmarkEntries(bookmarks, accountId))
         put(CloudSyncGroup.ChatColors, chatColorEntries(colors, accountId))
+        put(CloudSyncGroup.ChatLabels, chatLabelEntries(labels, assignments, accountId))
     }
 
     private fun resolverFor(group: CloudSyncGroup): (String, String) -> String = when (group) {
-        CloudSyncGroup.Appearance, CloudSyncGroup.Playback, CloudSyncGroup.ChatColors -> ::resolvePreference
+        CloudSyncGroup.Appearance, CloudSyncGroup.Playback, CloudSyncGroup.ChatColors, CloudSyncGroup.ChatLabels -> ::resolvePreference
         CloudSyncGroup.Positions -> ::resolvePosition
         CloudSyncGroup.Bookmarks -> ::resolveBookmark
     }
