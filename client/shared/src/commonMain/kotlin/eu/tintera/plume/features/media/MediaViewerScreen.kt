@@ -74,7 +74,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -206,6 +205,12 @@ import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.FullWindowControls
+import eu.tintera.plume.core.adaptive.LocalWindowControls
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSide
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.windowTitleBarPadding
 
 /**
  * Fotky a videa přes celou obrazovku, po vzoru Google Zpráv.
@@ -440,13 +445,21 @@ fun MediaViewerScreen(
 
                     state.loading -> LoadingIndicator(Modifier.align(Alignment.Center))
                 }
-                CloseButton(
-                    onClick = {
-                        viewModel.onDismiss()
-                        onBack()
-                    },
-                    modifier = Modifier.align(Alignment.TopStart).statusBarsPadding(),
-                )
+                FullWindowControls {
+                    Box(
+                        Modifier.align(Alignment.TopStart).windowTitleBarPadding().height(TOP_BAR_HEIGHT).padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        WindowControlsSpace {
+                            CloseButton(
+                                onClick = {
+                                    viewModel.onDismiss()
+                                    onBack()
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -683,7 +696,10 @@ private fun ViewerContent(
     }
 
     val density = LocalDensity.current
-    val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() } + TOP_BAR_HEIGHT
+    // Na desktopu leží horní lišta v řádku s tlačítky okna ([FullWindowControls]), pruh titulku
+    // nad ní není. Ztmavení pod lištami ([SystemBarShades]) s ním počítá dál: leží pod semafory.
+    val titleInRow = LocalWindowControls.current.side != WindowControlsSide.None
+    val topInset = (if (titleInRow) 0.dp else with(density) { WindowInsets.statusBars.getTop(this).toDp() }) + TOP_BAR_HEIGHT
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
     /*
      * Pruh náhledů jen na velkém okně (desktop, tablet, rozložený Fold). Místo pro něj se drží,
@@ -1165,45 +1181,48 @@ private fun SelfDestructTopBar(
     selfDestructType: SelfDestructType?,
     onClose: () -> Unit,
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(TOP_BAR_HEIGHT)
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CloseButton(onClose)
-
-        Spacer(Modifier.weight(1f))
-
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f),
-            modifier = Modifier.padding(end = 12.dp),
+    FullWindowControls {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .windowTitleBarPadding()
+                .height(TOP_BAR_HEIGHT)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            WindowControlsSpace { CloseButton(onClose) }
+
+            Spacer(Modifier.weight(1f))
+
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f),
+                modifier = Modifier.padding(end = 12.dp),
             ) {
-                Icon(
-                    painter = painterResource(Res.drawable.schedule_24dp),
-                    contentDescription = null,
-                    tint = ON_SCRIM,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                val timerText = when {
-                    remainingSeconds != null -> stringResource(Res.string.media_self_destruct_seconds, remainingSeconds)
-                    selfDestructType is SelfDestructType.Timer -> stringResource(Res.string.media_self_destruct_seconds, selfDestructType.seconds)
-                    else -> stringResource(Res.string.media_view_once)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.schedule_24dp),
+                        contentDescription = null,
+                        tint = ON_SCRIM,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    val timerText = when {
+                        remainingSeconds != null -> stringResource(Res.string.media_self_destruct_seconds, remainingSeconds)
+                        selfDestructType is SelfDestructType.Timer -> stringResource(Res.string.media_self_destruct_seconds, selfDestructType.seconds)
+                        else -> stringResource(Res.string.media_view_once)
+                    }
+                    Text(
+                        text = timerText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ON_SCRIM,
+                    )
                 }
-                Text(
-                    text = timerText,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = ON_SCRIM,
-                )
             }
+            WindowControlsEndSpace()
         }
     }
 }
@@ -1265,68 +1284,72 @@ private fun TopBar(
     val onShare = { itemActions.onShare(messageId) }
     val actions = state.actions[item.messageId]
 
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(TOP_BAR_HEIGHT)
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CloseButton(onClose)
+    // Na desktopu v řádku s tlačítky okna, ne pod prázdným pruhem titulku ([FullWindowControls]).
+    FullWindowControls {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .windowTitleBarPadding()
+                .height(TOP_BAR_HEIGHT)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            WindowControlsSpace { CloseButton(onClose) }
 
-        ViewerTitle(item = item, state = state, pagerState = pagerState, modifier = Modifier.weight(1f).padding(start = 4.dp))
+            ViewerTitle(item = item, state = state, pagerState = pagerState, modifier = Modifier.weight(1f).padding(start = 4.dp))
 
-        /*
-         * Venku jsou jen dvě nejčastější akce, zbytek je v nabídce ⋮. Se Sdílením by byly ikony
-         * čtyři a na užším telefonu by se nevešel titulek. Smazat do nabídky patří tak jako tak:
-         * nevratná akce nemá stát hned vedle častých. Přeposlat je sdílení do Telegramu, takže
-         * vedle Sdílet by byly dvě podobné ikony.
-         *
-         * Co se právě dělá, točí na místě svého tlačítka, aby lišta neposkočila — stahování
-         * originálu může trvat. U „Uložit jako…" z nabídky točí ⋮.
-         *
-         * Desktop systémový dialog sdílení nemá ([fileShareSupported]); místo Sdílet je venku
-         * Kopírovat, které tam médium dostane do jiné aplikace nebo do složky. Na telefonu je
-         * kopírování fotky v nabídce — schránka tam vedle sdílení tolik neznamená. Galerii
-         * desktop taky nemá a ukládá do Stažených; tlačítko to musí říct.
-         */
-        val busy = state.busy[item.messageId]
-        val canSave = actions?.canSave == true
-        val copyInBar = !fileShareSupported
-        val copy = { itemActions.onCopy(messageId) }.takeIf { canSave && itemActions.canCopy(item) }
-        if (canSave) {
-            if (fileShareSupported) {
-                BusyOr(busy == MediaTask.Share) {
-                    ChromeIcon(Res.drawable.share_24dp, stringResource(Res.string.media_share), onShare)
+            /*
+             * Venku jsou jen dvě nejčastější akce, zbytek je v nabídce ⋮. Se Sdílením by byly ikony
+             * čtyři a na užším telefonu by se nevešel titulek. Smazat do nabídky patří tak jako tak:
+             * nevratná akce nemá stát hned vedle častých. Přeposlat je sdílení do Telegramu, takže
+             * vedle Sdílet by byly dvě podobné ikony.
+             *
+             * Co se právě dělá, točí na místě svého tlačítka, aby lišta neposkočila — stahování
+             * originálu může trvat. U „Uložit jako…" z nabídky točí ⋮.
+             *
+             * Desktop systémový dialog sdílení nemá ([fileShareSupported]); místo Sdílet je venku
+             * Kopírovat, které tam médium dostane do jiné aplikace nebo do složky. Na telefonu je
+             * kopírování fotky v nabídce — schránka tam vedle sdílení tolik neznamená. Galerii
+             * desktop taky nemá a ukládá do Stažených; tlačítko to musí říct.
+             */
+            val busy = state.busy[item.messageId]
+            val canSave = actions?.canSave == true
+            val copyInBar = !fileShareSupported
+            val copy = { itemActions.onCopy(messageId) }.takeIf { canSave && itemActions.canCopy(item) }
+            if (canSave) {
+                if (fileShareSupported) {
+                    BusyOr(busy == MediaTask.Share) {
+                        ChromeIcon(Res.drawable.share_24dp, stringResource(Res.string.media_share), onShare)
+                    }
+                } else if (copy != null) {
+                    BusyOr(busy == MediaTask.Copy) {
+                        ChromeIcon(Res.drawable.content_copy_24dp, copyLabel(item), copy)
+                    }
                 }
-            } else if (copy != null) {
-                BusyOr(busy == MediaTask.Copy) {
-                    ChromeIcon(Res.drawable.content_copy_24dp, copyLabel(item), copy)
-                }
-            }
-            BusyOr(busy == MediaTask.Gallery) {
-                ChromeIcon(Res.drawable.download_24dp, saveLabel(), onSave)
-            }
-        }
-
-        val menuGroups = viewerMenuGroups(
-            item = item,
-            state = state,
-            itemActions = itemActions,
-            profilePhotoActions = profilePhotoActions,
-            onRecognizeText = onRecognizeText,
-            onDescribePhoto = onDescribePhoto,
-            withBarActions = false,
-        )
-        if (menuGroups.any { it.isNotEmpty() }) {
-            var menuOpen by remember { mutableStateOf(false) }
-            BusyOr(busy == MediaTask.SaveAs || (busy == MediaTask.Copy && !copyInBar) || busy == MediaTask.Text || busy == MediaTask.Describe || busy == MediaTask.Sticker) {
-                Box {
-                    ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
-                    ExpressiveMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, groups = menuGroups)
+                BusyOr(busy == MediaTask.Gallery) {
+                    ChromeIcon(Res.drawable.download_24dp, saveLabel(), onSave)
                 }
             }
+
+            val menuGroups = viewerMenuGroups(
+                item = item,
+                state = state,
+                itemActions = itemActions,
+                profilePhotoActions = profilePhotoActions,
+                onRecognizeText = onRecognizeText,
+                onDescribePhoto = onDescribePhoto,
+                withBarActions = false,
+            )
+            if (menuGroups.any { it.isNotEmpty() }) {
+                var menuOpen by remember { mutableStateOf(false) }
+                BusyOr(busy == MediaTask.SaveAs || (busy == MediaTask.Copy && !copyInBar) || busy == MediaTask.Text || busy == MediaTask.Describe || busy == MediaTask.Sticker) {
+                    Box {
+                        ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
+                        ExpressiveMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, groups = menuGroups)
+                    }
+                }
+            }
+            WindowControlsEndSpace()
         }
     }
 }
