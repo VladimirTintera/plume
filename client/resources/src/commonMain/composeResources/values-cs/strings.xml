@@ -5189,4 +5189,7 @@
     <string name="tv_search_voice">Hledat hlasem</string>
     <string name="tv_search_prompt">Co hledáte?</string>
     <string name="tv_search_start">Napište nebo řekněte jméno chatu, kanálu nebo slova ze zprávy.</string>
+    <string name="tv_up_next">Další za %1$d s</string>
+    <string name="tv_up_next_play">Přehrát hned</string>
+    <string name="tv_up_next_cancel">Zrušit</string>
 </resources>

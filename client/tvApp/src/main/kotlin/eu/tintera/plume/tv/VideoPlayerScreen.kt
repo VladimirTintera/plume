@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -81,6 +86,9 @@ import eu.tintera.plume.resources.media_video_resumed
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.replay_24dp
+import eu.tintera.plume.resources.tv_up_next
+import eu.tintera.plume.resources.tv_up_next_cancel
+import eu.tintera.plume.resources.tv_up_next_play
 import java.io.File
 import eu.tintera.plume.core.di.APP_SCOPE
 import kotlinx.coroutines.CoroutineScope
@@ -101,6 +109,10 @@ private const val SEEK_STEP_MS = 10_000L
 /** Jak dlouho zůstane ovládání vidět, když video hraje a nikdo nesahá na ovladač. */
 private const val CONTROLS_TIMEOUT_MS = 4_000L
 
+/** Odpočet do dalšího videa z fronty (kanál jako pořad). */
+private const val UP_NEXT_MS = 6_000L
+private val UP_NEXT_WIDTH = 320.dp
+
 /** Jak dlouho je po rozběhnutí z pamatované pozice vidět „Pokračuje od…" (jako na telefonu). */
 private const val RESUME_HINT_MS = 6_000L
 
@@ -118,7 +130,7 @@ private const val SAVE_EVERY_TICKS = 40
  * „Právě hraje" na Google TV fungují i bez fokusu v aplikaci.
  */
 @Composable
-fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
+fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onClose: () -> Unit) {
     val video = request.video
     val caption = request.caption
     val context = LocalContext.current
@@ -212,6 +224,15 @@ fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
     var buffering by remember { mutableStateOf(true) }
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(video.durationSeconds * 1000L) }
+    // Další video z fronty, na které běží odpočet po dohrání; `null` = žádný odpočet.
+    var upNext by remember { mutableStateOf<VideoRequest?>(null) }
+    LaunchedEffect(upNext) {
+        val next = upNext ?: return@LaunchedEffect
+        delay(UP_NEXT_MS)
+        onNext(next)
+    }
+    // Zpět během odpočtu ho jen zruší (video zůstane na konci); složeno po Zpět přehrávače, má přednost.
+    BackHandler(enabled = upNext != null) { upNext = null }
     // Pozice se zapisuje jen u videa, které opravdu hrálo: otevření a zavření bez puštění by
     // zapsalo začátek, a tím pamatovanou pozici (třeba z telefonu) smazalo.
     var hasPlayed by remember { mutableStateOf(false) }
@@ -233,7 +254,11 @@ fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
                 buffering = state == Player.STATE_BUFFERING || state == Player.STATE_IDLE
                 player.duration.takeIf { it != C.TIME_UNSET && it > 0 }?.let { durationMs = it }
                 // Dohrané se zapomene (příště od začátku), jako na telefonu.
-                if (state == Player.STATE_ENDED) save(durationMs)
+                if (state == Player.STATE_ENDED) {
+                    save(durationMs)
+                    // Kanál jako pořad: po dohrání odpočet do dalšího videa z fronty.
+                    upNext = request.next()
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -299,6 +324,20 @@ fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 lastInteraction = System.nanoTime()
                 val key = event.nativeKeyEvent.keyCode
+                // Další video: OK během odpočtu, nebo kdykoli tlačítko „další" na ovladači.
+                val queued = upNext ?: request.next()
+                if (key == AndroidKeyEvent.KEYCODE_MEDIA_NEXT && queued != null) {
+                    onNext(queued)
+                    return@onPreviewKeyEvent true
+                }
+                if (upNext != null) {
+                    if (key == AndroidKeyEvent.KEYCODE_DPAD_CENTER || key == AndroidKeyEvent.KEYCODE_ENTER) {
+                        onNext(queued!!)
+                        return@onPreviewKeyEvent true
+                    }
+                    // Cokoli jiného (skok zpět, pauza) odpočet zruší a udělá, co dělá vždycky.
+                    upNext = null
+                }
                 if (resumeHint && (key == AndroidKeyEvent.KEYCODE_DPAD_CENTER || key == AndroidKeyEvent.KEYCODE_ENTER)) {
                     player.seekTo(0)
                     resumeHint = false
@@ -360,7 +399,8 @@ fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
                 LoadingScreen(stringResource(Res.string.connection_connecting))
         }
         AnimatedVisibility(
-            visible = controlsVisible && !failed,
+            // Během odpočtu do dalšího videa ovládání ustoupí kartě (jinak by ji překrývalo).
+            visible = controlsVisible && !failed && upNext == null,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(300)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -374,6 +414,79 @@ fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
             modifier = Modifier.align(Alignment.TopCenter).padding(top = SAFE_VERTICAL),
         ) {
             ResumeHint(remembered ?: 0L)
+        }
+        upNext?.let { next ->
+            UpNextCard(next, Modifier.align(Alignment.BottomEnd).padding(end = SAFE_HORIZONTAL, bottom = SAFE_VERTICAL))
+        }
+    }
+}
+
+/**
+ * Karta dalšího videa vpravo dole: náhled, popisek, odpočet a „Přehrát hned" (OK) / „Zrušit"
+ * (Zpět). Jako u streamovacích služeb: tlačítka nejsou samostatný fokus, klávesy bere přehrávač.
+ */
+@Composable
+private fun UpNextCard(next: VideoRequest, modifier: Modifier) {
+    var elapsed by remember(next) { mutableLongStateOf(0L) }
+    LaunchedEffect(next) {
+        while (elapsed < UP_NEXT_MS) {
+            delay(100)
+            elapsed += 100
+        }
+    }
+    val seconds = ((UP_NEXT_MS - elapsed + 999) / 1000).toInt().coerceAtLeast(0)
+    val thumbnail = rememberImage(next.video.thumbnailFileId, with(LocalDensity.current) { UP_NEXT_WIDTH.roundToPx() })
+    Column(
+        modifier
+            .width(UP_NEXT_WIDTH)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black.copy(alpha = 0.8f)),
+    ) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.DarkGray)) {
+            thumbnail?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+            Text(
+                next.video.durationSeconds.asDuration(),
+                style = MaterialTheme.typography.labelMedium.tabularNums(),
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        // Odpočet jako proužek přes celou šířku karty.
+        Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = 0.25f))) {
+            Box(Modifier.fillMaxWidth(elapsed.toFloat() / UP_NEXT_MS).height(3.dp).background(Color.White))
+        }
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(Res.string.tv_up_next, seconds),
+                style = MaterialTheme.typography.labelLarge.tabularNums(),
+                color = Color.White.copy(alpha = 0.75f),
+            )
+            val title = next.caption.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()
+            if (title.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.clip(CircleShape).background(Color.White).padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.Black, modifier = Modifier.size(20.dp))
+                    Text(stringResource(Res.string.tv_up_next_play), style = MaterialTheme.typography.labelLarge, color = Color.Black)
+                }
+                Text(
+                    stringResource(Res.string.tv_up_next_cancel),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White,
+                    modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.15f)).padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }

@@ -614,8 +614,10 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 11. ~~**Hledání i hlasem**~~ — hotovo (záložka s lupou, chaty, globální výsledky a zprávy,
     hlasové zadání a tlačítko hledání na ovladači). Zbývá: skok ze zprávy ve výsledcích přímo
     na zprávu v konverzaci, globální hledání přes Asistenta Google TV (`searchable`).
-12. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **kanál jako pořad** (po dohrání videa v kanálu další video
-    téhož kanálu), **spořič obrazovky s fotkami** (systémový `DreamService` z vybraného chatu nebo
+12. ~~**Kanál jako pořad**~~ — hotovo (po dohrání odpočet a další video, v kanálu starší
+    příspěvky, v konverzaci novější zprávy). Zbývá: dočítat feed během přehrávání, po zavření
+    stát na příspěvku posledního přehraného videa, ověřit na kanálu s videy po sobě.
+13. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **spořič obrazovky s fotkami** (systémový `DreamService` z vybraného chatu nebo
     Uložených zpráv).
 
 Vědomě ne (aspoň zatím): hovory, psaní dlouhých zpráv, správa skupin a nastavení účtu,

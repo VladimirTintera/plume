@@ -149,7 +149,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             }
             if (playing == null && storiesOf == null) AudioDock(audio, Modifier.align(Alignment.BottomCenter))
             playing?.let { request ->
-                key(request.video.fileId) { VideoPlayerScreen(request = request, onClose = { playing = null }) }
+                key(request.video.fileId) { VideoPlayerScreen(request = request, onNext = { playing = it }, onClose = { playing = null }) }
             }
         }
     }
