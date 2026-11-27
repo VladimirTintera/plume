@@ -346,7 +346,7 @@ internal fun ConversationBottomBar(
             viewModel.onDraftChanged(composer.composed)
             replies.consume()
         },
-        onHide = replies::consume,
+        onHide = replies::hide,
         onTurnOff = replies::turnOff,
     )
     // Vlastní klávesnice bota stojí NAD polem (viz `ReplyKeyboardPanel`); při úpravě

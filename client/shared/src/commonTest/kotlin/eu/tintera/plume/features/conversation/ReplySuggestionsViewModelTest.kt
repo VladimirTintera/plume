@@ -162,12 +162,67 @@ class ReplySuggestionsViewModelTest {
         viewModel.suggestForIncoming()
         advanceUntilIdle()
 
-        viewModel.consume()
+        viewModel.hide()
         viewModel.suggestForIncoming()
         advanceUntilIdle()
 
         assertEquals(emptyList(), viewModel.suggestions.value)
         assertEquals(1, ai.textCalls, "k téže zprávě se model znovu pouštět nemá")
+    }
+
+    /**
+     * Vložený návrh uživatel smaže: vrátí se tytéž čipy bez nového výpočtu. Dřív `clear`
+     * zapomněl id a prázdné pole pustilo model znovu — s Aya vteřiny a jiné čipy.
+     */
+    @Test
+    fun smazaniVlozenehoNavrhuVratiTytezCipy() = runTest {
+        val ai = FakeAi(structured = null)
+        val viewModel = ReplySuggestionsViewModel(ai, FakeSettings())
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+
+        viewModel.consume() // ťuknutí na čip
+        viewModel.clear() // v poli je text
+        viewModel.suggestForIncoming() // pole je zase prázdné
+        advanceUntilIdle()
+
+        assertEquals(listOf("Z textu"), viewModel.suggestions.value)
+        assertEquals(1, ai.textCalls, "k téže zprávě se model znovu pouštět nemá")
+    }
+
+    /** Schování platí i po smazání pole; k další zprávě se nabízí zase. */
+    @Test
+    fun schovaniPlatiIPoSmazaniPole() = runTest {
+        val ai = FakeAi(structured = null)
+        val viewModel = ReplySuggestionsViewModel(ai, FakeSettings())
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+
+        viewModel.hide()
+        viewModel.clear()
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+        assertEquals(emptyList(), viewModel.suggestions.value)
+
+        viewModel.suggest(2, "Jana", listOf(incoming.copy(id = 2)), "Já")
+        advanceUntilIdle()
+        assertEquals(listOf("Z textu"), viewModel.suggestions.value)
+        assertEquals(2, ai.textCalls)
+    }
+
+    /** Pamatuje se jen poslední zpráva: návrat k předchozí počítá znovu. */
+    @Test
+    fun jinaZpravaSePocitaZnovu() = runTest {
+        val ai = FakeAi(structured = null)
+        val viewModel = ReplySuggestionsViewModel(ai, FakeSettings())
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+        viewModel.suggest(2, "Jana", listOf(incoming.copy(id = 2)), "Já")
+        advanceUntilIdle()
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+
+        assertEquals(3, ai.textCalls)
     }
 
     @Test
