@@ -276,6 +276,37 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva z výsledků otevře svůj chat**, ne zprávu: skok na zprávu konverzace na televizi
   zatím neumí (roadmapa).
 
+## Spořič obrazovky s fotkami
+
+- **Systémový spořič** (`PhotoDreamService`, `DreamService`): fotky z Uložených zpráv, nebo
+  z chatu vybraného v nastavení spořiče (`DreamSettingsActivity`, otevírá ho systém přes
+  `android:settingsActivity` v `res/xml/photo_dream.xml`; volba v `SharedPreferences`). Fotka
+  po fotce po 10 s, prolnutí a pomalé přiblížení (efekt Kena Burnse), vpravo dole hodiny a datum
+  na ztmavení zespodu. Bez přihlášení jen hodiny. Neinteraktivní: první stisk spořič ukončí.
+- **Fotky přes `sharedMedia(Media)`** z `core`, nejvýš 200 (10 stránek), v náhodném pořadí.
+  **Bez spoileru, citlivého obsahu a mizejících fotek** — spořič běží v obýváku pro každého, kdo
+  se dívá. Ze všech chatů naráz (`galleryMedia`) se vědomě nebere: na televizi by se ukazovalo
+  cokoli, co kdo do kterého chatu poslal.
+- **`DreamService` není `LifecycleOwner` ani `SavedStateRegistryOwner`**, které `ComposeView`
+  hledá ve stromu oken (bez nich spadne při připojení). Spořič je proto dává sám a vede jejich
+  stav podle snění (`onDreamingStarted` / `Stopped`, `onDetachedFromWindow`).
+- **Proti vypálení**: obraz se pořád pomalu hýbe a hodiny se každou minutu posunou o pár bodů.
+  Ztmavení pod hodinami jde přes celou šířku zespodu — s přechodem jen do strany mělo
+  viditelnou vodorovnou hranu.
+- **Kde jde spořič vybrat**: na Android TV v nastavení systému (Spořič obrazovky). **Google TV
+  v nastavení nabízí jen svůj Ambientní režim** a spořič třetí strany se tam podle všeho vybrat
+  nedá (na skutečném zařízení neověřeno); jde nastavit přes `adb`
+  (`settings put secure screensaver_components eu.tintera.plume/eu.tintera.plume.tv.PhotoDreamService`).
+- **Ověření na emulátoru**: `cmd dreams start-dreaming` chce root (obraz s Google Play ho nemá)
+  a `Somnambulator` spořič nespustí. Funguje to přirozeně: `screensaver_enabled`,
+  `screensaver_components`, `screensaver_activate_on_sleep` = 1, `dumpsys battery set ac 1`,
+  `stay_on_while_plugged_in` = 0 a krátký `screen_off_timeout`. **Emulátor `Plume_TV` má po startu
+  `screen_off_timeout` nastavený na „nikdy"** (`2147483647`), takže to po restartu znovu. Po testu
+  vrátit (`settings delete`, `dumpsys battery reset`, timeout a `stay_on` zpátky).
+- **Ověřeno 27. 11. 2026**: nastavení spořiče (Uložené zprávy zaškrtnuté, výběr Notifikátoru
+  uložen), spořič s fotkami Notifikátoru (9 fotek, střídání po 10 s podle dočasného logu
+  a snímků), přiblížení, hodiny s datem a jejich posun v nové minutě, ukončení stiskem OK.
+
 ## Fotky a alba
 
 - **Prohlížeč přes celou obrazovku** (`MediaViewerScreen`): šipky vlevo a vpravo jdou po VŠECH
