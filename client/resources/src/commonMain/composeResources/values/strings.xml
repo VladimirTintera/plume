@@ -4995,6 +4995,7 @@
     <string name="tv_link_unsupported">The TV can’t open this link.</string>
     <string name="tv_instant_view_read">OK: read in the app</string>
     <string name="tv_instant_view_partial">The rest of the article is only on the web.</string>
+    <string name="tv_post_play_hint">OK: play · Hold: post and comments</string>
     <string name="tv_reply_send">Send</string>
     <string name="tv_send_failed">Couldn't send the message.</string>
     <string name="tv_compose_button">Write a message</string>

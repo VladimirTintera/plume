@@ -679,6 +679,13 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   přesunuté kvůli tomu ze `shared` do `core`), komentáře a tři nejčastější reakce. Vlastní
   emoji v reakcích se vynechávají, televize je kreslit neumí. Zaostřená karta se zvětší jen
   o 3 %: výchozích 10 % by kartu přes celou šířku vytlačilo přes bezpečný okraj.
+- **Karta s videem: OK ho pustí rovnou, podržení OK otevře detail** s textem a komentáři
+  (`playableVideo` v `ChannelFeedScreen`, `onLongClick` karty). Po videu hrají videa starších
+  příspěvků jako z detailu (kanál jako pořad) a po zavření přehrávače jde fokus zpátky na kartu.
+  Zaostřená karta s videem to napoví („OK: přehrát · podržet: příspěvek a komentáře") — jinak
+  by se o detailu nikdo nedozvěděl. Jen u příspěvku, který je jedno video (album a fotka
+  otevírají detail jako dřív). **Na zařízení ověřené jen to, že karta s fotkou se chová jako
+  dřív**; kanál s videem v příspěvcích při testu k dispozici nebyl.
 - **Album je jeden příspěvek** (`channelPosts`: po sobě jdoucí zprávy se stejným
   `mediaAlbumId`). Popisek nese jen jedna ze zpráv alba a počty (zhlédnutí, komentáře) jen ta,
   ke které server přivázal diskusi — hledají se proto napříč albem (`statsMessage`).
