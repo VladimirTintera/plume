@@ -35,6 +35,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -80,8 +82,8 @@ import org.koin.compose.koinInject
  * Pod seznamem je „Napsat zprávu", kde se smí psát; odpověď a reakce jsou v nabídce podržením OK.
  */
 @Composable
-fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions) {
-    val state = rememberConversationState(chatId)
+fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions, startAt: Long? = null) {
+    val state = rememberConversationState(chatId, startAt = startAt)
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<ChatInfo?>(null, chatId) { value = conversations.chatInfo(chatId).getOrNull() }
     val title = chatTitle(chatId, info?.title.orEmpty(), savedMessagesChatId())
@@ -154,11 +156,31 @@ private fun MessageList(
         runCatching { focus.requestFocus() }
     }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
-    // Dočítání starší historie, když se fokus blíží nejstarší načtené zprávě (horní okraj).
+    // Skok na zprávu (hledání, citace, Rozkoukaná videa): posun na její bublinu (album, ve kterém
+    // je) a fokus na ni. Po posunu se čeká snímek, ať je položka složená a fokus má kam jít.
+    val jump = state.jump
+    LaunchedEffect(jump) {
+        val target = jump ?: return@LaunchedEffect
+        val index = entries.indexOfFirst { it is Entry.Message && it.album.any { message -> message.id == target.messageId } }
+        if (index >= 0) {
+            focusTarget = (entries[index] as Entry.Message).album.first().id
+            listState.scrollToItem(index)
+            withFrameNanos { }
+            runCatching { focus.requestFocus() }
+        }
+        state.consumeJump()
+    }
+    // Dočítání starší historie, když se fokus blíží nejstarší načtené zprávě (horní okraj),
+    // a novější, když je načtené okno uprostřed historie a fokus se blíží spodku.
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { last -> if (last != null && last >= entries.size - LOAD_AHEAD) state.loadOlder() }
     }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index }
+            .collect { first -> if (first != null && first <= LOAD_AHEAD) state.loadNewer() }
+    }
+    val scope = rememberCoroutineScope()
     LazyColumn(
         state = listState,
         reverseLayout = true,
@@ -177,7 +199,10 @@ private fun MessageList(
                 is Entry.Day -> DayDivider(entry.timestamp)
                 is Entry.Message -> {
                     val id = entry.album.first().id
+                    val quotedId = entry.album.first().replyToMessageId
+                    // OK na zprávě bez média, která na něco odpovídá, skočí na citovanou zprávu.
                     val open = mediaOpenAction(chatId, entry.album, messages, actions)
+                        ?: quotedId?.let { quoted -> { scope.launch { state.jumpTo(quoted) } } }
                     MessageRow(
                         album = entry.album,
                         chatTitle = chatTitle,
@@ -188,7 +213,7 @@ private fun MessageList(
                             }
                         },
                         onLongPress = { interactions.actionsFor = entry.album.first() }.takeIf { !entry.album.first().isService },
-                        quote = entry.album.first().replyToMessageId?.let(state::quote),
+                        quote = quotedId?.let(state::quote),
                         modifier = if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier,
                     )
                 }

@@ -106,6 +106,8 @@ fun ChatListScreen(
     overlayOpen: Boolean,
     onPlay: (VideoRequest) -> Unit,
     onOpen: (Long) -> Unit,
+    /** Chat otevřený rovnou na zprávě (výsledek hledání, video z Rozkoukaných). */
+    onOpenMessage: (chatId: Long, messageId: Long) -> Unit,
     /** Příběhy autora (řada nad Všemi chaty); [lastStoriesChat] dostane po zavření fokus. */
     onOpenStories: (Long) -> Unit,
     lastStoriesChat: Long?,
@@ -143,6 +145,7 @@ fun ChatListScreen(
                         preview = preview,
                         onFocusChat = { focusedChat = it },
                         onOpen = onOpen,
+                        onOpenMessage = onOpenMessage,
                     )
                 }
                 return@Column
@@ -157,7 +160,7 @@ fun ChatListScreen(
                             playerOpen = overlayOpen,
                             takeFocus = !tabsFocused,
                             onPlay = onPlay,
-                            onOpenChat = onOpen,
+                            onShowInChat = onOpenMessage,
                         )
                     }
                 }

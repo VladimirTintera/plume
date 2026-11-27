@@ -134,13 +134,23 @@ fun channelPosts(messages: List<ChatMessage>): List<ChannelPost> {
  * feedu ([listState]) a karta, na kterou se má fokus vrátit, proto žijí tady, nad oběma.
  */
 @Composable
-fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, actions: MediaActions) {
-    val state = rememberConversationState(chatId)
+fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, actions: MediaActions, startAt: Long? = null) {
+    val state = rememberConversationState(chatId, startAt = startAt)
     val listState = rememberLazyListState()
     var openPost by remember { mutableStateOf<Long?>(null) }
     var focusTarget by remember { mutableStateOf<Long?>(null) }
     val messages = state.messages
     val posts = remember(messages) { channelPosts(messages.orEmpty()) }
+    // Skok na zprávu kanálu (hledání, Rozkoukaná videa): rovnou detail jejího příspěvku; po
+    // návratu z něj je fokus ve feedu na tomtéž příspěvku.
+    val jump = state.jump
+    LaunchedEffect(jump, posts) {
+        val target = jump ?: return@LaunchedEffect
+        val post = posts.firstOrNull { post -> post.messages.any { it.id == target.messageId } } ?: return@LaunchedEffect
+        focusTarget = post.id
+        openPost = post.id
+        state.consumeJump()
+    }
 
     val opened = openPost?.let { id -> posts.firstOrNull { it.id == id } }
     if (opened != null) {
@@ -187,11 +197,16 @@ private fun PostList(
         if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index }) listState.scrollToItem(index)
         runCatching { focus.requestFocus() }
     }
-    // Starší příspěvky se dočítají, když se fokus blíží konci feedu.
+    // Starší příspěvky se dočítají, když se fokus blíží konci feedu; novější, když je načtené
+    // okno uprostřed historie (skok na zprávu) a fokus se blíží začátku.
     val loaded by rememberUpdatedState(posts.size)
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { last -> if (last != null && last >= loaded - LOAD_AHEAD) state.loadOlder() }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index }
+            .collect { first -> if (first != null && first <= LOAD_AHEAD) state.loadNewer() }
     }
     LazyColumn(
         state = listState,

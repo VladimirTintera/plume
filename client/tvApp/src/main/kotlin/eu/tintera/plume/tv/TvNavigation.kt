@@ -49,6 +49,8 @@ import org.koin.compose.koinInject
 fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var folder by rememberSaveable(stateSaver = FolderSaver) { mutableStateOf<ChatFolder>(ChatFolder.Main) }
     var opened by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Zpráva, na kterou má otevřený chat skočit (hledání, Rozkoukaná videa); `null` = konec historie.
+    var openedAt by rememberSaveable { mutableStateOf<Long?>(null) }
     var lastOpened by rememberSaveable { mutableStateOf<Long?>(null) }
     var section by rememberSaveable { mutableStateOf(ListSection.Chats) }
     val search = remember { TvSearchState() }
@@ -80,6 +82,7 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     LaunchedEffect(openChat) {
         if (openChat == null) return@LaunchedEffect
         lastOpened = openChat
+        openedAt = null
         opened = openChat
         onChatOpened()
     }
@@ -106,7 +109,9 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     viewer = null
                     playing = null
                 }
-                key(current) { ChatScreen(chatId = current, overlayOpen = playing != null || viewer != null, actions = actions) }
+                key(current, openedAt) {
+                    ChatScreen(chatId = current, startAt = openedAt, overlayOpen = playing != null || viewer != null, actions = actions)
+                }
                 viewer?.let { (items, index) ->
                     MediaViewerScreen(
                         items = items,
@@ -140,6 +145,12 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     search = search,
                     onOpen = { chatId ->
                         lastOpened = chatId
+                        openedAt = null
+                        opened = chatId
+                    },
+                    onOpenMessage = { chatId, messageId ->
+                        lastOpened = chatId
+                        openedAt = messageId
                         opened = chatId
                     },
                 )
@@ -160,14 +171,14 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
  * Druh chatu se zjistí z `chatInfo`, než se cokoli nakreslí.
  */
 @Composable
-private fun ChatScreen(chatId: Long, overlayOpen: Boolean, actions: MediaActions) {
+private fun ChatScreen(chatId: Long, startAt: Long?, overlayOpen: Boolean, actions: MediaActions) {
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<Result<ChatInfo>?>(null, chatId) { value = conversations.chatInfo(chatId) }
     val loaded = info?.getOrNull()
     when {
         info == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, overlayOpen, actions)
-        else -> ConversationScreen(chatId = chatId, playerOpen = overlayOpen, actions = actions)
+        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, overlayOpen, actions, startAt)
+        else -> ConversationScreen(chatId = chatId, playerOpen = overlayOpen, actions = actions, startAt = startAt)
     }
 }
 

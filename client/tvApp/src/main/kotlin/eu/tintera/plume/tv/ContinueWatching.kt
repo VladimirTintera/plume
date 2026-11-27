@@ -53,7 +53,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.continue_watching_progress
 import eu.tintera.plume.resources.continue_watching_remove
 import eu.tintera.plume.resources.play_arrow_24dp
-import eu.tintera.plume.resources.saved_topic_open_chat
+import eu.tintera.plume.resources.media_show_in_chat
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -78,9 +78,10 @@ data class WatchingItem(val position: VideoPosition, val source: VideoSource, va
 
 /**
  * Záložka Rozkoukaná videa: mřížka karet po třech (Google: karty pro vizuální katalog, šířka
- * pro tři vedle sebe 268 dp). OK pustí video z pamatované pozice, podržení OK nabídne otevřít
- * chat nebo video ze seznamu odebrat. Zpráva se načte jednou a pamatuje se — pozice se za
- * přehrávání přepisuje každých 10 s. Smazaná zpráva (nebo bez videa) se tiše nevykreslí.
+ * pro tři vedle sebe 268 dp). OK pustí video z pamatované pozice, podržení OK nabídne zobrazit
+ * video v chatu (skok na jeho zprávu) nebo ho ze seznamu odebrat. Zpráva se načte jednou
+ * a pamatuje se — pozice se za přehrávání přepisuje každých 10 s. Smazaná zpráva (nebo bez
+ * videa) se tiše nevykreslí.
  *
  * [playerOpen]: po zavření přehrávače si mřížka vezme fokus zpátky na kartu, ze které hrálo.
  */
@@ -90,7 +91,7 @@ fun ContinueWatchingPane(
     playerOpen: Boolean,
     takeFocus: Boolean,
     onPlay: (VideoRequest) -> Unit,
-    onOpenChat: (Long) -> Unit,
+    onShowInChat: (chatId: Long, messageId: Long) -> Unit,
 ) {
     val chats = koinInject<ChatRepository>()
     val conversations = koinInject<ConversationRepository>()
@@ -158,10 +159,10 @@ fun ContinueWatchingPane(
                     Button(
                         onClick = {
                             menuFor = null
-                            onOpenChat(item.source.chatId)
+                            onShowInChat(item.source.chatId, item.source.messageId)
                         },
                         modifier = Modifier.focusRequester(open),
-                    ) { Text(stringResource(Res.string.saved_topic_open_chat)) }
+                    ) { Text(stringResource(Res.string.media_show_in_chat)) }
                     Button(onClick = {
                         menuFor = null
                         store.remove(item.position.key)

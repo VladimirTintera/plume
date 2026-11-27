@@ -5195,4 +5195,5 @@
     <string name="tv_dream_empty">Zatím tu nejsou žádné fotky. V nastavení spořiče vyberte chat s fotkami.</string>
     <string name="tv_dream_settings_title">Fotky pro spořič obrazovky</string>
     <string name="tv_dream_settings_hint">Spořič ukazuje fotky z chatu, který vyberete.</string>
+    <string name="tv_action_show_quote">Zobrazit citovanou zprávu</string>
 </resources>
