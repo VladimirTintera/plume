@@ -727,7 +727,9 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
 
 ## Úložiště
 
-- **Automatický úklid** (`WearStorageCleaner`): po přihlášení, nejvýš jednou za 24 h, smaže
+- **Automatický úklid** (`AutoStorageCleaner` v `core/storage`, dřív `WearStorageCleaner`;
+  sdílí ho televize, viz „Úklid mezipaměti" v `android-tv.md`): po přihlášení a pak každou
+  hodinu kontrola, nejvýš jednou za 24 h smaže
   média, na která se nesáhlo 3 dny, a pak nejdéle nepoužitá nad 100 MB —
   `StorageRepository.cleanUp` z `core` (`optimizeStorage` s mezemi vypsanými výslovně, ne
   `use_storage_optimizer`; proč, viz `StorageCleaner` telefonu). Samolepky, avatary a náhledy

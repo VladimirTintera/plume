@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.core.storage.AutoStorageCleaner
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,7 +58,7 @@ private const val CLEARING = -1L
 fun SettingsScreen() {
     val state = rememberTransformingLazyColumnState()
     var confirmLogout by remember { mutableStateOf(false) }
-    val cleaner = koinInject<WearStorageCleaner>()
+    val cleaner = koinInject<AutoStorageCleaner>()
     val scope = rememberCoroutineScope()
     // null = ještě nečištěno, -1 = právě čistí, jinak uvolněné bajty.
     var freed by remember { mutableStateOf<Long?>(null) }
@@ -71,7 +72,7 @@ fun SettingsScreen() {
                     transformation = SurfaceTransformation(spec),
                 ) { Text(stringResource(Res.string.settings_title)) }
             }
-            // Ruční vyčištění vedle automatického úklidu (WearStorageCleaner): soubory zůstávají
+            // Ruční vyčištění vedle automatického úklidu (AutoStorageCleaner): soubory zůstávají
             // na serveru, potvrzení proto netřeba.
             item {
                 val current = freed

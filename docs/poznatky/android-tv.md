@@ -134,6 +134,25 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese rámeček bubliny.
 
+## Úklid mezipaměti
+
+- **Automatický úklid stažených médií** (`AutoStorageCleaner` v `core/storage`, androidMain):
+  média, na která se nesáhlo 3 dny, a pak nejdéle nepoužitá nad **1 GB**. Levné televize mají
+  kolem 8 GB a videa z kanálů (s přehráváním po sobě) a příběhy by je zaplnila. Strop je výš
+  než na hodinkách (100 MB): video má desítky MB a mezipaměť se pak obnovuje pořád dokola.
+  Rozkoukané video smazáním souboru nepřijde o pozici (ta je zvlášť) a právě přehrávané video
+  úklid nesmaže (TDLib nechá soubory mladší než hodina).
+- **Společný s hodinkami**: dřív `WearStorageCleaner` ve `wearApp`, teď tatáž třída v `core`
+  s mezemi od aplikace (hodinky dál `wear_storage`, 3 dny a 100 MB; televize `tv_storage`).
+  Dvě kopie téhož úklidu by se rozešly.
+- **Kontroluje se po přihlášení a pak každou hodinu, dokud proces běží** (úklid sám nejvýš
+  jednou za 24 h). Televize nechává aplikaci v paměti celé dny — jen po startu procesu by
+  úklid neproběhl nikdy. Kontrola je jen čtení času z `SharedPreferences`.
+- **Ruční vyčištění televize nemá** (nemá nastavení); hodinky ho mají v Nastavení.
+- **Ověřeno 27. 11. 2026**: po startu „Úklid úložiště (tv_storage) uvolnil 0 B" (vše mladší než
+  3 dny a pod stropem, `files` 91 MB) a zapsaný čas v `tv_storage.xml`. Že úklid nad stropem
+  opravdu maže, na televizi ověřené není — je to týž `cleanUp` z `core`, ověřený na hodinkách.
+
 ## Skok na zprávu
 
 - **Okno historie kolem zprávy** (`ConversationState.jumpTo`, `loadAround`): `getChatHistory`

@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.core.storage.AutoStorageCleaner
 import android.app.Application
 import eu.tintera.plume.core.accounts.defaultAccount
 import eu.tintera.plume.core.di.APP_SCOPE
@@ -39,7 +40,17 @@ class WearApplication : Application() {
                             module {
                                 single { WearNotifications(androidContext(), get(named(APP_SCOPE))) }
                                 // Jeden na proces: automatický úklid a tlačítko v Nastavení se nesmí potkat.
-                                single { WearStorageCleaner(androidContext(), get(), get(named(APP_SCOPE))) }
+                                single {
+                                    // Hodinky mají místa málo: 3 dny a 100 MB (dřív WearStorageCleaner, týž soubor voleb).
+                                    AutoStorageCleaner(
+                                        context = androidContext(),
+                                        repository = get(),
+                                        scope = get(named(APP_SCOPE)),
+                                        prefsName = "wear_storage",
+                                        keepSeconds = 3 * 24 * 3600,
+                                        maxBytes = 100L * 1024 * 1024,
+                                    )
+                                }
                             },
                         )
                     },
@@ -64,6 +75,6 @@ class WearApplication : Application() {
         UnreadCountPublisher(this, appScope).start(session, koin.get<ChatRepository>())
         RecentChatsPublisher(this, appScope, koin.get<FileRepository>()).start(session, koin.get<ChatRepository>())
         // Úklid stažených médií, hodinky mají místa málo.
-        koin.get<WearStorageCleaner>().start(session)
+        koin.get<AutoStorageCleaner>().start(session)
     }
 }

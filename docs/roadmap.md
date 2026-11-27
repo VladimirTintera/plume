@@ -595,8 +595,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod
    konverzací (hotovo). Zbývá: kdo reagoval, vlastní emoji (kreslení), úprava a smazání vlastní zprávy,
    přeposlání. Skok na citovanou zprávu hotový.
-6. **Úklid mezipaměti** jako na hodinkách (`WearStorageCleaner`): levné televize mají kolem 8 GB
-   a videa z kanálů by je zaplnila.
+6. ~~**Úklid mezipaměti**~~ — hotovo (`AutoStorageCleaner` v `core`, společný s hodinkami;
+   3 dny a 1 GB). Zbývá: ověřit, že úklid nad stropem na televizi opravdu maže.
 7. ~~**Hlavní cíle v liště**~~ — hledání je první záložka s lupou (jako horní navigace Google
    TV), lišta by kvůli dvěma cílům vzala šířku seznamu. Vrátit se k ní, až přibude Nastavení.
 8. ~~**Vydání do Play:** bundl ze stejného tagu, track `tv:internal`, jednotka `tv`, banner do
