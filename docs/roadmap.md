@@ -2149,9 +2149,9 @@ technicky by šly, ale jdou proti tomu, co druhá strana čeká, když zprávu s
   a plynulost na telefonu; kalendář a rychlé rolování po měsících (TDLib je má jen pro jeden
   chat — leda z vlastních stránek); prohlížeč, který listuje přes chaty; tajné chaty
   (`searchSecretMessages`); propojení s hledáním fotek podle obsahu.
-- **Ranní přehled kanálů** (M, AI). Jedna obrazovka „co se od včera stalo" ve ztlumených
-  kanálech, u každého dva řádky od modelu v zařízení; skládá existující shrnutí chatu.
-  AICore počítá jen v popředí, takže se přehled počítá při otevření, ne v noci.
+- ~~**Ranní přehled kanálů**~~ — hotovo (menu účtu → Přehled kanálů;
+  `docs/poznatky/ai-v-zarizeni.md`, „Přehled kanálů"). Zbývá: ověřit shrnutí skutečnou Gemmou
+  a Gemini Nano na telefonu; archivované kanály; „označit vše jako přečtené" z přehledu.
 - **Vlastní štítky chatů bez Premium** (S–M). Barevné lokální štítky („rodina", „vyřídit")
   a filtr podle nich; Telegram má štítky složek jen s Premium. `AppSettings`, mezi zařízeními
   přes CloudStorage (`docs/poznatky/nastaveni.md`, „Synchronizace bez backendu").
