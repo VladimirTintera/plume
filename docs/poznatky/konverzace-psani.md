@@ -1411,6 +1411,35 @@ v `ConversationSuggestions` (`hashtagQuery`, `mentionQuery(…, atStart)`, testy
   nabídlo už jen `#plumezustat` (tedy smazané v TDLib, ne jen v panelu). Desktop (pravé
   tlačítko) a iOS neověřené.
 
+## Vlastní textové zkratky
+
+Nastavení → Chaty → **Textové zkratky** (`TextShortcutsScreen`): „/název → text", přidání,
+úprava a smazání. Ve vstupním poli se po `/` a začátku názvu nabídnou odpovídající zkratky
+(`ShortcutSuggestionsPanel`, tentýž plovoucí panel jako hashtagy); ťuknutí nahradí `/…` uloženým
+textem a **nic neodešle** — na rozdíl od příkazu bota. Telegram má rychlé odpovědi jen
+v placeném Business (`core/shortcuts/TextShortcuts.kt`, testy `TextShortcutsTest`).
+
+- **Spouštěč je „/" u kurzoru**, ne jen na začátku zprávy: na začátku textu nebo po mezeře
+  (`shortcutQueryAt`, stejná pravidla jako hashtag), takže zkratka jde vložit i doprostřed
+  věty. Cesta „a/b" zkratka není.
+- **Kolize s příkazy botů**: v chatu s příkazy mají přednost zkratky, jen když nějaká odpovídá
+  napsanému názvu; **samotné „/" patří příkazům** (ověřeno na emulátoru v chatu s botem:
+  „/" ukáže `/start`…, „/te" zkratku `/test`). Bez příkazů je „/" celé zkratkám.
+- **Při psaní po znaku se panely vystřídají** (u „/" příkazy, od „/t" zkratka) — na snímku
+  pořízeném hned po `adb input text` byly vidět ještě příkazy. Chyba to není, jen přechod.
+- **Název jen malá písmena, číslice a podtržítko** (`shortcutName`, do 32 znaků): je to slovo
+  za lomítkem a jiné znaky by dotaz u kurzoru ukončily. Duplicitní název editor nepustí.
+- **Společné pro všechny účty** (`AppSettings.textShortcuts`) — jsou to uživatelovy texty, ne
+  data účtu. Synchronizace je skupina `TextShortcuts` (`plume_text_shortcuts`) s položkou na
+  zkratku podle pevného **id**, ne podle názvu: přejmenování na telefonu a úprava textu na
+  desktopu zůstanou jedna zkratka (test `TextShortcutSyncTest`). Do úložiště každého účtu se
+  píše totéž, jako u voleb vzhledu.
+- **„/" v `Text(…)` je literál** a `verifyNoHardcodedText` ho chytí — jako u hashtagů jde přes
+  `shortcutText(name)` a `SHORTCUT_PREFIX`.
+- **Ověřeno na emulátoru**: založení zkratky v Nastavení, návrh nad polem v chatu s botem,
+  vložení textu bez odeslání, samotné „/" ukazuje příkazy bota, smazání s potvrzením.
+  Synchronizace mezi dvěma zařízeními jen testy.
+
 ## Odpovědi (reply)
 
 - **`ChatMessage` nese jen `replyToMessageId`, ne celou citovanou zprávu.** V konverzaci se

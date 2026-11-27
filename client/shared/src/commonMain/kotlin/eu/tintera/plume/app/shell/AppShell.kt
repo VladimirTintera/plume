@@ -70,6 +70,8 @@ import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.AiPlaygroundRoute
 import eu.tintera.plume.features.aiplayground.AiPlaygroundScreen
 import eu.tintera.plume.core.navigation.StickerSetsRoute
+import eu.tintera.plume.core.navigation.TextShortcutsRoute
+import eu.tintera.plume.features.settings.TextShortcutsScreen
 import eu.tintera.plume.core.navigation.EmojiSetsRoute
 import eu.tintera.plume.core.telegram.StickerSetKind
 import eu.tintera.plume.core.telegram.opensAsTopics
@@ -2292,6 +2294,7 @@ private fun shellEntryProvider(
             onOpenFolders = { settingsStack.openSubpage(route, ChatFoldersRoute) },
             onOpenStickerSets = { settingsStack.openSubpage(route, StickerSetsRoute) },
             onOpenEmojiSets = { settingsStack.openSubpage(route, EmojiSetsRoute) },
+            onOpenTextShortcuts = { settingsStack.openSubpage(route, TextShortcutsRoute) },
             onOpenProxy = { settingsStack.openSubpage(route, ProxySettingsRoute) },
             onOpenAccountPrivacy = { settingsStack.openSubpage(route, AccountPrivacyRoute) },
             onOpenTwoStep = { settingsStack.openSubpage(route, TwoStepRoute) },
@@ -2357,6 +2360,10 @@ private fun shellEntryProvider(
     }
 
     // Sady samolepek nad sekcí Chaty, jako složky chatů.
+    entry<TextShortcutsRoute>(metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading)) { route ->
+        TextShortcutsScreen(onBack = { settingsStack.pop(route) })
+    }
+
     entry<StickerSetsRoute>(
         metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -2756,7 +2763,7 @@ private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
         this == LoginEmailRoute || this == ChangePhoneRoute || this == PasskeysRoute || this == NetworkUsageRoute || this == LicensesRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this == AiPlaygroundRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
-        this == StickerSetsRoute || this == EmojiSetsRoute ||
+        this == StickerSetsRoute || this == EmojiSetsRoute || this == TextShortcutsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute || this == DeleteAccountRoute
 
 /**

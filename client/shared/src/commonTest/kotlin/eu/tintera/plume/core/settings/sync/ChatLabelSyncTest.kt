@@ -50,3 +50,24 @@ class ChatLabelSyncTest {
         assertEquals(emptyList(), labelAssignmentsWith(entries, emptyList(), accountId = 1))
     }
 }
+
+class TextShortcutSyncTest {
+    private val shortcuts = listOf(
+        eu.tintera.plume.core.shortcuts.TextShortcut("1", "adresa", "Dlouhá 5", order = 0),
+        eu.tintera.plume.core.shortcuts.TextShortcut("2", "ucet", "123/0100", order = 1),
+    )
+
+    @Test
+    fun polozkyAZpet() {
+        assertEquals(shortcuts, textShortcutsWith(textShortcutEntries(shortcuts)))
+    }
+
+    @Test
+    fun prejmenovaniAUpravaTextuSeSlijiJakoJednaZkratka() {
+        val base = textShortcutEntries(shortcuts)
+        val phone = textShortcutEntries(listOf(shortcuts[0].copy(name = "domov"), shortcuts[1]))
+        val desktop = textShortcutEntries(listOf(shortcuts[0], shortcuts[1].copy(text = "999/0800")))
+        val merged = textShortcutsWith(merge3(base, local = phone, remote = desktop) { local, _ -> local })
+        assertEquals(listOf("domov" to "Dlouhá 5", "ucet" to "999/0800"), merged.map { it.name to it.text })
+    }
+}

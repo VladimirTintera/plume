@@ -173,6 +173,10 @@ data object AiPlaygroundRoute : Route
 @Serializable
 data object StickerSetsRoute : Route
 
+/** Vlastní textové zkratky — vrší se nad sekci Chaty. */
+@Serializable
+data object TextShortcutsRoute : Route
+
 /** Sady vlastních emoji — táž obrazovka jako [StickerSetsRoute], vlastní pořadí a archiv. */
 @Serializable
 data object EmojiSetsRoute : Route
@@ -790,6 +794,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
             subclass(AiPlaygroundRoute::class, AiPlaygroundRoute.serializer())
             subclass(StickerSetsRoute::class, StickerSetsRoute.serializer())
+            subclass(TextShortcutsRoute::class, TextShortcutsRoute.serializer())
             subclass(EmojiSetsRoute::class, EmojiSetsRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())

@@ -55,6 +55,9 @@ import eu.tintera.plume.features.proxy.ProxyStatusViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.bolt_filled_24dp
+import eu.tintera.plume.resources.text_shortcuts_row_help
+import eu.tintera.plume.resources.text_shortcuts_title
 import eu.tintera.plume.resources.chat_folders_row_help
 import eu.tintera.plume.resources.chat_folders_title
 import eu.tintera.plume.resources.folder_24dp
@@ -90,6 +93,7 @@ internal fun ChatsSettings(
     onOpenFolders: () -> Unit,
     onOpenStickerSets: () -> Unit,
     onOpenEmojiSets: () -> Unit,
+    onOpenTextShortcuts: () -> Unit,
 ) {
     val actions by swipe.actions.collectAsStateWithLifecycle()
 
@@ -138,6 +142,12 @@ internal fun ChatsSettings(
             supportingContent = { Text(stringResource(Res.string.emoji_sets_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenEmojiSets),
         ) { Text(stringResource(Res.string.emoji_sets_title)) }
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Icon(painterResource(Res.drawable.bolt_filled_24dp), contentDescription = null) },
+            supportingContent = { Text(stringResource(Res.string.text_shortcuts_row_help)) },
+            modifier = Modifier.clickable(onClick = onOpenTextShortcuts),
+        ) { Text(stringResource(Res.string.text_shortcuts_title)) }
     }
 
     TitledGroup(Res.string.settings_links) {

@@ -21,6 +21,8 @@ import eu.tintera.plume.core.navigation.ProxySettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.StickerSetsRoute
+import eu.tintera.plume.core.navigation.TextShortcutsRoute
+import eu.tintera.plume.resources.text_shortcuts_title
 import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.telegram.PrivacySetting
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
@@ -190,6 +192,7 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
     val chats = SettingsSection.Chats
     add(SettingsSearchEntry(Res.string.chat_folders_title, section(chats, ChatFoldersRoute), Res.string.settings_search_kw_folders))
     add(SettingsSearchEntry(Res.string.sticker_sets_title, section(chats, StickerSetsRoute)))
+    add(SettingsSearchEntry(Res.string.text_shortcuts_title, section(chats, TextShortcutsRoute)))
     add(SettingsSearchEntry(Res.string.emoji_sets_title, section(chats, EmojiSetsRoute)))
     listOf(
         Res.string.settings_swipe_left,
@@ -312,6 +315,7 @@ internal val NavKey.pathTitle: StringResource?
         PasskeysRoute -> Res.string.settings_passkeys
         ChatFoldersRoute -> Res.string.chat_folders_title
         StickerSetsRoute -> Res.string.sticker_sets_title
+        TextShortcutsRoute -> Res.string.text_shortcuts_title
         EmojiSetsRoute -> Res.string.emoji_sets_title
         NetworkUsageRoute -> Res.string.network_usage_title
         LicensesRoute -> Res.string.licenses_title

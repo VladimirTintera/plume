@@ -4,6 +4,7 @@ import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.chatlabels.StoredChatLabel
 import eu.tintera.plume.core.chatlabels.StoredLabelAssignment
+import eu.tintera.plume.core.shortcuts.TextShortcut
 import eu.tintera.plume.core.video.MAX_VIDEO_POSITIONS
 import eu.tintera.plume.core.video.VideoPosition
 import kotlinx.serialization.Serializable
@@ -47,6 +48,12 @@ enum class CloudSyncGroup(val cloudKey: String) {
      * odebrání z chatu na jednom zařízení se tak slévá po kusech, ne přepsáním celého seznamu.
      */
     ChatLabels("plume_chat_labels"),
+
+    /**
+     * Vlastní textové zkratky ([TextShortcut]). Společné pro všechny účty, takže se do úložiště
+     * každého účtu píše totéž (jako volby vzhledu); slévá se po zkratkách podle jejich id.
+     */
+    TextShortcuts("plume_text_shortcuts"),
 }
 
 /** Názvy klíčů `AppSettings` po skupinách; zapisovat jde jen ty, které `AppSettings` zná. */
@@ -198,6 +205,22 @@ fun labelAssignmentsWith(entries: SyncEntries, current: List<StoredLabelAssignme
         val label = parts.getOrNull(1)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
         StoredLabelAssignment(accountId, chat, label)
     }
+
+/** Zkratka v úložišti; id je klíč položky. */
+@kotlinx.serialization.Serializable
+private data class SyncedShortcut(val name: String, val text: String, val order: Int = 0)
+
+/** Textové zkratky jako položky: id → název, text a pořadí. */
+fun textShortcutEntries(shortcuts: List<TextShortcut>): SyncEntries =
+    shortcuts.associate { it.id to syncJson.encodeToString(SyncedShortcut.serializer(), SyncedShortcut(it.name, it.text, it.order)) }
+
+/** Zkratky po sloučení; poškozená položka se zahodí. */
+fun textShortcutsWith(entries: SyncEntries): List<TextShortcut> =
+    entries.mapNotNull { (id, value) ->
+        runCatching { syncJson.decodeFromString(SyncedShortcut.serializer(), value) }.getOrNull()
+            ?.takeIf { id.isNotEmpty() && it.name.isNotEmpty() }
+            ?.let { TextShortcut(id, it.name, it.text, it.order) }
+    }.sortedWith(compareBy({ it.order }, { it.name }))
 
 /** Záložky účtu [accountId] jako položky (klíč je chat a zpráva). */
 fun bookmarkEntries(bookmarks: List<MessageBookmark>, accountId: Long): SyncEntries =
