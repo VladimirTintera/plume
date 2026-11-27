@@ -1173,6 +1173,11 @@ vyšlo, je níž.
   zápis (`VideoPosition.at`, nové pole), u záložek později uložená. **Bez základu** (první
   synchronizace zařízení) se data sjednotí — nové zařízení si tak vezme nastavení účtu, ale
   volba, kterou má jen ono, se pošle ostatním.
+- **Formát je v `core`, data ve `shared`**: skupiny, sloučení (`merge3`), kusy a čtení i zápis
+  skupin (`readGroups`, `writeGroup`) jsou v `core/settings/sync/CloudGroups.kt` a `CloudStore`
+  taky v `core`, protože rozkoukaná videa synchronizuje i televize (`TvPositionSync`, jen skupina
+  `plume_positions`, viz „Rozkoukaná videa" v `android-tv.md`). Ve `shared` (`CloudSyncData.kt`)
+  zůstaly funkce skupin, které zná jen aplikace telefonu. Změna formátu pozic se tím týká obou.
 - **Za účet**: úložiště má každý účet své a `CloudSync` běží v kontejneru účtu. Volby jdou přes
   všechny účty; rozkoukaná videa, záložky a barvy chatů jen ty, které k účtu patří
   (`source.accountId`, `MessageBookmark.accountId`, `StoredChatColor.accountId`) — do úložiště

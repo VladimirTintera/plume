@@ -577,8 +577,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 **Další kroky (podle užitku):**
 
 1. ~~**Video a přehrávání médií**~~ — hotovo (zdroj nad souborem TDLib přesunutý do `core`,
-   přehrávač, `MediaSession`). Zbývá: pokračování tam, kde uživatel skončil (rozkoukaná videa,
-   na telefonu `VideoProgress`), výběr kvality (`alternatives`), titulky/storyboard při skoku,
+   přehrávač, `MediaSession`). Rozkoukaná videa hotová (pokračování od pozice, záložka,
+   synchronizace s telefonem). Zbývá: výběr kvality (`alternatives`), titulky/storyboard při skoku,
    video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
 2. ~~**Kanály jako feed a komentáře**~~ — hotovo (karty příspěvků, detail s rolovaným textem
    a vláknem komentářů). Zbývá: odkazy a Instant
@@ -608,8 +608,16 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 9. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
    a výkon seznamu s avatary na slabém procesoru.
 
+10. **Další nápady pro televizi** (sepsané 27. 11. 2026, podle užitku): **příběhy** (řada avatarů
+    s lemem nad seznamem, prohlížeč šipkami), **hledání i hlasem** (mikrofon na ovladači; s ním
+    lišta s hlavními cíli z bodu 7), **kanál jako pořad** (po dohrání videa v kanálu další video
+    téhož kanálu), **spořič obrazovky s fotkami** (systémový `DreamService` z vybraného chatu nebo
+    Uložených zpráv).
+
 Vědomě ne (aspoň zatím): hovory, psaní dlouhých zpráv, správa skupin a nastavení účtu,
-notifikace (centrum notifikací na televizi skoro není).
+notifikace (centrum notifikací na televizi skoro není), **řada „Pokračovat ve sledování" na
+ploše Google TV** (Engage SDK chce schválení a aplikace pro zprávy nebere, Watch Next pravidla
+nechtějí klipy — viz „Rozkoukaná videa" v `docs/poznatky/android-tv.md`).
 
 ## Obrazovky a sekce, které nejsou
 

@@ -56,9 +56,16 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** Položka prohlížeče: fotka nebo video jedné zprávy a její popisek. */
+/** Položka prohlížeče: fotka nebo video jedné zprávy chatu [chatId] a její popisek. */
 @Immutable
-data class ViewerItem(val messageId: Long, val media: MessageMedia, val caption: String)
+data class ViewerItem(val chatId: Long, val messageId: Long, val media: MessageMedia, val caption: String)
+
+/**
+ * Video k přehrání a zpráva, ze které je: podle ní se pamatuje, kde uživatel přestal sledovat
+ * (seznam Rozkoukaná videa otevírá video zase z té zprávy).
+ */
+@Immutable
+data class VideoRequest(val chatId: Long, val messageId: Long, val video: MessageMedia.Video, val caption: String)
 
 /**
  * Co jde s médiem ve zprávě udělat: pustit video ([playVideo]), nebo otevřít prohlížeč fotek
@@ -67,15 +74,15 @@ data class ViewerItem(val messageId: Long, val media: MessageMedia, val caption:
  */
 @Immutable
 class MediaActions(
-    val playVideo: (MessageMedia.Video, String) -> Unit,
+    val playVideo: (VideoRequest) -> Unit,
     val openViewer: (List<ViewerItem>, Int) -> Unit,
     val playAudio: (List<AudioItem>, Int) -> Unit,
 )
 
 /** Fotky a videa ze zpráv (od nejstarší) v pořadí, v jakém je prohlížeč prochází. */
-fun viewerItems(messages: List<ChatMessage>): List<ViewerItem> = messages.mapNotNull { message ->
+fun viewerItems(chatId: Long, messages: List<ChatMessage>): List<ViewerItem> = messages.mapNotNull { message ->
     val media = message.media
-    if (media is MessageMedia.Photo || media is MessageMedia.Video) ViewerItem(message.id, media!!, message.text) else null
+    if (media is MessageMedia.Photo || media is MessageMedia.Video) ViewerItem(chatId, message.id, media!!, message.text) else null
 }
 
 /**
@@ -95,10 +102,10 @@ fun mediaOpenAction(chatId: Long, album: List<ChatMessage>, allMessages: List<Ch
                 actions.playAudio(items, items.indexOfFirst { it.messageId == first.id }.coerceAtLeast(0))
             }
         }
-        album.size == 1 && media is MessageMedia.Video -> { { actions.playVideo(media, first.text) } }
+        album.size == 1 && media is MessageMedia.Video -> { { actions.playVideo(VideoRequest(chatId, first.id, media, first.text)) } }
         album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video } -> {
             {
-                val items = viewerItems(allMessages)
+                val items = viewerItems(chatId, allMessages)
                 actions.openViewer(items, items.indexOfFirst { it.messageId == first.id }.coerceAtLeast(0))
             }
         }
@@ -122,7 +129,7 @@ fun MediaViewerScreen(
     items: List<ViewerItem>,
     startIndex: Int,
     playerOpen: Boolean,
-    onPlayVideo: (MessageMedia.Video, String) -> Unit,
+    onPlayVideo: (VideoRequest) -> Unit,
     onClose: () -> Unit,
 ) {
     BackHandler(onBack = onClose)
@@ -157,7 +164,7 @@ fun MediaViewerScreen(
                         true
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                        (item.media as? MessageMedia.Video)?.let { onPlayVideo(it, item.caption) }
+                        (item.media as? MessageMedia.Video)?.let { onPlayVideo(VideoRequest(item.chatId, item.messageId, it, item.caption)) }
                         true
                     }
                     // Nahoru a dolů jen ukážou popisek; fokus jinam nemá kam jít.

@@ -90,6 +90,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
 
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kermit)
     implementation(libs.androidx.core.ktx)
 

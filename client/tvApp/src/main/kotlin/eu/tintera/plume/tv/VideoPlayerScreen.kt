@@ -24,11 +24,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +46,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -58,20 +63,24 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
-import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.video.PartialFileDataSource
 import eu.tintera.plume.core.video.StreamingSource
+import eu.tintera.plume.core.video.VideoSource
 import eu.tintera.plume.core.video.streamOriginalVideo
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
+import eu.tintera.plume.resources.media_video_from_start
 import eu.tintera.plume.resources.media_video_playback_failed
+import eu.tintera.plume.resources.media_video_resumed
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.replay_24dp
 import java.io.File
 import eu.tintera.plume.core.di.APP_SCOPE
 import kotlinx.coroutines.CoroutineScope
@@ -92,6 +101,12 @@ private const val SEEK_STEP_MS = 10_000L
 /** Jak dlouho zůstane ovládání vidět, když video hraje a nikdo nesahá na ovladač. */
 private const val CONTROLS_TIMEOUT_MS = 4_000L
 
+/** Jak dlouho je po rozběhnutí z pamatované pozice vidět „Pokračuje od…" (jako na telefonu). */
+private const val RESUME_HINT_MS = 6_000L
+
+/** Pozice se za hraní zapisuje každých 10 s (40 tiknutí po 250 ms), jako na telefonu. */
+private const val SAVE_EVERY_TICKS = 40
+
 /**
  * Video přes celou obrazovku. Hraje už během stahování: nad rozestavěným souborem TDLib čte
  * [PartialFileDataSource] z `:client:core` (tentýž, který používá telefon) a když přehrávač
@@ -103,9 +118,17 @@ private const val CONTROLS_TIMEOUT_MS = 4_000L
  * „Právě hraje" na Google TV fungují i bez fokusu v aplikaci.
  */
 @Composable
-fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () -> Unit) {
+fun VideoPlayerScreen(request: VideoRequest, onClose: () -> Unit) {
+    val video = request.video
+    val caption = request.caption
     val context = LocalContext.current
     val files = koinInject<FileRepository>()
+    val positions = koinInject<TvVideoPositions>()
+    val accountId by koinInject<ChatRepository>().savedMessagesChatId.collectAsState()
+    // Odkud začít: pamatovaná pozice (i z telefonu, viz TvPositionSync), jinak čas, od kterého
+    // video poslal odesílatel. Čte se jednou — během sledování se pozice přepisuje.
+    val remembered = remember { video.fileKey?.let(positions::of)?.positionMs }
+    val startMs = remember { remembered ?: (video.startSeconds * 1000L) }
     val scope = rememberCoroutineScope()
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     BackHandler(onBack = onClose)
@@ -179,6 +202,7 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
                 return@LaunchedEffect
             }
         }
+        if (startMs > 0) player.seekTo(startMs)
         player.prepare()
         loaded = true
     }
@@ -188,15 +212,28 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
     var buffering by remember { mutableStateOf(true) }
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(video.durationSeconds * 1000L) }
+    // Pozice se zapisuje jen u videa, které opravdu hrálo: otevření a zavření bez puštění by
+    // zapsalo začátek, a tím pamatovanou pozici (třeba z telefonu) smazalo.
+    var hasPlayed by remember { mutableStateOf(false) }
+    val save = { at: Long ->
+        val key = video.fileKey
+        if (hasPlayed && key != null) {
+            val source = accountId?.let { VideoSource(it, request.chatId, request.messageId) }
+            positions.record(key, at, durationMs, source)
+        }
+    }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 playing = isPlaying
+                if (isPlaying) hasPlayed = true
             }
 
             override fun onPlaybackStateChanged(state: Int) {
                 buffering = state == Player.STATE_BUFFERING || state == Player.STATE_IDLE
                 player.duration.takeIf { it != C.TIME_UNSET && it > 0 }?.let { durationMs = it }
+                // Dohrané se zapomene (příště od začátku), jako na telefonu.
+                if (state == Player.STATE_ENDED) save(durationMs)
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -208,9 +245,34 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
         onDispose { player.removeListener(listener) }
     }
     LaunchedEffect(player) {
+        var ticks = 0
         while (true) {
             positionMs = player.currentPosition.coerceAtLeast(0)
+            // Každých 10 s hraní: proces může zabít systém, nebo televize usne.
+            if (playing && ++ticks % SAVE_EVERY_TICKS == 0) save(positionMs)
             delay(250)
+        }
+    }
+    // Zavření přehrávače a odchod aplikace do pozadí (tlačítko Domů). Pozice z posledního
+    // tiknutí: při odchodu z kompozice může být přehrávač už uvolněný.
+    val latestPosition by rememberUpdatedState(positionMs)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) save(latestPosition) }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            save(latestPosition)
+        }
+    }
+
+    // „Pokračuje od 12:34" a Od začátku na OK, dokud je nápis vidět (jako „Přeskočit úvod"
+    // u streamovacích služeb). Odpočet běží od rozběhnutí, ne od otevření.
+    var resumeHint by remember { mutableStateOf(remembered != null) }
+    LaunchedEffect(hasPlayed) {
+        if (hasPlayed && resumeHint) {
+            delay(RESUME_HINT_MS)
+            resumeHint = false
         }
     }
 
@@ -236,7 +298,13 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 lastInteraction = System.nanoTime()
-                when (event.nativeKeyEvent.keyCode) {
+                val key = event.nativeKeyEvent.keyCode
+                if (resumeHint && (key == AndroidKeyEvent.KEYCODE_DPAD_CENTER || key == AndroidKeyEvent.KEYCODE_ENTER)) {
+                    player.seekTo(0)
+                    resumeHint = false
+                    return@onPreviewKeyEvent true
+                }
+                when (key) {
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_SPACE -> {
                         // První stisk při schovaném ovládání ho jen ukáže, jako u systémových přehrávačů.
                         if (controlsVisible || !playing) player.togglePlayback()
@@ -288,7 +356,7 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
                 Res.drawable.error_24dp,
                 error = true,
             )
-            !loaded || (buffering && !playing && positionMs == 0L) ->
+            !loaded || (buffering && !playing && !hasPlayed) ->
                 LoadingScreen(stringResource(Res.string.connection_connecting))
         }
         AnimatedVisibility(
@@ -298,6 +366,38 @@ fun VideoPlayerScreen(video: MessageMedia.Video, caption: String, onClose: () ->
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             PlayerControls(caption, playing, positionMs, durationMs)
+        }
+        AnimatedVisibility(
+            visible = resumeHint && hasPlayed && !failed,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(300)),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = SAFE_VERTICAL),
+        ) {
+            ResumeHint(remembered ?: 0L)
+        }
+    }
+}
+
+/** Pilulka „Pokračuje od 12:34" s tlačítkem Od začátku, které bere OK, dokud je vidět. */
+@Composable
+private fun ResumeHint(fromMs: Long) {
+    Row(
+        Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.7f)).padding(start = 24.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            stringResource(Res.string.media_video_resumed, fromMs.asClock()),
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White,
+        )
+        Row(
+            Modifier.clip(CircleShape).background(Color.White).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(painterResource(Res.drawable.replay_24dp), contentDescription = null, tint = Color.Black, modifier = Modifier.size(20.dp))
+            Text(stringResource(Res.string.media_video_from_start), style = MaterialTheme.typography.labelLarge, color = Color.Black)
         }
     }
 }

@@ -284,11 +284,11 @@ fun ComposeButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
  * Dialog bez výchozí šířky platformy: ta je kolem 440 dp a strop panelu (640 dp) by se neuplatnil
  * — řada rychlých reakcí v nabídce se pak uřízla (ověřeno na emulátoru).
  */
-private val WideDialog = DialogProperties(usePlatformDefaultWidth = false)
+internal val WideDialog = DialogProperties(usePlatformDefaultWidth = false)
 
 /** Plocha dialogu: zaoblená, v barvě nad stránkou, šířka do 640 dp. */
 @Composable
-private fun DialogPanel(content: @Composable () -> Unit) {
+internal fun DialogPanel(content: @Composable () -> Unit) {
     Column(
         Modifier
             .widthIn(min = 420.dp, max = 640.dp)

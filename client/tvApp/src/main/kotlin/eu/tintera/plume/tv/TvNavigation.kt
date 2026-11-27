@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ConversationRepository
-import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.connection_connecting
 import org.jetbrains.compose.resources.stringResource
@@ -47,13 +46,14 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var folder by rememberSaveable(stateSaver = FolderSaver) { mutableStateOf<ChatFolder>(ChatFolder.Main) }
     var opened by rememberSaveable { mutableStateOf<Long?>(null) }
     var lastOpened by rememberSaveable { mutableStateOf<Long?>(null) }
+    var watching by rememberSaveable { mutableStateOf(false) }
     val listStates = remember { mutableMapOf<ChatFolder, LazyListState>() }
-    var playing by remember { mutableStateOf<Pair<MessageMedia.Video, String>?>(null) }
+    var playing by remember { mutableStateOf<VideoRequest?>(null) }
     var viewer by remember { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
     val audio = rememberTvAudioPlayer()
     val actions = remember(audio) {
         MediaActions(
-            playVideo = { video, caption -> playing = video to caption },
+            playVideo = { playing = it },
             openViewer = { items, index -> viewer = items to index },
             playAudio = audio::play,
         )
@@ -101,12 +101,17 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                 // zůstane); pozice seznamu je zvlášť pro každou složku.
                 ChatListScreen(
                     folder = folder,
+                    watching = watching,
                     onFolder = {
                         folder = it
+                        watching = false
                         lastOpened = null
                     },
+                    onWatching = { watching = true },
                     listStateFor = { listStates.getOrPut(it) { LazyListState() } },
                     lastOpenedChat = lastOpened,
+                    playerOpen = playing != null,
+                    onPlay = actions.playVideo,
                     onOpen = { chatId ->
                         lastOpened = chatId
                         opened = chatId
@@ -114,8 +119,8 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                 )
             }
             if (playing == null) AudioDock(audio, Modifier.align(Alignment.BottomCenter))
-            playing?.let { (video, caption) ->
-                key(video.fileId) { VideoPlayerScreen(video = video, caption = caption, onClose = { playing = null }) }
+            playing?.let { request ->
+                key(request.video.fileId) { VideoPlayerScreen(request = request, onClose = { playing = null }) }
             }
         }
     }

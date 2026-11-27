@@ -1551,6 +1551,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     sledování a návratu do konverzace.
   - **Mizející médium a tajný chat se nepamatují**: první se podruhé neotevře, po druhém nemá
     v zařízení zůstat stopa.
+  - **Televize má totéž** (data a pravidla z `core/video/VideoPosition.kt`, synchronizace
+    s telefonem přes úložiště bota): `android-tv.md`, „Rozkoukaná videa".
   - **Rozkoukaná videa** (menu účtu, `ContinueWatchingRoute`, `features/watching`, třída účtu
     `ContinueWatching` v `core/video`): videa ze zpráv, která uživatel nedokoukal, nejnověji
     sledovaná nahoře. Řádek: náhled s proužkem, chat a odesílatel, „0:42 / 1:02:08". Ťuknutí
