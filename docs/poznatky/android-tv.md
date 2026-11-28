@@ -964,6 +964,45 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   zálohou, příště naposledy zaostřený). Bez toho šipka z textu vybrala komentář podle polohy
   — kterýkoli, který zrovna ležel naproti.
 
+## Živé změny: kotva seznamu podle klíče
+
+Nalezeno při focení snímků do Play 28. 11. 2026 a opravené: nové zprávy se v otevřené konverzaci
+neukázaly a chaty s novou příchozí zprávou „zmizely" ze seznamu. **Chyba byla ve vrstvě TV, ne
+v `core`** — repository updaty doručovala správně (řádek chatu měl novou zprávu, po znovuotevření
+byla zpráva na místě), telefon tím netrpí.
+
+- **`LazyColumn` drží první viditelnou položku PODLE KLÍČE.** Přibude-li položka před ní, seznam
+  stojí a nová položka skončí mimo obraz. V seznamu chatů chat s novou zprávou přeskočil na první
+  místo NAD horní okraj (šipka nahoru ho ukázala, takže nezmizel), v obrácené konverzaci (index 0
+  dole) vznikla nová zpráva POD spodním okrajem. Vlastní odeslaná zpráva v seznamu chatů chybu
+  neukázala, protože po návratu z konverzace se seznam posouvá na otevřený chat.
+- **Oprava: byl-li vidět začátek, seznam k němu dojede** (`shownTopChat` v `ChatList`,
+  `shownNewestKey` v `MessageList`). Kdo čte starší historii nebo je v seznamu níž, toho nová
+  položka neodroluje — ověřeno, snímek před zprávou a po ní byl shodný.
+- **Na „byl vidět začátek" se nehodí `visibleItemsInfo`**: počítá i položku, která zasahuje do
+  odsazení seznamu (`contentPadding`), takže „první viditelná" byla už ta nová a podmínka
+  nesepnula. Rozhoduje `firstVisibleItemIndex` po jednom snímku (`withFrameNanos`): dosavadní
+  první položka drží místo, jen má o jedno vyšší index.
+- **Zaostřený chat, který přeskládání odneslo z obrazu, se do něj vrátí** — fokus je na televizi
+  jediný kurzor a jinak by zůstal mimo obrazovku.
+- **TDLib po potvrzení odeslané zprávě ZMĚNÍ id.** S klíčem položky podle id zmizela položka
+  s fokusem a vznikla nová: fokus odskočil na starší zprávu a zůstal jen předěl „Dnes". Klíč je
+  proto dočasné id i po potvrzení (`ConversationState.itemKeys`, totéž jako na telefonu).
+- **Dva posuny naráz se přeruší.** Posun po odeslání (`sentCount`) a dojetí na novou zprávu jedou
+  ke stejnému konci; druhý přerušil první a fokus vyžádaný potom zprávu dorovnal jen k hraně
+  seznamu, do odsazení — prstenec fokusu byl dole useknutý. Dojetí proto stojí, když seznam už
+  roluje (`isScrollInProgress`).
+- **Náhled vpravo má klíč i podle poslední zprávy** (`rememberChatPreview(chatId, lastMessageId)`)
+  a u téhož chatu se čte bez prodlevy 300 ms. Dřív byl klíčem jen chat a náhled dostával chat
+  z doby zaostření, takže zůstal u staré zprávy, zatímco řádek ukazoval novou.
+- **„Šipka dolů po reakci nedojela na poslední zprávu"** se po opravě nevyvolala (reakce na
+  předposlední i poslední zprávu, šipka dolů na poslední). Nejspíš šlo o tutéž zprávu schovanou
+  pod okrajem.
+- **Ověřeno 28. 11. 2026 na `Plume_TV_Play`** (testovací účet): zprávy od Notifikátora přes Bot
+  API do jeho chatu a do skupiny triáže při fokusu níž v seznamu, náhled zaostřeného chatu,
+  příchozí zpráva v otevřené konverzaci, dvě vlastní zprávy z dialogu psaní (fokus na nové
+  i po potvrzení serverem), reakce a šipka dolů, nová zpráva při čtení starší historie.
+
 ## Past: `produceState` hodnotu při změně klíče nevynuluje
 
 Stav uvnitř `produceState` je `remember` BEZ klíčů; klíče jen znovu spustí producenta. Kdo
