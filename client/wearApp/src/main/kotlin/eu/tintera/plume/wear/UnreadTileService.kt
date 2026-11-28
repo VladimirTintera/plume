@@ -47,7 +47,7 @@ class UnreadTileService : TileService() {
         }
 
     private fun layout(device: DeviceParameters, content: TileContent): LayoutElement =
-        materialScope(this, device) {
+        materialScope(this, device, defaultColorScheme = WearColors.tile) {
             primaryLayout(
                 titleSlot = { text(getString(R.string.app_name).layoutString) },
                 mainSlot = { mainSlot(content) },
@@ -60,14 +60,14 @@ class UnreadTileService : TileService() {
         }
 
     private fun MaterialScope.mainSlot(content: TileContent): LayoutElement {
-        val count = content.count ?: return text(content.label.layoutString, maxLines = 3)
+        val count = content.count ?: return text(content.label.layoutString, maxLines = 3, color = colorScheme.onSurface)
         return column(
             text(
                 count.toString().layoutString,
                 typography = Typography.NUMERAL_EXTRA_LARGE,
                 color = colorScheme.primary,
             ),
-            text(content.label.layoutString, typography = Typography.TITLE_MEDIUM),
+            text(content.label.layoutString, typography = Typography.TITLE_MEDIUM, color = colorScheme.onSurface),
         )
     }
 

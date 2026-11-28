@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.remember
 import androidx.wear.compose.material3.AppScaffold
-import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.dynamicColorScheme
 import androidx.wear.compose.material3.MaterialTheme
 import eu.tintera.plume.core.telegram.AuthStage
@@ -86,13 +85,13 @@ fun WearApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
 
 /**
  * Téma a kostra každé obrazovky hodinek (aplikace i rychlá poznámka z dlaždice). Barvy
- * z ciferníku (Wear OS 6+), jinak výchozí paleta Wear M3. Na hodinkách si barvu volí uživatel
+ * z ciferníku (Wear OS 6+), jinak paleta z modré Plume ([WearColors]). Na hodinkách si barvu volí uživatel
  * ciferníkem, vlastní výběr jako na telefonu (ThemeColor) tu nedává smysl.
  */
 @Composable
 fun WearTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val colorScheme = remember(context) { dynamicColorScheme(context) ?: ColorScheme() }
+    val colorScheme = remember(context) { dynamicColorScheme(context) ?: WearColors.compose }
     MaterialTheme(colorScheme = colorScheme) {
         AppScaffold { content() }
     }

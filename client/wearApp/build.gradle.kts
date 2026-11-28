@@ -88,6 +88,8 @@ dependencies {
 
     implementation(libs.wear.compose.material3)
     implementation(libs.wear.compose.foundation)
+    // Náhradní paleta z barvy Plume, když ji nedá ciferník (WearColors); bez Compose material3.
+    implementation(libs.materialkolor.utilities)
     // Navigace s gestem tahu zpět (SwipeDismissableNavHost), standard na hodinkách.
     implementation(libs.wear.compose.navigation)
     // Zadání hesla (dvoufázové ověření) systémovou klávesnicí hodinek — Wear Compose pole nemá.

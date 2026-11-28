@@ -213,6 +213,7 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
+materialkolor-utilities = { module = "com.materialkolor:material-color-utilities", version.ref = "materialkolor" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 wear-compose-material3 = { module = "androidx.wear.compose:compose-material3", version.ref = "wear-compose" }
