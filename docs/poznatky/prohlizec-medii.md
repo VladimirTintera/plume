@@ -1590,7 +1590,9 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   Android (`VideoSeekPreviewImage.parseStoryBoardMap`): řádky `file=mtproto:…`,
   `frame_width=`, `frame_height=` a pak `čas,x,y` (čas v sekundách s desetinnou částí).
   Stahuje se, až video na celé obrazovce hraje. Kreslí se celý obrázek posunutý a ořezaný na
-  dlaždici (Coil v původní velikosti — zmenšený by posunul souřadnice z mapy).
+  dlaždici (Coil v původní velikosti — zmenšený by posunul souřadnice z mapy). Parser mapy
+  (`parseStoryboardMap`, `frameAt`) leží v modulu `:client:core`, sdílí ho televize
+  (`docs/poznatky/android-tv.md`, „Přetáčení s náhledem snímku").
 - **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, hodinové video v kanálu):
   „Pokračuje od 1:38 · Od začátku" po znovuotevření, zápis každých 10 s i při zavření (pozice
   ~29 min po skoku posuvníkem, `app_settings.preferences_pb` přes `run-as`), proužek v bublině

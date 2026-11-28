@@ -108,6 +108,13 @@ private val logger = Logger.withTag("TvVideo")
 /** Krok skoku šipkou vlevo / vpravo a tlačítky přetáčení na ovladači. */
 private const val SEEK_STEP_MS = 10_000L
 
+/** Za jak dlouho po posledním stisku šipky se na přetočené místo skočí. */
+private const val SCRUB_COMMIT_MS = 700L
+
+/** Po kolika opakováních podržené šipky se přetáčí rychleji, a o kolik. */
+private const val FAST_SCRUB_AFTER = 8
+private const val FAST_SCRUB_STEP_MS = 30_000L
+
 /** Jak dlouho zůstane ovládání vidět, když video hraje a nikdo nesahá na ovladač. */
 private const val CONTROLS_TIMEOUT_MS = 4_000L
 
@@ -257,6 +264,20 @@ fun VideoPlayerScreen(
     var buffering by remember { mutableStateOf(true) }
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(video.durationSeconds * 1000L) }
+    // Přetáčení šipkami: kam se míří (`null` = nepřetáčí se). Skočí se až chvíli po posledním
+    // stisku — každý skok o 10 s zvlášť by video pokaždé znovu načítal, a s náhledem snímku
+    // ze storyboardu je vidět, kam se dojde, dřív, než se tam skočí.
+    var scrubMs by remember { mutableStateOf<Long?>(null) }
+    var scrubPressedAt by remember { mutableLongStateOf(0L) }
+    val storyboard = rememberTvStoryboard(video.storyboard)
+    LaunchedEffect(scrubPressedAt) {
+        val target = scrubMs ?: return@LaunchedEffect
+        delay(SCRUB_COMMIT_MS)
+        player.seekTo(target)
+        positionMs = target
+        scrubMs = null
+    }
+
     // Další video z fronty, na které běží odpočet po dohrání; `null` = žádný odpočet.
     var upNext by remember { mutableStateOf<VideoRequest?>(null) }
     LaunchedEffect(upNext) {
@@ -397,12 +418,17 @@ fun VideoPlayerScreen(
                         player.pause()
                         true
                     }
-                    AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_MEDIA_REWIND -> {
-                        player.seekBack()
-                        true
-                    }
-                    AndroidKeyEvent.KEYCODE_DPAD_RIGHT, AndroidKeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                        player.seekForward()
+                    AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_MEDIA_REWIND,
+                    AndroidKeyEvent.KEYCODE_DPAD_RIGHT, AndroidKeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                    -> {
+                        val back = key == AndroidKeyEvent.KEYCODE_DPAD_LEFT || key == AndroidKeyEvent.KEYCODE_MEDIA_REWIND
+                        // Podržená šipka po chvíli zrychlí (30 s na krok), jinak by hodinové
+                        // video šlo přetáčet minuty.
+                        val step = if (event.nativeKeyEvent.repeatCount >= FAST_SCRUB_AFTER) FAST_SCRUB_STEP_MS else SEEK_STEP_MS
+                        val from = scrubMs ?: player.currentPosition.coerceAtLeast(0)
+                        val end = durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE
+                        scrubMs = (from + if (back) -step else step).coerceIn(0, end)
+                        scrubPressedAt = System.nanoTime()
                         true
                     }
                     // Šipka nahoru při vidět ovládání otevře výběr kvality (nápověda je v liště),
@@ -447,8 +473,9 @@ fun VideoPlayerScreen(
             PlayerControls(
                 caption = caption,
                 playing = playing,
-                positionMs = positionMs,
+                positionMs = scrubMs ?: positionMs,
                 durationMs = durationMs,
+                scrub = scrubMs?.let { at -> { SeekPreview(storyboard, at, at.asClock()) } },
                 quality = chosen?.takeIf { (quality?.options?.size ?: 0) > 1 }?.let { qualityLabel(it) },
             )
         }
@@ -581,7 +608,15 @@ private fun ResumeHint(fromMs: Long) {
  * ([quality], `null` = video jinou kvalitu nemá). Přes video tmavý přechod kvůli čitelnosti.
  */
 @Composable
-private fun PlayerControls(caption: String, playing: Boolean, positionMs: Long, durationMs: Long, quality: String?) {
+private fun PlayerControls(
+    caption: String,
+    playing: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    quality: String?,
+    /** Náhled nad posuvníkem při přetáčení ([SeekPreview]); `null` = nepřetáčí se. */
+    scrub: (@Composable () -> Unit)?,
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -614,6 +649,7 @@ private fun PlayerControls(caption: String, playing: Boolean, positionMs: Long, 
             Text(positionMs.asClock(), style = MaterialTheme.typography.labelLarge.tabularNums(), color = Color.White)
             ProgressBar(
                 progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f,
+                scrub = scrub,
                 modifier = Modifier.weight(1f),
             )
             Text(durationMs.asClock(), style = MaterialTheme.typography.labelLarge.tabularNums(), color = Color.White)
@@ -633,9 +669,13 @@ private fun PlayerControls(caption: String, playing: Boolean, positionMs: Long, 
 }
 
 @Composable
-private fun ProgressBar(progress: Float, modifier: Modifier) {
-    Box(modifier.height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.3f))) {
-        Box(Modifier.fillMaxWidth(progress).height(6.dp).background(MaterialTheme.colorScheme.primary))
+private fun ProgressBar(progress: Float, scrub: (@Composable () -> Unit)?, modifier: Modifier) {
+    // Náhled leží nad pruhem mimo ořez (ořezává se jen pruh sám), místo v řádku nebere.
+    Box(modifier.height(6.dp)) {
+        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.3f))) {
+            Box(Modifier.fillMaxWidth(progress).height(6.dp).background(MaterialTheme.colorScheme.primary))
+        }
+        if (scrub != null) Box(Modifier.seekPreviewAbove(progress, gap = 16.dp)) { scrub() }
     }
 }
 
