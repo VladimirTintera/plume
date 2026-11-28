@@ -64,7 +64,6 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.customEmojiIdOf
-import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_cancel
@@ -607,23 +606,24 @@ fun QuoteCard(message: ChatMessage, chatTitle: String, modifier: Modifier = Modi
 }
 
 /**
- * Reakce pod zprávou jako čipy (emoji a počet), moje zvýrazněná. Vlastní emoji se vynechávají,
- * televize je kreslit neumí. Řádky se zalomí, když se nevejdou.
+ * Reakce pod zprávou jako čipy (emoji a počet), moje zvýrazněná. Vlastní emoji jako obrázek
+ * ([ReactionText]). Řádky se zalomí, když se nevejdou.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReactionChips(reactions: List<MessageReaction>, contentColor: Color) {
-    val shown = reactions.filter { customEmojiIdOf(it.emoji) == null }
+    val shown = reactions
     if (shown.isEmpty()) return
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         shown.forEach { reaction ->
             val container = if (reaction.isChosen) MaterialTheme.colorScheme.primary else contentColor.copy(alpha = 0.12f)
             val content = if (reaction.isChosen) MaterialTheme.colorScheme.onPrimary else contentColor
-            Text(
-                "${reaction.emoji} ${compactCountText(reaction.count)}",
-                style = MaterialTheme.typography.labelLarge.tabular(),
-                color = content,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(container).padding(horizontal = 10.dp, vertical = 4.dp),
+            ReactionText(
+                reaction.emoji,
+                reaction.count,
+                content,
+                MaterialTheme.typography.labelLarge.tabular(),
+                Modifier.clip(RoundedCornerShape(50)).background(container).padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
     }

@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -79,7 +81,6 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.CommentThread
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageMedia
-import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.asDate
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.compactCountText
@@ -480,13 +481,22 @@ private fun MediaBadge(text: String, modifier: Modifier) {
     )
 }
 
-/** Datum, zhlédnutí, komentáře a reakce (jen obyčejná emoji — vlastní televize neumí kreslit). */
+/**
+ * Datum, zhlédnutí, komentáře a reakce (vlastní emoji jako obrázek). Zalomí se, když se nevejde:
+ * s reakcemi z vlastních emoji, které se dřív vynechávaly, přetekla řada v detailu (sloupec
+ * kolem 470 dp) a poslední reakce přišla o počet (ověřeno na emulátoru).
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PostFooter(post: ChannelPost) {
     val stats = post.statsMessage.postStats
     val muted = LocalContentColor.current.copy(alpha = 0.7f)
     val style = MaterialTheme.typography.labelLarge.tabular()
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
         val time = post.timestamp.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
         Text(time, style = style, color = muted)
         if (stats != null && stats.views > 0) {
@@ -498,10 +508,9 @@ private fun PostFooter(post: ChannelPost) {
             FooterStat(Res.drawable.mode_comment_24dp, text, pluralStringResource(Res.plurals.post_comments_count, count, text), muted)
         }
         post.messages.flatMap { it.reactions }
-            .filter { customEmojiIdOf(it.emoji) == null }
             .sortedByDescending { it.count }
             .take(MAX_REACTIONS)
-            .forEach { reaction -> Text("${reaction.emoji} ${compactCountText(reaction.count)}", style = style, color = muted) }
+            .forEach { reaction -> ReactionText(reaction.emoji, reaction.count, muted, style) }
     }
 }
 
@@ -634,7 +643,8 @@ private fun PostBody(
         }
         val content = LocalContentColor.current
         if (post.text.isNotBlank()) {
-            Text(rememberRichText(post.text, post.entities, content, MaterialTheme.colorScheme.primary, spoilersRevealed), style = MaterialTheme.typography.bodyLarge)
+            val rich = rememberRichText(post.text, post.entities, content, MaterialTheme.colorScheme.primary, spoilersRevealed)
+            Text(rich, style = MaterialTheme.typography.bodyLarge, inlineContent = rememberCustomEmojiContent(rich))
         } else {
             Text(post.description?.resolve().orEmpty(), style = MaterialTheme.typography.bodyLarge)
         }

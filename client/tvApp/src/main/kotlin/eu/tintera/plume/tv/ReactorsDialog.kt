@@ -22,7 +22,6 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ReactionDetail
-import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.reactions_title
 import eu.tintera.plume.resources.reactions_you
@@ -83,11 +82,7 @@ private fun ReactorRow(detail: ReactionDetail, modifier: Modifier) {
         modifier = modifier,
         leadingContent = { ChatAvatar(fileId = detail.sender.avatarFileId, title = detail.sender.title, size = 40.dp) },
         headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        // Vlastní emoji televize kreslit neumí (jako v čipech) — řádek pak jen bez emoji.
-        trailingContent = if (customEmojiIdOf(detail.emoji) == null) {
-            { Text(detail.emoji, style = MaterialTheme.typography.titleLarge) }
-        } else {
-            null
-        },
+        // Vlastní emoji jako obrázek (CustomEmoji.kt), jako v čipech.
+        trailingContent = { ReactionEmoji(detail.emoji, MaterialTheme.typography.titleLarge) },
     )
 }

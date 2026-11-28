@@ -541,7 +541,7 @@ internal fun MessageRow(
                     AnnotatedString(if (hasVisualMedia) "" else message.description?.resolve() ?: stringResource(Res.string.tv_message_unsupported))
                 }
                 if (text.isNotEmpty()) {
-                    Text(text, style = MaterialTheme.typography.bodyLarge, color = content)
+                    Text(text, style = MaterialTheme.typography.bodyLarge, color = content, inlineContent = rememberCustomEmojiContent(text))
                 }
                 // Náhled odkazu (web, nadpis, popis; u článku výzva ke čtení v aplikaci).
                 captioned.linkPreview?.let { preview ->
