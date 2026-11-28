@@ -372,8 +372,17 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   úklid neproběhl nikdy. Kontrola je jen čtení času z `SharedPreferences`.
 - **Ruční vyčištění televize nemá** (nemá nastavení); hodinky ho mají v Nastavení.
 - **Ověřeno 27. 11. 2026**: po startu „Úklid úložiště (tv_storage) uvolnil 0 B" (vše mladší než
-  3 dny a pod stropem, `files` 91 MB) a zapsaný čas v `tv_storage.xml`. Že úklid nad stropem
-  opravdu maže, na televizi ověřené není — je to týž `cleanUp` z `core`, ověřený na hodinkách.
+  3 dny a pod stropem, `files` 91 MB) a zapsaný čas v `tv_storage.xml`.
+- **Úklid nad stropem ověřen 28. 11. 2026 sondou** (strop dočasně 40 MB místo 1 GB, smazaný
+  `tv_storage.xml`, aby úklid nečekal 24 h; vráceno): `files/tdlib-files` 124 MB, v logu
+  „Úklid úložiště (tv_storage) uvolnil 127791104 B", po úklidu 39 MB — zůstal dnešní testovací
+  soubor (mladší než hodina) a jedno novější video, starší videa, skladby a fotky zmizely.
+  Aplikace dál funguje: smazaná fotka karty se po otevření kanálu stáhla znovu, smazané video
+  z karty se stáhlo a přehrálo a po něm navázalo další z fronty. **Na skutečné televizi
+  s plným úložištěm neověřené.**
+- **Ověřuje se snížením stropu, ne čekáním**: úklid běží nejvýš jednou za 24 h podle
+  `last_cleanup` v `shared_prefs/tv_storage.xml`. `run-as eu.tintera.plume rm
+  shared_prefs/tv_storage.xml` a nový start procesu ho spustí hned po přihlášení.
 
 ## Skok na zprávu
 
