@@ -626,6 +626,10 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
     v konverzaci ověřit na chatu s víc videi.
 13. ~~**Spořič obrazovky s fotkami**~~ — hotovo (`DreamService`, Uložené zprávy nebo vybraný chat).
     Zbývá: ověřit na skutečné Google TV, jestli jde spořič vybrat jinak než přes `adb`.
+14. ~~**Živé změny v seznamu a konverzaci**~~ — opraveno (nalezeno při focení snímků 28. 11. 2026):
+    nová zpráva v otevřené konverzaci, chat s příchozí zprávou „mizející" nad horní okraj seznamu,
+    starý náhled vpravo, fokus po odeslání. Byla to kotva `LazyColumn` podle klíče a změna id
+    odeslané zprávy ve vrstvě TV, ne `core` (`docs/poznatky/android-tv.md`, „Živé změny").
 
 Vědomě ne (aspoň zatím): hovory, psaní dlouhých zpráv, správa skupin a nastavení účtu,
 notifikace (centrum notifikací na televizi skoro není), **řada „Pokračovat ve sledování" na

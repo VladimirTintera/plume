@@ -61,6 +61,18 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
         private set
 
     /**
+     * Klíč položky seznamu u potvrzených zpráv: skutečné id → dočasné, pod kterým zpráva do
+     * seznamu přišla. TDLib po potvrzení odeslané zprávě ZMĚNÍ id; s klíčem podle id by položka
+     * zmizela a vznikla nová, fokus z ní odskočil na starší zprávu a seznam ztratil kotvu
+     * (tentýž `itemKeys` jako konverzace na telefonu).
+     */
+    var itemKeys by mutableStateOf<Map<Long, Long>>(emptyMap())
+        private set
+
+    /** Klíč položky seznamu pro zprávu [id] (viz [itemKeys]). */
+    fun keyOf(id: Long): Long = itemKeys[id] ?: id
+
+    /**
      * Načtené je okno uprostřed historie (skok na zprávu), ne konec: novější zprávy se dočítají,
      * jak se fokus blíží spodku ([loadNewer]), a živé nové zprávy se do okna nepřidávají —
      * stály by za mezerou v historii.
@@ -115,6 +127,7 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
                     is SentMessageUpdate.Succeeded -> update.oldMessageId to update.message
                     is SentMessageUpdate.Failed -> update.oldMessageId to update.message
                 }
+                itemKeys = itemKeys + (message.id to keyOf(oldId))
                 messages = (messages.orEmpty().filterNot { it.id == oldId || it.id == message.id } + message).sortedBy { it.id }
             }
         }

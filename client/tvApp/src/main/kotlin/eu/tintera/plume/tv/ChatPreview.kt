@@ -39,7 +39,13 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /** Poslední zprávy zaostřeného chatu pro náhled a médium z nich na pozadí. */
-class ChatPreviewData(val chatId: Long, val messages: List<ChatMessage>, val backdropFileId: Int?)
+class ChatPreviewData(
+    val chatId: Long,
+    val messages: List<ChatMessage>,
+    val backdropFileId: Int?,
+    /** Nejnovější zpráva v načtené historii (i servisní, kterou náhled nekreslí). */
+    val newestMessageId: Long?,
+)
 
 /** Kolik posledních zpráv se v náhledu ukáže. */
 private const val PREVIEW_MESSAGES = 4
@@ -57,18 +63,25 @@ private const val PREVIEW_DELAY_MS = 300L
  * Náhled chatu [chatId]: posledních [PREVIEW_HISTORY] zpráv z historie TDLib. `getChatHistory`
  * chat neotevírá ani nehlásí přečtení, takže projíždění seznamu nikomu neodbaví „přečteno".
  * Načtené náhledy zůstávají v paměti obrazovky, návrat na chat ukáže hned to, co už bylo.
+ *
+ * **Nová poslední zpráva ([lastMessageId]) náhled načte znovu, a to bez prodlevy.** Dřív byl
+ * klíčem jen chat: náhled zaostřeného chatu zůstal u staré zprávy, i když řádek vedle už ukazoval
+ * novou (ověřeno na emulátoru se zprávou od bota). Prodleva je proti čtení historie každého řádku,
+ * přes který šipka jen přejede; u téhož chatu by jen držela starý náhled z mezipaměti.
  */
 @Composable
-fun rememberChatPreview(chatId: Long?): ChatPreviewData? {
+fun rememberChatPreview(chatId: Long?, lastMessageId: Long?): ChatPreviewData? {
     val conversations = koinInject<ConversationRepository>()
     val cache = remember { HashMap<Long, ChatPreviewData>() }
-    val preview by produceState<ChatPreviewData?>(initialValue = null, chatId) {
+    val preview by produceState<ChatPreviewData?>(initialValue = null, chatId, lastMessageId) {
         if (chatId == null) {
             value = null
             return@produceState
         }
-        value = cache[chatId]
-        delay(PREVIEW_DELAY_MS)
+        val cached = cache[chatId]
+        value = cached
+        val stale = cached != null && lastMessageId != null && cached.newestMessageId != lastMessageId
+        if (!stale) delay(PREVIEW_DELAY_MS)
         val history = conversations.history(chatId, fromMessageId = 0L, limit = PREVIEW_HISTORY).getOrNull() ?: return@produceState
         val newestFirst = history.sortedByDescending { it.id }
         val backdrop = newestFirst.firstNotNullOfOrNull { message ->
@@ -79,7 +92,7 @@ fun rememberChatPreview(chatId: Long?): ChatPreviewData? {
             }
         }
         val shown = newestFirst.filter { !it.isService && (it.text.isNotBlank() || it.description != null) }.take(PREVIEW_MESSAGES).reversed()
-        ChatPreviewData(chatId, shown, backdrop).also {
+        ChatPreviewData(chatId, shown, backdrop, newestMessageId = newestFirst.firstOrNull()?.id).also {
             cache[chatId] = it
             value = it
         }

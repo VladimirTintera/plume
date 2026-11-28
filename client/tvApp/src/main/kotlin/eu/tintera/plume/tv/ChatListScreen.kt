@@ -27,11 +27,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -119,7 +121,7 @@ fun ChatListScreen(
     // z předchozí, dokud fokus nesjede do seznamu.
     var focusedChat by remember(folder, section) { mutableStateOf<ChatSummary?>(null) }
     var tabsFocused by remember { mutableStateOf(false) }
-    val preview = rememberChatPreview(focusedChat?.id)
+    val preview = rememberChatPreview(focusedChat?.id, focusedChat?.lastMessageId)
     val watchingPositions = rememberWatchingPositions()
     val storyPosters = rememberStoryPosters()
     Box(Modifier.fillMaxSize()) {
@@ -343,6 +345,40 @@ private fun ChatList(
     LaunchedEffect(header) {
         if (header == 1 && !navigated && listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
     }
+    // Zaostřený řádek (poslední, i když fokus mezitím odešel do záložek) a jestli fokus v seznamu je.
+    var focusedRow by remember(folder) { mutableStateOf<Long?>(null) }
+    var listFocused by remember { mutableStateOf(false) }
+    // Náhled vpravo dostává chat z doby zaostření; nová zpráva v něm musí dojít i do náhledu,
+    // jinak by ukazoval starou poslední zprávu, zatímco řádek už novou.
+    LaunchedEffect(chats) {
+        focusedRow?.let { id -> chats.firstOrNull { it.id == id }?.let(onFocusChat) }
+    }
+    // Chat s novou zprávou přeskočí nahoru. Seznam ale drží první viditelný řádek PODLE KLÍČE,
+    // takže nový první chat zůstal nad horním okrajem a vypadalo to, že ze seznamu zmizel (do
+    // restartu; ve skutečnosti ho ukázala šipka nahoru). Byl-li vidět začátek seznamu, vrátí se
+    // k němu. Vlastní odeslaná zpráva to neměla, protože po návratu z konverzace se seznam
+    // posouvá na otevřený chat.
+    val topChat = chats.first().id
+    var shownTopChat by remember(folder) { mutableLongStateOf(topChat) }
+    LaunchedEffect(topChat) {
+        val previous = shownTopChat
+        shownTopChat = topChat
+        if (previous == topChat) return@LaunchedEffect
+        // Po snímku je rozložení nové: dosavadní první chat drží první místo (kotva podle klíče),
+        // jen o řádek níž. `visibleItemsInfo` se na to nehodí — počítá i řádek, který zasahuje do
+        // horního odsazení seznamu, takže „první viditelný" by byl už ten nový.
+        withFrameNanos { }
+        val previousIndex = chats.indexOfFirst { it.id == previous } + header
+        if (listState.firstVisibleItemIndex == previousIndex && listState.firstVisibleItemScrollOffset == 0) listState.scrollToItem(header)
+    }
+    // Zaostřený chat, který přeskládání odneslo mimo obrazovku (nová zpráva ho posunula nahoru),
+    // se vrátí do obrazu: fokus je na televizi jediný kurzor a nesmí zůstat tam, kde ho nikdo nevidí.
+    LaunchedEffect(chats) {
+        withFrameNanos { }
+        val id = focusedRow?.takeIf { listFocused } ?: return@LaunchedEffect
+        val index = chats.indexOfFirst { it.id == id }
+        if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index + header }) listState.scrollToItem(index + header)
+    }
     // Dočítání: když se fokus blíží konci načtené části, požádá se o další stránku.
     val loaded by rememberUpdatedState(chats.size + header)
     LaunchedEffect(folder, listState) {
@@ -353,7 +389,7 @@ private fun ChatList(
         state = listState,
         contentPadding = PaddingValues(start = SAFE_HORIZONTAL - 12.dp, end = 12.dp, top = 8.dp, bottom = SAFE_VERTICAL + audioDockInset()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().onFocusChanged { listFocused = it.hasFocus },
     ) {
         if (stories != null) {
             item(key = "stories") {
@@ -370,6 +406,7 @@ private fun ChatList(
                 modifier = (if (chat.id == focusedId) Modifier.focusRequester(focus) else Modifier)
                     .onFocusChanged {
                         if (it.isFocused) {
+                            focusedRow = chat.id
                             onFocusChat(chat)
                             if (chat.id != focusedId) navigated = true
                         }

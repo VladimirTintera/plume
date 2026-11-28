@@ -163,7 +163,7 @@ private fun MessageList(
 ) {
     // Obrácený seznam: index 0 je nejnovější zpráva dole a nová zpráva se přidá pod ni, aniž by
     // seznam odjel. Předěl dne stojí nad první zprávou dne, v obráceném seznamu tedy ZA ní.
-    val entries = remember(messages) { conversationEntries(messages) }
+    val entries = remember(messages, state.itemKeys) { conversationEntries(messages, state::keyOf) }
     val newestId = (entries.first { it is Entry.Message } as Entry.Message).album.first().id
     val listState = rememberLazyListState()
     val focus = remember { FocusRequester() }
@@ -179,6 +179,31 @@ private fun MessageList(
         listState.animateScrollToItem(0)
         withFrameNanos { }
         runCatching { focus.requestFocus() }
+    }
+    // Nová zpráva dole, když je konec konverzace vidět. Obrácený seznam drží kotvu PODLE KLÍČE
+    // (dosavadní nejnovější zprávu u spodního okraje), takže nová zpráva vznikla pod okrajem
+    // a vidět nebyla: příchozí od bota se v otevřeném chatu neukázaly vůbec, u vlastní zbyl jen
+    // předěl „Dnes" nad ní. Seznam proto dojede na nový konec. Kdo čte starší historii (konec
+    // vidět není), toho nová zpráva neodroluje; v okně uprostřed historie ([hasNewer]) se nové
+    // zprávy nepřidávají vůbec.
+    val newestKey = entries.first().key
+    var shownNewestKey by remember { mutableStateOf(newestKey) }
+    LaunchedEffect(newestKey) {
+        val previous = shownNewestKey
+        shownNewestKey = newestKey
+        if (previous == newestKey || state.hasNewer) return@LaunchedEffect
+        // Po snímku je rozložení nové: dosavadní nejnovější zpráva drží místo u spodního okraje
+        // (kotva), jen už není první. `visibleItemsInfo` by počítal i novou zprávu, která zasahuje
+        // do spodního odsazení.
+        withFrameNanos { }
+        // Po odeslání odsud už seznam na konec jede (`sentCount`). Druhý posun by ten první
+        // přerušil a fokus vyžádaný po něm by zprávu dorovnal jen ke spodní hraně, do odsazení
+        // (prstenec fokusu useknutý, ověřeno na emulátoru).
+        if (listState.isScrollInProgress) return@LaunchedEffect
+        val previousIndex = entries.indexOfFirst { it.key == previous }
+        if (previousIndex > 0 && listState.firstVisibleItemIndex == previousIndex && listState.firstVisibleItemScrollOffset == 0) {
+            runCatching { listState.animateScrollToItem(0) }
+        }
     }
     val scope = rememberCoroutineScope()
     // Kanál jako pořad: po videu hrají videa NOVĚJŠÍCH zpráv; fronta se doplní i z těch, které se
@@ -296,9 +321,7 @@ private sealed interface Entry {
     }
 
     /** Zpráva, nebo album ([album] má víc zpráv se stejným `mediaAlbumId`) jako jedna bublina. */
-    data class Message(val album: List<ChatMessage>) : Entry {
-        override val key: Any get() = album.first().id
-    }
+    data class Message(val album: List<ChatMessage>, override val key: Any) : Entry
 }
 
 /** Po sobě jdoucí zprávy (od nejstarší) složené do alb; zpráva mimo album je album o jedné zprávě. */
@@ -316,13 +339,13 @@ internal fun albums(messages: List<ChatMessage>): List<List<ChatMessage>> {
 }
 
 /** Zprávy od nejnovější, s předělem dne za poslední (v čase první) zprávou každého dne. */
-private fun conversationEntries(messages: List<ChatMessage>): List<Entry> {
+private fun conversationEntries(messages: List<ChatMessage>, keyOf: (Long) -> Long): List<Entry> {
     val zone = ZoneId.systemDefault()
     val groups = albums(messages)
     val days = groups.map { Instant.ofEpochSecond(it.first().timestamp.toLong()).atZone(zone).toLocalDate().toEpochDay() }
     return buildList {
         for (index in groups.indices.reversed()) {
-            add(Entry.Message(groups[index]))
+            add(Entry.Message(groups[index], keyOf(groups[index].first().id)))
             if (index == 0 || days[index] != days[index - 1]) add(Entry.Day(groups[index].first().timestamp, days[index]))
         }
     }
