@@ -21,7 +21,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.MediaSession
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -29,10 +31,13 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.video.PartialFileDataSource
+import eu.tintera.plume.core.video.StreamingSource
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -94,9 +99,11 @@ fun audioItems(chatId: Long, messages: List<ChatMessage>, voice: Boolean): List<
  * (přehrát/pozastavit, další, předchozí) jdou do něj i bez fokusu v aplikaci a Google TV ukáže
  * kartu „Právě hraje".
  *
- * **Soubor se napřed stáhne celý**, pak hraje: hlasovky mají pár desítek kB a skladby jednotky
- * MB, streamování (jako u videa) by tu přidalo složitost bez znatelného užitku. Dokud se
- * stahuje, dock ukazuje čekání.
+ * **Skladba hraje za běhu stahování** (`StreamingSource` z `core`, jako video): hodinový mix
+ * nebo audiokniha mají desítky MB a dřív se čekalo na celý soubor. Přetočení za stažený úsek
+ * přesune stahování tam ([StreamingSource.requestFrom]). **Hlasovka se stáhne celá**, pak
+ * hraje: má pár desítek kB a stáhne se dřív, než by se stream rozběhl. Dokud se čeká, dock
+ * ukazuje čekání.
  *
  * Fokus zvuku řeší ExoPlayer (`handleAudioFocus`): spuštěné video hudbu pozastaví samo.
  */
@@ -156,6 +163,9 @@ class TvAudioPlayer(
         private set
 
     private var loadJob: Job? = null
+
+    /** Soubor, který se pro přehrávání stahuje; při přepnutí jinam se stahování zruší. */
+    private var downloadingFileId: Int? = null
 
     init {
         player.addListener(object : Player.Listener {
@@ -225,6 +235,7 @@ class TvAudioPlayer(
 
     fun stop() {
         loadJob?.cancel()
+        abandonDownload()
         player.stop()
         player.clearMediaItems()
         queue = emptyList()
@@ -240,22 +251,66 @@ class TvAudioPlayer(
         loading = true
         player.stop()
         loadJob?.cancel()
+        if (downloadingFileId != item.fileId) abandonDownload()
+        downloadingFileId = item.fileId
         loadJob = scope.launch {
-            val ready = files.file(item.fileId).first { it is FileState.Ready || it is FileState.Failed }
-            loading = false
-            val path = (ready as? FileState.Ready)?.path ?: run {
-                logger.w { "Zvuk ${item.messageId} se na televizi nestáhl." }
-                skipUnplayable()
-                return@launch
+            // Stav souboru čte vlákno přehrávače (zdroj streamu), proto `MutableStateFlow`;
+            // odběr běží, dokud položka hraje (zruší ho další `select`).
+            val fileState = MutableStateFlow<FileState>(FileState.Pending)
+            launch { files.file(item.fileId).collect { fileState.value = it } }
+            val first = fileState.first { state ->
+                state is FileState.Ready || state is FileState.Failed ||
+                    (!item.voice && state is FileState.Downloading && state.path != null && state.totalSize > 0)
             }
+            loading = false
             val metadata = MediaMetadata.Builder().setTitle(item.title).setArtist(item.performer).build()
-            player.setMediaItem(MediaItem.Builder().setUri(Uri.fromFile(File(path))).setMediaMetadata(metadata).build())
+            when (first) {
+                is FileState.Ready ->
+                    player.setMediaItem(MediaItem.Builder().setUri(Uri.fromFile(File(first.path))).setMediaMetadata(metadata).build())
+                is FileState.Downloading -> {
+                    val source = StreamingSource(
+                        // Hotový soubor TDLib přesune z `temp/`; zdroj si cestu čte při každém otevření.
+                        path = { fileState.value.currentPath() ?: first.path.orEmpty() },
+                        totalSize = first.totalSize,
+                        downloaded = {
+                            when (val state = fileState.value) {
+                                is FileState.Downloading -> state.downloaded
+                                is FileState.Ready -> 0L until Long.MAX_VALUE
+                                else -> LongRange.EMPTY
+                            }
+                        },
+                        requestFrom = { offset -> scope.launch { files.downloadFrom(item.fileId, offset) } },
+                    )
+                    val factory = DataSource.Factory { PartialFileDataSource(source) }
+                    val mediaItem = MediaItem.Builder().setUri(Uri.parse("tdlib://${first.path}")).setMediaMetadata(metadata).build()
+                    player.setMediaSource(ProgressiveMediaSource.Factory(factory).createMediaSource(mediaItem))
+                }
+                else -> {
+                    logger.w { "Zvuk ${item.messageId} se na televizi nestáhl." }
+                    skipUnplayable()
+                    return@launch
+                }
+            }
             player.prepare()
             player.play()
             if (item.unlistened) {
                 conversations.openContent(item.chatId, item.messageId)
                     .onFailure { logger.w(it) { "Poslechnutí hlasovky ${item.messageId} se nenahlásilo." } }
             }
+        }
+    }
+
+    /**
+     * Zruší stahování souboru, od kterého se odešlo (jiná skladba, konec fronty), je-li ještě
+     * rozstahovaný: odběr `files.file` stahování spustil a sám ho nezruší. Se streamováním se
+     * hodinová skladba, kterou uživatel po minutě přeskočil, jinak stahovala dál celá — a televize
+     * mívají kolem 8 GB.
+     */
+    private fun abandonDownload() {
+        val fileId = downloadingFileId ?: return
+        downloadingFileId = null
+        scope.launch {
+            if (files.observe(fileId).first() is FileState.Downloading) files.cancelDownload(fileId)
         }
     }
 
