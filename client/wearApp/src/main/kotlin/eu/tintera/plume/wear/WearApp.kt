@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -31,10 +32,17 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.KoinIsolatedContext
 import org.koin.compose.koinInject
 
-/** Hodinky mají jeden účet: `koinInject` míří do kontejneru primárního účtu (`Accounts`). */
+/**
+ * Hodinky mají jeden účet: `koinInject` míří do kontejneru primárního účtu (`Accounts`).
+ * Účet se čte jako stav, ne `.value`: kdyby se výchozí účet vyměnil (nový klient po odhlášení),
+ * obsah se složí znovu nad novým kontejnerem, ne nad starým (tentýž `key(slot)` jako telefon).
+ */
 @Composable
 fun PrimaryAccountScope(content: @Composable () -> Unit) {
-    KoinIsolatedContext(koinInject<Accounts>().default.value.application, content)
+    val account by koinInject<Accounts>().default.collectAsState()
+    key(account.slot) {
+        KoinIsolatedContext(account.application, content)
+    }
 }
 
 /**

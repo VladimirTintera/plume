@@ -772,6 +772,20 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   report successfully enqueued to DataTransport". Podrobný log Crashlytics zapne `adb shell
   setprop log.tag.FirebaseCrashlytics DEBUG`. Testovací pád má `versionCode` 100000999 (9.9.9).
 
+## Lint
+
+`./gradlew :client:wearApp:lintDebug` prochází bez chyb (od 28. 11. 2026; předtím tři chyby —
+lint hodinek CI na PR nespouští).
+
+- **`StateFlow.value` v kompozici** (`PrimaryAccountScope` ve `WearApp.kt`): výchozí účet se čte
+  `collectAsState()` a obsah má `key(account.slot)`, jako `DefaultAccountScope` na telefonu
+  a totéž na televizi.
+- **`Float.dp` z `androidx.wear.protolayout.types` je `RestrictedApi`** (jen pro knihovnu
+  samotnou), dlaždice s chaty bere `DimensionBuilders.dp(…)`. Ověřeno vykreslením dlaždice na
+  emulátoru (mezera mezi řádky beze změny).
+- **`app_name` má `translatable="false"`**: je to značka, a hodinky mají `values-cs` kvůli
+  jménům dlaždic, takže lint chtěl i český `app_name` (`MissingTranslation`).
+
 ## Vydání
 
 Postup a pasti jsou v `release.md`, „Hodinky (Wear OS)": track `wear:internal` z tagu Androidu,

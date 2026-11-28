@@ -1033,7 +1033,8 @@ nikdo neviděl — lint televize CI na PR nespouští).
   zadání): čtení přes kontext se po změně konfigurace nesloží znovu.
 - **`StateFlow.value` v kompozici je chyba** (`PrimaryAccountScope`): výchozí účet se čte
   `collectAsState()` a obsah má `key(account.slot)` jako `DefaultAccountScope` na telefonu.
-  **Hodinky mají v `WearApp.kt` totéž `.value`**; lint hodinek se nespouštěl.
+  Hodinky měly totéž `.value` ve `WearApp.kt`, opravené spolu s jejich lintem
+  (`docs/poznatky/wear-os.md`, „Lint").
 
 ## Vydání
 
