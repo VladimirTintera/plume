@@ -4990,6 +4990,15 @@
     <string name="tv_compose_voice">Dictate message</string>
     <string name="tv_compose_voice_prompt">Say your message</string>
     <string name="tv_forward_done">Forwarded to %1$s</string>
+    <string name="tv_forward_hint_many">Hold OK to pick more chats</string>
+    <plurals name="tv_forward_send_many">
+        <item quantity="one">Forward to %1$d chat</item>
+        <item quantity="other">Forward to %1$d chats</item>
+    </plurals>
+    <plurals name="tv_forward_done_many">
+        <item quantity="one">Forwarded to %1$d chat</item>
+        <item quantity="other">Forwarded to %1$d chats</item>
+    </plurals>
     <string name="tv_audio_seek_hint">◀ ▶ to skip back or forward</string>
     <string name="tv_reactors_unavailable">Telegram does not say who reacted here.</string>
     <string name="tv_link_unsupported">The TV can’t open this link.</string>

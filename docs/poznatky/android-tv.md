@@ -731,9 +731,16 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   písmenu), Uložené zprávy jen když odpovídají. Šipka nahoru z prvního řádku jde do pole,
   šipka dolů z pole do výsledků, vlevo na začátku textu na mikrofon. Fokus při otevření zůstává
   na Uložených zprávách — pole by hned otevřelo klávesnici.
-- **Bez voleb (skrýt odesílatele, komentář) a víc cílů**: zaškrtávání víc chatů by chtělo další
-  krok potvrzení. Kam psát nejde (cizí kanál), se nefiltruje — telefon to dělá stejně a chyba
-  se ukáže v dialogu.
+- **Víc cílů: podržení OK na řádku ho označí** a dialog přejde do výběru: OK pak řádky
+  označuje a odznačuje (fajfka a plocha vybraného řádku) a pod polem hledání se objeví tlačítko
+  „Přeposlat do N chatů". Rychlá cesta do jednoho chatu tak zůstala na jedno OK, výběr se
+  zapíná gestem, které v dialogu jinak nic nedělalo, a věta pod nadpisem o něm říká. Výběr
+  přežije hledání (chat z výsledků se přidá k vybraným ze seznamu). Posílá se po jednom;
+  co se povedlo, z výběru zmizí, takže po chybě zůstanou označené jen chaty, kam zpráva
+  neodešla, a tlačítko zkusí jen je. Uložené zprávy mají ve výběru vlastní klíč (`SAVED_KEY`),
+  id TDLib nemusí znát.
+- **Bez voleb (skrýt odesílatele, komentář).** Kam psát nejde (cizí kanál), se nefiltruje —
+  telefon to dělá stejně a chyba se ukáže v dialogu.
 - **Potvrzení je systémový toast** („Přeposláno do: …"): konverzace pod dialogem žádnou změnu
   neukáže, zpráva odešla jinam. Spouští se ze scope obrazovky — dialog se po úspěchu zavře.
 - **Řádek během odesílání NEZAKAZOVAT** (`enabled = false`): zakázaný `ListItem` přestane být
@@ -751,7 +758,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   jména „Přeposlaná zpráva"). Přeposlaná fotka nebo video bez popisku jde do karty místo
   holého média — na holé fotce by štítek nebyl čitelný.
 - Ověřeno na emulátoru: testovací zpráva z chatu s botem přeposlaná do Uložených zpráv, toast
-  i štítek „Přeposláno od Notifikator" v cíli.
+  i štítek „Přeposláno od Notifikator" v cíli. **Víc cílů 28. 11. 2026**: podržení OK na
+  Uložených zprávách (fajfka, „Přeposlat do 1 chatu"), hledání „Notifik", OK na výsledku
+  přidá druhý („do 2 chatů"), tlačítko: toast „Přeposláno do 2 chatů", zpráva v obou chatech.
+- **Přeposlání do otevřeného chatu se pod dialogem neukáže samo**: nová zpráva přibude pod
+  zaostřenou a seznam ji drží pod okrajem, stejně jako příchozí zprávu při čtení (fokus se
+  nepřesouvá). Po šipce dolů nebo novém otevření je vidět.
 
 ## Hlasovky a hudba
 
