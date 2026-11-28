@@ -601,7 +601,7 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    (statický obrázek v textu a v reakcích; v textu na zařízení neověřené). Hledání a víc cílů
    při přeposlání hotové (podržení OK). Skok na citovanou zprávu hotový.
 6. ~~**Úklid mezipaměti**~~ — hotovo (`AutoStorageCleaner` v `core`, společný s hodinkami;
-   3 dny a 1 GB). Zbývá: ověřit, že úklid nad stropem na televizi opravdu maže.
+   3 dny a 1 GB). Úklid nad stropem na emulátoru ověřený (sondou se sníženým stropem).
 7. ~~**Hlavní cíle v liště**~~ — hledání je první záložka s lupou (jako horní navigace Google
    TV), lišta by kvůli dvěma cílům vzala šířku seznamu. Vrátit se k ní, až přibude Nastavení.
 8. ~~**Vydání do Play:** bundl ze stejného tagu, track `tv:internal`, jednotka `tv`, banner do
