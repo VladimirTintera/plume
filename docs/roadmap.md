@@ -607,9 +607,9 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 8. ~~**Vydání do Play:** bundl ze stejného tagu, track `tv:internal`, jednotka `tv`, banner do
    obchodu~~ — připraveno (release workflow za `TV_RELEASE`, R8 ověřený na emulátoru). Zbývá na
    uživateli: povolit formát Android TV v Play Console, nastavit repo proměnnou `TV_RELEASE`,
-   vydat, zaškrtnout testery. Pro veřejné vydání **snímky TV z testovacího účtu** (emulátor
-   `Plume_TV` přihlásit QR kódem z testovacího telefonu) do `play/graphics/<locale>/tvScreenshots/`
-   a přihlášení k distribuci pro Android TV s kontrolou kvality.
+   vydat, zaškrtnout testery (hotovo, `tv:internal` od 0.4.15-187). Snímky TV z testovacího
+   účtu jsou v `play/graphics/<locale>/tvScreenshots/` (nahrát workflow Play Listing). Zbývá:
+   přihlášení k distribuci pro Android TV s kontrolou kvality.
 9. **Ověřit na skutečné televizi** — hlavně 32bitové zařízení (Chromecast s Google TV)
    a výkon seznamu s avatary na slabém procesoru.
 
@@ -624,6 +624,17 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
     příspěvky, v konverzaci novější zprávy). Feed se během přehrávání dočítá a po zavření stojí na
     příspěvku posledního přehraného videa (ověřeno na kanálu Pavla Durova). Zbývá: totéž
     v konverzaci ověřit na chatu s víc videi.
+14. **Živé změny se v seznamu a konverzaci za běhu neukazují** (nalezeno při focení snímků
+    28. 11. 2026 na emulátoru, neopravené):
+    - otevřená konverzace nové zprávy nezobrazí — příchozí od bota se neukázaly vůbec, u vlastní
+      odeslané přibyl jen předěl „Dnes" bez zprávy a fokus skočil na starší zprávu; po znovuotevření
+      chatu je všechno na místě,
+    - chaty, do kterých přišla nová zpráva (Notifikátor, skupina s botem), ze seznamu chatů ZMIZELY
+      a vrátily se až po restartu aplikace; vlastní odeslané zprávy chat správně posunuly nahoru,
+    - náhled vpravo v seznamu chvíli ukazoval starou poslední zprávu, když řádek už měl novou,
+    - po přidání reakce šipka dolů nedojela na poslední (vlastní) zprávu.
+    Telefon sdílí repository z `core`, takže napřed zjistit, jestli jde o vrstvu TV (klíče
+    a stav `LazyColumn`, `ConversationState`), nebo o `core`.
 13. ~~**Spořič obrazovky s fotkami**~~ — hotovo (`DreamService`, Uložené zprávy nebo vybraný chat).
     Zbývá: ověřit na skutečné Google TV, jestli jde spořič vybrat jinak než přes `adb`.
 
