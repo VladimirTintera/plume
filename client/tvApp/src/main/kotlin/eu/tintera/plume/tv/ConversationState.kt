@@ -253,6 +253,14 @@ class ConversationState(val chatId: Long, private val conversations: Conversatio
         messages = messages?.map { if (it.id == messageId) it.copy(reactions = toggled(it.reactions, emoji, add)) else it }
     }
 
+    /**
+     * Požádá server o přepis hlasovky nebo kolečka [messageId]. Výsledek přijde úpravou obsahu
+     * zprávy (`editedMessages`): napřed rozpracovaný, pak text nebo chyba.
+     */
+    suspend fun recognizeSpeech(messageId: Long): Result<Unit> =
+        conversations.recognizeSpeech(chatId, messageId)
+            .onFailure { logger.w(it) { "Přepis zprávy $messageId se z televize nespustil." } }
+
     /** Co jde se zprávou [messageId] udělat (upravit, smazat…); `null`, když se to nepodařilo zjistit. */
     suspend fun actions(messageId: Long): MessageActions? =
         conversations.messageActions(chatId, messageId)

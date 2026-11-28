@@ -1,17 +1,5 @@
 package eu.tintera.plume.tv
 
-import eu.tintera.plume.core.telegram.MessageActions
-import eu.tintera.plume.resources.delete_message_for_all
-import eu.tintera.plume.resources.delete_message_for_self
-import eu.tintera.plume.resources.delete_message_title
-import eu.tintera.plume.resources.menu_delete
-import eu.tintera.plume.resources.menu_edit
-import eu.tintera.plume.resources.tv_delete_failed
-import eu.tintera.plume.resources.tv_delete_for_all
-import eu.tintera.plume.resources.tv_delete_for_me
-import eu.tintera.plume.resources.tv_edit_failed
-import eu.tintera.plume.resources.tv_edit_save
-import eu.tintera.plume.resources.tv_edit_title
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +39,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -61,49 +54,59 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Button
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.compactCountText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.media_video
-import eu.tintera.plume.resources.media_sticker
-import eu.tintera.plume.resources.media_photo
-import eu.tintera.plume.resources.conversation_voice_message
-import eu.tintera.plume.resources.content_video_note
-import eu.tintera.plume.resources.content_gif
-import eu.tintera.plume.resources.content_file
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.content_audio
+import eu.tintera.plume.resources.content_file
+import eu.tintera.plume.resources.content_gif
+import eu.tintera.plume.resources.content_video_note
+import eu.tintera.plume.resources.conversation_voice_message
+import eu.tintera.plume.resources.delete_message_for_all
+import eu.tintera.plume.resources.delete_message_for_self
+import eu.tintera.plume.resources.delete_message_title
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.format_quote_24dp
+import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_sticker
+import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.menu_delete
+import eu.tintera.plume.resources.menu_edit
 import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.reactions_title
-import eu.tintera.plume.resources.tv_compose_voice
-import eu.tintera.plume.resources.tv_compose_voice_prompt
-import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.transcript_hide
+import eu.tintera.plume.resources.transcript_show
 import eu.tintera.plume.resources.tv_action_reply
 import eu.tintera.plume.resources.tv_action_show_quote
+import eu.tintera.plume.resources.tv_compose_title
+import eu.tintera.plume.resources.tv_compose_voice
+import eu.tintera.plume.resources.tv_compose_voice_prompt
+import eu.tintera.plume.resources.tv_delete_failed
+import eu.tintera.plume.resources.tv_delete_for_all
+import eu.tintera.plume.resources.tv_delete_for_me
+import eu.tintera.plume.resources.tv_edit_failed
+import eu.tintera.plume.resources.tv_edit_save
+import eu.tintera.plume.resources.tv_edit_title
+import eu.tintera.plume.resources.tv_message_unsupported
 import eu.tintera.plume.resources.tv_message_you
 import eu.tintera.plume.resources.tv_reply_hint
 import eu.tintera.plume.resources.tv_reply_send
 import eu.tintera.plume.resources.tv_reply_title
-import eu.tintera.plume.resources.tv_compose_title
-import eu.tintera.plume.resources.edit_24dp
-import eu.tintera.plume.resources.format_quote_24dp
-import androidx.tv.material3.Icon
-import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.tv_send_failed
-import eu.tintera.plume.resources.tv_message_unsupported
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -128,7 +131,13 @@ class MessageInteractions {
 
     /** Zpráva, u které se ukazuje, kdo reagoval. */
     var reactors by mutableStateOf<ChatMessage?>(null)
+
+    /** Přepisy hlasovek a koleček, o které si uživatel řekl ([Transcripts]). */
+    val transcripts = Transcripts()
 }
+
+/** Tlačítko přepisu v nabídce nad zprávou: [shown] = přepis je pod záznamem vidět. */
+class TranscriptAction(val shown: Boolean, val onToggle: () -> Unit)
 
 /**
  * Nabídka nad zprávou a dialog odpovědi. Obojí je `Dialog` (vlastní okno): fokus z něj šipkou
@@ -141,6 +150,9 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
     // i rozběhnutá reakce — požadavek by se zrušil a vrácení při chybě by neproběhlo.
     val scope = rememberCoroutineScope()
     interactions.actionsFor?.let { message ->
+        // Přepis jen u hlasovky a kolečka a jen kde ho Telegram nabízí (Premium, zkušební přepisy).
+        val speechSeconds = message.speechDurationSeconds()
+        val offer = speechSeconds?.let { rememberTranscribeOffer(it) }
         MessageActionsDialog(
             state = state,
             message = message,
@@ -171,6 +183,12 @@ fun MessageInteractionDialogs(state: ConversationState, interactions: MessageInt
             onReactors = {
                 interactions.actionsFor = null
                 interactions.reactors = message
+            },
+            transcript = offer?.takeIf { it != TranscribeOffer.Hidden }?.let {
+                TranscriptAction(shown = interactions.transcripts.of(message) != null) {
+                    interactions.actionsFor = null
+                    interactions.transcripts.toggle(state, message, it, scope)
+                }
             },
             onDismiss = { interactions.actionsFor = null },
         )
@@ -212,6 +230,8 @@ private fun MessageActionsDialog(
     onDelete: (MessageActions) -> Unit,
     onForward: () -> Unit,
     onReactors: () -> Unit,
+    /** Přepsat do textu / skrýt přepis; `null` = zpráva není záznam nebo se přepis nenabízí. */
+    transcript: TranscriptAction?,
     onDismiss: () -> Unit,
 ) {
     // Upravit a smazat jen tam, kde to server dovolí (`messageActions`): vlastní zprávu jde
@@ -264,6 +284,11 @@ private fun MessageActionsDialog(
                 // to pak řekne), ve skupině a v soukromém chatu ano.
                 if (message.reactions.isNotEmpty()) {
                     Button(onClick = onReactors) { Text(stringResource(Res.string.reactions_title)) }
+                }
+                if (transcript != null) {
+                    Button(onClick = transcript.onToggle) {
+                        Text(stringResource(if (transcript.shown) Res.string.transcript_hide else Res.string.transcript_show))
+                    }
                 }
                 if (allowed?.canForward == true) {
                     Button(onClick = onForward) { Text(stringResource(Res.string.menu_forward)) }
