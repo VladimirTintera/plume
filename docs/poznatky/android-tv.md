@@ -228,6 +228,27 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese prstenec kolem
   bubliny (viz „Fokus zprávy“).
 
+## Stream, který se nerozběhne
+
+- **Selže-li stream dřív, než video poprvé hrálo, čeká se na celý soubor** (jako telefon,
+  `VideoPage`, „Video bez příznaku supportsStreaming" v `prohlizec-medii.md`). Dřív televize
+  rovnou ukázala „Video nejde přehrát". Týká se hlavně MP4 bez příznaku streamování, které se
+  streamuje taky (`streamOriginalVideo`), a souborů se špatně postaveným indexem.
+- **Jak:** `onPlayerError` při `streamingLoaded && !hasPlayed` nastaví `streamFailedFor` na
+  soubor; efekt načtení (klíč `chosenId, streamFailedFor`) pak u toho souboru nestreamuje,
+  počká na `Ready` a pustí hotový soubor od místa, kde stream skončil. Jednou na soubor —
+  selže-li i hotový, je to chyba. **Chyba po rozběhnutí zůstává chybou**: bývá to výpadek sítě
+  a čekání na celé video by trvalo.
+- **Čekání ukazuje procenta** („Video nejde přehrát během stahování. Stahuji ho celé… 84 %"),
+  ne holé kolečko: u velkého souboru by vypadalo jako zamrzlé.
+- **Listener přehrávače čte jen stav (`mutableStateOf`, `rememberUpdatedState`)**: je založený
+  jednou s přehrávačem, takže obyčejná lokální proměnná by v něm zůstala z první kompozice
+  (po výměně kvality by znal starý soubor).
+- **Ověřeno 28. 11. 2026 sondou** (`PartialFileDataSource.open` vždy hodil `IOException`,
+  vráceno): MP4 od testovacího bota bez `supports_streaming`, v logu jednou „stream se
+  nerozběhl, čeká se na celý soubor", na obrazovce věta s procenty (5 % → 84 %), po stažení
+  video hrálo z hotového souboru až do konce bez chyby.
+
 ## Přetáčení s náhledem snímku
 
 - **Šipka posouvá CÍL, skočí se až 0,7 s po posledním stisku** (`scrubMs` ve

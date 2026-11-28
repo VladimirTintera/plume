@@ -5018,6 +5018,7 @@
     <string name="tv_up_next">Up next in %1$d s</string>
     <string name="tv_up_next_play">Play now</string>
     <string name="tv_video_quality_title">Video quality</string>
+    <string name="tv_video_downloading_whole">This video can't play while downloading. Downloading it whole… %1$d %</string>
     <string name="tv_up_next_cancel">Cancel</string>
     <string name="tv_dream_empty">No photos here yet. Choose a chat with photos in the screen saver settings.</string>
     <string name="tv_dream_settings_title">Screen saver photos</string>
