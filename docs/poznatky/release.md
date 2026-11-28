@@ -72,6 +72,17 @@ v „Postup a nastavení" níž. Další body jsou to, co se z workflow nepozná
   udržované kopie by se rozešly. Pozadí je gradient v `ic_launcher_background.xml` — jeho barvy
   musí sedět s `TOP`/`BOTTOM` ve skriptu. Pírko sahá do 31 dp od středu, bezpečná zóna
   adaptivní ikony je 33 dp; víc a launcher s kulatou maskou ho ořízne.
+- **Barva ikony je z modré aplikace, ne vlastní** (`TOP` #1E88E5 → `BOTTOM` #0B3D86, z odstínu
+  seedu `ThemeColor.BLUE` #2AABEE). Ikona a grafika v obchodě zůstaly po změně značkové barvy
+  ve fialové z první palety a s aplikací neladily. Gradient jde napříč pozadím adaptivní ikony
+  (telefon, hodinky, televize), PNG pro Play a iOS, desktop, banner televize i feature graphic
+  (`feature_graphic.py` bere gradient z `icon.py`; světlejší řádky textu mají vlastní tón téže
+  barvy). **Přímo seed ne:** světle modrý kruh s krémovým symbolem se blížil oficiálnímu logu
+  Telegramu, které ToS zakazuje napodobit. Nahoře je proto sytější tón (L* 56) a dole hluboká
+  modrá (L* 26), krémové pírko má kontrast aspoň 3,4.
+- **Vektory po přegenerování vrátit, když se v nich nic nemělo změnit.** Jiná verze shapely
+  zaokrouhlí `simplify` o setiny jinak a `ic_launcher_foreground.xml`, `ic_notification.xml`
+  i `plume_logo_24dp.xml` se v diffu objeví beze změny tvaru.
 - **Pírko je baculaté, ne dlouhé a úzké.** První verze byla štíhlá šikmá čárka: do kruhu se
   vepisuje podle NEJDELŠÍHO rozměru, takže úzký tvar zabral zlomek plochy a v notifikaci ve
   stavové liště nebyl skoro vidět. Širší vlajka a kratší stopka zabírají zhruba dvojnásobek.

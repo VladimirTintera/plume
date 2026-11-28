@@ -13,6 +13,6 @@ for loc,tag in texts.items():
     im.paste(Image.new("RGB",(1000,1000),(255,243,232)),(40,20),fm)
     d=ImageDraw.Draw(im)
     d.text((840,300),"Plume",font=ImageFont.truetype(F+"bricolage_grotesque_bold.ttf",230),fill=(255,243,232))
-    d.text((850,580),tag,font=ImageFont.truetype(F+"figtree_medium.ttf",70),fill=(214,204,255))
-    d.text((850,680),"Material 3 Expressive",font=ImageFont.truetype(F+"figtree_regular.ttf",56),fill=(180,168,235))
+    d.text((850,580),tag,font=ImageFont.truetype(F+"figtree_medium.ttf",70),fill=(206,228,255))
+    d.text((850,680),"Material 3 Expressive",font=ImageFont.truetype(F+"figtree_regular.ttf",56),fill=(160,198,240))
     im.resize((1024,500),Image.LANCZOS).save(f"{R}/play/graphics/{loc}/featureGraphic/feature.png")
