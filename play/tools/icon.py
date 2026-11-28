@@ -26,8 +26,11 @@ from shapely.geometry import LineString, MultiPolygon, Polygon
 from shapely.ops import unary_union
 
 ROOT = Path(__file__).resolve().parents[2]
-TOP = (92, 64, 190)      # #5C40BE
-BOTTOM = (44, 30, 118)   # #2C1E76
+# Gradient z modré aplikace (seed `ThemeColor.BLUE` #2AABEE): nahoře živější tón (L* 56), dole
+# hluboká modrá (L* 26). Ne přímo seed: světle modrý kruh s bílým symbolem by se blížil oficiálnímu
+# logu Telegramu, které podle API ToS nesmíme napodobit.
+TOP = (30, 136, 229)     # #1E88E5
+BOTTOM = (11, 61, 134)   # #0B3D86
 INK = (255, 243, 232)    # #FFF3E8
 RASTER_REACH = 0.42      # PNG pro obchod: pírko do 42 % strany od středu (maska obchodu zaobluje rohy)
 
