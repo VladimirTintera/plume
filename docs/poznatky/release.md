@@ -216,6 +216,15 @@ když něco z toho chybí — nepodepsaný AAB by Play stejně nevzal.
   **Snímky se dělají z testovacího účtu**: seznam chatů a náhled by na skutečném účtu ukázaly
   jména a fotky lidí. Pro interní test snímky potřeba nejsou, pro přihlášení k distribuci na
   Android TV ano (jako u hodinek).
+- **Jak vznikly snímky TV (28. 11. 2026):** emulátor s obrazem telefonu (televizní obraz v SDK
+  není) má nahoře stavový řádek, který televize nemá. Ořez + zvětšení by rozmazalo text, proto
+  `adb shell wm size 1920x1128`: aplikace dostane pod 48px řádkem přesně 1920 × 1080 a snímek se
+  jen ořízne o horních 48 px, bez škálování (po focení `wm size reset`). Konverzace je
+  s Notifikátorem přes Bot API (album ilustrací krajiny vygenerovaných v Pillow, žádní lidé ani
+  značky), odpovědi z TV přes `adb shell input text` — ten neumí diakritiku, české odpovědi jsou
+  proto bez ní. Seznam chatů se „uklidil" zprávami do testovacích skupin, Uložených a Pixelu 7
+  Pro, aby pod okraj spadl chat Telegram s přihlašovacím kódem a pozvánka v Uložených; kvůli
+  chybě se seznamem (roadmapa, Android TV) se fotil po restartu aplikace.
 - **Release je minifikovaný (R8)**: APK se třemi ABI 60 MB. Ověřeno 27. 11. 2026 na emulátoru
   (release přepodepsaný ladicím klíčem přes `apksigner`, nainstalovaný `adb install -r -d` přes
   ladicí build — přihlášení zůstalo): seznam chatů, konverzace, hudba s `MediaSession`, video
