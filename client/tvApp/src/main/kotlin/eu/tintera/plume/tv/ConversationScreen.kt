@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -133,7 +134,15 @@ fun ChatHeader(chatId: Long, info: ChatInfo?, trailing: @Composable () -> Unit =
         Modifier.fillMaxWidth().padding(start = SAFE_HORIZONTAL, end = SAFE_HORIZONTAL, top = SAFE_VERTICAL, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ChatAvatar(fileId = info?.avatarFileId, title = title, size = 56.dp, savedMessages = chatId == savedMessagesId, modifier = Modifier.storyRing(chatId, savedMessages = chatId == savedMessagesId))
+        val shape = (info?.kind ?: ChatKind.Private).avatarShape()
+        ChatAvatar(
+            fileId = info?.avatarFileId,
+            title = title,
+            size = 56.dp,
+            savedMessages = chatId == savedMessagesId,
+            shape = shape,
+            modifier = Modifier.storyRing(chatId, shape, savedMessages = chatId == savedMessagesId),
+        )
         Spacer(Modifier.width(16.dp))
         Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         trailing()

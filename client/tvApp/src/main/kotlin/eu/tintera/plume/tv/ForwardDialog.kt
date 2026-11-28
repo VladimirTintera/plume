@@ -52,6 +52,7 @@ import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -162,13 +163,13 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
             ) {
                 if (showSaved) {
                     item(key = "saved") {
-                        ForwardTarget(savedTitle, avatarFileId = null, savedMessages = true, Modifier.focusRequester(first)) {
+                        ForwardTarget(savedTitle, avatarFileId = null, savedMessages = true, kind = ChatKind.Private, Modifier.focusRequester(first)) {
                             forward(savedMessagesId, savedTitle)
                         }
                     }
                 }
                 items(targets, key = { it.id }) { chat ->
-                    ForwardTarget(chat.title, chat.avatarFileId, savedMessages = false) { forward(chat.id, chat.title) }
+                    ForwardTarget(chat.title, chat.avatarFileId, savedMessages = false, kind = chat.kind) { forward(chat.id, chat.title) }
                 }
             }
         }
@@ -238,6 +239,7 @@ private fun ForwardTarget(
     title: String,
     avatarFileId: Int?,
     savedMessages: Boolean,
+    kind: ChatKind,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -247,7 +249,7 @@ private fun ForwardTarget(
         // a fokus by z dialogu utekl. Druhé OK hlídá `sending`.
         onClick = onClick,
         modifier = modifier,
-        leadingContent = { ChatAvatar(fileId = avatarFileId, title = title, size = 40.dp, savedMessages = savedMessages) },
+        leadingContent = { ChatAvatar(fileId = avatarFileId, title = title, size = 40.dp, savedMessages = savedMessages, shape = kind.avatarShape()) },
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
     )
 }

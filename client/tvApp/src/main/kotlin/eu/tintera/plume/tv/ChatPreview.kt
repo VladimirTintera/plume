@@ -132,7 +132,7 @@ fun ChatPreview(chat: ChatSummary?, preview: ChatPreviewData?, modifier: Modifie
     val title = chatTitle(chat.id, chat.title, savedMessagesId)
     Column(modifier, verticalArrangement = Arrangement.Bottom) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ChatAvatar(fileId = chat.avatarFileId, title = title, size = 64.dp, savedMessages = chat.id == savedMessagesId)
+            ChatAvatar(fileId = chat.avatarFileId, title = title, size = 64.dp, savedMessages = chat.id == savedMessagesId, shape = chat.kind.avatarShape())
             Spacer(Modifier.width(20.dp))
             Text(title, style = MaterialTheme.typography.headlineMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }

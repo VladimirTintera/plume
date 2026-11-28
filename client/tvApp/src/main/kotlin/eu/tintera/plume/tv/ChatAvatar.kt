@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -15,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -22,6 +26,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -36,17 +42,25 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /**
- * Fotka chatu v kruhu, dokud není stažená (nebo chat žádnou nemá) iniciála. Uložené zprávy
- * ([savedMessages]) mají místo fotky účtu záložku, jako na telefonu. Odběr [FileRepository.file]
+ * Fotka chatu v tvaru podle druhu chatu ([shape], [avatarShape]), dokud není stažená (nebo chat
+ * žádnou nemá) iniciála. Uložené zprávy ([savedMessages]) mají místo fotky účtu záložku, jako na telefonu. Odběr [FileRepository.file]
  * stažení spustí sám; dekóduje se mimo hlavní vlákno rovnou zmenšené — levné televize mají
  * paměti málo.
  */
 @Composable
-fun ChatAvatar(fileId: Int?, title: String, size: Dp, modifier: Modifier = Modifier, savedMessages: Boolean = false) {
+fun ChatAvatar(
+    fileId: Int?,
+    title: String,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    savedMessages: Boolean = false,
+    /** Výchozí kruh je člověk — i odesílatel ve skupině; chat dá tvar svého druhu ([avatarShape]). */
+    shape: Shape = CircleShape,
+) {
     val sizePx = with(LocalDensity.current) { size.roundToPx() }
     val photo = if (savedMessages) null else rememberImage(fileId, sizePx)
     Box(
-        modifier = modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+        modifier = modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {
         if (savedMessages) {
@@ -66,6 +80,28 @@ fun ChatAvatar(fileId: Int?, title: String, size: Dp, modifier: Modifier = Modif
             )
     }
 }
+
+/**
+ * Tvar avataru podle druhu chatu, stejný jako na telefonu (`avatarShape` v `core/ui/Avatar.kt`
+ * modulu `:client:shared`, kam televize nesahá): člověk kruh, skupina čtyřlaločná „sušenka",
+ * kanál zaoblený čtverec. Druh se pozná dřív, než se dočte název. Tvar nese DRUH, ne stav —
+ * fokus má dál svůj rámeček a zvětšení, avatar se nemorfuje.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ChatKind.avatarShape(): Shape = when (this) {
+    ChatKind.Private -> CircleShape
+    ChatKind.Group -> MaterialShapes.Cookie4Sided.toShape()
+    ChatKind.Channel -> MaterialShapes.Square.toShape()
+}
+
+/** Druh chatu z informací konverzace (hlavička): kanál se počítá i do `isGroup`. */
+val ChatInfo.kind: ChatKind
+    get() = when {
+        isChannel -> ChatKind.Channel
+        isGroup -> ChatKind.Group
+        else -> ChatKind.Private
+    }
 
 /**
  * Obrázek souboru TDLib zmenšený na [targetPx] (kratší strana); `null`, dokud se nestáhne.

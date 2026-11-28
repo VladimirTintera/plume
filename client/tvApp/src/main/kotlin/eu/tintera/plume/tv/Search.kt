@@ -372,7 +372,7 @@ private fun SearchRow(item: SearchItem, savedMessagesId: Long?, onClick: () -> U
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         leadingContent = {
-            ChatAvatar(fileId = chat.avatarFileId, title = title, size = SEARCH_AVATAR, savedMessages = chat.id == savedMessagesId)
+            ChatAvatar(fileId = chat.avatarFileId, title = title, size = SEARCH_AVATAR, savedMessages = chat.id == savedMessagesId, shape = chat.kind.avatarShape())
         },
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = when (item) {
