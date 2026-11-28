@@ -53,10 +53,10 @@ class QuickNoteTileService : TileService() {
         }
 
     private fun layout(device: DeviceParameters, title: String, text: String, action: String): LayoutElement =
-        materialScope(this, device) {
+        materialScope(this, device, defaultColorScheme = WearColors.tile) {
             primaryLayout(
                 titleSlot = { text(title.layoutString) },
-                mainSlot = { text(text.layoutString, maxLines = 4) },
+                mainSlot = { text(text.layoutString, maxLines = 4, color = colorScheme.onSurface) },
                 bottomSlot = {
                     textEdgeButton(onClick = clickable(openNote(), id = "note")) { text(action.layoutString) }
                 },

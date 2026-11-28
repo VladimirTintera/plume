@@ -108,11 +108,11 @@ class RecentChatsTileService : TileService() {
         }
 
     private fun layout(device: DeviceParameters, content: TileContent): LayoutElement =
-        materialScope(this, device) {
+        materialScope(this, device, defaultColorScheme = WearColors.tile) {
             primaryLayout(
                 titleSlot = { text(content.title.layoutString) },
                 mainSlot = {
-                    if (content.rows.isEmpty()) text(content.message.orEmpty().layoutString, maxLines = 3)
+                    if (content.rows.isEmpty()) text(content.message.orEmpty().layoutString, maxLines = 3, color = colorScheme.onSurface)
                     else chatColumn(content.rows)
                 },
                 bottomSlot = {

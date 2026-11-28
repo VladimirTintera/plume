@@ -32,11 +32,25 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   bublina, která sahá ke kraji položky (odchozí vpravo), má v horní a dolní třetině displeje
   zkosené rohy. Tak to knihovna dělá i kartám, chyba to není. **QR kód při přihlášení
   se netransformuje** — zmenšený by ho čtečka nemusela přečíst.
-- **Barvy z ciferníku** (`dynamicColorScheme(context)`, Wear OS 6+; jinak výchozí `ColorScheme()`
-  Wear M3, vrací `null`). Vlastní výběr barvy jako na telefonu (`ThemeColor`) hodinky nemají —
-  barvu tam volí ciferník. Dlaždice ji mají samy: `materialScope` v ProtoLayout bere dynamické
-  barvy ve výchozím nastavení. **Neověřené**: emulátor `Plume_Wear` je Wear OS 5 (API 34),
-  `dynamicColorScheme` tam vrací `null`.
+- **Barvy z ciferníku** (`dynamicColorScheme(context)`, Wear OS 6+, jinak vrací `null`). Vlastní
+  výběr barvy jako na telefonu (`ThemeColor`) hodinky nemají — barvu tam volí ciferník. Dlaždice
+  ji mají samy: `materialScope` v ProtoLayout bere dynamické barvy ve výchozím nastavení.
+  **Neověřené**: emulátor `Plume_Wear` je Wear OS 5 (API 34), `dynamicColorScheme` tam vrací `null`.
+- **Bez barev z ciferníku modrá Plume, ne výchozí paleta** (`WearColors`: aplikace
+  `WearColors.compose`, dlaždice `materialScope(…, defaultColorScheme = WearColors.tile)`).
+  Výchozí `ColorScheme()` Wear M3 i ProtoLayout je fialová, takže hodinky do Wear OS 5 neměly
+  barvy aplikace. Paletu počítá `material-color-utilities` (čisté Kotlin od materialkoloru, bez
+  Compose material3 telefonu) z téhož seedu a stylu jako telefon a televize (`#2AABEE`,
+  `SchemeVibrant`, tmavé). **Role se berou ze stejných tónů jako `dynamicColorScheme`**
+  (z bajtkódu Wear M3 1.7.1, id prostředků přes `javap -constants android.R$color`): `primary`
+  = `system_primary_fixed`, `primaryDim` = `…_fixed_dim`, `onPrimary` = `system_on_primary_fixed`,
+  kontejnery a plochy `…_dark`. Pozadí (černé) a chybové barvy zůstávají výchozí; `onBackground`
+  ne — je fialová a `primaryLayout` ji dává textům v okrajích.
+- **Text v hlavní ploše dlaždice má barvu výslovně** (`color = colorScheme.onSurface`). Bez ní
+  ji ProtoLayout Material3 1.4 bere natvrdo z výchozí palety (`TextElementStyle` čte statické
+  `ColorTokens.PRIMARY`, ne schéma), takže „nepřečtené chaty" a věta dlaždice Poznámka zůstaly
+  fialové (`#E9DDFF`) i pod modrým počtem — a byly by i s barvami z ciferníku. Ověřeno snímkem
+  z emulátoru a v bajtkódu.
 - **Animované tvary jen u ikonových tlačítek** (`shapes = IconButtonDefaults.animatedShapes()`:
   přehrát v bublině hlasovky, tlačítko nahrávání). `Button`, `CompactButton` ani karty ve Wear
   M3 1.7 tvarové páry nemají (jen `shape`), animované tvary má ještě `TextButton`, který hodinky
@@ -702,6 +716,10 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   `screencap`; češtinu přepne `cmd locale set-app-locales eu.tintera.plume --locales cs-CZ`
   a `force-stop` (dlaždice běží v procesu aplikace). Nakonec `remove-tile` a data zpátky.
   **Změní-li se vzhled dlaždice, snímky se dělají znovu.**
+- **Dlaždici si systém pamatuje i přes `remove-tile` / `add-tile`.** Po přepnutí jazyka aplikace
+  a `force-stop` ukázala dlaždice Poznámka dál angličtinu (Nepřečtené už češtinu) a po změně barev
+  starou barvu textu. Spolehlivě pomohla až reinstalace APK (`adb install -r`) po přepnutí jazyka
+  a teprve pak `add-tile`. Že snímek není starý, se pozná podle jazyka všech tří dlaždic.
 - **Ověřeno na emulátoru 2026-10-26** ve výběru dlaždic v hodinkách (podržet dlaždici → +):
   všechny tři s náhledem. Aplikace Pixel Watch na telefonu neověřená (emulátor nemá párování).
 
