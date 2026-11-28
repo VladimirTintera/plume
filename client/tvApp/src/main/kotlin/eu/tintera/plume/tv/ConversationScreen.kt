@@ -278,6 +278,7 @@ private fun MessageList(
                         onLongPress = { interactions.actionsFor = entry.album.first() }.takeIf { !entry.album.first().isService },
                         quote = quotedId?.let(state::quote),
                         albumPick = pick,
+                        transcript = interactions.transcripts.of(entry.album.first()),
                         modifier = tall.item(entry.key).then(if (id == (focusTarget ?: newestId)) Modifier.focusRequester(focus) else Modifier),
                     )
                 }
@@ -349,6 +350,8 @@ internal fun MessageRow(
     modifier: Modifier,
     /** Výběr položky alba šipkami do strany; `null` = album se otevírá na první. */
     albumPick: AlbumPick? = null,
+    /** Přepis hlasovky nebo kolečka pod záznamem ([Transcripts]); `null` = žádný. */
+    transcript: TranscriptRequest? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
@@ -447,7 +450,22 @@ internal fun MessageRow(
             focusModifier.fillMaxWidth(),
             contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
-            VideoNoteBubble(message, note, sender, focused)
+            Column(horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start) {
+                VideoNoteBubble(message, note, sender, focused)
+                // Přepis kolečka v kartě v barvě bubliny pod ním (jako na telefonu).
+                if (transcript != null) {
+                    Spacer(Modifier.height(8.dp))
+                    TranscriptText(
+                        message,
+                        transcript,
+                        content,
+                        Modifier
+                            .widthIn(max = TRANSCRIPT_CARD_WIDTH)
+                            .background(container, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    )
+                }
+            }
         }
         return
     }
@@ -510,6 +528,10 @@ internal fun MessageRow(
                 if (message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio) {
                     AudioBubbleContent(message, content, seekHint = focused && playingHere)
                     Spacer(Modifier.height(8.dp))
+                    if (transcript != null) {
+                        TranscriptText(message, transcript, content)
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
                 val hasVisualMedia = message.media is MessageMedia.VoiceNote || message.media is MessageMedia.Audio
                 // Vlastní text s formátováním; popis zprávy bez textu (servisní, anketa…) holý.
@@ -844,3 +866,6 @@ private fun ForwardedLabel(text: String, content: Color, modifier: Modifier = Mo
         Text(text, style = MaterialTheme.typography.labelLarge, color = content.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
+
+/** Šířka karty s přepisem pod kolečkem (širší než kolečko, užší než bublina). */
+private val TRANSCRIPT_CARD_WIDTH = 420.dp

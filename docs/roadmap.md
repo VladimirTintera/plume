@@ -593,7 +593,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    na albu).
 4. ~~**Hlasovky a hudba**~~ — hotovo (jeden přehrávač pro aplikaci, dock, fronta, `MediaSession`
    s dalším a předchozím). Přetáčení v hlasovce a skladbě hotové (šipky na bublině, tlačítka médií), kolečka hrají v kruhu. Streamování skladeb
-   hotové (hrají za běhu stahování). Zbývá: přepis hlasovky.
+   hotové (hrají za běhu stahování), přepis hlasovky a kolečka serverem hotový (nabídka
+   podržením OK). Zbývá: skutečný přepis ověřit na účtu s Premium.
 5. ~~**Reakce a odpovědi**~~ — hotovo (čipy reakcí, citace, nabídka podržením OK, odpověď přes
    systémovou klávesnici, i v komentářích). Nová zpráva bez odpovědi je tlačítkem pod
    konverzací (hotovo). Úprava a smazání vlastní zprávy hotové, zprávu jde nadiktovat (mikrofon v dialogu psaní). Přeposlání hotové (do jednoho chatu,

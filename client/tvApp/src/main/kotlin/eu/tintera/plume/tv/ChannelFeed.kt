@@ -775,6 +775,7 @@ private fun CommentListContent(
                         album = album,
                         chatTitle = channelTitle,
                         albumPick = pick,
+                        transcript = interactions.transcripts.of(album.first()),
                         onOpen = mediaOpenAction(thread.chatId, album, comments, actions, pick = pick),
                         onLongPress = { interactions.actionsFor = album.first() },
                         // Odpověď kořeni (příspěvku) se necituje — komentáře mu odpovídají všechny.

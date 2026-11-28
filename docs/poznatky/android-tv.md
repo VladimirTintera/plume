@@ -812,6 +812,26 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Délku skladby nemusí odesílatel uvést** (bot bez `duration` → 0): bublina pak délku ukáže
   až z přehrávače a do té doby žádnou, ne „0:00".
 
+## Přepis hlasovek a koleček
+
+- **„Přepsat do textu" je v nabídce podržením OK** u hlasovky a kolečka (`TranscriptAction`
+  v `MessageActionsDialog`), přepis se ukáže pod záznamem: v bublině hlasovky, u kolečka v kartě
+  v barvě bubliny pod ním (jako na telefonu). Druhé podržení nabídne „Skrýt přepis".
+- **Přepisuje server (`recognizeSpeech`), pravidla jsou z `core`** (`transcribeOffer`,
+  `SpeechTranscript`): s Premium vždycky, bez něj podle zkušebních přepisů. Výsledek nepřijde
+  z volání, ale úpravou obsahu zprávy (`editedMessages`, televize je už aplikuje): napřed
+  rozpracovaný text kurzívou, pak hotový, nebo chyba. Kde server odmítne (došlé přepisy, moc
+  dlouhý záznam, bez Premium), zůstane tlačítko a pod záznamem věta proč — telefon to dělá
+  stejně. **Přepis v zařízení televize nemá** (Gemma ani systémový rozpoznávač na ní nejsou).
+- **Co je vidět, je stav obrazovky** (`Transcripts` v `MessageInteractions`), výsledek stav
+  zprávy. Hotový přepis, který ve zprávě už je (přepsal ho telefon), je vidět hned; schování
+  si pamatuje i ten. Znovu se server ptá, jen když přepis ve zprávě není nebo minule selhal
+  obecnou chybou.
+- **Ověřeno 28. 11. 2026** na emulátoru s hlasovkou od testovacího bota (`say -v Zuzana`,
+  Opus): tlačítko v nabídce, po něm pod hlasovkou „Přepis do textu je v Telegramu jen
+  s Premium." (účet na emulátoru Premium nemá), „Skrýt přepis" ho schová. **Skutečný přepis
+  a přepis kolečka ověřené NEJSOU** — chtějí účet s Premium.
+
 ## Kolečka (video zprávy)
 
 - **Kulatý náhled bez bubliny** (`VideoNoteBubble`, 300 dp), délka dole v kruhu, čas pod ním.
