@@ -71,6 +71,7 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.resolve
@@ -386,6 +387,12 @@ internal fun MessageRow(
     // Spoiler v textu: první OK ho odkryje, teprve další dělá, co zpráva umí (médium, citace).
     var spoilersRevealed by remember(captioned.id) { mutableStateOf(false) }
     val hiddenSpoiler = !spoilersRevealed && captioned.text.isNotEmpty() && captioned.entities.hasSpoiler()
+    // Fotka nebo video se spoilerem či citlivým obsahem: odkryje je totéž první OK (u alba
+    // všechny položky naráz). Mizející médium se neodkrývá nikdy (HiddenMedia.kt).
+    val spoilers = koinInject<RevealedSpoilers>()
+    val revealedIds = revealedSpoilers()
+    val hiddenMedia = album.filter { it.media.hasSpoilerCover && !it.isSelfDestruct && it.id !in revealedIds }
+    val hidden = hiddenSpoiler || hiddenMedia.isNotEmpty()
     // Zpráva s médiem se OK otevře (`combinedClickable` na televizi bere i DPAD_CENTER): video se
     // pustí, fotka a album otevřou prohlížeč. PODRŽENÍ OK otevře nabídku (reakce, odpověď) —
     // `combinedClickable` dlouhý stisk klávesy pozná sám. Zpráva bez akce jen drží fokus.
@@ -423,15 +430,18 @@ internal fun MessageRow(
             },
         )
         .then(
-            if (onOpen != null || onLongPress != null || hiddenSpoiler) {
+            if (onOpen != null || onLongPress != null || hidden) {
                 // Bez vlnky přes celou šířku řádku: fokus nese rámeček bubliny.
                 Modifier.combinedClickable(
                     interactionSource = null,
                     indication = null,
-                    onClickLabel = if (video != null && !isAlbum) stringResource(Res.string.media_play) else null,
+                    onClickLabel = if (video != null && !isAlbum && !hidden && onOpen != null) stringResource(Res.string.media_play) else null,
                     onLongClick = onLongPress,
-                    onClick = if (hiddenSpoiler) {
-                        { spoilersRevealed = true }
+                    onClick = if (hidden) {
+                        {
+                            spoilersRevealed = true
+                            hiddenMedia.forEach { spoilers.reveal(it.id) }
+                        }
                     } else {
                         onOpen ?: {}
                     },
@@ -467,6 +477,36 @@ internal fun MessageRow(
     // Fotka, video a album jako na telefonu („Médium bez bubliny" v konverzace-zobrazeni.md):
     // bez popisku a citace holé na ploše, s nimi jedna karta, ve které jde snímek od kraje ke kraji.
     val visual = isAlbum || message.media is MessageMedia.Photo || video != null
+    // Mizející hlasovka nebo kolečko: místo přehrávače oznámení (fotka a video jdou dál, zakryje
+    // je VisualMedia).
+    if (message.isSelfDestruct && !visual) {
+        Box(
+            focusModifier.fillMaxWidth(),
+            contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
+        ) {
+            Column(
+                Modifier
+                    .widthIn(max = BUBBLE_MAX_WIDTH)
+                    .focusRing(focused, BUBBLE_RING_SHAPE)
+                    .clip(BUBBLE_SHAPE)
+                    .background(container)
+                    .padding(16.dp),
+            ) {
+                if (sender != null) {
+                    Text(sender, style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                    Spacer(Modifier.height(4.dp))
+                }
+                SelfDestructNotice(content)
+                Text(
+                    timeLabel(message),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = content.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.End),
+                )
+            }
+        }
+        return
+    }
     // Kolečko: kulaté, bez bubliny, přehrává se na místě (VideoNotes.kt).
     (message.media as? MessageMedia.VideoNote)?.let { note ->
         Box(
@@ -707,9 +747,18 @@ private fun MediaCard(
 private fun VisualMedia(album: List<ChatMessage>, timeOnMedia: Boolean, selected: Int? = null) {
     val message = album.first()
     when {
-        album.size > 1 -> AlbumGrid(album.mapNotNull { it.media }, selected)
-        message.media is MessageMedia.Photo -> MessagePhoto((message.media as MessageMedia.Photo).fileId, RectangleShape)
-        message.media is MessageMedia.Video -> MessageVideo(message.media as MessageMedia.Video, RectangleShape, durationOnTop = timeOnMedia)
+        album.size > 1 -> AlbumGrid(album, selected)
+        message.media is MessageMedia.Photo -> MessagePhoto(
+            message.media as MessageMedia.Photo,
+            mediaCover(message.id, message.media, message.isSelfDestruct),
+            RectangleShape,
+        )
+        message.media is MessageMedia.Video -> MessageVideo(
+            message.media as MessageMedia.Video,
+            RectangleShape,
+            durationOnTop = timeOnMedia,
+            cover = mediaCover(message.id, message.media, message.isSelfDestruct),
+        )
     }
 }
 
@@ -718,7 +767,8 @@ private fun VisualMedia(album: List<ChatMessage>, timeOnMedia: Boolean, selected
  * Celé album se prochází v prohlížeči (OK na bublině), mřížka jen ukazuje, co v něm je.
  */
 @Composable
-private fun AlbumGrid(media: List<MessageMedia>, selected: Int?) {
+private fun AlbumGrid(album: List<ChatMessage>, selected: Int?) {
+    val media = album.filter { it.media != null }
     val shown = media.take(ALBUM_TILES)
     // Vybraná položka za posledním náhledem („+N") zvýrazní poslední náhled; které to je, říká
     // počítadlo nahoře.
@@ -729,7 +779,12 @@ private fun AlbumGrid(media: List<MessageMedia>, selected: Int?) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     pair.forEachIndexed { column, item ->
                         val position = row * 2 + column
-                        AlbumTile(item, more = if (position == shown.lastIndex) media.size - shown.size else 0, selected = position == highlighted)
+                        AlbumTile(
+                            item.media!!,
+                            mediaCover(item.id, item.media, item.isSelfDestruct),
+                            more = if (position == shown.lastIndex) media.size - shown.size else 0,
+                            selected = position == highlighted,
+                        )
                     }
                 }
             }
@@ -750,12 +805,13 @@ private fun AlbumGrid(media: List<MessageMedia>, selected: Int?) {
 }
 
 @Composable
-private fun AlbumTile(media: MessageMedia, more: Int, selected: Boolean) {
+private fun AlbumTile(media: MessageMedia, cover: MediaCover?, more: Int, selected: Boolean) {
+    // Zakryté médium se ani nestahuje: dekódovaný obrázek by čekal v paměti na odkrytí.
     val fileId = when (media) {
         is MessageMedia.Photo -> media.fileId
         is MessageMedia.Video -> media.thumbnailFileId
         else -> null
-    }
+    }?.takeIf { cover == null }
     val targetPx = with(LocalDensity.current) { ALBUM_TILE_HEIGHT.roundToPx() }
     val image = rememberImage(fileId, targetPx)
     Box(
@@ -767,10 +823,13 @@ private fun AlbumTile(media: MessageMedia, more: Int, selected: Boolean) {
         contentAlignment = Alignment.Center,
     ) {
         image?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        if (cover != null) {
+            MediaCoverBox(cover, media.minithumbnail, isVideo = media is MessageMedia.Video, modifier = Modifier.fillMaxSize(), hint = false)
+        }
         if (selected) {
             Box(Modifier.fillMaxSize().border(4.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)))
         }
-        if (media is MessageMedia.Video) {
+        if (media is MessageMedia.Video && cover == null) {
             Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
         }
         if (more > 0) {
@@ -781,11 +840,24 @@ private fun AlbumTile(media: MessageMedia, more: Int, selected: Boolean) {
     }
 }
 
-/** Fotka v bublině: varianta pro bublinu (ne největší), zmenšená na šířku bubliny. */
+/**
+ * Fotka v bublině: varianta pro bublinu (ne největší), zmenšená na šířku bubliny. Zakrytá
+ * ([cover]) se nestahuje a místo ní je zakrytí v poměru stran fotky.
+ */
 @Composable
-private fun MessagePhoto(fileId: Int, shape: Shape = RoundedCornerShape(12.dp)) {
+private fun MessagePhoto(photo: MessageMedia.Photo, cover: MediaCover?, shape: Shape = RoundedCornerShape(12.dp)) {
+    if (cover != null) {
+        val ratio = if (photo.width > 0 && photo.height > 0) photo.width.toFloat() / photo.height else 1f
+        MediaCoverBox(
+            cover,
+            photo.minithumbnail,
+            isVideo = false,
+            modifier = Modifier.height(PHOTO_HEIGHT).width(PHOTO_HEIGHT * ratio.coerceIn(0.5f, 2f)).clip(shape),
+        )
+        return
+    }
     val targetPx = with(LocalDensity.current) { PHOTO_HEIGHT.roundToPx() }
-    val image = rememberImage(fileId, targetPx)
+    val image = rememberImage(photo.fileId, targetPx)
     Box(
         Modifier
             .height(PHOTO_HEIGHT)
@@ -811,9 +883,11 @@ internal fun MessageVideo(
     shape: Shape = RoundedCornerShape(12.dp),
     /** Délka nahoře vlevo — dole vpravo leží čas holé zprávy. */
     durationOnTop: Boolean = false,
+    /** Spoiler, citlivé nebo mizející: místo náhledu zakrytí ([MediaCoverBox]), délka zůstává. */
+    cover: MediaCover? = null,
 ) {
     val targetPx = with(LocalDensity.current) { PHOTO_HEIGHT.roundToPx() }
-    val thumbnail = rememberImage(video.thumbnailFileId, targetPx)
+    val thumbnail = rememberImage(video.thumbnailFileId.takeIf { cover == null }, targetPx)
     val watched = rememberWatched(video)
     val ratio = if (video.width > 0 && video.height > 0) video.width.toFloat() / video.height else 16f / 9f
     Box(
@@ -825,11 +899,15 @@ internal fun MessageVideo(
         contentAlignment = Alignment.Center,
     ) {
         thumbnail?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-        Box(
-            Modifier.size(56.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
+        if (cover != null) {
+            MediaCoverBox(cover, video.minithumbnail, isVideo = true, modifier = Modifier.fillMaxSize())
+        } else {
+            Box(
+                Modifier.size(56.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
+            }
         }
         // Rozkoukané: kde se skončilo i číslem — u hodinového videa je proužek po minutě
         // sledování pár bodů (jako na telefonu).

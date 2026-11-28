@@ -81,6 +81,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.CommentThread
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.ui.asDate
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.compactCountText
@@ -122,7 +123,10 @@ class ChannelPost(val messages: List<ChatMessage>) {
 
     /** Formátování [text] (entity té zprávy alba, která text nese). */
     val entities get() = messages.firstOrNull { it.text.isNotBlank() }?.entities.orEmpty()
-    val media: List<MessageMedia> get() = messages.mapNotNull { message -> message.media.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video } }
+    val media: List<MessageMedia> get() = mediaMessages.mapNotNull { it.media }
+
+    /** Zprávy příspěvku s fotkou nebo videem (k médiu je potřeba id kvůli odkrytí spoileru). */
+    val mediaMessages: List<ChatMessage> get() = messages.filter { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
     val statsMessage: ChatMessage get() = messages.firstOrNull { it.postStats?.comments != null } ?: messages.last()
 
     /** Obrázek náhledu odkazu (ne profilovka cíle odkazu na Telegram) pro kartu příspěvku bez média. */
@@ -398,7 +402,9 @@ private fun PostCard(
             colors = CardDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.inverseSurface),
         ) {
             if (media.isNotEmpty()) {
-                PostMedia(media, Modifier.fillMaxSize())
+                // Spoiler, citlivé i mizející médium karta zakryje; odkrývá se v detailu (OK).
+                val cover = post.mediaMessages.firstOrNull()?.let { mediaCover(it.id, it.media, it.isSelfDestruct) }
+                PostMedia(media, cover, Modifier.fillMaxSize())
             } else {
                 // Text se zalomí, kolik řádků se do plošky vejde, a poslední dostane výpustku
                 // (Compose ji u textu omezeného výškou udělá sám).
@@ -445,20 +451,25 @@ private fun PostMeta(post: ChannelPost, modifier: Modifier) {
 
 /** Médium příspěvku: první fotka nebo náhled videa, u videa tlačítko, u alba počet dalších. */
 @Composable
-private fun PostMedia(media: List<MessageMedia>, modifier: Modifier) {
+private fun PostMedia(media: List<MessageMedia>, cover: MediaCover?, modifier: Modifier) {
     val first = media.first()
     val fileId = when (first) {
         is MessageMedia.Photo -> first.fileId
         is MessageMedia.Video -> first.thumbnailFileId
         else -> null
-    }
+    }?.takeIf { cover == null }
     val targetPx = with(LocalDensity.current) { CARD_WIDTH.roundToPx() }
     val image = rememberImage(fileId, targetPx)
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         image?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        if (cover != null) {
+            MediaCoverBox(cover, first.minithumbnail, isVideo = first is MessageMedia.Video, modifier = Modifier.fillMaxSize(), hint = false)
+        }
         if (first is MessageMedia.Video) {
-            Box(Modifier.size(44.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
-                Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+            if (cover == null) {
+                Box(Modifier.size(44.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                }
             }
             val watched = rememberWatched(first)
             MediaBadge(watched?.progressLabel() ?: first.durationSeconds.asDuration(), Modifier.align(Alignment.BottomEnd))
@@ -577,9 +588,12 @@ private fun PostBody(
     val open = mediaOpenAction(chatId, post.messages, post.messages, actions, videosAfter = olderVideos)
         ?: articlePreview?.let { preview -> { actions.openArticle(preview.url) } }
         ?: telegramLinkOf(post.entities)?.let { url -> { actions.openLink(url, post.id) } }
-    // Spoiler v textu příspěvku: první OK ho odkryje, teprve další pustí médium.
+    // Spoiler v textu příspěvku i zakryté médium: první OK je odkryje, teprve další pustí médium.
     var spoilersRevealed by remember(post.id) { mutableStateOf(false) }
-    val hiddenSpoiler = !spoilersRevealed && post.entities.hasSpoiler()
+    val spoilers = koinInject<RevealedSpoilers>()
+    val revealedIds = revealedSpoilers()
+    val hiddenMedia = post.mediaMessages.filter { it.media.hasSpoilerCover && !it.isSelfDestruct && it.id !in revealedIds }
+    val hiddenSpoiler = (!spoilersRevealed && post.entities.hasSpoiler()) || hiddenMedia.isNotEmpty()
     Column(
         modifier
             .focusRing(focused, focusRingShape(20.dp))
@@ -605,6 +619,7 @@ private fun PostBody(
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER -> when {
                         hiddenSpoiler -> {
                             spoilersRevealed = true
+                            hiddenMedia.forEach { spoilers.reveal(it.id) }
                             true
                         }
                         else -> {
@@ -619,10 +634,18 @@ private fun PostBody(
             .verticalScroll(scroll)
             .padding(20.dp),
     ) {
-        post.media.firstOrNull()?.let { media ->
-            when (media) {
-                is MessageMedia.Video -> MessageVideo(media)
-                is MessageMedia.Photo -> {
+        post.mediaMessages.firstOrNull()?.let { message ->
+            val media = message.media
+            val cover = mediaCover(message.id, media, message.isSelfDestruct)
+            when {
+                media is MessageMedia.Video -> MessageVideo(media, cover = cover)
+                media is MessageMedia.Photo && cover != null -> MediaCoverBox(
+                    cover,
+                    media.minithumbnail,
+                    isVideo = false,
+                    modifier = Modifier.fillMaxWidth().height(DETAIL_MEDIA_HEIGHT).clip(RoundedCornerShape(16.dp)),
+                )
+                media is MessageMedia.Photo -> {
                     val targetPx = with(LocalDensity.current) { DETAIL_MEDIA_HEIGHT.roundToPx() }
                     rememberImage(media.fileId, targetPx)?.let {
                         Image(
@@ -635,9 +658,9 @@ private fun PostBody(
                 }
                 else -> {}
             }
-            if (post.media.size > 1) {
+            if (post.mediaMessages.size > 1) {
                 Spacer(Modifier.height(12.dp))
-                AlbumStrip(post.media)
+                AlbumStrip(post.mediaMessages)
             }
             Spacer(Modifier.height(20.dp))
         }
@@ -659,21 +682,26 @@ private fun PostBody(
 
 /** Zbytek alba pod hlavním médiem: řada malých náhledů; celé album se prochází v prohlížeči (OK). */
 @Composable
-private fun AlbumStrip(media: List<MessageMedia>) {
+private fun AlbumStrip(media: List<ChatMessage>) {
     val targetPx = with(LocalDensity.current) { STRIP_HEIGHT.roundToPx() }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        media.drop(1).take(STRIP_TILES).forEachIndexed { index, item ->
+        media.drop(1).take(STRIP_TILES).forEachIndexed { index, message ->
+            val item = message.media
+            val cover = mediaCover(message.id, item, message.isSelfDestruct)
             val fileId = when (item) {
                 is MessageMedia.Photo -> item.fileId
                 is MessageMedia.Video -> item.thumbnailFileId
                 else -> null
-            }
+            }?.takeIf { cover == null }
             Box(
                 Modifier.height(STRIP_HEIGHT).aspectRatio(1f).clip(RoundedCornerShape(10.dp)).background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
                 rememberImage(fileId, targetPx)?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-                if (item is MessageMedia.Video) {
+                if (cover != null) {
+                    MediaCoverBox(cover, item.minithumbnail, isVideo = item is MessageMedia.Video, modifier = Modifier.fillMaxSize(), hint = false, iconSize = 24.dp)
+                }
+                if (item is MessageMedia.Video && cover == null) {
                     Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
                 }
                 val more = media.size - 1 - STRIP_TILES

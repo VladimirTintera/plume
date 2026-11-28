@@ -5224,4 +5224,7 @@
     <string name="tv_delete_for_all">Smazat pro všechny</string>
     <string name="tv_delete_for_me">Smazat jen pro mě</string>
     <string name="tv_delete_failed">Zprávu se nepodařilo smazat.</string>
+    <string name="tv_media_reveal_hint">Zobrazíš tlačítkem OK</string>
+    <string name="tv_media_self_destruct">Mizející zpráva</string>
+    <string name="tv_media_self_destruct_hint">Zobrazí se jen v telefonu.</string>
 </resources>

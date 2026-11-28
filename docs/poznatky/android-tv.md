@@ -186,6 +186,49 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   `tg-spoiler`, `blockquote`): bublina, maska v náhledu chatu, odkrytí OK. Detail příspěvku
   kanálu se spoilerem ověřený není.
 
+## Spoilery, citlivý obsah a mizející média
+
+Fotky a videa se spoilerem, citlivým obsahem nebo s časovačem byly na televizi do 28. 11. 2026
+vidět ostře — v konverzaci, ve feedu kanálu, v prohlížeči i na pozadí náhledu chatu. Filtroval je
+jen spořič. Společné kousky jsou v `HiddenMedia.kt`.
+
+- **Spoiler a citlivé médium se kreslí jako rozmazaná zmenšenina ze zprávy** (`minithumbnail`,
+  kolem 40 px, přišla se zprávou, nic se nestahuje) pod tmavým závojem se štítkem „Spoiler" /
+  „Citlivý obsah" a „Zobrazíš tlačítkem OK" (`MediaCoverBox`). Dlaždice alba, karta ve feedu
+  a Rozkoukaná videa mají jen ikonu, štítek se tam nevejde. **Zakryté médium se ani nestahuje**
+  (`rememberImage(null)`), odkrytí ho teprve načte.
+- **Citlivý obsah vede `core` i jako spoiler** (`hasSpoiler = content.hasSpoiler || hideSensitive`),
+  takže televize ho schová, kdykoli by ho schoval telefon; `isSensitive` mění jen štítek. Volba
+  „Zobrazovat citlivý obsah" je v nastavení účtu na serveru, televize ji jen respektuje.
+- **První OK na zprávě odkryje VŠECHNO skryté naráz**: spoiler v textu i zakrytá média, u alba
+  všechny položky. Teprve další OK pustí video nebo otevře prohlížeč. Stejně v detailu příspěvku
+  kanálu. Po jednom OK na každou položku alba by se šipky do strany (výběr položky) a odkrývání
+  pletly.
+- **Odkrytí platí pro celý běh aplikace a všude** — `RevealedSpoilers` z `core` (jako na telefonu),
+  ne `remember` u řádku: odkrytá fotka zůstane odkrytá po odrolování, v prohlížeči i na kartě
+  feedu. Po restartu aplikace je zase zakrytá.
+- **Prohlížeč zakrývá taky** — šipkami se v něm dá dojít na neodkryté médium jinde v chatu. OK
+  na zakrytém médiu ho odkryje (nepřiblíží ani nepustí).
+- **Mizející a tajná média televize neukazuje vůbec** (`isSelfDestruct`: `isSecret` nebo
+  `selfDestructType` v médiu, nebo `selfDestructType` na zprávě — jednorázová hlasovka a kolečko
+  ho mají jen tam). Fotka a video mají plochu bez zmenšeniny se štítkem „Mizející fotka/video"
+  a „Zobrazí se jen v telefonu", hlasovka a kolečko místo přehrávače oznámení
+  (`SelfDestructNotice`). OK nic nedělá (`mediaOpenAction` vrátí `null`) a do prohlížeče ani
+  fronty videí nejdou: otevření by zprávu spotřebovalo (odpočet běží od zobrazení) a na velké
+  obrazovce v obýváku by ji viděl kdokoli.
+- **Kde uživatel nic neodkrývá, skryté médium vůbec není** (`showsUncovered`): pozadí náhledu
+  chatu vezme nejnovější médium, které skryté není, a fronta „kanál jako pořad" spoiler video
+  přeskočí — po dohrání předchozího by se ukázalo bez odkrytí.
+- **`Modifier.blur` rozostří až od Androidu 12**; na starší televizi zbude zvětšená zmenšenina,
+  která je rozmazaná sama (stejná úvaha jako `BlurredPlaceholder` na telefonu).
+- **Ověřeno 28. 11. 2026 na emulátoru `Plume_TV_Play`** s fotkou, videem a albem se spoilerem
+  od testovacího bota (`has_spoiler` v Bot API): zakrytí v bublině, kartě i dlaždicích alba, OK
+  odkryje a nepustí, druhé OK pustí; album odkryté jedním OK; v prohlížeči zakrytá neodkrytá
+  fotka a OK ji odkryje i v konverzaci; pozadí náhledu chatu přeskočí nejnovější fotku se
+  spoilerem; po restartu aplikace zase zakryté. **Neověřené**: mizející médium (bot ho poslat
+  neumí a výběr souborů na emulátoru telefonu nereagoval), citlivý obsah (posílá ho jen server)
+  a feed kanálu (testovací účet nemá kanál se spoilerem) — jdou stejnými funkcemi.
+
 ## Náhled odkazu a Instant View
 
 - **Náhled odkazu pod textem zprávy** (`LinkPreviewCard`): web, nadpis a popis v tónovaném

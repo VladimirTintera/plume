@@ -114,8 +114,10 @@ fun rememberChatPreview(chatId: Long?, lastMessageId: Long?): ChatPreviewData? {
 /** Náhled z načtené historie: poslední zprávy s textem a médium z nich na pozadí. */
 private fun previewOf(chatId: Long, history: List<ChatMessage>): ChatPreviewData {
     val newestFirst = history.sortedByDescending { it.id }
+    // Spoiler, citlivé a mizející médium na pozadí nepatří: odkrývá se vědomě u zprávy, ne tím,
+    // že fokus přejede přes chat. Pozadí pak dá starší médium, které skryté není.
     val backdrop = newestFirst.firstNotNullOfOrNull { message ->
-        when (val media = message.media) {
+        when (val media = message.media?.takeIf { it.showsUncovered && !message.isSelfDestruct }) {
             is MessageMedia.Photo -> media.fileId
             is MessageMedia.Video -> media.thumbnailFileId
             else -> null
