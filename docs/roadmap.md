@@ -580,8 +580,7 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
    přehrávač, `MediaSession`). Rozkoukaná videa hotová (pokračování od pozice, záložka,
    synchronizace s telefonem). Kvalita videa hotová (automatika podle sítě, výběr šipkou nahoru,
    pravidla sdílená s telefonem v `core`). Přetáčení s náhledem snímku ze storyboardu hotové.
-   Zbývá: titulky,
-   video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
+   Stream, který se nerozběhne, počká na celý soubor (jako telefon). Zbývá: titulky.
 2. ~~**Kanály jako feed a komentáře**~~ — hotovo (mřížka karet 16 : 9 podle návodu Google,
    detail s rolovaným textem a vláknem komentářů). Formátovaný text, spoilery, odkazy na Telegram, náhled odkazu
    a čtečka Instant View hotové. Příspěvek s videem se z feedu pouští rovnou (OK na kartě, podržení = detail; ověřené

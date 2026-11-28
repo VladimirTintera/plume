@@ -5212,6 +5212,7 @@
     <string name="tv_up_next">Další za %1$d s</string>
     <string name="tv_up_next_play">Přehrát hned</string>
     <string name="tv_video_quality_title">Kvalita videa</string>
+    <string name="tv_video_downloading_whole">Video nejde přehrát během stahování. Stahuji ho celé… %1$d %</string>
     <string name="tv_up_next_cancel">Zrušit</string>
     <string name="tv_dream_empty">Zatím tu nejsou žádné fotky. V nastavení spořiče vyberte chat s fotkami.</string>
     <string name="tv_dream_settings_title">Fotky pro spořič obrazovky</string>

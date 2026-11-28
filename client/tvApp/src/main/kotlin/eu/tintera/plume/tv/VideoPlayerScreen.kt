@@ -89,6 +89,7 @@ import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.replay_24dp
 import eu.tintera.plume.resources.tv_up_next
+import eu.tintera.plume.resources.tv_video_downloading_whole
 import eu.tintera.plume.resources.tv_up_next_cancel
 import eu.tintera.plume.resources.tv_up_next_play
 import java.io.File
@@ -211,19 +212,31 @@ fun VideoPlayerScreen(
     var loaded by remember { mutableStateOf(false) }
     // Výměna kvality za běhu: od přepnutí do rozběhnutí nové se točí čekání.
     var switching by remember { mutableStateOf(false) }
-    LaunchedEffect(chosenId) {
+    // Hraje se z rozestavěného souboru (stream)? Selže-li stream dřív, než video poprvé hrálo,
+    // čeká se na celý soubor ([streamFailedFor] = soubor, u kterého se už nestreamuje).
+    var streamingLoaded by remember { mutableStateOf(false) }
+    var streamFailedFor by remember { mutableStateOf<Int?>(null) }
+    var streamFailedAtMs by remember { mutableStateOf<Long?>(null) }
+    val currentChosenId by rememberUpdatedState(chosenId)
+    LaunchedEffect(chosenId, streamFailedFor) {
         val playedQuality = chosen ?: return@LaunchedEffect
         val fileId = playedQuality.fileId
+        val waitForFile = streamFailedFor == fileId
         logger.i {
             "Video ${video.fileId}: hraje ${playedQuality.lines}p ${playedQuality.codec ?: "původní"} (soubor $fileId, " +
                 "kvalit ${quality?.options?.size}, volba ${quality?.choice})"
         }
         // První kvalita začíná od pamatované pozice, další (ruční volba, změna sítě) tam, kde
         // předchozí zrovna byla; hrálo-li video, hraje dál (`playWhenReady` se nemění).
-        val resumeAt = if (loaded) player.currentPosition else startMs
+        // Po neúspěšném streamu tam, kde stream skončil.
+        val resumeAt = when {
+            waitForFile -> streamFailedAtMs ?: startMs
+            loaded -> player.currentPosition
+            else -> startMs
+        }
         if (loaded) switching = true
         // Přepočítaná kvalita je fragmentované MP4, to ExoPlayer streamuje vždycky.
-        val canStream = !playedQuality.isOriginal || streamOriginalVideo(video.supportsStreaming, video.mimeType)
+        val canStream = !waitForFile && (!playedQuality.isOriginal || streamOriginalVideo(video.supportsStreaming, video.mimeType))
         val first = fileState.first { state ->
             state is FileState.Ready || state is FileState.Failed ||
                 (canStream && state is FileState.Downloading && state.path != null && state.totalSize > 0)
@@ -254,6 +267,7 @@ fun VideoPlayerScreen(
                 return@LaunchedEffect
             }
         }
+        streamingLoaded = first is FileState.Downloading
         if (resumeAt > 0) player.seekTo(resumeAt)
         player.prepare()
         loaded = true
@@ -317,7 +331,24 @@ fun VideoPlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                logger.w(error) { "Video ${video.fileId} (soubor $chosenId) na televizi nejde přehrát." }
+                /*
+                 * Stream se nerozběhl: místo chyby počkat na celý soubor a pustit ho od místa, kde
+                 * stream skončil (jako telefon, `VideoPage`). Týká se hlavně MP4 bez příznaku
+                 * streamování, které se streamuje taky (`streamOriginalVideo`). Jednou na soubor —
+                 * selže-li i hotový, je to chyba. Chyba po rozběhnutí zůstává chybou: bývá to
+                 * výpadek sítě a čekání na celé video by trvalo.
+                 */
+                val id = currentChosenId
+                if (streamingLoaded && !hasPlayed && id != null && streamFailedFor != id) {
+                    logger.w(error) { "Video ${video.fileId} (soubor $id): stream se nerozběhl, čeká se na celý soubor." }
+                    streamFailedAtMs = player.currentPosition.takeIf { it > 0 }
+                    streamingLoaded = false
+                    loaded = false
+                    switching = false
+                    streamFailedFor = id
+                    return
+                }
+                logger.w(error) { "Video ${video.fileId} (soubor $id) na televizi nejde přehrát." }
                 failed = true
             }
         }
@@ -460,6 +491,12 @@ fun VideoPlayerScreen(
                 Res.drawable.error_24dp,
                 error = true,
             )
+            // Čeká se na celý soubor (stream se nerozběhl): kolik je staženo, ať to není nekonečné kolečko.
+            !loaded && streamFailedFor != null && streamFailedFor == chosenId -> {
+                val state by fileState.collectAsState()
+                val percent = ((state as? FileState.Downloading)?.progress ?: 0f).times(100).toInt().coerceIn(0, 100)
+                LoadingScreen(stringResource(Res.string.tv_video_downloading_whole, percent))
+            }
             !loaded || switching || (buffering && !playing && !hasPlayed) ->
                 LoadingScreen(stringResource(Res.string.connection_connecting))
         }
