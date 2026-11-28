@@ -71,7 +71,12 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   zprávy. Obraz je zarovnaný doprava nahoru (Google: hlavní motiv vpravo nahoře) a zleva
   a zespodu ho kryje přechod do plochy, takže text zůstává čitelný. Načítá se se zpožděním
   300 ms (`getChatHistory`, 20 zpráv) — rychlé projíždění šipkou nemá číst historii každého
-  řádku. `getChatHistory` chat neotevírá ani nehlásí přečtení.
+  řádku. `getChatHistory` chat neotevírá ani nehlásí přečtení. **Historie se dočítá po
+  stránkách** (nejvýš tři čtení, `PREVIEW_PAGES`): TDLib vrací napoprvé jen to, co má v lokální
+  databázi, po startu aplikace často jedinou zprávu, a náhled pak ukázal jen ji (ověřeno 28. 11.
+  2026, po opravě čtyři zprávy u Notifikátora, Pixelu 7 Pro i skupiny). Mezivýsledek se ukáže
+  hned, ale nepřebije bohatší náhled z mezipaměti se stejnou poslední zprávou — návrat na chat
+  by jinak bliknul na jednu zprávu.
 - **Složky jsou záložky nahoře** (`TabRow` s pilulkou), ne lišta: záložky jsou podle návodu
   pro rovnocenné sekce jedné obrazovky a smí jich být kolik je potřeba. `NavigationDrawer` je
   „páteř" aplikace jen pro hlavní cíle (pět až šest, s ikonami) — první verze ho měla na složky

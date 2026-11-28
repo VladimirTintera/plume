@@ -53,6 +53,9 @@ private const val PREVIEW_MESSAGES = 4
 /** Kolik zpráv se projde při hledání média na pozadí. */
 private const val PREVIEW_HISTORY = 20
 
+/** Nejvýš kolikrát se historie pro náhled dočítá, než je [PREVIEW_HISTORY] zpráv pohromadě. */
+private const val PREVIEW_PAGES = 3
+
 /**
  * Prodleva před načtením náhledu: při rychlém projíždění seznamu šipkou by se jinak historie
  * četla pro každý řádek, přes který fokus jen přejel.
@@ -82,22 +85,44 @@ fun rememberChatPreview(chatId: Long?, lastMessageId: Long?): ChatPreviewData? {
         value = cached
         val stale = cached != null && lastMessageId != null && cached.newestMessageId != lastMessageId
         if (!stale) delay(PREVIEW_DELAY_MS)
-        val history = conversations.history(chatId, fromMessageId = 0L, limit = PREVIEW_HISTORY).getOrNull() ?: return@produceState
-        val newestFirst = history.sortedByDescending { it.id }
-        val backdrop = newestFirst.firstNotNullOfOrNull { message ->
-            when (val media = message.media) {
-                is MessageMedia.Photo -> media.fileId
-                is MessageMedia.Video -> media.thumbnailFileId
-                else -> null
+        // `getChatHistory` vrací často jen to, co má TDLib v lokální databázi — klidně jedinou
+        // zprávu, a náhled pak ukázal jen ji. Dočítá se proto po stránkách (jako historie
+        // v konverzaci, `ConversationState.loadHistory`), a co je načtené, ukáže se hned: první
+        // stránka je z databáze, další můžou čekat na server.
+        val history = mutableListOf<ChatMessage>()
+        var from = 0L
+        repeat(PREVIEW_PAGES) {
+            if (history.size >= PREVIEW_HISTORY) return@produceState
+            val page = conversations.history(chatId, fromMessageId = from, limit = PREVIEW_HISTORY - history.size).getOrNull()
+                ?.filterNot { message -> history.any { it.id == message.id } }
+            if (page.isNullOrEmpty()) return@produceState
+            history += page
+            from = history.minOf { it.id }
+            val next = previewOf(chatId, history)
+            // Mezivýsledek nesmí přebít víc zpráv z mezipaměti (návrat na chat by bliknul z pěti
+            // zpráv na jednu a zpátky); novější zpráva ano.
+            val shown = value
+            if (shown == null || shown.newestMessageId != next.newestMessageId || shown.messages.size <= next.messages.size) {
+                cache[chatId] = next
+                value = next
             }
-        }
-        val shown = newestFirst.filter { !it.isService && (it.text.isNotBlank() || it.description != null) }.take(PREVIEW_MESSAGES).reversed()
-        ChatPreviewData(chatId, shown, backdrop, newestMessageId = newestFirst.firstOrNull()?.id).also {
-            cache[chatId] = it
-            value = it
         }
     }
     return preview
+}
+
+/** Náhled z načtené historie: poslední zprávy s textem a médium z nich na pozadí. */
+private fun previewOf(chatId: Long, history: List<ChatMessage>): ChatPreviewData {
+    val newestFirst = history.sortedByDescending { it.id }
+    val backdrop = newestFirst.firstNotNullOfOrNull { message ->
+        when (val media = message.media) {
+            is MessageMedia.Photo -> media.fileId
+            is MessageMedia.Video -> media.thumbnailFileId
+            else -> null
+        }
+    }
+    val shown = newestFirst.filter { !it.isService && (it.text.isNotBlank() || it.description != null) }.take(PREVIEW_MESSAGES).reversed()
+    return ChatPreviewData(chatId, shown, backdrop, newestMessageId = newestFirst.firstOrNull()?.id)
 }
 
 /**
