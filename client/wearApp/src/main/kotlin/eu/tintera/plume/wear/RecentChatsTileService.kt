@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import androidx.concurrent.futures.SuspendToFutureAdapter
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
+import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.DimensionBuilders.weight
 import androidx.wear.protolayout.LayoutElementBuilders.LayoutElement
@@ -27,7 +28,6 @@ import androidx.wear.protolayout.modifiers.background
 import androidx.wear.protolayout.modifiers.clickable
 import androidx.wear.protolayout.modifiers.clip
 import androidx.wear.protolayout.modifiers.padding
-import androidx.wear.protolayout.types.dp
 import androidx.wear.protolayout.types.layoutString
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders.Tile
@@ -132,7 +132,9 @@ class RecentChatsTileService : TileService() {
                 // ho zmáčkl (nižší než první, avatar useknutý).
                 height = weight(1f),
             )
-            if (index == 0) listOf(button) else listOf(spacer(height = ROW_GAP_DP.dp), button)
+            // `DimensionBuilders.dp`, ne `Float.dp` z `protolayout.types`: to je jen pro knihovnu
+            // samotnou (lint `RestrictedApi`).
+            if (index == 0) listOf(button) else listOf(spacer(height = dp(ROW_GAP_DP)), button)
         }
         // Tlačítka mají šířku `expand`: sloupec s výchozím `wrap` nejde změřit a renderer ho
         // zahodí celý („Column set to wrap but contents are unmeasurable").
