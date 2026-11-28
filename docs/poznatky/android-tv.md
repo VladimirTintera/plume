@@ -225,9 +225,12 @@ jen spořič. Společné kousky jsou v `HiddenMedia.kt`.
   od testovacího bota (`has_spoiler` v Bot API): zakrytí v bublině, kartě i dlaždicích alba, OK
   odkryje a nepustí, druhé OK pustí; album odkryté jedním OK; v prohlížeči zakrytá neodkrytá
   fotka a OK ji odkryje i v konverzaci; pozadí náhledu chatu přeskočí nejnovější fotku se
-  spoilerem; po restartu aplikace zase zakryté. **Neověřené**: mizející médium (bot ho poslat
-  neumí a výběr souborů na emulátoru telefonu nereagoval), citlivý obsah (posílá ho jen server)
-  a feed kanálu (testovací účet nemá kanál se spoilerem) — jdou stejnými funkcemi.
+  spoilerem; po restartu aplikace zase zakryté. **Mizející fotka ověřena týž den** (poslal ji
+  uživatel z telefonu do Notifikátora): černá plocha bez zmenšeniny se štítkem a „Zobrazí se jen
+  v telefonu", OK nic neotevře, v prohlížeči chybí (fotka před ní je poslední položka) a pozadí
+  náhledu chatu ji přeskočí. Bot ji poslat neumí (Bot API časovač nemá). **Neověřené**: mizející
+  hlasovka a kolečko, citlivý obsah (posílá ho jen server) a feed kanálu (testovací účet nemá
+  kanál se spoilerem) — jdou stejnými funkcemi.
 
 ## Náhled odkazu a Instant View
 
