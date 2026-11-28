@@ -1,5 +1,7 @@
 package eu.tintera.plume.tv
 
+import androidx.media3.common.util.UnstableApi
+import androidx.annotation.OptIn
 import android.net.Uri
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
@@ -139,6 +141,7 @@ private const val SAVE_EVERY_TICKS = 40
  * stiskem. `MediaSession` dává přehrávač systému — tlačítka médií na ovladači a karta
  * „Právě hraje" na Google TV fungují i bez fokusu v aplikaci.
  */
+@OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayerScreen(
     request: VideoRequest,

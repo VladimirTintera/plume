@@ -1,5 +1,7 @@
 package eu.tintera.plume.tv
 
+import androidx.media3.common.util.UnstableApi
+import androidx.annotation.OptIn
 import android.net.Uri
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
@@ -533,6 +535,7 @@ private fun TimedProgress(ready: Boolean, paused: Boolean, onProgress: (Float) -
  * Video příběhu: stáhne se celé, pak hraje (příběhy mají do minuty a jednotky MB — streamování
  * jako u videa ve zprávě by tu jen přidalo složitost). Průběh z přehrávače, po dohrání dál.
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun StoryVideo(video: MessageMedia.Video, paused: Boolean, onProgress: (Float) -> Unit, onFinished: () -> Unit) {
     val context = LocalContext.current

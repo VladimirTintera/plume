@@ -1,5 +1,7 @@
 package eu.tintera.plume.tv
 
+import androidx.media3.common.util.UnstableApi
+import androidx.annotation.OptIn
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.Composable
@@ -127,12 +129,20 @@ class TvAudioPlayer(
         setHandleAudioBecomingNoisy(true)
     }
 
+    private val sessionPlayer = QueueSessionPlayer()
+    private val session = MediaSession.Builder(context, sessionPlayer).setId("plume-tv-audio").build()
+
     /**
      * Přehrávač, jak ho vidí `MediaSession`. Fronta je v aplikaci ([queue]), ExoPlayer má vždy
      * jen jednu položku — „další" a „předchozí" by session nenabídla a tlačítka na ovladači by
      * nic neudělala (ověřeno na emulátoru: pauza šla, další ne). Obal je nabízí a posílá do fronty.
+     *
+     * Třída, ne anonymní objekt: `@OptIn` u vlastnosti tělo objektu nepokryje a lint dál hlásil
+     * `UnsafeOptInUsageError` (`ForwardingPlayer` je v media3 „UnstableApi“, jako na telefonu
+     * `MusicSessionPlayer`).
      */
-    private val sessionPlayer = object : ForwardingPlayer(player) {
+    @OptIn(UnstableApi::class)
+    private inner class QueueSessionPlayer : ForwardingPlayer(player) {
         override fun getAvailableCommands(): Player.Commands =
             super.getAvailableCommands().buildUpon().addAll(*QUEUE_COMMANDS).build()
 
@@ -146,7 +156,6 @@ class TvAudioPlayer(
 
         override fun seekToPreviousMediaItem() = previous()
     }
-    private val session = MediaSession.Builder(context, sessionPlayer).setId("plume-tv-audio").build()
 
     var queue by mutableStateOf<List<AudioItem>>(emptyList())
         private set
@@ -243,6 +252,7 @@ class TvAudioPlayer(
         loading = false
     }
 
+    @OptIn(UnstableApi::class)
     private fun select(newIndex: Int) {
         val item = queue.getOrNull(newIndex) ?: return
         index = newIndex
