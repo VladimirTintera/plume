@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -23,13 +24,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -123,12 +124,14 @@ import eu.tintera.plume.resources.chat_insights_when
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.decimal_number
 import eu.tintera.plume.resources.empty_state_error_title
+import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.resources.sender_you
 import eu.tintera.plume.resources.statistics_sender_messages
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
@@ -243,7 +246,16 @@ private fun ScopeHeader(state: ChatInsightsState, insights: ChatInsights, onLoad
                     color = if (state.olderFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
-                TextButton(onClick = onLoadOlder, shapes = ButtonDefaults.shapes(), enabled = state.canLoadOlder) {
+                // Tónové tlačítko s ikonou, ne TextButton: textové má vnitřní odsazení, takže jeho
+                // popisek stál o kus vpravo od textu nad ním a vypadalo to jako chyba zarovnání.
+                FilledTonalButton(
+                    onClick = onLoadOlder,
+                    shapes = ButtonDefaults.shapes(),
+                    enabled = state.canLoadOlder,
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
+                    Icon(painterResource(Res.drawable.history_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(stringResource(Res.string.chat_insights_load_older))
                 }
             }
