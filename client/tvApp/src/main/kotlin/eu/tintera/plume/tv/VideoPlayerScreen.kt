@@ -684,7 +684,8 @@ private fun Player.togglePlayback() {
     if (isPlaying) pause() else play()
 }
 
-private fun FileState.currentPath(): String? = when (this) {
+/** Cesta k souboru, stažený je, nebo se stahuje (zdroj streamu videa i skladby). */
+internal fun FileState.currentPath(): String? = when (this) {
     is FileState.Ready -> path
     is FileState.Downloading -> path
     else -> null

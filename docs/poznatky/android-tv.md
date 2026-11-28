@@ -771,9 +771,23 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   dál přes `LocalAudioPlayer`): hraje dál při přechodu mezi chaty a seznamem, dva zvuky se
   nepřou. OK na bublině hlasovky nebo skladby ji pustí, na právě hrající ji pozastaví. Po
   dohrání hraje další stejného druhu z konverzace (hlasovky a hudba se nemíchají).
-- **Soubor se napřed stáhne celý**, pak hraje: hlasovky mají desítky kB, skladby jednotky MB,
-  streamování jako u videa by tu přidalo složitost bez znatelného užitku. Dokud se stahuje,
-  ukazuje tlačítko `LoadingIndicator`.
+- **Skladba hraje za běhu stahování** (`StreamingSource` + `PartialFileDataSource` z `core`,
+  stejně jako video). Dřív se čekalo na celý soubor: hodinový mix nebo audiokniha mají desítky
+  MB a na pomalejší síti to byly minuty ticha. Přetočení za stažený úsek přesune stahování tam
+  (`requestFrom` → `downloadFrom`). **Hlasovka se stáhne celá**, pak hraje — má desítky kB
+  a stáhne se dřív, než by se stream rozběhl. Dokud se čeká na první data, ukazuje tlačítko
+  `LoadingIndicator`.
+- **Opuštěná skladba se přestane stahovat** (`abandonDownload` při výběru jiné položky
+  a `stop`): odběr `files.file` stahování spustil a sám ho nezruší. Se streamováním by se
+  hodinová skladba přeskočená po minutě stahovala dál celá. Rozstahovaná část zůstane v `temp/`
+  do úklidu mezipaměti.
+- **Ověřeno 28. 11. 2026** na emulátoru se skladbami od testovacího bota (20 min / 19 MB
+  a 25 min / 36 MB, MP3): druhá hrála po ~11 s se staženými 8,8 MB z 36 („Stahování souboru …
+  se přesouvá na 0" v logu = čte zdroj streamu), šedesát šipek vpravo na 10:52 přesunulo
+  stahování na 15,6 MB a skladba hrála dál, přepnutí na jinou skladbu „Ruším stahování"
+  a soubor v `temp/` přestal růst. **První soubor čekal na začátek stahování přes minutu**
+  — to je TDLib (nejspíš první spojení na datové centrum souboru), ne přehrávač: druhý soubor
+  od téhož bota začal za 11 s.
 - **`MediaSession` dostává `ForwardingPlayer`, ne ExoPlayer přímo.** Fronta je v aplikaci
   a ExoPlayer má vždy jen jednu položku, takže session „další" a „předchozí" nenabídla —
   pauza z ovladače šla, další ne (ověřeno na emulátoru). Obal příkazy nabízí a posílá do fronty.
