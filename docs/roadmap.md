@@ -618,8 +618,9 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
     hlasové zadání a tlačítko hledání na ovladači). Zbývá: globální hledání přes Asistenta
     Google TV (`searchable`). Skok ze zprávy ve výsledcích na zprávu v konverzaci hotový.
 12. ~~**Kanál jako pořad**~~ — hotovo (po dohrání odpočet a další video, v kanálu starší
-    příspěvky, v konverzaci novější zprávy). Zbývá: dočítat feed během přehrávání, po zavření
-    stát na příspěvku posledního přehraného videa, ověřit na kanálu s videy po sobě.
+    příspěvky, v konverzaci novější zprávy). Feed se během přehrávání dočítá a po zavření stojí na
+    příspěvku posledního přehraného videa (ověřeno na kanálu Pavla Durova). Zbývá: totéž
+    v konverzaci ověřit na chatu s víc videi.
 13. ~~**Spořič obrazovky s fotkami**~~ — hotovo (`DreamService`, Uložené zprávy nebo vybraný chat).
     Zbývá: ověřit na skutečné Google TV, jestli jde spořič vybrat jinak než přes `adb`.
 

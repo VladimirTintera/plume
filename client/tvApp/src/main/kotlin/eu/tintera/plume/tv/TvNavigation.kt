@@ -157,7 +157,13 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     }
                 }
                 key(current, openedAt) {
-                    ChatScreen(chatId = current, startAt = openedAt, overlayOpen = playing != null || viewer != null || article != null, actions = actions)
+                    ChatScreen(
+                        chatId = current,
+                        startAt = openedAt,
+                        overlayOpen = playing != null || viewer != null || article != null,
+                        playingMessage = playing?.takeIf { it.chatId == current }?.messageId,
+                        actions = actions,
+                    )
                 }
                 article?.let { url ->
                     key(url) { InstantViewScreen(url = url, onClose = { article = null }) }
@@ -220,17 +226,19 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
 
 /**
  * Otevřený chat: kanál jako feed příspěvků ([ChannelFeedScreen]), ostatní jako konverzace.
- * Druh chatu se zjistí z `chatInfo`, než se cokoli nakreslí.
+ * Druh chatu se zjistí z `chatInfo`, než se cokoli nakreslí. [playingMessage] je zpráva, jejíž
+ * video právě hraje (s frontou se mění): obrazovka podle ní dočítá historii a po zavření
+ * přehrávače stojí na ní.
  */
 @Composable
-private fun ChatScreen(chatId: Long, startAt: Long?, overlayOpen: Boolean, actions: MediaActions) {
+private fun ChatScreen(chatId: Long, startAt: Long?, overlayOpen: Boolean, playingMessage: Long?, actions: MediaActions) {
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<Result<ChatInfo>?>(null, chatId) { value = conversations.chatInfo(chatId) }
     val loaded = info?.getOrNull()
     when {
         info == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, overlayOpen, actions, startAt)
-        else -> ConversationScreen(chatId = chatId, playerOpen = overlayOpen, actions = actions, startAt = startAt)
+        loaded?.isChannel == true -> ChannelFeedScreen(chatId, loaded, overlayOpen, playingMessage, actions, startAt)
+        else -> ConversationScreen(chatId = chatId, playerOpen = overlayOpen, playingMessage = playingMessage, actions = actions, startAt = startAt)
     }
 }
 

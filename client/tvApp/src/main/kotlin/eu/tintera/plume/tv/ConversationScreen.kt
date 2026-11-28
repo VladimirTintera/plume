@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -94,7 +95,7 @@ import org.koin.compose.koinInject
  * Pod seznamem je „Napsat zprávu", kde se smí psát; odpověď a reakce jsou v nabídce podržením OK.
  */
 @Composable
-fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions, startAt: Long? = null) {
+fun ConversationScreen(chatId: Long, playerOpen: Boolean, playingMessage: Long?, actions: MediaActions, startAt: Long? = null) {
     val state = rememberConversationState(chatId, startAt = startAt)
     val conversations = koinInject<ConversationRepository>()
     val info by produceState<ChatInfo?>(null, chatId) { value = conversations.chatInfo(chatId).getOrNull() }
@@ -110,7 +111,7 @@ fun ConversationScreen(chatId: Long, playerOpen: Boolean, actions: MediaActions,
                 state.failed -> MessageScreen(stringResource(Res.string.tv_conversation_failed), Res.drawable.cloud_off_24dp, error = true)
                 messages == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
                 messages.isEmpty() -> MessageScreen(stringResource(Res.string.tv_conversation_empty), Res.drawable.chat_bubble_24dp)
-                else -> MessageList(chatId, state, messages, title, playerOpen, actions, interactions)
+                else -> MessageList(chatId, state, messages, title, playerOpen, playingMessage, actions, interactions)
             }
         }
         if (state.canWrite && messages != null) {
@@ -146,7 +147,9 @@ private fun MessageList(
     messages: List<ChatMessage>,
     chatTitle: String,
     playerOpen: Boolean,
-    actions: MediaActions,
+    /** Zpráva, jejíž video právě hraje (s frontou přehrávače se mění); `null` = nic nehraje. */
+    playingMessage: Long?,
+    mediaActions: MediaActions,
     interactions: MessageInteractions,
 ) {
     // Obrácený seznam: index 0 je nejnovější zpráva dole a nová zpráva se přidá pod ni, aniž by
@@ -168,7 +171,35 @@ private fun MessageList(
         withFrameNanos { }
         runCatching { focus.requestFocus() }
     }
-    LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
+    val scope = rememberCoroutineScope()
+    // Kanál jako pořad: po videu hrají videa NOVĚJŠÍCH zpráv; fronta se doplní i z těch, které se
+    // dočetly během přehrávání (okno uprostřed historie po skoku na zprávu).
+    val latestMessages by rememberUpdatedState(messages)
+    val actions = remember(mediaActions, chatId) {
+        mediaActions.withMoreVideos { current -> videoQueue(chatId, latestMessages.filter { it.id > current.messageId }) }
+    }
+    // Během přehrávání fokus přejde na zprávu právě hrajícího videa: po zavření přehrávače stojí
+    // na tom, co se dívalo naposled, ne na zprávě, odkud se pustilo. U nejnovější načtené zprávy
+    // se dočtou novější (ve scope obrazovky: efekt se s dalším videem ruší, zrušené čtení by
+    // v `ConversationState` nechalo viset příznak, že se čte).
+    LaunchedEffect(playingMessage, entries) {
+        val playing = playingMessage ?: return@LaunchedEffect
+        val index = entries.indexOfFirst { it is Entry.Message && it.album.any { message -> message.id == playing } }
+        if (index < 0) return@LaunchedEffect
+        focusTarget = (entries[index] as Entry.Message).album.first().id
+        if (index <= LOAD_AHEAD) scope.launch { state.loadNewer() }
+    }
+    LaunchedEffect(playerOpen) {
+        if (playerOpen) return@LaunchedEffect
+        // Poslední přehrané video může být mimo obrazovku (fronta šla dál): napřed k němu dorolovat.
+        val target = focusTarget
+        val index = if (target == null) -1 else entries.indexOfFirst { it is Entry.Message && it.album.first().id == target }
+        if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
+            listState.scrollToItem(index)
+            withFrameNanos { }
+        }
+        runCatching { focus.requestFocus() }
+    }
     // Skok na zprávu (hledání, citace, Rozkoukaná videa): posun na její bublinu (album, ve kterém
     // je) a fokus na ni. Po posunu se čeká snímek, ať je položka složená a fokus má kam jít.
     val jump = state.jump
@@ -193,7 +224,6 @@ private fun MessageList(
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index }
             .collect { first -> if (first != null && first <= LOAD_AHEAD) state.loadNewer() }
     }
-    val scope = rememberCoroutineScope()
     // Dole je tlačítko psaní (pak stačí malá mezera) nebo nic (bezpečný okraj a místo pro dock).
     val bottomPadding = if (state.canWrite) 8.dp else SAFE_VERTICAL + audioDockInset()
     // Zpráva vyšší než seznam se šipkou napřed odroluje (TallItemScroll).

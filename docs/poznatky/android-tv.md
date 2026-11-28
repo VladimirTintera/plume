@@ -304,16 +304,36 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Směr podle toho, jak se obrazovka čte**: v konverzaci novější zprávy (`mediaOpenAction`
   z `allMessages`), v kanálu STARŠÍ příspěvky, protože feed jde od nejnovějšího dolů
   (`ChannelFeedScreen` předá frontu sám přes `videosAfter`). Ve frontě jsou jen videa, která
-  přehrávač pustí (ne mizející a tajná), nejvýš 50, a jen z načtené části historie — feed se při
-  přehrávání nedočítá.
-- **Zpět z přehrávače vede tam, odkud se pouštělo první video** (detail příspěvku, zpráva
-  v konverzaci), ne na příspěvek posledního přehraného. Přehrávač je jedna vrstva nad obrazovkou
-  a každé video z fronty je nová instance (`key(fileId)`) téže vrstvy.
+  přehrávač pustí (ne mizející a tajná), nejvýš 50.
+- **Fronta se doplňuje z toho, co obrazovka dočetla během přehrávání** (`VideoRequest.more`,
+  `MediaActions.withMoreVideos`). Skládá se při spuštění z načtené části historie a dřív tam
+  končila: kanál s videem jen občas (Pavel Durov: tři videa ve 39 příspěvcích) skončil po
+  druhém. Když fronta dojde, `next()` se zeptá obrazovky pod přehrávačem na videa za právě
+  dohraným — podle AKTUÁLNÍCH zpráv, ne těch z doby ťuknutí. Fronta jako hodnota zůstala:
+  karta „Další za 5 s" ji potřebuje znát dopředu a prohlížeč s ní pracuje dál beze změny.
+- **Obrazovka ví, které video hraje** (`playingMessage` z `TvNavigation`, jen v otevřeném chatu)
+  a feed podle něj dočítá starší příspěvky: když je video u konce načteného feedu nebo za ním
+  nejsou aspoň dvě videa, dočte se stránka — a znovu, dokud dvě nejsou, nejvýš čtyři stránky
+  na jedno video (kanál, kde další video už není, se nesmí dočíst celý). Konverzace dočítá
+  novější zprávy, když hraje nejnovější načtená (okno uprostřed historie po skoku).
+- **Dočítá se ve scope obrazovky, ne efektu.** Efekt (`LaunchedEffect(playingMessage, posts)`)
+  se s dalším videem ruší, a zrušené `loadOlder` uprostřed čtení by v `ConversationState`
+  nechalo `loadingOlder = true` — feed by se už nikdy nedočetl, ani šipkami.
+- **Zpět z přehrávače stojí na příspěvku (zprávě) POSLEDNÍHO přehraného videa**, ne tam, odkud
+  se pouštělo. Během přehrávání se na něj přesouvá cíl fokusu (`focusTarget`), otevřený detail
+  příspěvku se přepne na jeho příspěvek; po zavření se k němu mřížka (seznam) dosune, je-li mimo
+  obrazovku, a teprve pak dostane fokus. Dřív Zpět vracelo na první video, i když se mezitím
+  dívalo o deset příspěvků níž. Přehrávač je jedna vrstva nad obrazovkou a každé video z fronty
+  je nová instance (`key(fileId)`) téže vrstvy.
 - **Ověřeno 27. 11. 2026** v chatu s Notifikátorem na dvou patnáctivteřinových videích od
   testovacího bota: po dohrání karta „Další za 5 s" s náhledem a popiskem videa B, samo pustí B;
   Zpět během odpočtu zůstane na konci A; tlačítko „další" (`KEYCODE_MEDIA_NEXT`) pustí B hned;
-  Zpět z B vrátí fokus na zprávu s A. **Fronta v kanálu (starší příspěvky) na zařízení ověřená
-  NENÍ** — odebírané kanály s videy po sobě v testu nebyly.
+  Zpět z B vrátí fokus na zprávu s A (to platilo do 28. 11., teď by stál na B).
+- **Kanál ověřen 28. 11. 2026** na kanálu Pavla Durova: video z karty (21. 11.), dvakrát
+  „další" a Zpět — fokus na kartě třetího videa (31. 8.), ne na první. Pak ještě pětkrát „další"
+  až k videu ze 14. 5., které při spuštění načtené nebylo (feed byl načtený do konce srpna), po
+  dohrání karta dalšího videa a Zpět s fokusem na kartě ze 14. 5. **Konverzace (novější zprávy,
+  návrat na poslední video) jen přeložená** — chat s víc videi po sobě v testu nebyl.
 
 ## Rozkoukaná videa
 
@@ -739,7 +759,8 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   Zjištěno logem `firstVisibleItemScrollOffset`: 115 → 0 hned po zavření.
 - **Karta s videem: OK ho pustí rovnou, podržení OK otevře detail** s textem a komentáři
   (`playableVideo` v `ChannelFeedScreen`, `onLongClick` karty). Po videu hrají videa starších
-  příspěvků jako z detailu (kanál jako pořad) a po zavření přehrávače jde fokus zpátky na kartu.
+  příspěvků jako z detailu (kanál jako pořad) a po zavření přehrávače jde fokus na kartu
+  posledního přehraného (viz „Kanál jako pořad").
   Zaostřená karta s videem to napoví v hlavičce vpravo („OK: přehrát · podržet: příspěvek
   a komentáře", `ChatHeader(trailing)`) — na kartu do třetiny šířky se věta nevejde a měnila by
   výšku řady. Jen u příspěvku, který je jedno video (album a fotka otevírají detail). Ověřeno

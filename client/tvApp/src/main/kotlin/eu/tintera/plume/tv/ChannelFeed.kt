@@ -156,13 +156,54 @@ fun channelPosts(messages: List<ChatMessage>): List<ChannelPost> {
  * feedu (`gridState`) a karta, na kterou se má fokus vrátit, proto žijí tady, nad oběma.
  */
 @Composable
-fun ChannelFeedScreen(chatId: Long, info: ChatInfo, playerOpen: Boolean, actions: MediaActions, startAt: Long? = null) {
+fun ChannelFeedScreen(
+    chatId: Long,
+    info: ChatInfo,
+    playerOpen: Boolean,
+    playingMessage: Long?,
+    mediaActions: MediaActions,
+    startAt: Long? = null,
+) {
     val state = rememberConversationState(chatId, startAt = startAt)
     val gridState = rememberLazyGridState()
     var openPost by remember { mutableStateOf<Long?>(null) }
     var focusTarget by remember { mutableStateOf<Long?>(null) }
     val messages = state.messages
     val posts = remember(messages) { channelPosts(messages.orEmpty()) }
+    // Kanál jako pořad: fronta přehrávače se doplňuje z příspěvků, které se dočetly během
+    // přehrávání (starší než právě dohrané video).
+    val latestPosts by rememberUpdatedState(posts)
+    val actions = remember(mediaActions, chatId) {
+        mediaActions.withMoreVideos { current ->
+            val all = latestPosts
+            val index = all.indexOfFirst { post -> post.messages.any { it.id == current.messageId } }
+            if (index < 0) emptyList() else videoQueue(chatId, all.drop(index + 1).flatMap { it.messages })
+        }
+    }
+    // Během přehrávání: fokus (a otevřený detail) přejde na příspěvek právě hrajícího videa, ať
+    // po zavření přehrávače stojí na tom, co se dívalo naposled, ne na kartě, odkud se pustilo.
+    // Blíží-li se video konci načteného feedu, dočtou se starší příspěvky — a znovu, dokud za
+    // ním nejsou aspoň dvě videa (kanál, kde je video jen občas), nejvýš pár stránek na video.
+    // Dočítá se ve scope obrazovky, ne efektu: efekt se s dalším videem ruší a zrušené čtení
+    // uprostřed by v `ConversationState` nechalo viset příznak, že se čte.
+    val scope = rememberCoroutineScope()
+    // Kolik stránek se už pro které video dočetlo (zpráva → počet).
+    var pagesForVideo by remember { mutableStateOf(0L to 0) }
+    LaunchedEffect(playingMessage, posts) {
+        val playing = playingMessage ?: return@LaunchedEffect
+        val index = posts.indexOfFirst { post -> post.messages.any { it.id == playing } }
+        if (index < 0) return@LaunchedEffect
+        val post = posts[index]
+        focusTarget = post.id
+        if (openPost != null) openPost = post.id
+        val videosAfter = videoQueue(chatId, posts.drop(index + 1).flatMap { it.messages }).size
+        val nearEnd = index >= posts.size - LOAD_AHEAD || videosAfter < MIN_VIDEOS_AHEAD
+        val pages = if (pagesForVideo.first == playing) pagesForVideo.second else 0
+        if (nearEnd && pages < MAX_PAGES_PER_VIDEO) {
+            pagesForVideo = playing to pages + 1
+            scope.launch { state.loadOlder() }
+        }
+    }
     // Skok na zprávu kanálu (hledání, Rozkoukaná videa): rovnou detail jejího příspěvku; po
     // návratu z něj je fokus ve feedu na tomtéž příspěvku.
     val jump = state.jump
@@ -764,3 +805,9 @@ private const val STRIP_TILES = 5
 
 /** Kolik příspěvků (dvě řady karet) před koncem načtené části se dočítají starší. */
 private const val LOAD_AHEAD = 6
+
+/** Kolik videí má být za právě hrajícím načtených, než se přestanou dočítat starší příspěvky. */
+private const val MIN_VIDEOS_AHEAD = 2
+
+/** Nejvýš tolik stránek historie se dočte kvůli jednomu hrajícímu videu (kanál bez dalších videí). */
+private const val MAX_PAGES_PER_VIDEO = 4

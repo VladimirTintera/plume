@@ -79,10 +79,33 @@ data class VideoRequest(
     val video: MessageMedia.Video,
     val caption: String,
     val queue: List<VideoRequest> = emptyList(),
+    /**
+     * Doplnění fronty, když dojde: videa za tímhle ([VideoRequest]) podle toho, co obrazovka
+     * POD přehrávačem načetla mezitím. Fronta se skládá při spuštění z načtených zpráv (nejvýš
+     * [MAX_VIDEO_QUEUE]) a feed během přehrávání dočítá starší příspěvky — bez doplnění by pořad
+     * skončil na konci toho, co bylo načtené při ťuknutí. `null` = fronta je konečná.
+     */
+    val more: ((VideoRequest) -> List<VideoRequest>)? = null,
 ) {
-    /** Další video z fronty, se zbytkem fronty za sebou; `null` na konci. */
-    fun next(): VideoRequest? = queue.firstOrNull()?.copy(queue = queue.drop(1))
+    /** Další video z fronty (a když dojde, z [more]), se zbytkem fronty za sebou; `null` na konci. */
+    fun next(): VideoRequest? {
+        val upcoming = queue.ifEmpty { more?.invoke(this).orEmpty() }
+        return upcoming.firstOrNull()?.copy(queue = upcoming.drop(1), more = more)
+    }
 }
+
+/**
+ * [MediaActions], které ke každému puštěnému videu přidají doplnění fronty [more]
+ * ([VideoRequest.more]). Obrazovka si je složí jednou a podává je dál místo původních.
+ */
+fun MediaActions.withMoreVideos(more: (VideoRequest) -> List<VideoRequest>): MediaActions = MediaActions(
+    playVideo = { playVideo(it.copy(more = more)) },
+    openViewer = openViewer,
+    playAudio = playAudio,
+    toggleVideoNote = toggleVideoNote,
+    openLink = openLink,
+    openArticle = openArticle,
+)
 
 /**
  * Videa ze zpráv [messages] v daném pořadí jako fronta pro přehrávač (nejvýš [MAX_VIDEO_QUEUE]).
