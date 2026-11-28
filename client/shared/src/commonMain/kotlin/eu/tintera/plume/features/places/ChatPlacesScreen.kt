@@ -30,7 +30,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -83,6 +82,7 @@ import eu.tintera.plume.resources.chat_places_title
 import eu.tintera.plume.resources.chat_places_whole_history
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.empty_state_error_title
+import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.location_on_filled_24dp
 import eu.tintera.plume.resources.media_show_in_chat
@@ -206,7 +206,16 @@ private fun ScopeHeader(state: ChatPlacesState, places: List<ChatMessage>, onLoa
                     style = MaterialTheme.typography.bodySmall,
                     color = if (state.olderFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                TextButton(onClick = onLoadOlder, shapes = ButtonDefaults.shapes(), enabled = state.canLoadOlder) {
+                // Tónové tlačítko s ikonou, ne TextButton: textové má vnitřní odsazení, takže jeho
+                // popisek stál o kus vpravo od textu nad ním a vypadalo to jako chyba zarovnání.
+                FilledTonalButton(
+                    onClick = onLoadOlder,
+                    shapes = ButtonDefaults.shapes(),
+                    enabled = state.canLoadOlder,
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
+                    Icon(painterResource(Res.drawable.history_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(stringResource(Res.string.chat_places_load_older))
                 }
             }
