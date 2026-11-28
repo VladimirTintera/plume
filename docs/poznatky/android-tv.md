@@ -215,6 +215,49 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese prstenec kolem
   bubliny (viz „Fokus zprávy“).
 
+## Kvalita videa
+
+- **Tatáž pravidla jako v prohlížeči na telefonu** (`docs/poznatky/prohlizec-medii.md`,
+  „Kvalita videa"): `videoQualities` a `pickVideoQuality` se kvůli tomu přesunuly ze `shared` do
+  `:client:core` (`core/video/VideoQualities.kt`, testy `VideoQualitiesTest` s nimi), balíček
+  zůstal. Dekodér z `MediaCodecList` je `mediaCodecVideoDecoder` v `androidMain` modulu `core`;
+  telefonní `actual fun videoDecoder` ho jen volá, takže kopie pravidel nevznikla.
+- **Dřív televize hrála vždycky původní soubor**, i když server nabízel přepočítané kvality.
+  Původní soubor bývá, jak ho odesílatel nahrál (index na konci, vysoký datový tok); přepočítaný
+  server dělá pro streamování a z AV1 a h264 téže velikosti se nabídne ten s hardwarovým
+  dekodérem — na slabé televizi rozdíl mezi plynulým a trhaným obrazem.
+- **Automatika** (`rememberPlayedQuality` ve `VideoQualityPicker.kt`): televize nastavení
+  automatického stahování nemá, platí výchozí úrovně (`AutoDownloadSettings()`): Wi-Fi a ethernet
+  bez stropu (přepočítaná ve stejném rozlišení jako původní, jinak původní), mobilní data 720p,
+  spořič dat 480p. Už stažený původní soubor vyhrává. Přepočítá se i za běhu: emulátor během
+  testu sám přešel z Wi-Fi na mobilní data a video se přepnulo z 1080p na 720p.
+- **Výpadek sítě (`NetworkKind.None`) automatiku nepřepíná** (`runningReduce` nad stavem sítě,
+  platí poslední známá). Na telefonu `None` znamená úroveň mobilních dat; v přehrávači by krátký
+  výpadek zrušil rozstahovanou kvalitu a začal stahovat jinou, a bez sítě se stejně nic nestáhne.
+  Jen v logice, výpadek se na emulátoru vyvolat nepodařilo.
+- **Ruční volba: šipka nahoru** při vidět ovládání otevře dialog (Automaticky s tím, co by
+  vybrala, pak kvality od nejlepší s velikostí). V liště vpravo je pilulka se šipkou a hrající
+  kvalitou — jen když má video víc kvalit. Dialog, ne nabídka u tlačítka: přehrávač nemá tlačítka
+  jako cíle fokusu, klávesy bere celý. První stisk při schovaném ovládání ho jen ukáže, jako OK.
+- **Volbu drží `TvNavigation`**, ne přehrávač: každé video z fronty je nová instance přehrávače
+  (`key(fileId)`) a volba má platit pro další videa, dokud je přehrávač otevřený (jako
+  v prohlížeči na telefonu). Po zavření zase Automaticky.
+- **Výměna za běhu**: tentýž `ExoPlayer` dostane nový zdroj a skočí na pozici, kde starý byl;
+  `playWhenReady` se nemění, takže hrající video hraje dál. Do rozběhnutí se točí čekání
+  (`switching`). Telefon nechává do první dávky dat hrát starý soubor; tady se čeká na černé
+  ploše, na televizi to vadí míň a kód je o polovinu kratší. Opuštěná kvalita se přestane
+  stahovat (`DisposableEffect(chosenId)`, totéž co zavření přehrávače).
+- **Stav souboru (`MutableStateFlow`) je pro každou kvalitu nový** (`remember(chosenId)`):
+  se sdíleným by zdroj nové kvality na okamžik viděl cestu a velikost starého souboru — past,
+  na kterou narazil telefon (viz „Past: `produceState`…" níž a totéž v prohlížeči telefonu).
+- **Ověřeno 28. 11. 2026** na emulátoru v kanálu Pavla Durova: video s původním 1920p hraje
+  původní (přepočítané jsou nejvýš 1080p), další video z fronty 1080p h264 místo původního;
+  dialog (Automaticky · Podle sítě: 1080p, Původní · 29 MB, 1080p 24 MB, 720p 11 MB, 480p
+  5,7 MB), volba 480p na 0:16 hraje dál od 0:16, další video z fronty taky 480p, po zavření
+  a novém spuštění zase Automaticky. Log `TvVideo` („hraje 480p h264, volba Lines(480)").
+  **Na skutečné televizi neověřené** — hlavně přednost hardwarového dekodéru (emulátor dekóduje
+  softwarově).
+
 ## Fokus zprávy
 
 - **Zaostřená zpráva má světlý prstenec KOLEM sebe** (`focusRing` ve `FocusRing.kt`: 3 dp

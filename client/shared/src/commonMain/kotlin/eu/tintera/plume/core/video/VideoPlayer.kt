@@ -119,6 +119,3 @@ expect val videoFragmentedStreamingNeedsHls: Boolean
  * bere jen h264 (FFmpeg v softwaru).
  */
 expect fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder
-
-/** Výsledek [videoDecoder]; pořadí je pořadí přednosti. */
-enum class VideoDecoder { None, Software, Hardware }
