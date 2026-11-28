@@ -27,6 +27,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -96,6 +97,7 @@ private fun DreamSettingsScreen(selected: Long?, onSelect: (Long?) -> Unit) {
                     title = stringResource(Res.string.saved_messages),
                     avatarFileId = null,
                     savedMessages = true,
+                    kind = ChatKind.Private,
                     checked = selected == null || selected == savedMessagesId,
                     onClick = { onSelect(null) },
                     modifier = Modifier.focusRequester(first),
@@ -106,6 +108,7 @@ private fun DreamSettingsScreen(selected: Long?, onSelect: (Long?) -> Unit) {
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
                     savedMessages = false,
+                    kind = chat.kind,
                     checked = selected == chat.id,
                     onClick = { onSelect(chat.id) },
                 )
@@ -119,6 +122,7 @@ private fun DreamChoice(
     title: String,
     avatarFileId: Int?,
     savedMessages: Boolean,
+    kind: ChatKind,
     checked: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -127,7 +131,7 @@ private fun DreamChoice(
         selected = checked,
         onClick = onClick,
         modifier = modifier,
-        leadingContent = { ChatAvatar(fileId = avatarFileId, title = title, size = 40.dp, savedMessages = savedMessages) },
+        leadingContent = { ChatAvatar(fileId = avatarFileId, title = title, size = 40.dp, savedMessages = savedMessages, shape = kind.avatarShape()) },
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         trailingContent = if (checked) {
             { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }

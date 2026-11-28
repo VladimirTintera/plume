@@ -3,7 +3,6 @@ package eu.tintera.plume.tv
 import android.net.Uri
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -37,14 +36,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.CacheDrawScope
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.KeyEventType
@@ -95,6 +100,9 @@ import eu.tintera.plume.resources.stories_stack
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.story_unavailable
 import java.io.File
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -152,13 +160,14 @@ fun StoryRowContent(row: StoryRow, modifier: Modifier = Modifier) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.width(STORY_ITEM_WIDTH),
                 ) {
+                    val shape = poster.kind.avatarShape()
                     Surface(
                         onClick = { row.onOpen(poster.chatId) },
-                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        shape = ClickableSurfaceDefaults.shape(shape),
                         colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
                         modifier = if (poster.chatId == row.lastOpened) Modifier.focusRequester(returnFocus) else Modifier,
                     ) {
-                        StoryAvatar(poster, title, own)
+                        StoryAvatar(poster, title, shape)
                     }
                     Text(
                         title,
@@ -176,47 +185,120 @@ fun StoryRowContent(row: StoryRow, modifier: Modifier = Modifier) {
 
 /** Avatar s lemem: dílek na příběh, od horního středu po směru hodinových ručiček, nejstarší první. */
 @Composable
-private fun StoryAvatar(poster: ActiveStories, title: String, own: Boolean) {
+private fun StoryAvatar(poster: ActiveStories, title: String, shape: Shape) {
     val unread = MaterialTheme.colorScheme.primary
     val read = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-    Box(Modifier.padding(4.dp).size(STORY_AVATAR + 12.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawStoryRing(poster, unread, read, stroke = 3.dp.toPx(), inset = 0f)
-        }
+    Box(
+        Modifier
+            .padding(4.dp)
+            .size(STORY_AVATAR + 12.dp)
+            .drawWithCache {
+                val stroke = 3.dp.toPx()
+                val segments = storyRingSegments(poster, shape, stroke, inset = 0f)
+                onDrawBehind { drawStoryRing(segments, unread, read, stroke) }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
         // Vlastní příběh má fotku účtu (u Uložených zpráv by ChatAvatar dal záložku).
-        ChatAvatar(fileId = poster.avatarFileId, title = title, size = STORY_AVATAR, savedMessages = false)
+        ChatAvatar(fileId = poster.avatarFileId, title = title, size = STORY_AVATAR, savedMessages = false, shape = shape)
     }
 }
 
 /**
- * Lem příběhů: dílek na příběh, od horního středu po směru hodinových ručiček, nejstarší první;
- * nezhlédnuté v barvě [unread], zhlédnuté tenčí v [read]. [inset] > 0 kreslí dovnitř okraje
- * plochy, záporný ven z ní (lem kolem avataru v řádku chatu, který nesmí měnit jeho velikost).
+ * Dílky lemu příběhů jako cesty, druhá hodnota říká, jestli je příběh zhlédnutý. **Lem jde po
+ * tvaru avataru** ([shape]: kruh, sušenka, čtverec), ne po kruhu — tvar nese druh chatu a lem ho
+ * nesmí přebít (jako `storyRing` na telefonu, `core/ui/StoryRing.kt` v `:client:shared`).
+ * Dílek na příběh, od horního středu po směru hodinových ručiček, nejstarší první. [inset] > 0
+ * kreslí dovnitř okraje plochy, záporný ven z ní (lem kolem avataru v řádku chatu, který nesmí
+ * měnit jeho velikost).
  */
-internal fun DrawScope.drawStoryRing(poster: ActiveStories, unread: Color, read: Color, stroke: Float, inset: Float) {
-    val count = poster.stories.size.coerceAtLeast(1)
-    val gap = if (count > 1) (360f / count * 0.25f).coerceAtMost(8f) else 0f
-    val sweep = 360f / count - gap
+internal fun CacheDrawScope.storyRingSegments(
+    poster: ActiveStories,
+    shape: Shape,
+    stroke: Float,
+    inset: Float,
+): List<Pair<Path, Boolean>> {
     val edge = inset + stroke / 2
-    poster.stories.ifEmpty { listOf(null) }.forEachIndexed { index, story ->
-        val seen = story == null || story.id <= poster.maxReadStoryId
-        drawArc(
+    val outline = shape.createOutline(Size(size.width - 2 * edge, size.height - 2 * edge), layoutDirection, this)
+    val path = Path().apply {
+        addOutline(outline)
+        translate(Offset(edge, edge))
+    }
+    val measure = PathMeasure().apply { setPath(path, false) }
+    val length = measure.length
+    if (length <= 0f) return emptyList()
+    val seen = poster.stories.ifEmpty { listOf(null) }.map { it == null || it.id <= poster.maxReadStoryId }
+
+    // Začátek obrysu se u každého tvaru liší (RoundRect začíná vlevo nahoře, polygon jinde),
+    // proto se horní střed hledá vzorkováním.
+    val samples = 128
+    var start = 0f
+    var best = Float.MAX_VALUE
+    for (i in 0 until samples) {
+        val distance = length * i / samples
+        val point = measure.getPosition(distance)
+        val score = abs(point.x - size.width / 2) + abs(point.y - edge)
+        if (score < best) {
+            best = score
+            start = distance
+        }
+    }
+    // Po směru hodinových ručiček = nahoře doprava. Obrys může jít i obráceně.
+    val ahead = measure.getPosition((start + length / samples) % length)
+    val direction = if (ahead.x >= measure.getPosition(start).x) 1f else -1f
+
+    val count = seen.size
+    val step = length / count
+    // Kulaté konce dílek prodlouží o polovinu tloušťky na každé straně; mezera to musí unést.
+    val gap = if (count == 1) 0f else min(stroke + RING_GAP_FRACTION * step, step * RING_MAX_GAP_SHARE)
+    return seen.mapIndexed { index, read ->
+        val segment = Path()
+        if (count == 1) {
+            measure.getSegment(0f, length, segment, true)
+            segment.close()
+        } else {
+            val from = start + direction * (index * step + gap / 2)
+            val to = start + direction * ((index + 1) * step - gap / 2)
+            addRingArc(measure, length, min(from, to), max(from, to), segment)
+        }
+        segment to read
+    }
+}
+
+/** Nakreslí dílky z [storyRingSegments]: nezhlédnuté v [unread], zhlédnuté tenčí v [read]. */
+internal fun DrawScope.drawStoryRing(segments: List<Pair<Path, Boolean>>, unread: Color, read: Color, stroke: Float) {
+    segments.forEach { (segment, seen) ->
+        drawPath(
+            segment,
             color = if (seen) read else unread,
-            startAngle = -90f + index * (sweep + gap) + gap / 2,
-            sweepAngle = sweep,
-            useCenter = false,
-            topLeft = Offset(edge, edge),
-            size = Size(size.width - 2 * edge, size.height - 2 * edge),
-            style = Stroke(width = if (seen) stroke * 0.6f else stroke),
+            style = Stroke(width = if (seen) stroke * 0.6f else stroke, cap = StrokeCap.Round),
         )
     }
 }
 
+/** Úsek obrysu mezi dvěma vzdálenostmi, i přes konec cesty (obrys je uzavřený). */
+private fun addRingArc(measure: PathMeasure, length: Float, from: Float, to: Float, into: Path) {
+    val a = ((from % length) + length) % length
+    val b = a + (to - from)
+    if (b <= length) {
+        measure.getSegment(a, b, into, true)
+    } else {
+        measure.getSegment(a, length, into, true)
+        measure.getSegment(0f, b - length, into, false)
+    }
+}
+
+/** Mezera mezi dílky jako podíl jednoho dílku (navíc k tloušťce čáry). */
+private const val RING_GAP_FRACTION = 0.08f
+
+/** Mezera nesmí sníst víc než tuhle část dílku — u desítek příběhů by z lemu zbyly tečky. */
+private const val RING_MAX_GAP_SHARE = 0.45f
+
 /**
  * Lem příběhů KOLEM avataru chatu [chatId] (v řádku seznamu, v hlavičce konverzace), když má
  * autor aktivní příběh; jinak nic. Kreslí se mimo plochu avataru — velikost řádku se nezmění,
- * ať má lem, nebo ne. Vlastní příběhy (Uložené zprávy) lem nemají: řádek nese záložku, ne fotku
- * účtu, a „Moje příběhy" jsou v řadě nad seznamem.
+ * ať má lem, nebo ne. Jde po tvaru avataru ([shape]). Vlastní příběhy (Uložené zprávy) lem
+ * nemají: řádek nese záložku, ne fotku účtu, a „Moje příběhy" jsou v řadě nad seznamem.
  *
  * Jen ukazatel: OK na řádku otevře chat jako dřív, příběhy se otevírají z řady nad seznamem
  * (avatar v řádku nejde ovladačem zaostřit zvlášť).
@@ -224,6 +306,7 @@ internal fun DrawScope.drawStoryRing(poster: ActiveStories, unread: Color, read:
 @Composable
 fun Modifier.storyRing(
     chatId: Long,
+    shape: Shape,
     savedMessages: Boolean = false,
     /**
      * Avatar leží na inverzní ploše — zaostřený řádek seznamu (`inverseSurface`, v tmavém motivu
@@ -239,9 +322,10 @@ fun Modifier.storyRing(
     val colors = MaterialTheme.colorScheme
     val unread = if (onInverse) colors.inversePrimary else colors.primary
     val read = (if (onInverse) colors.inverseOnSurface else colors.onSurfaceVariant).copy(alpha = 0.45f)
-    return drawBehind {
+    return drawWithCache {
         val stroke = RING_STROKE.toPx()
-        drawStoryRing(poster, unread, read, stroke, inset = -(RING_GAP.toPx() + stroke))
+        val segments = storyRingSegments(poster, shape, stroke, inset = -(RING_GAP.toPx() + stroke))
+        onDrawBehind { drawStoryRing(segments, unread, read, stroke) }
     }
 }
 
@@ -542,7 +626,7 @@ private fun StoryHeader(poster: ActiveStories, index: Int, progress: Float, post
         }
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ChatAvatar(fileId = poster.avatarFileId, title = title, size = 32.dp)
+            ChatAvatar(fileId = poster.avatarFileId, title = title, size = 32.dp, shape = poster.kind.avatarShape())
             Spacer(Modifier.width(10.dp))
             Text(title, style = MaterialTheme.typography.titleSmall, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             if (postedAt > 0) {

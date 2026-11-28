@@ -401,12 +401,14 @@ private fun ChatRow(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
         leadingContent = {
+            val shape = chat.kind.avatarShape()
             ChatAvatar(
                 fileId = chat.avatarFileId,
                 title = title,
                 size = AVATAR_SIZE,
                 savedMessages = chat.id == savedMessagesId,
-                modifier = Modifier.storyRing(chat.id, savedMessages = chat.id == savedMessagesId, onInverse = focused),
+                shape = shape,
+                modifier = Modifier.storyRing(chat.id, shape, savedMessages = chat.id == savedMessagesId, onInverse = focused),
             )
         },
         headlineContent = {

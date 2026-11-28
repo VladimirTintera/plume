@@ -42,11 +42,24 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 [Layouts](https://developer.android.com/design/ui/tv/guides/styles/layouts), procházeno
 27. 11. 2026. Co z nich plyne pro Plume:
 
-- **Seznam chatů je svislý dvouřádkový seznam s kulatými avatary** (`ListItem`). Přesně to
+- **Seznam chatů je svislý dvouřádkový seznam s avatary** (`ListItem`). Přesně to
   Google doporučuje na kolekci, ze které se vybírá jedna položka (lidé a entity kulatě).
   **Immersive list** (řada karet a velký náhled na pozadí, který sleduje fokus) je podle návodu
   pro pár vybraných položek (novinky, populární), ne pro dlouhý seznam — na chaty se nehodí.
   Karty v řadách jsou pro vizuální katalog (objevování kanálů, feed příspěvků).
+- **Tvar avataru nese druh chatu jako na telefonu** (`ChatKind.avatarShape()` v `ChatAvatar.kt`):
+  člověk kruh, skupina čtyřlaločná sušenka (`MaterialShapes.Cookie4Sided`), kanál zaoblený
+  čtverec (`MaterialShapes.Square`). `MaterialShapes` dává `material3`, kterou televize má kvůli
+  `LoadingIndicator`; telefonní `avatarShape` ve `:client:shared` je pro televizi mimo dosah,
+  proto kopie se stejným mapováním (při změně na telefonu změnit obě). Tvar dostane avatar
+  všude, kde se ví druh chatu: seznam, náhled, hlavička konverzace a feedu kanálu, hledání,
+  přeposlání, výběr chatu spořiče a řada a prohlížeč příběhů (i zaostřená plocha v řadě má tvar
+  autora). Odesílatel (reakce) zůstává kulatý jako na telefonu. Avatar se NEmorfuje: tvar
+  nese druh, ne stav — fokus má prstenec a zvětšení.
+- **Lem příběhů jde po tvaru avataru**, ne po kruhu (`storyRingSegments`, port `storyRing`
+  z telefonu): obrys tvaru přes `PathMeasure`, horní střed se hledá vzorkováním (každý tvar
+  začíná obrys jinde) a dílky jdou po směru hodinových ručiček. Ověřeno na emulátoru
+  s podstrčenými příběhy u skupiny i soukromých chatů.
 - **Čas u chatu je krátký sloupec jako na telefonu** (`asRelativeTime` z `core`: dnes hodina,
   pak „včera", zkratka dne a „26. 11."), i u zpráv ve výsledcích hledání. Dřív tam bylo celé
   datum („26. listopadu", `asDate`): seznam je úzký (kolem 360 dp) a datum bralo místo názvu,
@@ -373,7 +386,7 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   avatar v řádku chatu nejde ovladačem zaostřit zvlášť (OK otevře chat) a kontakt bez chatu by
   se jinak k příběhům nedostal. Je to PRVNÍ POLOŽKA seznamu, takže s pohybem dolů odjede
   a chatům místo nebere; jen v hlavním seznamu a jen když nějaké příběhy jsou. Pořadí TDLib
-  (`storyListOrder`), lem z dílků po kruhu (barevné nezhlédnuté, tenčí šedé zhlédnuté), vlastní
+  (`storyListOrder`), lem z dílků po tvaru avataru (barevné nezhlédnuté, tenčí šedé zhlédnuté), vlastní
   příběh pod nadpisem „Moje příběhy" s fotkou účtu.
 - **Řada přibude až s updaty od TDLib, kdy už seznam stojí.** Seznam drží první viditelnou
   položku podle klíče, takže řada zůstala nad horním okrajem a šipka nahoru ukázala jen avatar
@@ -400,8 +413,8 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   vezme přehrávači hudby (pozastaví se). Živé vysílání televize neumí: věta a po 6 s dál, stejně
   jako příběh, který už není.
 - **Lem u avataru v řádku chatu a v hlavičce konverzace** (`Modifier.storyRing`, kreslení
-  společné s řadou příběhů v `drawStoryRing`). Kreslí se VEN z plochy avataru (`drawBehind`
-  před ořezem), takže řádek s lemem i bez něj má stejnou výšku. Jen ukazatel — OK na řádku
+  společné s řadou příběhů v `storyRingSegments` / `drawStoryRing`). Kreslí se VEN z plochy
+  avataru (`drawWithCache` před ořezem), takže řádek s lemem i bez něj má stejnou výšku. Jen ukazatel — OK na řádku
   otevře chat, příběhy se otevírají z řady nad seznamem. Uložené zprávy lem nemají (záložka
   místo fotky účtu, „Moje příběhy" jsou v řadě).
 - **Na zaostřeném řádku (inverzní plocha, v tmavém motivu světlá) je lem `inversePrimary`**:
