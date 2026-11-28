@@ -53,6 +53,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chevron_left_24dp
 import eu.tintera.plume.resources.chevron_right_24dp
@@ -61,6 +62,7 @@ import eu.tintera.plume.resources.play_arrow_24dp
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 /** Položka prohlížeče: fotka nebo video jedné zprávy chatu [chatId] a její popisek. */
 @Immutable
@@ -109,13 +111,14 @@ fun MediaActions.withMoreVideos(more: (VideoRequest) -> List<VideoRequest>): Med
 
 /**
  * Videa ze zpráv [messages] v daném pořadí jako fronta pro přehrávač (nejvýš [MAX_VIDEO_QUEUE]).
- * Jen videa, která se dají přehrát (ne mizející ani tajná).
+ * Jen videa, která se dají přehrát (ne mizející ani tajná) a smí se pustit sama: video se
+ * spoilerem nebo citlivým obsahem by se po předchozím ukázalo bez odkrytí ([showsUncovered]).
  */
 fun videoQueue(chatId: Long, messages: List<ChatMessage>): List<VideoRequest> =
     messages.asSequence()
         .mapNotNull { message ->
             val video = message.media as? MessageMedia.Video ?: return@mapNotNull null
-            if (video.selfDestructType != null || video.isSecret) return@mapNotNull null
+            if (message.isSelfDestruct || !video.showsUncovered) return@mapNotNull null
             VideoRequest(chatId, message.id, video, message.text)
         }
         .take(MAX_VIDEO_QUEUE)
@@ -155,10 +158,18 @@ class AlbumPick {
     var index by mutableIntStateOf(0)
 }
 
-/** Fotky a videa ze zpráv (od nejstarší) v pořadí, v jakém je prohlížeč prochází. */
+/**
+ * Fotky a videa ze zpráv (od nejstarší) v pořadí, v jakém je prohlížeč prochází. Mizející
+ * a tajná média do prohlížeče nejdou vůbec (televize je neukazuje, HiddenMedia.kt); spoiler
+ * ano, prohlížeč ho zakryje až do OK.
+ */
 fun viewerItems(chatId: Long, messages: List<ChatMessage>): List<ViewerItem> = messages.mapNotNull { message ->
     val media = message.media
-    if (media is MessageMedia.Photo || media is MessageMedia.Video) ViewerItem(chatId, message.id, media!!, message.text) else null
+    if ((media is MessageMedia.Photo || media is MessageMedia.Video) && !message.isSelfDestruct) {
+        ViewerItem(chatId, message.id, media, message.text)
+    } else {
+        null
+    }
 }
 
 /**
@@ -183,6 +194,8 @@ fun mediaOpenAction(
     val first = album.first()
     val media = first.media
     return when {
+        // Mizející médium by otevření spotřebovalo; televize ho neukazuje (HiddenMedia.kt).
+        album.all { it.isSelfDestruct } -> null
         media is MessageMedia.VoiceNote || media is MessageMedia.Audio -> {
             {
                 val items = audioItems(chatId, allMessages, voice = media is MessageMedia.VoiceNote)
@@ -198,7 +211,7 @@ fun mediaOpenAction(
                 actions.playVideo(VideoRequest(chatId, first.id, media, first.text, queue))
             }
         }
-        album.any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video } -> {
+        album.any { (it.media is MessageMedia.Photo || it.media is MessageMedia.Video) && !it.isSelfDestruct } -> {
             {
                 val items = viewerItems(chatId, allMessages)
                 val target = album.getOrNull(pick?.index ?: 0)?.id ?: first.id
@@ -253,6 +266,10 @@ fun MediaViewerScreen(
     }
     val focus = remember { FocusRequester() }
     LaunchedEffect(playerOpen) { if (!playerOpen) runCatching { focus.requestFocus() } }
+    // Spoiler a citlivé médium jsou zakryté i tady (šipkami se dá dojít na neodkryté); OK je
+    // odkryje, teprve další přiblíží fotku nebo pustí video.
+    val spoilers = koinInject<RevealedSpoilers>()
+    val cover = mediaCover(item.messageId, item.media)
 
     Box(
         Modifier
@@ -264,6 +281,10 @@ fun MediaViewerScreen(
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 lastInteraction = System.nanoTime()
                 val key = event.nativeKeyEvent.keyCode
+                if (cover != null && (key == AndroidKeyEvent.KEYCODE_DPAD_CENTER || key == AndroidKeyEvent.KEYCODE_ENTER)) {
+                    spoilers.reveal(item.messageId)
+                    return@onPreviewKeyEvent true
+                }
                 if (zoomed) {
                     // Krok posunu jako podíl největšího posunu: při větším přiblížení víc kroků.
                     val step = PAN_STEP / (zoom - 1f).coerceAtLeast(1f)
@@ -297,7 +318,7 @@ fun MediaViewerScreen(
                         true
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                        (item.media as? MessageMedia.Video)?.let { onPlayVideo(VideoRequest(item.chatId, item.messageId, it, item.caption)) }
+                        if (cover == null) (item.media as? MessageMedia.Video)?.let { onPlayVideo(VideoRequest(item.chatId, item.messageId, it, item.caption)) }
                         true
                     }
                     // Nahoru a dolů jen ukážou popisek; fokus jinam nemá kam jít.
@@ -310,7 +331,12 @@ fun MediaViewerScreen(
         val offsetX by animateFloatAsState(panX, tween(ZOOM_ANIMATION_MS), label = "viewer-pan-x")
         val offsetY by animateFloatAsState(panY, tween(ZOOM_ANIMATION_MS), label = "viewer-pan-y")
         Crossfade(targetState = item, animationSpec = tween(250), label = "viewer-item") { shown ->
-            ViewerContent(shown, PhotoZoom(scale, offsetX, offsetY), sharp = zoomed)
+            val shownCover = mediaCover(shown.messageId, shown.media)
+            if (shownCover != null) {
+                MediaCoverBox(shownCover, shown.media.minithumbnail, isVideo = shown.media is MessageMedia.Video, modifier = Modifier.fillMaxSize(), iconSize = 40.dp)
+            } else {
+                ViewerContent(shown, PhotoZoom(scale, offsetX, offsetY), sharp = zoomed)
+            }
         }
         if (!zoomed) {
             if (index > 0) EdgeHint(Res.drawable.chevron_left_24dp, Modifier.align(Alignment.CenterStart))

@@ -178,7 +178,10 @@ private fun WatchingCard(item: WatchingItem, title: String, onClick: () -> Unit,
     // Popisek pod kartou zarovnaný vlevo (`StandardCardContainer` ho staví na střed).
     Column(Modifier.fillMaxWidth()) {
         Card(onClick = onClick, onLongClick = onLongClick, modifier = modifier.fillMaxWidth()) {
-            VideoThumbnail(item.video, Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+            // Rozkoukané video se spoilerem zůstane zakryté (odkrytí platí do konce běhu aplikace);
+            // OK ho pustí — výběr rozkoukaného videa je vědomá volba.
+            val cover = mediaCover(item.source.messageId, item.video)
+            VideoThumbnail(item.video, cover, Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                 WatchedBar(item.position, Modifier.align(Alignment.BottomCenter))
             }
         }
@@ -195,13 +198,17 @@ private fun WatchingCard(item: WatchingItem, title: String, onClick: () -> Unit,
 
 /** Náhled videa (první snímek) s tlačítkem přehrát; [overlay] kreslí proužek a odznaky. */
 @Composable
-private fun VideoThumbnail(video: MessageMedia.Video, modifier: Modifier, overlay: @Composable BoxScope.() -> Unit) {
+private fun VideoThumbnail(video: MessageMedia.Video, cover: MediaCover?, modifier: Modifier, overlay: @Composable BoxScope.() -> Unit) {
     val targetPx = with(LocalDensity.current) { CARD_WIDTH.roundToPx() }
-    val image = rememberImage(video.thumbnailFileId, targetPx)
+    val image = rememberImage(video.thumbnailFileId.takeIf { cover == null }, targetPx)
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         image?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-        Box(Modifier.size(44.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
-            Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+        if (cover != null) {
+            MediaCoverBox(cover, video.minithumbnail, isVideo = true, modifier = Modifier.fillMaxSize(), hint = false)
+        } else {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+                Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
         }
         overlay()
     }

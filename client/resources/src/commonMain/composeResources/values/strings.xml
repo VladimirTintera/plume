@@ -5030,4 +5030,7 @@
     <string name="tv_delete_for_all">Delete for everyone</string>
     <string name="tv_delete_for_me">Delete for me</string>
     <string name="tv_delete_failed">Couldn't delete the message.</string>
+    <string name="tv_media_reveal_hint">Press OK to show</string>
+    <string name="tv_media_self_destruct">Disappearing message</string>
+    <string name="tv_media_self_destruct_hint">Only viewable on your phone.</string>
 </resources>
