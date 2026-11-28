@@ -196,7 +196,7 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   `media3-datasource` (`api`, typ je ve veřejném API zdroje), přehrávač si přidává, kdo přehrává.
 - **`VideoPlayerScreen`**: ExoPlayer, obraz v `PlayerView` bez vlastního ovládání (jen povrch
   a poměr stran), ovládání v Compose. OK / Přehrát-Pozastavit přepíná, šipky vlevo a vpravo
-  (i přetáčení na ovladači) skáčou o 10 s, Zpět zavře. Ovládání se po 4 s přehrávání schová,
+  (i přetáčení na ovladači) přetáčejí po 10 s (viz „Přetáčení s náhledem snímku"), Zpět zavře. Ovládání se po 4 s přehrávání schová,
   vrátí se s každým stiskem; první OK při schovaném ovládání ho jen ukáže, jako u systémových
   přehrávačů. Fokus zvuku a „sluchátka vytažena" řeší ExoPlayer (`handleAudioFocus`).
 - **Tlačítka médií na ovladači přepínají vždycky**, i se schovaným ovládáním: klávesa se
@@ -214,6 +214,32 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Zpráva s videem je `clickable` s `indication = null`**: na televizi bere i DPAD_CENTER,
   ale výchozí vlnka zabarvila celou šířku řádku vedle bubliny. Fokus nese prstenec kolem
   bubliny (viz „Fokus zprávy“).
+
+## Přetáčení s náhledem snímku
+
+- **Šipka posouvá CÍL, skočí se až 0,7 s po posledním stisku** (`scrubMs` ve
+  `VideoPlayerScreen`, `SCRUB_COMMIT_MS`). Dřív každý stisk hned volal `seekBack/seekForward`:
+  pět stisků k minutě dál znamenalo pět skoků a video se pětkrát začalo načítat (u streamu
+  z rozestavěného souboru každý skok přesune stahování). Mezitím video hraje dál, průběh a čas
+  vlevo ukazují cíl.
+- **Nad průběhem stojí náhled** (`SeekPreview.kt`): snímek ze storyboardu, který server
+  vyrábí k delším videím (`MessageVideo.storyboards`), a pod ním čas, kam se skočí. Video bez
+  storyboardu (krátké) má jen čas. Parser mapy (`parseStoryboardMap`, `frameAt`, testy
+  `StoryboardTest`) se kvůli tomu přesunul ze `shared` do `core`, balíček zůstal.
+- **Obrázek s dlaždicemi se dekóduje v původní velikosti** (`rememberImage(…, Int.MAX_VALUE)`):
+  zmenšený by posunul souřadnice z mapy. Kreslí se výřez (`drawImage` se `srcOffset`
+  a `srcSize`), obrázek je jeden pro celé video. **`rememberImage` s cílem 0 by se zacyklil**
+  (`min / (sample · 2) >= 0` platí vždycky) — „bez zmenšení" je proto nekonečný cíl, ne nula.
+- **Náhled místo v řádku nebere** (`seekPreviewAbove`: měří se bez omezení a klade nad pruh,
+  sevřený do jeho šířky). Jinak by řádek s časy při přetáčení poskočil.
+- **Podržená šipka po osmi opakováních přetáčí po 30 s** (`FAST_SCRUB_AFTER`), hodinové video
+  by jinak šlo přetáčet minuty. **Neověřené** — `adb shell input` opakování klávesy neumí.
+- **`MediaSession` přetáčí dál po 10 s okamžitě** (`setSeekBack/ForwardIncrementMs`): tlačítka
+  z karty „Právě hraje" na Google TV jdou mimo klávesy aplikace.
+- **Ověřeno 28. 11. 2026** na emulátoru v kanálu Pavla Durova: video 1:15 se storyboardem —
+  tři stisky vpravo, náhled snímku z 0:30 nad průběhem s časem „0:30", po chvíli skok a video
+  hraje od 0:30; šipka vlevo z 1:01 na 0:51 s náhledem. Video 0:21 bez storyboardu: jen čas
+  „0:10" nad průběhem.
 
 ## Kvalita videa
 
