@@ -193,7 +193,8 @@ private fun ArticleText(text: String, entities: List<MessageEntity>, start: Int,
         val to = minOf(entity.offset + entity.length, shift + piece.length)
         if (to > from) entity.copy(offset = from - shift, length = to - from) else null
     }
-    Text(rememberRichText(piece, sliced, content, accent, spoilersRevealed = true), style = MaterialTheme.typography.bodyLarge)
+    val rich = rememberRichText(piece, sliced, content, accent, spoilersRevealed = true)
+    Text(rich, style = MaterialTheme.typography.bodyLarge, inlineContent = rememberCustomEmojiContent(rich))
     Spacer(Modifier.height(16.dp))
 }
 

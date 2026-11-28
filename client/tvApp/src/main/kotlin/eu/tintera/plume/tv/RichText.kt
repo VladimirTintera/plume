@@ -23,8 +23,8 @@ import eu.tintera.plume.core.telegram.MessageEntityType
  *   `primary` na `primaryContainer` nemá kontrast), odliší je podtržení.
  * - **Spoiler je opravdu nečitelný**, dokud ho uživatel neodkryje ([spoilersRevealed]): průhledné
  *   písmo na tónovaném podkladu, ne jiná barva — ta by obsah vyzradila.
- * - Vlastní emoji zůstávají náhradním emoji (televize je kreslit neumí), datum a čas textem
- *   od pisatele.
+ * - Vlastní emoji jsou značka vloženého obsahu nad náhradním emoji; obrázek dosadí `Text`
+ *   s [rememberCustomEmojiContent] (bez něj zůstane náhrada). Datum a čas textem od pisatele.
  *
  * Rozsahy se smí vnořovat; každý jen přidá svůj styl, vnoření vznikne samo. Offsety jsou
  * v UTF-16 jako indexy `String`, mimo text se ořežou.
@@ -44,6 +44,12 @@ fun rememberRichText(
             val start = entity.offset.coerceIn(0, text.length)
             val end = (entity.offset + entity.length).coerceIn(start, text.length)
             if (start == end) continue
+            // Vlastní emoji: značka vloženého obsahu nad náhradním znakem (CustomEmoji.kt);
+            // obrázek dosadí `Text` s `rememberCustomEmojiContent`. Ve spoileru ne — prozradil by ho.
+            val type = entity.type
+            if (type is MessageEntityType.CustomEmoji && (spoilersRevealed || !inSpoiler(entities, start, end))) {
+                addStringAnnotation(INLINE_CONTENT_TAG, customEmojiKey(type.id), start, end)
+            }
             val style = entity.type.spanStyle(content, accent, spoilersRevealed) ?: continue
             addStyle(style, start, end)
         }
@@ -67,6 +73,10 @@ private fun MessageEntityType.spanStyle(content: Color, accent: Color, spoilersR
         is MessageEntityType.CustomEmoji, is MessageEntityType.DateTime -> null
     }
 }
+
+/** Leží úsek [start]–[end] uvnitř spoileru? */
+private fun inSpoiler(entities: List<MessageEntity>, start: Int, end: Int): Boolean =
+    entities.any { it.type == MessageEntityType.Spoiler && it.offset <= start && it.offset + it.length >= end }
 
 /** Je v textu spoiler, který by se musel odkrýt. */
 fun List<MessageEntity>.hasSpoiler(): Boolean = any { it.type == MessageEntityType.Spoiler }

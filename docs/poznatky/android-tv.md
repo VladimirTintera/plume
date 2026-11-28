@@ -176,7 +176,7 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
 - **Kde se text kreslí holý, spoiler se zamaskuje znaky „▒"** (`maskSpoilers`): řádek seznamu
   chatů, náhled zaostřeného chatu, výsledky hledání a karta příspěvku ve feedu. Bez toho by
   tam spoiler byl čitelný, přestože ho bublina skrývá.
-- Vlastní emoji zůstávají náhradním emoji, datum a čas textem od pisatele.
+- Vlastní emoji se kreslí jako obrázek (viz „Vlastní emoji"), datum a čas textem od pisatele.
 - Ověřeno na emulátoru se zprávou od testovacího bota (`parse_mode=HTML`, všechny styly,
   `tg-spoiler`, `blockquote`): bublina, maska v náhledu chatu, odkrytí OK. Detail příspěvku
   kanálu se spoilerem ověřený není.
@@ -631,11 +631,34 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   tvaru snímku; video a album s popiskem jako karta, popisek na šířku snímku. Citace nad snímkem
   a jméno odesílatele ve skupině na zařízení ověřené nejsou.
 
+## Vlastní emoji
+
+- **Kreslí se statický obrázek** (`CustomEmoji.stillFileId` z `CustomEmojiRepository` v `core`:
+  `.webp`, u animovaných náhled), ne animace: `.tgs` a `.webm` by na televizi chtěly přehrávač
+  na každé emoji a kanál plný emoji by na slabém procesoru trhal rolování. Jednobarevné emoji
+  (`tinted`) má barvu textu. Dokud se obrázek nestáhne, nebo když ho server nedá, zůstane
+  náhradní emoji.
+- **V textu je to vložený obsah nad PŮVODNÍM úsekem** (`rememberRichText` přidá značku
+  `INLINE_CONTENT_TAG` — tutéž, jakou píše `appendInlineContent` — nad náhradní znak), obrázek
+  dosadí `Text(inlineContent = rememberCustomEmojiContent(…))`. Text se nemění, takže offsety
+  ostatních entit (tučné, odkazy) sedí; bez `inlineContent` zůstane náhrada. Ve skrytém spoileru
+  se značka nepřidá — obrázek by ho prozradil. Platí pro bublinu, detail příspěvku a článek
+  Instant View; karta ve feedu, náhledy a citace jsou holý text s náhradou.
+- **Čipy reakcí a „Kdo reagoval" kreslí vlastní emoji taky** (`ReactionText`, `ReactionEmoji`),
+  dřív se vynechávaly. Reakce nese jen id, ne emoji, za které stojí — náhrada je hvězdička.
+- **Patička detailu příspěvku se zalomí** (`FlowRow`): s reakcemi z vlastních emoji přetekla
+  řada (sloupec kolem 470 dp) a třetí reakce přišla o počet (ověřeno na emulátoru).
+- **Ověřeno 28. 11. 2026** na emulátoru v kanálu Pavla Durova: reakce z vlastních emoji
+  (postavička, kočka, srdce) v patičce detailu s počty, po opravě zalomené na dva řádky.
+  **Vlastní emoji v textu zprávy na zařízení ověřené NENÍ** — na účtu se zpráva s nimi
+  nenašla; čip reakce jde přes tentýž `rememberCustomEmojiContent` se značkou v textu.
+
 ## Reakce a odpovědi
 
 - **Reakce jsou pod zprávou jako čipy** (emoji a počet, moje zvýrazněná). Citovaná zpráva se
   bere z načtené historie a co v ní není, dočte se jednou z TDLib (`ConversationState.quote`,
-  jako na hodinkách). Vlastní emoji se v čipech i v nabídce vynechávají, televize je kreslit neumí.
+  jako na hodinkách). Vlastní emoji jsou v čipech obrázkem (viz „Vlastní emoji"); rychlé reakce
+  v nabídce je dál vynechávají (dát je chce Premium a výběr na televizi neřešíme).
 - **Odpověď je karta ze dvou částí, jako na telefonu**: nahoře citace v tónované ploše
   (`tertiaryContainer`; ikona uvozovek, jméno, první řádek), pod ní odpověď v barvě bubliny.
   První verze měla svislý proužek v barvě motivu — jazyk M2, který telefon dávno nahradil
@@ -650,7 +673,7 @@ Podle [TV components](https://developer.android.com/design/ui/tv/guides/componen
   nejvýš 7 — víc se do řady nevejde) a „Odpovědět", jen když se smí psát (`writeAccess`).
 - **Kdo reagoval: tlačítko „Reakce" v nabídce u zprávy s reakcemi** otevře `ReactorsDialog`
   (`reactionDetails` z `core`, jedna stránka od nejnovější): avatar, jméno („Vy" u vlastní)
-  a emoji, vlastní emoji bez obrázku jako v čipech. Řádky jsou zaostřitelné jen kvůli rolování.
+  a emoji, vlastní emoji obrázkem jako v čipech. Řádky jsou zaostřitelné jen kvůli rolování.
   V kanálu server seznam nedá (reakce jsou anonymní) — dialog to řekne větou; tlačítko se
   neschovává, zpráva sama neví, v jakém chatu leží.
 - **Citace zprávy bez textu říká, co to je** („Fotka", „Video zpráva", „Hlasová zpráva"…,
