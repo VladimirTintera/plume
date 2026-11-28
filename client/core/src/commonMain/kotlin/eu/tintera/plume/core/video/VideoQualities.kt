@@ -2,6 +2,18 @@ package eu.tintera.plume.core.video
 
 import eu.tintera.plume.core.telegram.VideoQuality
 
+/*
+ * Výběr kvality videa je v `core`, ne ve `shared`, aby ho měla i televize (`:client:tvApp` vidí
+ * jen `core`). Balíček zůstal, telefon importy neměnil. Zjistit dekodér je věc platformy:
+ * telefon `videoDecoder` ve `shared`, Android (telefon i televize) nad `mediaCodecVideoDecoder`.
+ */
+
+/**
+ * Čím zařízení video v dané kvalitě dekóduje (`videoDecoder` ve `shared`,
+ * `mediaCodecVideoDecoder` na Androidu); pořadí je pořadí přednosti.
+ */
+enum class VideoDecoder { None, Software, Hardware }
+
 /**
  * Co si uživatel v přehrávači vybral. Volba platí pro všechna videa v otevřeném prohlížeči
  * (drží ji prohlížeč, jako ztlumení), proto je to POPIS kvality, ne konkrétní soubor: jiné video

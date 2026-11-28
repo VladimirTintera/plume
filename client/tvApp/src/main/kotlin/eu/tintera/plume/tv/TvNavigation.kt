@@ -5,6 +5,7 @@ import org.jetbrains.compose.resources.getString
 import kotlinx.coroutines.launch
 import eu.tintera.plume.resources.tv_link_unsupported
 import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.video.VideoQualityChoice
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateListOf
@@ -66,6 +67,10 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     var lastStories by remember { mutableStateOf<Long?>(null) }
     val listStates = remember { mutableMapOf<ChatFolder, LazyListState>() }
     var playing by remember { mutableStateOf<VideoRequest?>(null) }
+    // Ruční volba kvality videa platí, dokud je přehrávač otevřený (i pro další videa z fronty),
+    // jako na telefonu, kde ji drží prohlížeč. Po zavření zase automatika.
+    var videoQuality by remember { mutableStateOf<VideoQualityChoice>(VideoQualityChoice.Auto) }
+    LaunchedEffect(playing == null) { if (playing == null) videoQuality = VideoQualityChoice.Auto }
     var viewer by remember { mutableStateOf<Pair<List<ViewerItem>, Int>?>(null) }
     // Otevřený článek (Instant View): adresa stránky.
     var article by remember { mutableStateOf<String?>(null) }
@@ -218,7 +223,15 @@ fun TvNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             }
             if (playing == null && storiesOf == null) AudioDock(audio, Modifier.align(Alignment.BottomCenter))
             playing?.let { request ->
-                key(request.video.fileId) { VideoPlayerScreen(request = request, onNext = { playing = it }, onClose = { playing = null }) }
+                key(request.video.fileId) {
+                    VideoPlayerScreen(
+                        request = request,
+                        qualityChoice = videoQuality,
+                        onQualityChoice = { videoQuality = it },
+                        onNext = { playing = it },
+                        onClose = { playing = null },
+                    )
+                }
             }
         }
     }

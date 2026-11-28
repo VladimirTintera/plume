@@ -578,7 +578,8 @@ Skladba obrazovky je podle návodů Google pro TV. Jak je to poskládané a co s
 
 1. ~~**Video a přehrávání médií**~~ — hotovo (zdroj nad souborem TDLib přesunutý do `core`,
    přehrávač, `MediaSession`). Rozkoukaná videa hotová (pokračování od pozice, záložka,
-   synchronizace s telefonem). Zbývá: výběr kvality (`alternatives`), titulky/storyboard při skoku,
+   synchronizace s telefonem). Kvalita videa hotová (automatika podle sítě, výběr šipkou nahoru,
+   pravidla sdílená s telefonem v `core`). Zbývá: titulky/storyboard při skoku,
    video bez příznaku streamování, které se nerozběhne (telefon pak čeká na celý soubor).
 2. ~~**Kanály jako feed a komentáře**~~ — hotovo (mřížka karet 16 : 9 podle návodu Google,
    detail s rolovaným textem a vláknem komentářů). Formátovaný text, spoilery, odkazy na Telegram, náhled odkazu

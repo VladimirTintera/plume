@@ -73,11 +73,13 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.video.PartialFileDataSource
 import eu.tintera.plume.core.video.StreamingSource
+import eu.tintera.plume.core.video.VideoQualityChoice
 import eu.tintera.plume.core.video.VideoSource
 import eu.tintera.plume.core.video.streamOriginalVideo
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.media_video_from_start
@@ -130,7 +132,14 @@ private const val SAVE_EVERY_TICKS = 40
  * „Právě hraje" na Google TV fungují i bez fokusu v aplikaci.
  */
 @Composable
-fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onClose: () -> Unit) {
+fun VideoPlayerScreen(
+    request: VideoRequest,
+    /** Ruční volba kvality; drží ji navigace, ať platí i pro další videa z fronty. */
+    qualityChoice: VideoQualityChoice,
+    onQualityChoice: (VideoQualityChoice) -> Unit,
+    onNext: (VideoRequest) -> Unit,
+    onClose: () -> Unit,
+) {
     val video = request.video
     val caption = request.caption
     val context = LocalContext.current
@@ -144,13 +153,19 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
     val scope = rememberCoroutineScope()
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     BackHandler(onBack = onClose)
-    // Zavřené video se přestane stahovat: odběr `files.file` stahování spustil a sám ho nezruší.
-    // Televize mívají kolem 8 GB, a náhled pár vteřin dlouhého videa z kanálu by jinak stáhl celé.
-    // V aplikačním scope: scope kompozice je při zavření už zrušený.
-    DisposableEffect(video.fileId) {
+    // Kterou kvalitu hrát (automatika podle sítě, nebo ruční volba); `null`, dokud se neví.
+    val quality = rememberPlayedQuality(video, qualityChoice)
+    val chosen = quality?.playing
+    val chosenId = chosen?.fileId
+    var choosingQuality by remember { mutableStateOf(false) }
+    // Zavřené video (i opuštěná kvalita) se přestane stahovat: odběr `files.file` stahování
+    // spustil a sám ho nezruší. Televize mívají kolem 8 GB, a náhled pár vteřin dlouhého videa
+    // z kanálu by jinak stáhl celé. V aplikačním scope: scope kompozice je při zavření už zrušený.
+    DisposableEffect(chosenId) {
         onDispose {
+            val id = chosenId ?: return@onDispose
             appScope.launch {
-                if (files.observe(video.fileId).first() is FileState.Downloading) files.cancelDownload(video.fileId)
+                if (files.observe(id).first() is FileState.Downloading) files.cancelDownload(id)
             }
         }
     }
@@ -177,13 +192,31 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
         }
     }
 
-    // Stav souboru čte vlákno přehrávače, proto `MutableStateFlow`, ne Compose stav.
-    val fileState = remember { MutableStateFlow<FileState>(FileState.Pending) }
-    LaunchedEffect(video.fileId) { files.file(video.fileId).collect { fileState.value = it } }
+    // Stav souboru čte vlákno přehrávače, proto `MutableStateFlow`, ne Compose stav. Pro každou
+    // kvalitu nový: se sdíleným by zdroj nové kvality na okamžik viděl stav STARÉHO souboru
+    // (jeho cestu a velikost) — past, na kterou narazil telefon (`produceState` bez klíče).
+    val fileState = remember(chosenId) { MutableStateFlow<FileState>(FileState.Pending) }
+    LaunchedEffect(chosenId) {
+        val id = chosenId ?: return@LaunchedEffect
+        files.file(id).collect { fileState.value = it }
+    }
     var failed by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
-    LaunchedEffect(video.fileId) {
-        val canStream = streamOriginalVideo(video.supportsStreaming, video.mimeType)
+    // Výměna kvality za běhu: od přepnutí do rozběhnutí nové se točí čekání.
+    var switching by remember { mutableStateOf(false) }
+    LaunchedEffect(chosenId) {
+        val playedQuality = chosen ?: return@LaunchedEffect
+        val fileId = playedQuality.fileId
+        logger.i {
+            "Video ${video.fileId}: hraje ${playedQuality.lines}p ${playedQuality.codec ?: "původní"} (soubor $fileId, " +
+                "kvalit ${quality?.options?.size}, volba ${quality?.choice})"
+        }
+        // První kvalita začíná od pamatované pozice, další (ruční volba, změna sítě) tam, kde
+        // předchozí zrovna byla; hrálo-li video, hraje dál (`playWhenReady` se nemění).
+        val resumeAt = if (loaded) player.currentPosition else startMs
+        if (loaded) switching = true
+        // Přepočítaná kvalita je fragmentované MP4, to ExoPlayer streamuje vždycky.
+        val canStream = !playedQuality.isOriginal || streamOriginalVideo(video.supportsStreaming, video.mimeType)
         val first = fileState.first { state ->
             state is FileState.Ready || state is FileState.Failed ||
                 (canStream && state is FileState.Downloading && state.path != null && state.totalSize > 0)
@@ -202,7 +235,7 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
                             else -> LongRange.EMPTY
                         }
                     },
-                    requestFrom = { offset -> scope.launch { files.downloadFrom(video.fileId, offset) } },
+                    requestFrom = { offset -> scope.launch { files.downloadFrom(fileId, offset) } },
                 )
                 val factory = DataSource.Factory { PartialFileDataSource(source) }
                 player.setMediaSource(
@@ -214,7 +247,7 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
                 return@LaunchedEffect
             }
         }
-        if (startMs > 0) player.seekTo(startMs)
+        if (resumeAt > 0) player.seekTo(resumeAt)
         player.prepare()
         loaded = true
     }
@@ -252,6 +285,7 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
 
             override fun onPlaybackStateChanged(state: Int) {
                 buffering = state == Player.STATE_BUFFERING || state == Player.STATE_IDLE
+                if (state == Player.STATE_READY) switching = false
                 player.duration.takeIf { it != C.TIME_UNSET && it > 0 }?.let { durationMs = it }
                 // Dohrané se zapomene (příště od začátku), jako na telefonu.
                 if (state == Player.STATE_ENDED) {
@@ -262,7 +296,7 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                logger.w(error) { "Video ${video.fileId} na televizi nejde přehrát." }
+                logger.w(error) { "Video ${video.fileId} (soubor $chosenId) na televizi nejde přehrát." }
                 failed = true
             }
         }
@@ -371,8 +405,13 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
                         player.seekForward()
                         true
                     }
-                    // Šipky nahoru a dolů jen ukážou ovládání; jinam fokus nemá kam jít.
-                    AndroidKeyEvent.KEYCODE_DPAD_UP, AndroidKeyEvent.KEYCODE_DPAD_DOWN -> true
+                    // Šipka nahoru při vidět ovládání otevře výběr kvality (nápověda je v liště),
+                    // jinak šipky nahoru a dolů jen ukážou ovládání; jinam fokus nemá kam jít.
+                    AndroidKeyEvent.KEYCODE_DPAD_UP -> {
+                        if (controlsVisible && (quality?.options?.size ?: 0) > 1) choosingQuality = true
+                        true
+                    }
+                    AndroidKeyEvent.KEYCODE_DPAD_DOWN -> true
                     else -> false
                 }
             },
@@ -395,17 +434,23 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
                 Res.drawable.error_24dp,
                 error = true,
             )
-            !loaded || (buffering && !playing && !hasPlayed) ->
+            !loaded || switching || (buffering && !playing && !hasPlayed) ->
                 LoadingScreen(stringResource(Res.string.connection_connecting))
         }
         AnimatedVisibility(
             // Během odpočtu do dalšího videa ovládání ustoupí kartě (jinak by ji překrývalo).
-            visible = controlsVisible && !failed && upNext == null,
+            visible = (controlsVisible || choosingQuality) && !failed && upNext == null,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(300)),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            PlayerControls(caption, playing, positionMs, durationMs)
+            PlayerControls(
+                caption = caption,
+                playing = playing,
+                positionMs = positionMs,
+                durationMs = durationMs,
+                quality = chosen?.takeIf { (quality?.options?.size ?: 0) > 1 }?.let { qualityLabel(it) },
+            )
         }
         AnimatedVisibility(
             visible = resumeHint && hasPlayed && !failed,
@@ -418,6 +463,22 @@ fun VideoPlayerScreen(request: VideoRequest, onNext: (VideoRequest) -> Unit, onC
         upNext?.let { next ->
             UpNextCard(next, Modifier.align(Alignment.BottomEnd).padding(end = SAFE_HORIZONTAL, bottom = SAFE_VERTICAL))
         }
+    }
+    if (choosingQuality && quality != null) {
+        val close = {
+            choosingQuality = false
+            lastInteraction = System.nanoTime()
+            runCatching { focus.requestFocus() }
+            Unit
+        }
+        VideoQualityDialog(
+            quality = quality,
+            onChoose = { choice ->
+                onQualityChoice(choice)
+                close()
+            },
+            onDismiss = close,
+        )
     }
 }
 
@@ -515,9 +576,12 @@ private fun ResumeHint(fromMs: Long) {
     }
 }
 
-/** Spodní pruh: popisek, tlačítko stavu, průběh a časy. Přes video tmavý přechod kvůli čitelnosti. */
+/**
+ * Spodní pruh: popisek, tlačítko stavu, průběh a časy, vpravo hrající kvalita s šipkou nahoru
+ * ([quality], `null` = video jinou kvalitu nemá). Přes video tmavý přechod kvůli čitelnosti.
+ */
 @Composable
-private fun PlayerControls(caption: String, playing: Boolean, positionMs: Long, durationMs: Long) {
+private fun PlayerControls(caption: String, playing: Boolean, positionMs: Long, durationMs: Long, quality: String?) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -553,6 +617,17 @@ private fun PlayerControls(caption: String, playing: Boolean, positionMs: Long, 
                 modifier = Modifier.weight(1f),
             )
             Text(durationMs.asClock(), style = MaterialTheme.typography.labelLarge.tabularNums(), color = Color.White)
+            if (quality != null) {
+                // Výběr kvality je šipkou nahoru; pilulka to říká ikonou, text je hrající kvalita.
+                Row(
+                    Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.15f)).padding(start = 8.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(painterResource(Res.drawable.keyboard_arrow_up_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Text(quality, style = MaterialTheme.typography.labelLarge.tabularNums(), color = Color.White)
+                }
+            }
         }
     }
 }

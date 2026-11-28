@@ -1606,7 +1606,9 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 Server k delším videím sám vyrábí menší kvality (`MessageVideo.alternativeVideos`, TDLib
 `alternativeVideo`: rozměry, kodek, soubor s videem a HLS seznam). Doména je nese jako
 `MessageMedia.Video.alternatives` (`VideoQuality`), výběr je čistá funkce `pickVideoQuality`
-v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`.
+v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`. Výběr i dekodér
+pro Android (`mediaCodecVideoDecoder`) leží v modulu `:client:core`, protože je sdílí televize
+(`docs/poznatky/android-tv.md`, „Kvalita videa").
 
 - **Každá kvalita je samostatný soubor s vlastním `fileId`** a hraje se stejnou cestou jako
   původní: stahování + streamování z rozestavěného souboru. **HLS seznam se na Androidu nečte**
