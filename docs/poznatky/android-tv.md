@@ -1017,6 +1017,24 @@ hodnotu vynulovat sám (`rememberImage` v `ChatAvatar.kt`). **Hodinky to mají t
 (`ChatAvatar.kt` ve `wearApp`: při změně na `null` zůstane stará fotka) — v seznamu bez klíčů
 položek se to může projevit cizím avatarem u recyklované karty; neověřené.
 
+## Lint
+
+`./gradlew :client:tvApp:lintDebug` prochází bez chyb (od 28. 11. 2026; předtím 29 chyb, které
+nikdo neviděl — lint televize CI na PR nespouští).
+
+- **Media3 „UnstableApi“ chce `@OptIn(UnstableApi::class)`** (`androidx.annotation.OptIn`, jako
+  telefon): `ForwardingPlayer`, `PlayerView` s `resizeMode` / barvou závěrky, vlastní
+  `DataSource` a `ProgressiveMediaSource`. Bez anotace hlásí lint `UnsafeOptInUsageError` jako
+  chybu. Při bumpu media3 se tahle API můžou změnit — to je smysl té značky.
+- **`@OptIn` u vlastnosti nepokryje tělo anonymního objektu.** `private val x = object :
+  ForwardingPlayer(...) { override … }` hlásil chybu u každého `override` dál; pomohla pojmenovaná
+  `inner class` s anotací (`QueueSessionPlayer` v `AudioPlayer.kt`).
+- **Konfigurace z `LocalConfiguration`, ne z `LocalContext.current.resources`** (jazyk hlasového
+  zadání): čtení přes kontext se po změně konfigurace nesloží znovu.
+- **`StateFlow.value` v kompozici je chyba** (`PrimaryAccountScope`): výchozí účet se čte
+  `collectAsState()` a obsah má `key(account.slot)` jako `DefaultAccountScope` na telefonu.
+  **Hodinky mají v `WearApp.kt` totéž `.value`**; lint hodinek se nespouštěl.
+
 ## Vydání
 
 Do Play z téhož tagu jako telefon a hodinky, track `tv:internal`, za repo proměnnou

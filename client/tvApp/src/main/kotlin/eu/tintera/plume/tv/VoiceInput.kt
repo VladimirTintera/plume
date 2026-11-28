@@ -1,5 +1,6 @@
 package eu.tintera.plume.tv
 
+import androidx.compose.ui.platform.LocalConfiguration
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
@@ -39,12 +40,14 @@ fun interface VoiceInput {
 @Composable
 fun rememberVoiceInput(prompt: String, onResult: (String) -> Unit): VoiceInput? {
     val context = LocalContext.current
-    val intent = remember(prompt, context) {
+    // Jazyk z `LocalConfiguration`, ne z `context.resources`: po změně jazyka se záměr složí znovu.
+    val locale = LocalConfiguration.current.locales[0]
+    val intent = remember(prompt, locale) {
         Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, context.resources.configuration.locales[0].toLanguageTag())
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag())
     }
     val available = remember(intent) { intent.resolveActivity(context.packageManager) != null }
     val result by rememberUpdatedState(onResult)
