@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -48,6 +50,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.tv.material3.Button
+import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -58,16 +62,23 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.forward_empty
 import eu.tintera.plume.resources.forward_failed
 import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.forward_title
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.tv_forward_done
+import eu.tintera.plume.resources.tv_forward_done_many
+import eu.tintera.plume.resources.tv_forward_hint_many
+import eu.tintera.plume.resources.tv_forward_send_many
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
@@ -77,9 +88,13 @@ import org.koin.compose.koinInject
  * přepošle a dialog zavře; potvrzení je systémový toast, protože konverzace pod dialogem
  * žádnou změnu neukáže (zpráva odešla jinam).
  *
- * Bez hledání a voleb (skrýt odesílatele, komentář): s ovladačem se vybírá z prvních obrazovek
- * seznamu a víc cílů najednou by chtělo zaškrtávání, které televize nepotřebuje. Kam psát
- * nejde (cizí kanál), se nefiltruje — telefon to dělá stejně a chyba řekne proč.
+ * **Víc cílů: podržení OK** řádek označí a dialog přejde do výběru — OK pak řádky označuje
+ * a odznačuje a nad seznamem se objeví „Přeposlat do N chatů". Rychlá cesta do jednoho chatu
+ * (nejčastější) tak zůstala na jedno OK; výběr se zapíná až gestem, které jinak nic nedělá,
+ * a věta pod nadpisem o něm říká.
+ *
+ * Bez voleb (skrýt odesílatele, komentář). Kam psát nejde (cizí kanál), se nefiltruje — telefon
+ * to dělá stejně a chyba řekne proč.
  */
 @Composable
 internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatTitle: String, scope: CoroutineScope, onDismiss: () -> Unit) {
@@ -90,16 +105,21 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
     var sending by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val savedTitle = stringResource(Res.string.saved_messages)
+    // Vybrané cíle (klíč chatu → název, v pořadí výběru); prázdné = dialog není ve výběru.
+    // Uložené zprávy mají klíč [SAVED_KEY]: jejich id TDLib nemusí znát.
+    val selected = remember { mutableStateMapOf<Long, String>() }
+    // Uložené zprávy TDLib nemusí znát, dokud se neotevřou — `null` je založí.
+    suspend fun sendTo(targetId: Long?): Result<Unit> {
+        val target = targetId ?: chats.openSavedMessages().getOrNull()
+        return if (target == null) Result.failure(IllegalStateException("Uložené zprávy nejsou")) else state.forward(message, target)
+    }
     val forward = { targetId: Long?, title: String ->
         if (!sending) {
             sending = true
             failed = false
             // Scope obrazovky: dialog se po úspěchu zavře a s ním by se zrušil i toast.
             scope.launch {
-                // Uložené zprávy TDLib nemusí znát, dokud se neotevřou — `null` je založí.
-                val target = targetId ?: chats.openSavedMessages().getOrNull()
-                val result = if (target == null) Result.failure(IllegalStateException("Uložené zprávy nejsou")) else state.forward(message, target)
-                result
+                sendTo(targetId)
                     .onSuccess {
                         Toast.makeText(context, getString(Res.string.tv_forward_done, title), Toast.LENGTH_SHORT).show()
                         onDismiss()
@@ -109,9 +129,37 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
             }
         }
     }
+    // Do všech vybraných po jednom. Co se povedlo, z výběru zmizí: po chybě zůstanou označené
+    // jen chaty, kam zpráva neodešla, a další OK na tlačítku zkusí jen je.
+    val forwardSelected = {
+        if (!sending && selected.isNotEmpty()) {
+            sending = true
+            failed = false
+            scope.launch {
+                var done = 0
+                for ((key, _) in selected.toList()) {
+                    if (sendTo(key.takeIf { it != SAVED_KEY }).isSuccess) {
+                        selected.remove(key)
+                        done++
+                    }
+                }
+                if (selected.isEmpty()) {
+                    Toast.makeText(context, getPluralString(Res.plurals.tv_forward_done_many, done, done), Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                } else {
+                    failed = true
+                }
+                sending = false
+            }
+        }
+    }
+    val toggle = { key: Long, title: String ->
+        if (selected.remove(key) == null) selected[key] = title
+    }
     Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
         DialogPanel {
             Text(stringResource(Res.string.forward_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(Res.string.tv_forward_hint_many), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
             QuoteCard(message, chatTitle)
             if (failed) {
@@ -124,6 +172,12 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
             var query by remember { mutableStateOf("") }
             ForwardSearchField(query, onQuery = { query = it })
             Spacer(Modifier.height(12.dp))
+            if (selected.isNotEmpty()) {
+                Button(onClick = forwardSelected, modifier = Modifier.fillMaxWidth()) {
+                    Text(pluralStringResource(Res.plurals.tv_forward_send_many, selected.size, selected.size))
+                }
+                Spacer(Modifier.height(12.dp))
+            }
             val found by produceState<List<ChatSummary>?>(null, query) {
                 value = null
                 val text = query.trim()
@@ -161,15 +215,31 @@ internal fun ForwardDialog(state: ConversationState, message: ChatMessage, chatT
                 // co zbude pod nadpisem, citací a polem hledání, a zkrátí se i při větším písmu.
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
             ) {
+                val selecting = selected.isNotEmpty()
                 if (showSaved) {
                     item(key = "saved") {
-                        ForwardTarget(savedTitle, avatarFileId = null, savedMessages = true, kind = ChatKind.Private, Modifier.focusRequester(first)) {
-                            forward(savedMessagesId, savedTitle)
-                        }
+                        ForwardTarget(
+                            title = savedTitle,
+                            avatarFileId = null,
+                            savedMessages = true,
+                            kind = ChatKind.Private,
+                            checked = SAVED_KEY in selected,
+                            modifier = Modifier.focusRequester(first),
+                            onClick = { if (selecting) toggle(SAVED_KEY, savedTitle) else forward(savedMessagesId, savedTitle) },
+                            onLongClick = { toggle(SAVED_KEY, savedTitle) },
+                        )
                     }
                 }
                 items(targets, key = { it.id }) { chat ->
-                    ForwardTarget(chat.title, chat.avatarFileId, savedMessages = false, kind = chat.kind) { forward(chat.id, chat.title) }
+                    ForwardTarget(
+                        title = chat.title,
+                        avatarFileId = chat.avatarFileId,
+                        savedMessages = false,
+                        kind = chat.kind,
+                        checked = chat.id in selected,
+                        onClick = { if (selecting) toggle(chat.id, chat.title) else forward(chat.id, chat.title) },
+                        onLongClick = { toggle(chat.id, chat.title) },
+                    )
                 }
             }
         }
@@ -240,19 +310,30 @@ private fun ForwardTarget(
     avatarFileId: Int?,
     savedMessages: Boolean,
     kind: ChatKind,
+    checked: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     ListItem(
-        selected = false,
+        selected = checked,
         // Bez `enabled = false` během odesílání: zakázaný řádek přestane být zaostřitelný
         // a fokus by z dialogu utekl. Druhé OK hlídá `sending`.
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier,
         leadingContent = { ChatAvatar(fileId = avatarFileId, title = title, size = 40.dp, savedMessages = savedMessages, shape = kind.avatarShape()) },
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        trailingContent = if (checked) {
+            { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null, modifier = Modifier.size(24.dp)) }
+        } else {
+            null
+        },
     )
 }
+
+/** Klíč Uložených zpráv ve výběru cílů: jejich id TDLib nemusí znát, dokud se neotevřou. */
+private const val SAVED_KEY = Long.MIN_VALUE
 
 /** Jak dlouho se po posledním písmenu čeká, než se hledá (psaní ovladačem je pomalé). */
 private const val SEARCH_DEBOUNCE_MS = 300L
